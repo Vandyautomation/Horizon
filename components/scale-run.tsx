@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { PlayCircle, PauseCircle, ArrowLeftCircle, CheckCircle2, ListVideoIcon, Circle, CircleIcon } from "lucide-react";
+import { PlayCircle, PauseCircle, ArrowLeftCircle, CheckCircle2, CircleIcon } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { Card, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Label } from "./ui/label";
@@ -38,7 +38,7 @@ export function ScaleRun({ taskId, scaleAsset, onBack }: ScaleRunProps) {
     { refreshInterval: refreshIntervalms });
   const [isPlaying, setIsPlaying] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [mqttClient, setMqttClient] = useState<ReturnType<typeof mqtt.connect> | null>(null);
+  const [, setMqttClient] = useState<ReturnType<typeof mqtt.connect> | null>(null);
   const [currentMeasurement, setCurrentMeasurement] = useState(new Decimal(0));
 
   // Initialize MQTT client on mount
@@ -92,9 +92,9 @@ export function ScaleRun({ taskId, scaleAsset, onBack }: ScaleRunProps) {
         setIsPlaying(status === "RUN");
         setIsComplete(status === "COMPLETE");
         toast.success(`${status} task successfully!`);
-      } catch (error: any) {
+      } catch (error) {
         // toast.error(`Failed to ${status.toLowerCase()} task.`);
-        toast.error(error.message);
+        toast.error((error as Error).message);
 
         console.error(`Failed to ${status.toLowerCase()} task:`, error);
       }

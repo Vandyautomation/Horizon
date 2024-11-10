@@ -1,5 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
+import albeaLogo from "@/public/albea-white.png"
 import {
   Card,
   CardContent,
@@ -20,7 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { CalendarIcon, Paperclip, RefreshCw } from "lucide-react"
+
+import Image from 'next/image'
+import {  Paperclip, RefreshCw } from "lucide-react"
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
@@ -28,38 +31,174 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { Label } from "./ui/label"
 import { Input } from "./ui/input"
 import { SearchablePOSelect } from "./searchable-select-po"
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
-import { DateRange } from "react-day-picker"
-import { addDays, format } from "date-fns"
-import { Calendar } from "@/components/ui/calendar"
+import useSWR, { mutate } from "swr"
+import ErrorState from "./ui/error-state"
 
+type MachineDetail = {
+  machineId: number;
+  machineName: string;
+  machineTonage: string;
+  machineDescription: string;
+  machineNumber: string;
+  locationId: number;
+  locationName: string;
+};
 
+type HourlyData = {
+  hourlyId: number;
+  time: string;
+  itemNo: string;
+  target: number;
+  target_tolerance: number;
+  actual: number;
+  delta: number;
+  scrap: number;
+  rework: number;
+  causes: string;
+  comments: string;
+};
+type OoeData = {
+  timea: number;
+  pmidle: number;
+  timeb: number;
+  breakdown: number;
+  timee: number;
+  ooe: number;
+  oee: number;
+  breakdownperc: number;
+  green: number;
+  red: number;
+  yellow: number;
+  white: number;
+  blue: number;
+  orange: number;
+  purple: number;
+  grey: number;
+}
+type TaskData = {
+  id: number;
+  po_name: string;
+  machine_name: string;
+  required_qty: number;
+  produced_qty: number;
+  cvt: number;
+  ct: number;
+  actual_cvt: number;
+  actual_ct: number;
+  target_cvt: number;
+  target_ct: number;
+  shift_target_qty: number;
+  created_at: string;
+  updated_at: string;
+}
 
-const THRESHOLD_1 = 100; // First threshold
-const THRESHOLD_2_PERCENTAGE = 0.98; // 98% of target
+type NooeData = {
+  NooeId: number;
+  hourlyId: number;
+  blue: boolean | null; 
+  orange: boolean | null; 
+  purple: boolean | null; 
+  grey: boolean | null; 
+  yellow: boolean | null; 
+  white: boolean | null; 
+  red: boolean | null;
+}
+const refreshIntervalms = 50000;
 
-const samplePONumbers = Array.from({ length: 20 }, (_, i) => `PO-${(1000 + i).toString().padStart(4, '0')}`)
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function CountboardDashboard() {
-  const hourlyData = [
-    { time: "14:00", itemNo: "1263810", target: 123, actual: 26, delta: -97, scrap: 0, rework: 0, causes: 'Machine startup delay', comments: 'Adjusted parameters' },
-    { time: "15:00", itemNo: "1263810", target: 148, actual: 82, delta: -66, scrap: 0, rework: 0, causes: 'Material shortage', comments: 'Restocked supplies' },
-    { time: "16:00", itemNo: "1263810", target: 148, actual: 46, delta: -102, scrap: 0, rework: 0, causes: 'Unexpected downtime', comments: 'Maintenance check scheduled' },
-    { time: "17:00", itemNo: "1263810", target: 148, actual: 101, delta: -47, scrap: 0, rework: 0, causes: '', comments: '' },
-    { time: "18:00", itemNo: "1263810", target: 148, actual: 145, delta: -3, scrap: 0, rework: 0, causes: '', comments: 'Production rate improved' },
-    { time: "19:00", itemNo: "1263810", target: 148, actual: 150, delta: 2, scrap: 0, rework: 0, causes: '', comments: 'Exceeded target' },
-    { time: "20:00", itemNo: "", target: 0, actual: 0, delta: 0, scrap: 0, rework: 0, causes: '', comments: '' },
-    { time: "21:00", itemNo: "", target: 0, actual: 0, delta: 0, scrap: 0, rework: 0, causes: '', comments: '' },
-  ]
 
+  const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedComment, setSelectedComment] = useState({ index: -1, type: '', content: '' })
-  const [currentMachine, setCurrentMachine] = useState("INJ BPR 04 JSW 220T")
   const [currentCVT, setCurrentCVT] = useState(1)
   const [isPODialogOpen, setIsPODialogOpen] = useState(false)
   const [isCVTDialogOpen, setIsCVTDialogOpen] = useState(false)
   const [selectedPO, setSelectedPO] = useState("")
   const [editedCVT, setEditedCVT] = useState(currentCVT)
+  
+  const { data: machines, error } = useSWR<MachineDetail[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  })
+
+  const refetchMachine = () => mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`);
+
+  const hourlyDataKey = selectedMachine?.machineName
+  ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}`
+  : null;
+
+  const { data: hourlyData } = useSWR<HourlyData[]>(hourlyDataKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: refreshIntervalms,
+  });
+
+  const refetchHourlyData = () => mutate(hourlyDataKey);
+
+  const oeeDataKey = selectedMachine?.machineName
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/oee/${selectedMachine.machineName}`
+    : null;
+
+  const { data: oeeData } = useSWR<OoeData[]>(oeeDataKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: refreshIntervalms,
+  });
+
+  const refetchOeeData = () => mutate(oeeDataKey);
+
+  const noeeDataKey = selectedMachine?.machineName
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${selectedMachine.machineName}`
+    : null;
+
+  const { data: noeeData } = useSWR<NooeData[]>(noeeDataKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: refreshIntervalms,
+  });
+
+  const refetchNoeeData = () => mutate(noeeDataKey);
+
+  const taskDataKey = selectedMachine?.machineDescription
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tasks/${selectedMachine.machineDescription}`
+    : null;
+
+  const { data: taskData } = useSWR<TaskData[]>(taskDataKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: refreshIntervalms,
+  });
+
+  const refetchTaskData = () => mutate(taskDataKey);
+
+
+  const uniqueLocations = Array.from(new Set(machines?.map(machine => machine.locationName)));
+  const filteredMachines = machines?.filter(machine => machine.locationName === selectedLocation);
+
+
+  const handleLocationChange = (value: string) => {
+    setSelectedLocation(value);
+    setSelectedMachineNumber('');
+    setSelectedMachine(null);
+  };
+
+  const handleMachineNumberChange = (value: string) => {
+    setSelectedMachineNumber(value);
+    const selected = filteredMachines?.find(machine => machine.machineNumber === value);
+    setSelectedMachine(selected || null);
+    refetchHourlyData();
+    refetchOeeData();
+    refetchTaskData();
+    refetchNoeeData();
+  };
 
 
   const handleCellClick = (index: number, type: 'causes' | 'comments', content: string) => {
@@ -68,19 +207,27 @@ export default function CountboardDashboard() {
   }
 
   const handleCommentSave = () => {
-    // Here you would typically update your data source
     console.log('Saving comment:', selectedComment)
     setIsDialogOpen(false)
   }
 
-  const getBarColor = (actual: number, target: number) => {
+  const getBarColor = (actual: number, target: number, target_tolerance:number) => {
     if (actual >= target) return 'bg-green-500';
-    if (actual >= target * THRESHOLD_2_PERCENTAGE) return 'bg-green-500';
+    if (actual >= target_tolerance) return 'bg-green-500';
     return 'bg-red-500';
   }
 
+  const getCvtColor = (actual_cvt: number | null , target_cvt: number | null) => {
+    if (actual_cvt === null || target_cvt === null || actual_cvt >= target_cvt) return 'text-green-500';
+    return 'text-red-500';
+  }
+
+  const getCtColor = (actual_ct: number | null, target_ct: number | null) => {
+    if (actual_ct === null || target_ct === null || actual_ct <= target_ct) return 'text-green-500';
+    return 'text-red-500';
+  }
   const handlePOAttach = () => {
-    console.log('Attaching PO:', selectedPO, 'to machine:', currentMachine)
+    console.log('Attaching PO:', selectedPO, 'to machine:', selectedMachine?.machineName)
     setIsPODialogOpen(false)
   }
 
@@ -90,94 +237,94 @@ export default function CountboardDashboard() {
     setIsCVTDialogOpen(false)
   }
 
-  const [date, setDate] = useState<DateRange | undefined>()
+  if (error) return <ErrorState message="Error loading machines. Please try again later." />
+
+  const renderNooeIndicators = (hourlyId: number) => {
+    const nooeForTime = noeeData?.filter(nooe => nooe.hourlyId === hourlyId) || [];
+    if (nooeForTime.length === 0) return null;
+
+    const colorMap = {
+      blue: 'bg-blue-500 ml-0',
+      orange: 'bg-orange-500 ml-1',
+      purple: 'bg-purple-500 ml-2',
+      grey: 'bg-gray-500 ml-3',
+      yellow: 'bg-yellow-500 ml-3',
+      white: 'bg-white border border-gray-300 ml-4',
+      red: 'bg-red-500 ml-4'
+    };
+
+    console.log(nooeForTime)
+
+    return (
+      <div className="flex flex-col gap-0.5">
+      {nooeForTime.map((nooe) => {
+        const activeColor = Object.keys(colorMap).find(color => nooe[color as keyof typeof nooe] === true);
+        return activeColor ? (
+          <div 
+            key={nooe.NooeId}
+            className={`w-0.5 h-0.5 ${colorMap[activeColor as keyof typeof colorMap]}`}
+          />
+        ) : (
+        <div className={`w-0.5 h-0.5 bg-none`} />
+      );
+      })}
+    </div>
+    );
+  };
+
+
 
   return (
     <div className="p-4 space-y-4 w-full">
       <div className="flex flex-wrap gap-2">
 
-        <Select defaultValue="INJ Bld G">
+        <Select value={selectedLocation} onValueChange={handleLocationChange} onOpenChange={() => {refetchMachine()}}>
+        <SelectTrigger className="w-[130px]">
+          <SelectValue  placeholder="Building" />
+        </SelectTrigger>
+        <SelectContent>
+          {uniqueLocations?.map(locationName => (
+            <SelectItem key={locationName} value={locationName}>
+              {locationName}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+        <Select value={selectedMachineNumber} onValueChange={handleMachineNumberChange}>
           <SelectTrigger className="w-[130px]">
-            <SelectValue placeholder="Building" />
+            <SelectValue placeholder="MchNumber" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="INJ Bld G">INJ Bld G</SelectItem>
-            <SelectItem value="INJ Bld H">INJ Bld H</SelectItem>
-
+            {filteredMachines?.map(machine => (
+              <SelectItem key={machine.machineNumber} value={machine.machineNumber}>
+                {machine.machineNumber}
+              </SelectItem>
+            ))} 
           </SelectContent>
         </Select>
-
-        <Select defaultValue="4" >
-          <SelectTrigger className="w-[60px]">
-            <SelectValue placeholder="MchNumber"  />
-          </SelectTrigger>
-          <SelectContent >
-            <SelectItem  value="4">4</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select defaultValue="INJ BPR 04 JSW 220T">
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Machine Name" />
-          </SelectTrigger>
-          <SelectContent >
-            <SelectItem value="INJ BPR 04 JSW 220T">INJ BPR 04 JSW 220T</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select defaultValue="2">
-          <SelectTrigger className="w-[60px]">
-            <SelectValue placeholder="Shift" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="2">2</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full md:w-auto">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date?.from ? (
-                    date.to ? (
-                      <>
-                        {format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}
-                      </>
-                    ) : (
-                      format(date.from, "LLL dd, y")
-                    )
-                  ) : (
-                    <span>Shift Selector</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={date?.from}
-                  selected={date}
-                  onSelect={setDate}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
+        <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
+          {selectedMachine?.machineDescription || "MchDesc"}
+        </Label>
       </div>
-
+      {selectedMachine === null ? (
+        <div className="text-center">Please select machine...</div>
+      ) : (
       <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-24">
+        <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/>
         <Card className="p-0">
           <CardHeader className="py-2 text-sm font-medium">Production Status</CardHeader>
           <CardContent className="grid grid-cols-3 gap-4">
             <div>
-              <div className="text-2xl font-bold text-green-600">344</div>
+              <div className="text-2xl font-bold text-green-600">{taskData?.[0]?.produced_qty}</div>
               <div className="text-sm text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-600">721</div>
+              <div className="text-2xl font-bold text-yellow-600">{taskData?.[0]?.required_qty}</div>
               <div className="text-sm text-muted-foreground">Target</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-red-600">-377</div>
+              <div className="text-2xl font-bold text-red-600">{(taskData?.[0]?.required_qty || 0) - (taskData?.[0]?.required_qty || 0)}</div>
               <div className="text-sm text-muted-foreground">Gap</div>
             </div>
           </CardContent>
@@ -187,11 +334,11 @@ export default function CountboardDashboard() {
           <CardHeader className="py-2 text-sm font-medium">Cavities</CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-2xl font-bold">4</div>
+              <div className={`text-2xl font-bold ${getCvtColor(taskData?.[0]?.actual_cvt ?? 0, taskData?.[0]?.target_cvt ?? 0)}`}>{taskData?.[0]?.actual_cvt ?? 0}</div>
               <div className="text-sm text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">4</div>
+              <div className="text-2xl font-bold">{taskData?.[0]?.target_cvt}</div>
               <div className="text-sm text-muted-foreground">Target</div>
             </div>
           </CardContent>
@@ -201,11 +348,11 @@ export default function CountboardDashboard() {
          <CardHeader className="py-2 text-sm font-medium">Cycle Time</CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-2xl font-bold">34.4s</div>
+              <div className={`text-2xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct}s</div>
               <div className="text-sm text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">34.4s</div>
+              <div className="text-2xl font-bold">{taskData?.[0]?.target_ct}s</div>
               <div className="text-sm text-muted-foreground">Target</div>
             </div>
           </CardContent>
@@ -215,7 +362,7 @@ export default function CountboardDashboard() {
          <CardHeader className="py-2 text-sm font-medium text-red-500">Non O.O.E</CardHeader>
           <CardContent className="grid grid-cols-1 gap-4">
             <div>
-              <div className="text-2xl font-bold text-red-500">14.9%</div>
+              <div className="text-2xl font-bold text-red-500">{(oeeData?.[0]?.breakdownperc || 0) * 100}%</div>
             </div>
           </CardContent>
         </Card>
@@ -224,33 +371,36 @@ export default function CountboardDashboard() {
           <CardHeader className="py-2 text-sm font-medium">Performance Metrics</CardHeader>
           <CardContent className="grid grid-cols-6 gap-4">
             <div>
-              <div className="text-2xl font-bold text-green-600">85.1%</div>
+              <div className="text-2xl font-bold text-green-600">{(oeeData?.[0]?.ooe || 0) * 100}%</div>
               <div className="text-sm text-muted-foreground">OK</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-red-600">0.0</div>
+              <div className="text-2xl font-bold text-red-600">{oeeData?.[0]?.red || 0}</div>
               <div className="text-sm text-muted-foreground">NQ</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-600">0.1</div>
+              <div className="text-2xl font-bold text-yellow-600">{oeeData?.[0]?.yellow || 0}</div>
               <div className="text-sm text-muted-foreground">SD</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">1.0</div>
+              <div className="text-2xl font-bold">{oeeData?.[0]?.white || 0}</div>
               <div className="text-sm text-muted-foreground">PS</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-400">0.0</div>
+              <div className="text-2xl font-bold text-blue-400">{oeeData?.[0]?.blue || 0}</div>
               <div className="text-sm text-muted-foreground">C/O</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-purple-600">0.2</div>
+              <div className="text-2xl font-bold text-purple-600">{oeeData?.[0]?.purple || 0}</div>
               <div className="text-sm text-muted-foreground">OP</div>
             </div>
           </CardContent>
         </Card>
-      </div>
-
+      </div> 
+      )} 
+      {selectedMachine === null ? (
+        null
+      ) : (
       <div className="p-0 w-full space-y-4 justify-between flex flex-col">
       <TooltipProvider>
       <Card className="w-full">
@@ -273,29 +423,27 @@ export default function CountboardDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {hourlyData.map((row, index) => (
+                {hourlyData?.map((row, index) => (
                   <TableRow key={row.time}>
                     <TableCell>{row.time}</TableCell>
                     <TableCell>{row.itemNo}</TableCell>
                     <TableCell className="text-center">{row.target}</TableCell>
                     <TableCell className="relative overflow-hidden">
                     <div className="flex items-center h-8 w-full">
-
-
                         {/* Actual progress bar */}
                         <div
-                        className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target)}`}
+                        className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
                         style={{
-                            width: `${Math.min((row.actual / 150) * 100, 100)}%`, // Limit to 100%
+                            width: `${Math.min((row.actual / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
                             maxWidth: "250px",
                         }}
                         />
 
                         {/* Target marker */}
                         <div
-                        className="absolute inset-0  h-full w-px bg-green-500"
+                        className="absolute inset-0  h-full w-px bg-green-600"
                         style={{
-                            left: `${Math.min((row.target / 150) * 100, 100)}%`, // Limit to 100%
+                            left: `${Math.min((row.target / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
                         }}
                         />
 
@@ -303,7 +451,7 @@ export default function CountboardDashboard() {
                         <div
                         className="absolute inset-0 h-full w-px bg-yellow-500"
                         style={{
-                            left: `${Math.min(((row.target * THRESHOLD_2_PERCENTAGE) / 150) * 100, 100)}%`, // Limit to 100%
+                            left: `${Math.min(((row.target_tolerance) / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
                         }}
                         />
 
@@ -315,27 +463,8 @@ export default function CountboardDashboard() {
                     <TableCell className={row.delta >= 0 ? "text-green-600" : "text-red-600"}>{row.delta}</TableCell>
                     <TableCell>{row.scrap}</TableCell>
                     <TableCell>{row.rework}</TableCell>
-                    <TableCell className="w-24">
-                      {row.time === "14:00" && (
-                        <div className="flex flex-col gap-0.5">
-                          <div className="w-1 h-1 bg-red-500" />
-                          <div className="w-1 h-1 bg-red-500" />
-                          <div className="w-1 h-1 bg-red-500" />
-                          <div className="w-1 h-1 bg-red-500" />
-                          <div className="w-1 h-1 bg-red-500" />
-                          <div className="w-1 h-1 bg-red-500" />
-                        </div>
-                      )}
-                      {row.time === "15:00" && (
-                        <div className="flex flex-col gap-0.5">
-                          <div className="w-1 h-1 ml-2 bg-purple-500" />
-                          <div className="w-1 h-1 ml-2 bg-purple-500" />
-                          <div className="w-1 h-1 ml-2 bg-purple-500" />
-                          <div className="w-1 h-1 ml-2 bg-purple-500" />
-                          <div className="w-1 h-1 ml-2 bg-purple-500" />
-                          <div className="w-1 h-1 ml-2 bg-purple-500" />
-                        </div>
-                      )}
+                    <TableCell className="w-24 py-0">
+                    {renderNooeIndicators(row.hourlyId)}
                     </TableCell>
                     <TableCell onClick={() => handleCellClick(index, 'causes', row.causes)}>
                       <Tooltip>
@@ -365,7 +494,6 @@ export default function CountboardDashboard() {
           </CardContent>
         </Card>
         </TooltipProvider>
-
 
         <div className="flex gap-2">
           <Button onClick={() => setIsPODialogOpen(true)} variant="default">
@@ -404,7 +532,7 @@ export default function CountboardDashboard() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="machine">Machine</Label>
-                <Input id="machine" value={currentMachine} readOnly />
+                <Input id="machine" value={selectedMachine?.machineName} readOnly />
               </div>
               <div className="flex flex-col">
               <Label htmlFor="po-number">PO Number</Label>
@@ -446,7 +574,9 @@ export default function CountboardDashboard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </div>
+      </div>)}
+ 
+  </div>
+    
   )
 }

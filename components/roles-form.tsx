@@ -15,10 +15,8 @@ import {
 import { Button } from "@/components/ui/button"
 import {
     ArrowUpDown,
-    ChevronDown,
     MoreHorizontal,
     Plus,
-    Search,
   } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -71,7 +69,7 @@ export function RolesForm() {
   }
 
   const updateRole = (updatedRole: Roles) => {
-    setRoles(roles.map((role) => (role.id === updateRole.id ? updateRole : role)))
+    setRoles(roles.map((role) => (role.id === updatedRole.id ? updatedRole : role)))
   }
 
   const deleteRole = (id: string) => {

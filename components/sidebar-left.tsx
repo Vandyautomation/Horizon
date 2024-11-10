@@ -1,6 +1,6 @@
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuAction, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail, useSidebar } from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,  SidebarHeader, SidebarMenu,  SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowUpRight, AudioWaveform, AudioWaveformIcon, Blocks, Bot, Calculator, CalendarIcon, ChevronDown, ChevronRight, Command, CommandIcon, HomeIcon, Inbox, Link, LogOut, LucideIcon, MessageCircleQuestion, MessageSquareWarningIcon, MoreHorizontal, Plus, Scale, Scale3D, Scale3DIcon, ScaleIcon, Search, Settings, Settings2, Sparkles, StarOff, Ticket, Trash2, User } from "lucide-react";
+import { AudioWaveformIcon,  Bot, Calculator,  ChevronDown, ChevronRight,  CommandIcon, HomeIcon, LogOut, LucideIcon,  MessageSquareWarningIcon,  Plus,  ScaleIcon,  Settings2,  Ticket,  User } from "lucide-react";
 import {
     Collapsible,
     CollapsibleContent,
@@ -294,27 +294,27 @@ const sidebarLeftData = {
   }
 
   // This is sample data.
-const sidebarRightData = {
-    user: {
-      name: "shadcn",
-      email: "m@example.com",
-      avatar: "/avatars/shadcn.jpg",
-    },
-    calendars: [
-      {
-        name: "My Calendars",
-        items: ["Personal", "Work", "Family"],
-      },
-      {
-        name: "Favorites",
-        items: ["Holidays", "Birthdays"],
-      },
-      {
-        name: "Other",
-        items: ["Travel", "Reminders", "Deadlines"],
-      },
-    ],
-  }
+// const sidebarRightData = {
+//     user: {
+//       name: "shadcn",
+//       email: "m@example.com",
+//       avatar: "/avatars/shadcn.jpg",
+//     },
+//     calendars: [
+//       {
+//         name: "My Calendars",
+//         items: ["Personal", "Work", "Family"],
+//       },
+//       {
+//         name: "Favorites",
+//         items: ["Holidays", "Birthdays"],
+//       },
+//       {
+//         name: "Other",
+//         items: ["Travel", "Reminders", "Deadlines"],
+//       },
+//     ],
+//   }
   
   interface SidebarLeftProps extends React.ComponentProps<typeof Sidebar> {
     onMenuClick: (component: string) => void;

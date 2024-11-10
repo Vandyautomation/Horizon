@@ -59,7 +59,7 @@ export default function ScaleForm() {
 
   // Fetch tasks using SWR
   const { data: tasks, error, isLoading } = useSWR<Task[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/scales/tasks`, fetcher,  { refreshInterval: 5000 })
-  console.log(process.env.NEXT_PUBLIC_BACKEND_URL)
+
 
   // Fetch available PO numbers for the select
   const { data: poNumbers } = useSWR<PoNumber[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/scales/po-numbers`, fetcher, {
@@ -105,8 +105,8 @@ export default function ScaleForm() {
         setIsDialogOpen(false)
         setNewTask({ poNumber: "", scaleAssetId: -1 })
         toast.success(`Task created successfully!`);
-      } catch (error: any) {
-        toast.error(error.message);
+      } catch (error) {
+        toast.error((error as Error).message);
         console.error('Failed to create task:', error)
       }
     }

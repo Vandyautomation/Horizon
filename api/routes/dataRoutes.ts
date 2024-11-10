@@ -8,7 +8,7 @@ dataRouter.get('/', async (c) => {
     const data = await getData();
     return c.json(data);
   } catch (error) {
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: (error as Error).message }, 500);
   }
 });
 
@@ -18,7 +18,7 @@ dataRouter.post('/', async (c) => {
     await addData(name, age);
     return c.json({ message: 'Data added successfully' });
   } catch (error) {
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: (error as Error).message }, 500);
   }
 });
 

@@ -17,11 +17,9 @@ import {
 import { Button } from "@/components/ui/button"
 import {
     ArrowUpDown,
-    ChevronDown,
     Edit,
     MoreHorizontal,
     Plus,
-    Search,
     Trash,
   } from "lucide-react"
 import { Label } from "@/components/ui/label"
@@ -45,7 +43,6 @@ import {
     TableRow,
   } from "@/components/ui/table"
 
-  import useSWR from 'swr';
 
   type User = {
     id: string
@@ -142,6 +139,12 @@ import {
                         name: formData.get('name') as string,
                         email: formData.get('email') as string,
                         role: formData.get('role') as string,
+                        username: formData.get('username') as string,
+                        firstName: formData.get('firstName') as string,
+                        lastName: formData.get('lastName') as string,
+                        process: formData.get('process') as string,
+                        group: formData.get('group') as string,
+                        location: formData.get('location') as string,
                       }
                       addUser(newUser)
                       e.currentTarget.reset()
@@ -299,7 +302,7 @@ import {
               Name
             </Label>
             <Label htmlFor="delete-name" className="col-span-3">
-              {deletingUser?.name}
+              {deletingUser?.username}
             </Label>
             
           </div>
@@ -333,6 +336,13 @@ import {
                 name: formData.get('name') as string,
                 email: formData.get('email') as string,
                 role: formData.get('role') as string,
+                username: formData.get('username') as string,
+                firstName: formData.get('firstName') as string,
+                lastName: formData.get('lastName') as string,
+                process: formData.get('process') as string,
+                location: formData.get('location') as string,
+                group: formData.get('group') as string,
+
               }
               updateUser(updatedUser)
               setEditingUser(null)
@@ -347,7 +357,7 @@ import {
                   <Input
                     id="edit-name"
                     name="name"
-                    defaultValue={editingUser.name}
+                    defaultValue={editingUser.firstName}
                     className="col-span-3"
                   />
                 </div>
@@ -359,7 +369,7 @@ import {
                     id="edit-email"
                     name="email"
                     type="email"
-                    defaultValue={editingUser.email}
+                    defaultValue={editingUser.username}
                     className="col-span-3"
                   />
                 </div>

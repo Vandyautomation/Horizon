@@ -8,7 +8,7 @@ userRoutes.get('/', async (c) => {
     const users = await fetchUsers();
     return c.json({ success: true, message: 'Success fetch user data', data: users }, 200);
   } catch (error) {
-    return c.json({ success: false, message: error.message }, 500);
+    return c.json({ success: false, message: (error as Error).message }, 500);
   }
 });
 

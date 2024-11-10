@@ -33,6 +33,6 @@ export async function loginHandler(c: Context) {
     delete user.password;
     return c.json({ success: true, message: 'Login successful', data: { ...user, token } }, 200);
   } catch (error) {
-    return c.json({ success: false, message: error.message }, 500);
+    return c.json({ success: false, message: (error as Error).message }, 500);
   }
 }

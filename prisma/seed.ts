@@ -1,5 +1,8 @@
+const fs = require('fs');
+const csv = require('csv-parser');
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
+
 
 async function seed() {
   try {
@@ -38,13 +41,13 @@ async function seed() {
     
       await prisma.location.createMany({
         data: [
-          { name: "INJ Bld G", createdBy: 1 },
-          { name: "INJ Bld H", createdBy: 1 },
-          { name: "INJ Bld J", createdBy: 1 },
-          { name: "INJ Bld Q", createdBy: 1 },
-          { name: "INJ Bld R", createdBy: 1 },
-          { name: "INJ Bld S", createdBy: 1 },
-          { name: "INJ Bld T", createdBy: 1 },
+          { name: "INJ Bld G", uap: "BASIC", createdBy: 1 },
+          { name: "INJ Bld H", uap: "BASIC", createdBy: 1 },
+          { name: "INJ Bld J", uap: "PREMIUM", createdBy: 1 },
+          { name: "INJ Bld Q", uap: "PREMIUM", createdBy: 1 },
+          { name: "INJ Bld R", uap: "LEAN", createdBy: 1 },
+          { name: "INJ Bld S", uap: "LEAN", createdBy: 1 },
+          { name: "INJ Bld T", uap: "LEAN", createdBy: 1 },
         ],
       });
       // Seed User Locations
@@ -70,9 +73,9 @@ async function seed() {
       // Seed Machines
       await prisma.machine.createMany({
         data: [
-          {  name: "BR20001", description: "INJ 1 BORCHE 200T", createdBy: 1 },
-          {  name: "BR20002", description: "INJ 2 BORCHE 200T", createdBy: 1 },
-          {  name: "BR20003", description: "INJ 3 BORCHE 200T", createdBy: 1 },
+          {  name: "BR20001", description: "INJ 1 BORCHE 200T", number: "1", tonage: "200T", locationId: 1, createdBy: 1 },
+          {  name: "BR20002", description: "INJ 2 BORCHE 200T", number: "2", tonage: "200T", locationId: 1, createdBy: 1 },
+          {  name: "BR20003", description: "INJ 3 BORCHE 200T", number: "3", tonage: "200T", locationId: 1, createdBy: 1 },
         ],
       });
     
@@ -200,10 +203,10 @@ async function seed() {
       // Seed data for scale_transaction
       await prisma.scale_transaction.createMany({
         data: [
-          { task_id: 1, type: 'Start', created_at: new Date() },
-          { task_id: 1, type: 'Pause', created_at: new Date() },
-          { task_id: 2, type: 'Start', created_at: new Date() },
-          { task_id: 3, type: 'Start', created_at: new Date() },
+          { task_id: 1, type: 'RUN', created_at: new Date() },
+          { task_id: 1, type: 'PAUSE', created_at: new Date() },
+          { task_id: 2, type: 'RUN', created_at: new Date() },
+          { task_id: 3, type: 'RUN', created_at: new Date() },
         ],
       });
     

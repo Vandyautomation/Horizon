@@ -1,105 +1,103 @@
-// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
 
 datasource db {
   provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model User {
-  id         Int        @id @default(autoincrement())
-  username   String     @unique
-  firstName  String
-  lastName   String
-  password   String
-  createdAt  DateTime   @default(now())
-  modifiedAt DateTime   @updatedAt
-  deletedAt  DateTime?
-  createdBy  Int?
-  modifiedBy Int?
-  
-  UserGroups   UserGroup[]
+  id            Int            @id @default(autoincrement())
+  username      String         @unique
+  firstName     String
+  lastName      String
+  password      String
+  createdAt     DateTime       @default(now())
+  modifiedAt    DateTime       @updatedAt
+  deletedAt     DateTime?
+  createdBy     Int?
+  modifiedBy    Int?
+  UserGroups    UserGroup[]
   UserLocations UserLocation[]
-  UserRoles    UserRole[]
-  Tickets      Ticket[]
+  UserRoles     UserRole[]
+  Tickets       Ticket[]       @relation("TicketToUser")
 }
 
 model UserGroup {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   userId     Int
-  groupId Int
-  createdAt  DateTime @default(now())
-  modifiedAt DateTime @updatedAt
+  groupId    Int
+  createdAt  DateTime  @default(now())
+  modifiedAt DateTime  @updatedAt
   deletedAt  DateTime?
   createdBy  Int?
   modifiedBy Int?
-
-  user User @relation(fields: [userId], references: [id])
-  group Group @relation(fields: [groupId], references: [id])
+  group      Group     @relation(fields: [groupId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
 }
 
 model Group {
-  id        Int @id @default(autoincrement())
-  name      String  @unique
-  createdAt  DateTime @default(now())
-  modifiedAt DateTime @updatedAt
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  createdAt  DateTime    @default(now())
+  modifiedAt DateTime    @updatedAt
   deletedAt  DateTime?
   createdBy  Int?
   modifiedBy Int?
-
-  UserGroup UserGroup[]
+  UserGroup  UserGroup[]
 }
 
 model UserLocation {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   userId     Int
-  locationId       Int  
-  createdAt  DateTime @default(now())
-  modifiedAt DateTime @updatedAt
+  locationId Int
+  createdAt  DateTime  @default(now())
+  modifiedAt DateTime  @updatedAt
   deletedAt  DateTime?
   createdBy  Int?
   modifiedBy Int?
-
-  user User @relation(fields: [userId], references: [id])
-  location Location @relation(fields: [locationId], references: [id])
-
+  location   Location  @relation(fields: [locationId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
 }
 
 model Location {
-  id        Int @id @default(autoincrement())
-  name      String  @unique
-  createdAt  DateTime @default(now())
-  modifiedAt DateTime @updatedAt
-  deletedAt  DateTime?
-  createdBy  Int?
-  modifiedBy Int?
+  id           Int            @id @default(autoincrement())
+  name         String         @unique
+  uap          String
+  createdAt    DateTime       @default(now())
+  modifiedAt   DateTime       @updatedAt
+  deletedAt    DateTime?
+  createdBy    Int?
+  modifiedBy   Int?
 
+  Machine Machine[]
   UserLocation UserLocation[]
 }
 
-
 model UserRole {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   userId     Int
-  name       String   @unique
+  name       String    @unique
   type       String
-  process    String  
-  createdAt  DateTime @default(now())
-  modifiedAt DateTime @updatedAt
+  process    String
+  createdAt  DateTime  @default(now())
+  modifiedAt DateTime  @updatedAt
   deletedAt  DateTime?
   createdBy  Int?
   modifiedBy Int?
-
-  user User @relation(fields: [userId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
 }
 
 model Machine {
   id          Int               @id @default(autoincrement())
   name        String            @unique
   description String
+  number      String
+  tonage      String
+  rfid        String?
+  locationId  Int?
+
   createdAt   DateTime          @default(now())
   modifiedAt  DateTime          @updatedAt
   deletedAt   DateTime?
@@ -108,18 +106,19 @@ model Machine {
   
   MachineTransactions MachineTransaction[]
 
+  Location Location[]
+
   Ticket Ticket[]
 }
 
 model MachineTransaction {
-  id         Int      @id @default(autoincrement())
-  machineId  Int
-  statusId   Int
-  createdAt  DateTime @default(now())
-  deletedAt  DateTime?
-  createdBy  Int?
-
-  machine Machine @relation(fields: [machineId], references: [id])
+  id        Int       @id @default(autoincrement())
+  machineId Int
+  statusId  Int
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  createdBy Int?
+  machine   Machine   @relation(fields: [machineId], references: [id])
 }
 
 model MachineStatus {
@@ -131,156 +130,191 @@ model MachineStatus {
   deletedAt   DateTime?
   createdBy   Int?
   modifiedBy  Int?
-
-  Problem Problem[]
+  Problem     Problem[]
 }
 
 model ProblemGroup {
-  id         Int      @id @default(autoincrement())
-  name       String   @unique
-  createdAt  DateTime @default(now())
-  modifiedAt DateTime @updatedAt
+  id         Int       @id @default(autoincrement())
+  name       String    @unique
+  createdAt  DateTime  @default(now())
+  modifiedAt DateTime  @updatedAt
   deletedAt  DateTime?
   createdBy  Int?
   modifiedBy Int?
-
-  Problems Problem[]
+  Problems   Problem[]
 }
 
 model Problem {
-  id         Int      @id @default(autoincrement())
-  name       String   @unique
-  statusId   Int
-  groupId    Int
-  createdAt  DateTime @default(now())
-  modifiedAt DateTime @updatedAt
-  deletedAt  DateTime?
-  createdBy  Int?
-  modifiedBy Int?
-
-  group ProblemGroup @relation(fields: [groupId], references: [id])
-  status MachineStatus @relation(fields: [statusId], references: [id])
-
+  id            Int             @id @default(autoincrement())
+  name          String          @unique
+  statusId      Int
+  groupId       Int
+  createdAt     DateTime        @default(now())
+  modifiedAt    DateTime        @updatedAt
+  deletedAt     DateTime?
+  createdBy     Int?
+  modifiedBy    Int?
+  group         ProblemGroup    @relation(fields: [groupId], references: [id])
+  status        MachineStatus   @relation(fields: [statusId], references: [id])
   ProblemAction ProblemAction[]
 }
 
 model ProblemAction {
-  id            Int      @id @default(autoincrement())
-  name          String   @unique
-  problemId     Int
+  id             Int       @id @default(autoincrement())
+  name           String    @unique
+  problemId      Int
   picPersonnelId Int
-  isEscalated   Boolean
-  createdAt     DateTime @default(now())
-  modifiedAt    DateTime @updatedAt
-  deletedAt     DateTime?
-  createdBy     Int?
-  modifiedBy    Int?
-
-  problem Problem @relation(fields: [problemId], references: [id])
-
-  Ticket Ticket[]
+  isEscalated    Boolean
+  createdAt      DateTime  @default(now())
+  modifiedAt     DateTime  @updatedAt
+  deletedAt      DateTime?
+  createdBy      Int?
+  modifiedBy     Int?
+  problem        Problem   @relation(fields: [problemId], references: [id])
+  Ticket         Ticket[]
 }
 
 model Ticket {
-  id            Int            @id @default(autoincrement())
-  machineId     Int
-  problemActionId Int
-  createdAt     DateTime       @default(now())
-  modifiedAt    DateTime       @updatedAt
-  deletedAt     DateTime?
-  createdBy     Int?
-  modifiedBy    Int?
-
-  machine Machine @relation(fields: [machineId], references: [id])
-  problemAction ProblemAction @relation(fields: [problemActionId], references: [id])
-  TicketNotes   TicketNote[]
-
-  User User[]
-
+  id                Int                 @id @default(autoincrement())
+  machineId         Int
+  problemActionId   Int
+  createdAt         DateTime            @default(now())
+  modifiedAt        DateTime            @updatedAt
+  deletedAt         DateTime?
+  createdBy         Int?
+  modifiedBy        Int?
+  machine           Machine             @relation(fields: [machineId], references: [id])
+  problemAction     ProblemAction       @relation(fields: [problemActionId], references: [id])
+  TicketNotes       TicketNote[]
   TicketTransaction TicketTransaction[]
+  User              User[]              @relation("TicketToUser")
 }
 
 model TicketNote {
-  id          Int       @id @default(autoincrement())
-  ticketId    Int
-  notes       String
-  createdAt   DateTime  @default(now())
-  modifiedAt  DateTime  @updatedAt
-  deletedAt   DateTime?
-  createdBy   Int?
-  modifiedBy  Int?
-
-  ticket Ticket @relation(fields: [ticketId], references: [id])
+  id         Int       @id @default(autoincrement())
+  ticketId   Int
+  notes      String
+  createdAt  DateTime  @default(now())
+  modifiedAt DateTime  @updatedAt
+  deletedAt  DateTime?
+  createdBy  Int?
+  modifiedBy Int?
+  ticket     Ticket    @relation(fields: [ticketId], references: [id])
 }
 
 model TicketTransaction {
-  id          Int       @id @default(autoincrement())
-  ticketId    Int
-  type        String
-  createdAt   DateTime  @default(now())
-  deletedAt   DateTime?
-  createdBy   Int?
-
-  ticket Ticket @relation(fields: [ticketId], references: [id])
+  id        Int       @id @default(autoincrement())
+  ticketId  Int
+  type      String
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  createdBy Int?
+  ticket    Ticket    @relation(fields: [ticketId], references: [id])
 }
 
-
-
 model PO_master_data_SCM {
-  id       Int      @id @default(autoincrement())
-  po_name  String   @unique
-  material_id String 
-  scaleTasks scale_tasks[]
+  id          Int           @id @default(autoincrement())
+  po_name     String        @unique
+  material_id String
+  scaleTasks  scale_tasks[]
 }
 
 model scale_tasks {
-  id            Int                @id @default(autoincrement())
-  po_name       String
-  material_id   String
-  status        String
-  scale_asset_id Int
-  total_consumption Decimal       @default(0.0)
-  created_at    DateTime           @default(now())
-  modified_at   DateTime?
-  deleted_at    DateTime?
-  
-  po             PO_master_data_SCM @relation(fields: [po_name], references: [po_name])
-  scaleAsset     scale_assets       @relation(fields: [scale_asset_id], references: [id])
-  transactions   scale_transaction[]
-  measurements   scale_measurements[]
+  id                Int                  @id @default(autoincrement())
+  po_name           String
+  material_id       String
+  status            String
+  scale_asset_id    Int
+  created_at        DateTime             @default(now())
+  modified_at       DateTime?
+  deleted_at        DateTime?
+  total_consumption Decimal              @default(0.0)
+  measurements      scale_measurements[]
+  po                PO_master_data_SCM   @relation(fields: [po_name], references: [po_name])
+  scaleAsset        scale_assets         @relation(fields: [scale_asset_id], references: [id])
+  transactions      scale_transaction[]
 }
 
 model scale_transaction {
-  id         Int          @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   task_id    Int
   type       String
-  created_at DateTime     @default(now())
+  created_at DateTime    @default(now())
   deleted_at DateTime?
-
-  task       scale_tasks  @relation(fields: [task_id], references: [id])
+  task       scale_tasks @relation(fields: [task_id], references: [id])
 }
 
 model scale_measurements {
-  id             Int           @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   task_id        Int
   scale_asset_id Int
-  weight         Decimal       @db.Decimal(18, 2)
-  created_at     DateTime      @default(now())
+  weight         Decimal      @db.Decimal(18, 2)
+  created_at     DateTime     @default(now())
   deleted_at     DateTime?
-
-  task           scale_tasks   @relation(fields: [task_id], references: [id], onUpdate: NoAction)
-  scaleAsset     scale_assets  @relation(fields: [scale_asset_id], references: [id])
+  scaleAsset     scale_assets @relation(fields: [scale_asset_id], references: [id])
+  task           scale_tasks  @relation(fields: [task_id], references: [id], onUpdate: NoAction)
 }
 
 model scale_assets {
-  id          Int                  @id @default(autoincrement())
-  name        String
-  description String
-  location    String
-  created_at  DateTime             @default(now())
-  modified_at DateTime?
-  deleted_at  DateTime?
-
-  scaleTasks  scale_tasks[]
+  id           Int                  @id @default(autoincrement())
+  name         String
+  description  String
+  location     String
+  created_at   DateTime             @default(now())
+  modified_at  DateTime?
+  deleted_at   DateTime?
   measurements scale_measurements[]
+  scaleTasks   scale_tasks[]
+}
+
+model coois {
+  id            BigInt    @id @default(autoincrement())
+  so_name       String?   @db.VarChar(100)
+  po_name       String?   @db.VarChar(100)
+  material_id   String?   @db.VarChar(100)
+  material_name String?   @db.VarChar(100)
+  required_qty  Decimal?  @db.Decimal(18, 2)
+  produced_qty  Decimal?  @db.Decimal(18, 2)
+  scrap_qty     Decimal?  @db.Decimal(18, 2)
+  is_deleted    Boolean?
+  uploaded_at   DateTime?
+  modified_at   DateTime?
+  is_sync       Boolean?
+}
+
+model countboard_tasks {
+  id           Int       @id(map: "tasks_pkey") @default(autoincrement())
+  po_name      String?   @db.VarChar(50)
+  machine_name String?   @db.VarChar(50)
+  required_qty String?   @db.VarChar(50)
+  produced_qty String?   @db.VarChar(50)
+  cvt          Int?
+  ct           Decimal?  @db.Decimal(10, 2)
+  created_at   DateTime?
+  updated_at   DateTime?
+  is_processed Boolean?
+  actual_cvt   Int?
+  actual_ct    Decimal?  @db.Decimal(10, 2)
+}
+
+model hourly {
+  id                 BigInt    @id @default(autoincrement())
+  task_id            Int?
+  actual_qty         Int?
+  target_qty         Int?
+  hour_id            Int?
+  from_datetime      DateTime?
+  to_datetime        DateTime?
+  created_at         DateTime?
+  modified_at        DateTime?
+  modified_by        String?   @db.VarChar(50)
+  shift_id           Int?
+  machine_id         String?   @db.VarChar(50)
+  running_actual_qty Int?
+  running_target_qty Int?
+  cause              String?   @db.VarChar(Max)
+  ooe                String?   @db.VarChar(Max)
+  note               String?   @db.VarChar(Max)
+  scrap              Int?
+  rework             Int?
 }
