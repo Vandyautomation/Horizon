@@ -103,7 +103,7 @@ type NooeData = {
   white: boolean | null; 
   red: boolean | null;
 }
-const refreshIntervalms = 50000;
+const refreshIntervalms = 5000;
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -375,23 +375,23 @@ export default function CountboardDashboard() {
               <div className="text-sm text-muted-foreground">OK</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-red-600">{oeeData?.[0]?.red || 0}</div>
+              <div className="text-2xl font-bold text-red-600">{oeeData?.[0]?.red.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">NQ</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-600">{oeeData?.[0]?.yellow || 0}</div>
+              <div className="text-2xl font-bold text-yellow-600">{oeeData?.[0]?.yellow.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">SD</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{oeeData?.[0]?.white || 0}</div>
+              <div className="text-2xl font-bold">{oeeData?.[0]?.white.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">PS</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-400">{oeeData?.[0]?.blue || 0}</div>
+              <div className="text-2xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">C/O</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-purple-600">{oeeData?.[0]?.purple || 0}</div>
+              <div className="text-2xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">OP</div>
             </div>
           </CardContent>

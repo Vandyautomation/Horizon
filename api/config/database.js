@@ -1,10 +1,7 @@
 import sql from 'mssql';
 
 const dbConfig = {
-  user: 'SA',
-  password: 'PojokMeja@12',
-  server: '93.127.185.15', // e.g., 'localhost'
-  database: 'IoT_APP',
+  connectionString: process.env.DATABASE_URL,
   options: {
     encrypt: true, // Use SSL if required by your setup
     enableArithAbort: true,
@@ -18,3 +15,4 @@ const dbConfig = {
 };
 
 export const pool = new sql.ConnectionPool(dbConfig).connect();
+
