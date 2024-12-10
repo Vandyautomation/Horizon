@@ -64,15 +64,14 @@ model UserLocation {
 model Location {
   id           Int            @id @default(autoincrement())
   name         String         @unique
-  uap          String
   createdAt    DateTime       @default(now())
   modifiedAt   DateTime       @updatedAt
   deletedAt    DateTime?
   createdBy    Int?
   modifiedBy   Int?
-
-  Machine Machine[]
+  uap          String
   UserLocation UserLocation[]
+  Machine      Machine[]      @relation("LocationToMachine")
 }
 
 model UserRole {
@@ -90,25 +89,21 @@ model UserRole {
 }
 
 model Machine {
-  id          Int               @id @default(autoincrement())
-  name        String            @unique
-  description String
-  number      String
-  tonage      String
-  rfid        String?
-  locationId  Int?
-
-  createdAt   DateTime          @default(now())
-  modifiedAt  DateTime          @updatedAt
-  deletedAt   DateTime?
-  createdBy   Int?
-  modifiedBy  Int?
-  
+  id                  Int                  @id @default(autoincrement())
+  name                String               @unique
+  description         String
+  createdAt           DateTime             @default(now())
+  modifiedAt          DateTime?            @updatedAt
+  deletedAt           DateTime?
+  createdBy           Int?
+  modifiedBy          Int?
+  locationId          Int?
+  number              String
+  rfid                String?
+  tonage              String
   MachineTransactions MachineTransaction[]
-
-  Location Location[]
-
-  Ticket Ticket[]
+  Ticket              Ticket[]
+  Location            Location[]           @relation("LocationToMachine")
 }
 
 model MachineTransaction {
@@ -317,4 +312,28 @@ model hourly {
   note               String?   @db.VarChar(Max)
   scrap              Int?
   rework             Int?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model MchStatusTRX {
+  StatusDate  DateTime? @db.DateTime
+  MchID       String    @default("", map: "DF_MchStatusTRX_MchID") @db.VarChar(30)
+  StatusLight String    @default("", map: "DF_MchStatusTRX_StatusLight") @db.VarChar(10)
+  Active      Boolean
+  id          BigInt    @id @default(autoincrement())
+
+}
+
+model nooe {
+  id              BigInt    @id @default(autoincrement())
+  hourly_id       Int
+  five_minutes_id Int
+  blue            Boolean?
+  orange          Boolean?
+  purple          Boolean?
+  grey            Boolean?
+  yellow          Boolean?
+  white           Boolean?
+  red             Boolean?
+  created_at      DateTime?
 }

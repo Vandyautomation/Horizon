@@ -2,6 +2,10 @@ import sql from 'mssql';
 
 const dbConfig = {
   connectionString: process.env.DATABASE_URL,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_HOST, // e.g., 'localhost'
+  database: process.env.DB_NAME,
   options: {
     encrypt: true, // Use SSL if required by your setup
     enableArithAbort: true,

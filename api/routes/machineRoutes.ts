@@ -3,9 +3,9 @@ import { addMachine, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine
 import { getTask } from '../controllers/scaleTaskController';
 
 
-const machineRouter = new Hono();
+const machineRoutes = new Hono();
 
-machineRouter.get('/', async (c) => {
+machineRoutes.get('/', async (c) => {
   try {
     const data = await getMachine();
     return c.json(data);
@@ -14,7 +14,7 @@ machineRouter.get('/', async (c) => {
   }
 });
 
-machineRouter.get('/hourly/:machineId', async (c) => {
+machineRoutes.get('/hourly/:machineId', async (c) => {
   try {
     const machine_id = c.req.param('machineId'); 
     const data = await getHourlyMachine(machine_id);
@@ -24,7 +24,7 @@ machineRouter.get('/hourly/:machineId', async (c) => {
   }
 });
 
-machineRouter.get('/oee/:machineId', async (c) => {
+machineRoutes.get('/oee/:machineId', async (c) => {
   try {
     const machine_id = c.req.param('machineId'); 
     const data = await getOeeMachine(machine_id);
@@ -34,7 +34,7 @@ machineRouter.get('/oee/:machineId', async (c) => {
   }
 });
 
-machineRouter.get('/noee/:machineId', async (c) => {
+machineRoutes.get('/noee/:machineId', async (c) => {
   try {
     const machine_id = c.req.param('machineId'); 
     const data = await getNooeMachine(machine_id);
@@ -44,7 +44,7 @@ machineRouter.get('/noee/:machineId', async (c) => {
   }
 });
 
-machineRouter.get('/tasks/:machineName', async (c) => {
+machineRoutes.get('/tasks/:machineName', async (c) => {
   try {
     const machineName = c.req.param('machineName'); 
     const data = await getTaskMachine(machineName);
@@ -54,7 +54,7 @@ machineRouter.get('/tasks/:machineName', async (c) => {
   }
 });
 
-machineRouter.post('/', async (c) => {
+machineRoutes.post('/', async (c) => {
   const { name, description } = await c.req.json();
   try {
     await addMachine(name, description);
@@ -64,4 +64,4 @@ machineRouter.post('/', async (c) => {
   }
 });
 
-export default machineRouter;
+export default machineRoutes;

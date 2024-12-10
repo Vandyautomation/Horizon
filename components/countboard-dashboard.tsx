@@ -21,10 +21,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useSearchParams } from 'next/navigation'
 
 import Image from 'next/image'
 import {  Paperclip, RefreshCw } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
@@ -33,6 +34,7 @@ import { Input } from "./ui/input"
 import { SearchablePOSelect } from "./searchable-select-po"
 import useSWR, { mutate } from "swr"
 import ErrorState from "./ui/error-state"
+import { toast } from "sonner"
 
 type MachineDetail = {
   machineId: number;
@@ -57,6 +59,7 @@ type HourlyData = {
   causes: string;
   comments: string;
 };
+
 type OoeData = {
   timea: number;
   pmidle: number;
@@ -74,7 +77,8 @@ type OoeData = {
   orange: number;
   purple: number;
   grey: number;
-}
+};
+
 type TaskData = {
   id: number;
   po_name: string;
@@ -90,52 +94,70 @@ type TaskData = {
   shift_target_qty: number;
   created_at: string;
   updated_at: string;
-}
+};
 
 type NooeData = {
   NooeId: number;
   hourlyId: number;
-  blue: boolean | null; 
-  orange: boolean | null; 
-  purple: boolean | null; 
-  grey: boolean | null; 
-  yellow: boolean | null; 
-  white: boolean | null; 
+  blue: boolean | null;
+  orange: boolean | null;
+  purple: boolean | null;
+  grey: boolean | null;
+  yellow: boolean | null;
+  white: boolean | null;
   red: boolean | null;
-}
-const refreshIntervalms = 5000;
+};
+
+const refreshRateList = [
+  '5000','15000','30000','60000'
+]
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function CountboardDashboard() {
-
   const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [selectedComment, setSelectedComment] = useState({ index: -1, type: '', content: '' })
-  const [currentCVT, setCurrentCVT] = useState(1)
-  const [isPODialogOpen, setIsPODialogOpen] = useState(false)
-  const [isCVTDialogOpen, setIsCVTDialogOpen] = useState(false)
-  const [selectedPO, setSelectedPO] = useState("")
-  const [editedCVT, setEditedCVT] = useState(currentCVT)
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedComment, setSelectedComment] = useState({ index: -1, hourlyId: -1, type: '', content: '' });
+  const [currentCVT, setCurrentCVT] = useState<number | 0>(0);
+  const [isPODialogOpen, setIsPODialogOpen] = useState(false);
+  const [isCVTDialogOpen, setIsCVTDialogOpen] = useState(false);
+  const [selectedPO, setSelectedPO] = useState('');
+  const [editedCVT, setEditedCVT] = useState(currentCVT);
+  const [selectedRefreshRate, setRefreshRate] = useState('5000');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMachine, setIsLoadingMachine] = useState(false);
+
+
   
-  const { data: machines, error } = useSWR<MachineDetail[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`, fetcher, {
+
+  const { data: machines, error, isValidating } = useSWR<MachineDetail[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`, fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
-  })
+  });
+  useEffect(() => {
+    setIsLoading(isValidating);
+  }, [isValidating]);
 
-  const refetchMachine = () => mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`);
+  const refetchMachine = async () => {
+    setIsLoadingMachine(true);
+    try {
+      await mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`);
+    } finally {
+      setIsLoadingMachine(false);
+    }
+  };
 
   const hourlyDataKey = selectedMachine?.machineName
-  ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}`
-  : null;
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}`
+    : null;
 
   const { data: hourlyData } = useSWR<HourlyData[]>(hourlyDataKey, fetcher, {
     revalidateOnMount: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
-    refreshInterval: refreshIntervalms,
+    refreshInterval: Number(selectedRefreshRate),
   });
 
   const refetchHourlyData = () => mutate(hourlyDataKey);
@@ -148,7 +170,7 @@ export default function CountboardDashboard() {
     revalidateOnMount: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
-    refreshInterval: refreshIntervalms,
+    refreshInterval: Number(selectedRefreshRate),
   });
 
   const refetchOeeData = () => mutate(oeeDataKey);
@@ -161,7 +183,7 @@ export default function CountboardDashboard() {
     revalidateOnMount: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
-    refreshInterval: refreshIntervalms,
+    refreshInterval: Number(selectedRefreshRate),
   });
 
   const refetchNoeeData = () => mutate(noeeDataKey);
@@ -174,15 +196,16 @@ export default function CountboardDashboard() {
     revalidateOnMount: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
-    refreshInterval: refreshIntervalms,
+    refreshInterval: Number(selectedRefreshRate),
   });
-
   const refetchTaskData = () => mutate(taskDataKey);
 
+  useEffect(() => {
+    setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
+  }, [taskData]);
 
   const uniqueLocations = Array.from(new Set(machines?.map(machine => machine.locationName)));
   const filteredMachines = machines?.filter(machine => machine.locationName === selectedLocation);
-
 
   const handleLocationChange = (value: string) => {
     setSelectedLocation(value);
@@ -198,46 +221,160 @@ export default function CountboardDashboard() {
     refetchOeeData();
     refetchTaskData();
     refetchNoeeData();
+    setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0)
+  };
+
+  const handleRefreshRateChange = (value: string) => {
+    setRefreshRate(value);
+  }
+
+  const handleCellClick = (index: number, hourlyId: number, type: 'causes' | 'comments', content: string) => {
+    setSelectedComment({ index, hourlyId, type, content });
+    setIsDialogOpen(true);
   };
 
 
-  const handleCellClick = (index: number, type: 'causes' | 'comments', content: string) => {
-    setSelectedComment({ index, type, content })
-    setIsDialogOpen(true)
-  }
+  const handleCommentSave = useCallback(
+    async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/comment`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({"hourlyId":selectedComment?.hourlyId, "type": selectedComment?.type, "content":selectedComment?.content }),
+        });
 
-  const handleCommentSave = () => {
-    console.log('Saving comment:', selectedComment)
-    setIsDialogOpen(false)
-  }
+        if (!response.ok) {
+          // Attempt to extract the server's error message
+          const errorData = await response.json();
+          const errorMessage = errorData.error || `Failed to Update Content`;
+  
+          throw new Error(errorMessage);
+        }
+        toast.success(`Update Content successfully!`);
+      } catch (error) {
+        toast.error((error as Error).message);
+        console.error(`Failed to Update Content:`, error);
+      }
+      finally {
+        setIsLoading(false);
+      }
+      setIsDialogOpen(false);
+      refetchHourlyData();
+      setSelectedComment(selectedComment)
+    },
+    [selectedComment, hourlyData]
+  );
 
-  const getBarColor = (actual: number, target: number, target_tolerance:number) => {
+
+
+    const handleCVTUpdate = useCallback(
+    async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/cvt`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({"taskId":taskData?.[0]?.id, "newCvt": editedCVT }),
+        });
+
+        if (!response.ok) {
+          // Attempt to extract the server's error message
+          const errorData = await response.json();
+          const errorMessage = errorData.error || `Failed to Update CVT`;
+  
+          throw new Error(errorMessage);
+        }
+        toast.success(`Update CVT successfully!`);
+      } catch (error) {
+        toast.error((error as Error).message);
+        console.error(`Failed to Update CVT:`, error);
+      } finally {
+        setIsLoading(false);
+      }
+      setCurrentCVT(editedCVT);
+      refetchTaskData();
+      setIsCVTDialogOpen(false);
+    },
+    [editedCVT, selectedPO, taskData]
+  );
+
+  const handlePOAttach = useCallback(
+    async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/task`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({"poNumber":selectedPO, "machineName": selectedMachine?.machineName }),
+        });
+
+        if (!response.ok) {
+          // Attempt to extract the server's error message
+          const errorData = await response.json();
+          const errorMessage = errorData.error || `Failed to Attach PO`;
+  
+          throw new Error(errorMessage);
+        }
+        setIsPODialogOpen(false);
+        toast.success(`Attach PO successfully!`);
+      } catch (error) {
+        toast.error((error as Error).message);
+        console.error(`Failed to Attach PO:`, error);
+      }
+    },
+    [selectedPO]
+  );
+
+
+  const getBarColor = (actual: number, target: number, target_tolerance: number) => {
     if (actual >= target) return 'bg-green-500';
     if (actual >= target_tolerance) return 'bg-green-500';
     return 'bg-red-500';
-  }
+  };
 
-  const getCvtColor = (actual_cvt: number | null , target_cvt: number | null) => {
+  const getCvtColor = (actual_cvt: number | null, target_cvt: number | null) => {
     if (actual_cvt === null || target_cvt === null || actual_cvt >= target_cvt) return 'text-green-500';
     return 'text-red-500';
-  }
+  };
 
   const getCtColor = (actual_ct: number | null, target_ct: number | null) => {
     if (actual_ct === null || target_ct === null || actual_ct <= target_ct) return 'text-green-500';
     return 'text-red-500';
-  }
-  const handlePOAttach = () => {
-    console.log('Attaching PO:', selectedPO, 'to machine:', selectedMachine?.machineName)
-    setIsPODialogOpen(false)
-  }
+  };
 
-  const handleCVTUpdate = () => {
-    setCurrentCVT(editedCVT)
-    console.log('Updated CVT to:', editedCVT)
-    setIsCVTDialogOpen(false)
-  }
+  const queryParameters = useSearchParams()
+  const queryMachineNumber = queryParameters.get('machineNumber') || '1';
+  const queryLocation = queryParameters.get('location') || 'INJ Bld G';
+  const queryRefreshRate = queryParameters.get('refresh') || '5000';
 
-  if (error) return <ErrorState message="Error loading machines. Please try again later." />
+
+  useEffect(() => {
+    if (queryLocation) {
+      setSelectedLocation(queryLocation);
+      console.log(`machine location : ${queryLocation}`);
+    }
+  }, [queryLocation]);
+
+  useEffect(() => {
+    if (queryMachineNumber) {
+      setSelectedMachineNumber(queryMachineNumber);
+      const selected = machines?.find(
+        machine => machine.machineNumber === queryMachineNumber
+      );
+      setSelectedMachine(selected || null);
+      console.log(`machine number : ${queryMachineNumber}`);
+      console.log(`selected machine :`, selected);
+    }
+  }, [queryMachineNumber, machines]);
+
+  useEffect(() => {
+    if (queryRefreshRate) {
+      setRefreshRate(queryRefreshRate);
+      console.log(`refreshRate : ${queryRefreshRate}`);
+    }
+  }, [queryRefreshRate]);
+
+  if (error) return <ErrorState message="Error loading machines. Please try again later." />;
 
   const renderNooeIndicators = (hourlyId: number) => {
     const nooeForTime = noeeData?.filter(nooe => nooe.hourlyId === hourlyId) || [];
@@ -250,10 +387,8 @@ export default function CountboardDashboard() {
       grey: 'bg-gray-500 ml-3',
       yellow: 'bg-yellow-500 ml-3',
       white: 'bg-white border border-gray-300 ml-4',
-      red: 'bg-red-500 ml-4'
+      red: 'bg-red-500 ml-4',
     };
-
-    console.log(nooeForTime)
 
     return (
       <div className="flex flex-col gap-0.5">
@@ -273,26 +408,33 @@ export default function CountboardDashboard() {
   };
 
 
-
   return (
     <div className="p-4 space-y-4 w-full">
       <div className="flex flex-wrap gap-2">
+        {isLoading ? (
+          <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
+          Loading ...
+        </Label>
+        ) : (
+          <Select value={selectedLocation} onValueChange={handleLocationChange} onOpenChange={() => {refetchMachine()}}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Building" />
+            </SelectTrigger>
+            <SelectContent>
+              {uniqueLocations?.map(locationName => (
+                <SelectItem key={locationName} value={locationName}>
+                  {locationName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
-        <Select value={selectedLocation} onValueChange={handleLocationChange} onOpenChange={() => {refetchMachine()}}>
-        <SelectTrigger className="w-[130px]">
-          <SelectValue  placeholder="Building" />
-        </SelectTrigger>
-        <SelectContent>
-          {uniqueLocations?.map(locationName => (
-            <SelectItem key={locationName} value={locationName}>
-              {locationName}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
+      {isLoading ? (
+          <div></div>
+        ) : (
         <Select value={selectedMachineNumber} onValueChange={handleMachineNumberChange}>
-          <SelectTrigger className="w-[130px]">
+          <SelectTrigger className="w-[80px]">
             <SelectValue placeholder="MchNumber" />
           </SelectTrigger>
           <SelectContent>
@@ -302,12 +444,31 @@ export default function CountboardDashboard() {
               </SelectItem>
             ))} 
           </SelectContent>
-        </Select>
+        </Select>)}
+
         <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
           {selectedMachine?.machineDescription || "MchDesc"}
         </Label>
+        <Select value={selectedRefreshRate} onValueChange={handleRefreshRateChange}>
+          <SelectTrigger className="w-[80px]">
+            <SelectValue placeholder="Refresh Rate">
+              <div className="flex gap-1 align-middle items-center">
+              <RefreshCw size={15}/>
+              {Number(selectedRefreshRate)/1000} s
+              </div>
+              </SelectValue>
+          </SelectTrigger>
+          <SelectContent >
+            {refreshRateList?.map(refreshRate => (
+                <SelectItem key={refreshRate} value={refreshRate}>
+                  {Number(refreshRate) / 1000} s
+                </SelectItem>
+              ))} 
+          </SelectContent>
+
+        </Select>
       </div>
-      {selectedMachine === null ? (
+      {selectedMachine === null && isLoading == false ? (
         <div className="text-center">Please select machine...</div>
       ) : (
       <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-24">
@@ -466,7 +627,7 @@ export default function CountboardDashboard() {
                     <TableCell className="w-24 py-0">
                     {renderNooeIndicators(row.hourlyId)}
                     </TableCell>
-                    <TableCell onClick={() => handleCellClick(index, 'causes', row.causes)}>
+                    <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)}>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span>{row.causes || 'N/A'}</span>
@@ -476,7 +637,7 @@ export default function CountboardDashboard() {
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>
-                    <TableCell onClick={() => handleCellClick(index, 'comments', row.comments)}>
+                    <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)}>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span>{row.comments || 'N/A'}</span>
@@ -517,6 +678,10 @@ export default function CountboardDashboard() {
               placeholder={`Enter ${selectedComment.type}...`}
               className="min-h-[100px]"
             />
+            <Label>{selectedComment.content}</Label>
+            <Label>{selectedComment.hourlyId}</Label>
+            <Label>{selectedComment.index}</Label>
+            <Label>{selectedComment.type}</Label>
             <DialogFooter>
               <Button onClick={handleCommentSave}>Save</Button>
             </DialogFooter>
@@ -553,24 +718,32 @@ export default function CountboardDashboard() {
             <DialogHeader>
               <DialogTitle>Update CVT</DialogTitle>
             </DialogHeader>
-            <DialogDescription className="p-0 m-0">Update cavity of this machine</DialogDescription>
+            <DialogDescription className="p-0 m-0">Update cavity for machine {selectedMachine?.machineName}</DialogDescription>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="current-cvt">Current CVT</Label>
-                <Input id="current-cvt" value={currentCVT} readOnly />
+                <Input id="current-cvt" value={currentCVT} disabled />
               </div>
               <div>
                 <Label htmlFor="new-cvt">New CVT</Label>
                 <Input
+                  autoFocus
                   id="new-cvt"
                   type="number"
-                  value={editedCVT}
-                  onChange={(e) => setEditedCVT(Number(e.target.value))}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? 0 : Number(e.target.value);
+                    setEditedCVT(value);
+                  }}
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={handleCVTUpdate}>Update CVT</Button>
+              <Button
+                onClick={handleCVTUpdate}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Loading...' : 'Update CVT'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -1,0 +1,50 @@
+import { Hono } from 'hono';
+import { attachPo, getCoois, updateComment, updateCVT } from '../controllers/countboardController';
+
+const countboardRoutes = new Hono();
+
+countboardRoutes.get('/', async (c) => {
+  try {
+    const data = await getCoois();
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+countboardRoutes.post('/task', async (c) => {
+  const { poNumber, machineName } = await c.req.json();
+  try {
+    await attachPo(poNumber, machineName);
+    return c.json({ message: 'PO attached successfully' });
+  } catch (error) {
+    console.error("Error attaching PO:", error);
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+countboardRoutes.put('/cvt', async (c) => {
+  const { taskId, newCvt } = await c.req.json();
+  try {
+    await updateCVT(taskId, newCvt);
+    return c.json({ message: 'CVT updated successfully' });
+  } catch (error) {
+    console.error("Error updating CVT:", error);
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+countboardRoutes.put('/comment', async (c) => {
+  const { hourlyId, type, content } = await c.req.json();
+  try {
+    await updateComment(hourlyId, type, content);
+    return c.json({ message: 'Content updated successfully' });
+  } catch (error) {
+    console.error("Error updating content:", error);
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+
+
+export default countboardRoutes;

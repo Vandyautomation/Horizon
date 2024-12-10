@@ -2,11 +2,17 @@ import { queryDatabase } from '../utils/queryDatabase';
 
 export async function getMachine() {
   const sqlQuery = `
-  SELECT m.id as machineId, m.name as machineName, m.description as machineDescription, m.number as machineNumber, m.tonage as machineTonage, 
+  /** SELECT m.id as machineId, m.name as machineName, m.description as machineDescription, m.number as machineNumber, m.tonage as machineTonage, 
   l.id as locationId, l.name as locationName 
   FROM Machine m 
   LEFT JOIN location l on m.locationId = l.id and l.deletedAt is null
-  where m.deletedAt is null
+  where m.deletedAt is null **/
+
+  SELECT m.id as machineId, m.MchID as machineName, m.MchDesc as machineDescription, cast(m.MchNumber as INT) as machineNumber, m.MchTon as machineTonage,
+  m.MchLoc as locationName
+  from MachineMST m
+  where m.Active = 1
+  order by MchLoc asc, cast(m.MchNumber as INT) asc
   `;
   return await queryDatabase(sqlQuery);
 }
@@ -39,11 +45,11 @@ export async function getHourlyMachine(machine_id: string) {
           h.ooe,
           h.scrap,
           h.rework
-      FROM IoT_APP.dbo.hourly h
-      LEFT JOIN IoT_APP.dbo.countboard_tasks t ON h.task_id = t.id
+      FROM IoT.dbo.hourly h
+      LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
       outer APPLY (
       SELECT TOP 1 *
-      FROM IoT_APP.dbo.coois c
+      FROM IoT.dbo.coois c
       WHERE t.po_name = c.po_name AND ISNULL(c.is_deleted, 0) = 0
       ORDER BY c.id DESC
       ) AS c
@@ -157,6 +163,7 @@ export async function getOeeMachine(machine_id: string) {
 export async function getTaskMachine(machine_name: string) {
   const sqlQuery = `
   SELECT 
+  top 1
     id, 
     po_name, 
     machine_name, 
@@ -182,7 +189,7 @@ export async function getTaskMachine(machine_name: string) {
     END AS shift_target_qty,
     created_at, 
     updated_at
-FROM IoT_APP.dbo.countboard_tasks t
+FROM IoT.dbo.countboard_tasks t
 WHERE po_name != '' 
     AND machine_name = @machine_name
     AND id > 29
@@ -195,8 +202,8 @@ ORDER BY created_at DESC;
 export async function getNooeMachine(machine_id: string) {
   const sqlQuery = `
   select top 96 n.id as NooeId, h.id as hourlyId, blue, orange, purple, grey, yellow, white, red
-  from IoT_APP.dbo.nooe n
-  join IoT_APP.dbo.hourly h on n.hourly_id = h.id
+  from IoT.dbo.nooe n
+  join IoT.dbo.hourly h on n.hourly_id = h.id
   where h.machine_id = @machine_id
   order by hourly_id desc, n.id asc
   `;
