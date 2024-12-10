@@ -12,7 +12,6 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList,
 } from "@/components/ui/command"
 import {
   Popover,
@@ -22,11 +21,6 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Check } from "lucide-react"
 
-// Sample data for PO numbers
-const samplePONumbers = Array.from(
-  { length: 50 },
-  (_, i) => `PO-${(1000 + i).toString().padStart(4, '0')}`
-)
 type PoNumber = {
   poNumber: string
   poId: number

@@ -127,7 +127,7 @@ export default function CountboardDashboard() {
   const [editedCVT, setEditedCVT] = useState(currentCVT);
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMachine, setIsLoadingMachine] = useState(false);
+
 
   const getShiftStartTimestamp = () => {
     const now = new Date();
@@ -167,11 +167,11 @@ export default function CountboardDashboard() {
   }, [isValidating]);
 
   const refetchMachine = async () => {
-    setIsLoadingMachine(true);
+    setIsLoading(true);
     try {
       await mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`);
     } finally {
-      setIsLoadingMachine(false);
+      setIsLoading(false);
     }
   };
 
@@ -185,8 +185,7 @@ export default function CountboardDashboard() {
     revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   });
-
-  const refetchHourlyData = () => mutate(hourlyDataKey);
+  const refetchHourlyData = useCallback(() => mutate(hourlyDataKey), [hourlyDataKey]);
 
   const oeeDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/oee/${selectedMachine.machineName}`
@@ -224,7 +223,9 @@ export default function CountboardDashboard() {
     revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   });
-  const refetchTaskData = () => mutate(taskDataKey);
+  const refetchTaskData = useCallback(() => {
+    mutate(taskDataKey);
+  }, [taskDataKey]);
 
   useEffect(() => {
     setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
@@ -289,7 +290,7 @@ export default function CountboardDashboard() {
       refetchHourlyData();
       setSelectedComment(selectedComment)
     },
-    [selectedComment, hourlyData]
+    [selectedComment, refetchHourlyData]
   );
 
 
@@ -322,7 +323,7 @@ export default function CountboardDashboard() {
       refetchTaskData();
       setIsCVTDialogOpen(false);
     },
-    [editedCVT, selectedPO, taskData]
+    [editedCVT, refetchTaskData, taskData]
   );
 
   const handlePOAttach = useCallback(
@@ -348,7 +349,7 @@ export default function CountboardDashboard() {
         console.error(`Failed to Attach PO:`, error);
       }
     },
-    [selectedPO]
+    [selectedPO, selectedMachine]
   );
 
 
@@ -368,10 +369,10 @@ export default function CountboardDashboard() {
     return 'text-red-500';
   };
 
-  const queryParameters = useSearchParams()
-  const queryMachineNumber = queryParameters.get('machineNumber') || '1';
-  const queryLocation = queryParameters.get('location') || 'INJ Bld G';
-  const queryRefreshRate = queryParameters.get('refresh') || '5000';
+  const searchParams = useSearchParams()
+  const queryMachineNumber = searchParams.get('machineNumber') || '1';
+  const queryLocation = searchParams.get('location') || 'INJ Bld G';
+  const queryRefreshRate = searchParams.get('refresh') || '5000';
 
 
   useEffect(() => {
@@ -783,6 +784,5 @@ export default function CountboardDashboard() {
       </div>)}
  
   </div>
-    
   )
 }
