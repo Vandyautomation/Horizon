@@ -129,6 +129,32 @@ export default function CountboardDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMachine, setIsLoadingMachine] = useState(false);
 
+  const getShiftStartTimestamp = () => {
+    const now = new Date();
+    const hour = now.getHours();
+
+    let shiftStartHour;
+    if (hour >= 6 && hour < 14) {
+      // Shift starting at 6 AM
+      shiftStartHour = 6;
+    } else if (hour >= 14 && hour < 22) {
+      // Shift starting at 2 PM
+      shiftStartHour = 14;
+    } else {
+      // Shift starting at 10 PM (previous day if before midnight)
+      shiftStartHour = 22;
+      if (hour < 6) {
+        now.setDate(now.getDate() - 1); // Move to the previous day
+      }
+    }
+
+    // Set the time to the start of the shift
+    now.setHours(shiftStartHour, 0, 0, 0);
+    return now.getTime();
+  };
+
+  const from = getShiftStartTimestamp();
+
 
   
 
@@ -666,6 +692,17 @@ export default function CountboardDashboard() {
             Update CVT
           </Button>
         </div>
+        <div>
+        {selectedMachine?.machineName ? (
+        <iframe
+          src={`https://techpack-iot.dzuliot.my.id/d-solo/downuptime-postgres/down-and-up-time-postgres?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=now&panelId=23&theme=light`}
+          width="100%" 
+          height="150"
+        ></iframe>
+        ) : (
+          <></>
+        )}
+        </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -678,10 +715,6 @@ export default function CountboardDashboard() {
               placeholder={`Enter ${selectedComment.type}...`}
               className="min-h-[100px]"
             />
-            <Label>{selectedComment.content}</Label>
-            <Label>{selectedComment.hourlyId}</Label>
-            <Label>{selectedComment.index}</Label>
-            <Label>{selectedComment.type}</Label>
             <DialogFooter>
               <Button onClick={handleCommentSave}>Save</Button>
             </DialogFooter>
@@ -697,7 +730,7 @@ export default function CountboardDashboard() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="machine">Machine</Label>
-                <Input id="machine" value={selectedMachine?.machineName} readOnly />
+                <Input id="machine" value={selectedMachine?.machineName} disabled />
               </div>
               <div className="flex flex-col">
               <Label htmlFor="po-number">PO Number</Label>

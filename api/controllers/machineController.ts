@@ -39,7 +39,7 @@ export async function getHourlyMachine(machine_id: string) {
           ISNULL(running_target_qty, 0) AS target,
           ISNULL(running_target_qty, 0) * 0.98 AS target_tolerance,
           ISNULL(running_actual_qty, 0) AS actual,
-          task_id, target_qty, actual_qty, target_qty - actual_qty AS delta, hour_id, machine_id,
+          task_id, target_qty, actual_qty, running_actual_qty - running_target_qty AS delta, hour_id, machine_id,
           c.material_id as itemNo,
           h.cause as causes, h.note as comments,
           h.ooe,
