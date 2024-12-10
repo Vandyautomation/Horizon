@@ -2,13 +2,7 @@ import { queryDatabase } from '../utils/queryDatabase';
 
 export async function getMachine() {
   const sqlQuery = `
-  /** SELECT m.id as machineId, m.name as machineName, m.description as machineDescription, m.number as machineNumber, m.tonage as machineTonage, 
-  l.id as locationId, l.name as locationName 
-  FROM Machine m 
-  LEFT JOIN location l on m.locationId = l.id and l.deletedAt is null
-  where m.deletedAt is null **/
-
-  SELECT m.id as machineId, m.MchID as machineName, m.MchDesc as machineDescription, cast(m.MchNumber as INT) as machineNumber, m.MchTon as machineTonage,
+  SELECT m.id as machineId, m.MchID as machineName, m.MchDesc as machineDescription, m.MchNumber as machineNumber, m.MchTon as machineTonage,
   m.MchLoc as locationName
   from MachineMST m
   where m.Active = 1

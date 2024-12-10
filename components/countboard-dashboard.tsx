@@ -700,7 +700,7 @@ export default function CountboardDashboard() {
         <div>
         {selectedMachine?.machineName ? (
         <iframe
-          src={`${process.env.GRAFANA_HOST}/d-solo/downuptime-postgres/down-and-up-time-postgres?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=now&panelId=23&theme=light`}
+          src={`${process.env.NEXT_PUBLIC_GRAFANA_HOST}/d-solo/downuptime-postgres/down-and-up-time-postgres?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=now&panelId=23&theme=light`}
           width="100%" 
           height="150"
         ></iframe>
