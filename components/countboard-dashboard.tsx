@@ -554,7 +554,7 @@ export default function CountboardDashboard() {
          <CardHeader className="py-2 text-sm font-medium text-red-500">Non O.O.E</CardHeader>
           <CardContent className="grid grid-cols-1 gap-4">
             <div>
-              <div className="text-2xl font-bold text-red-500">{(oeeData?.[0]?.breakdownperc || 0) * 100}%</div>
+              <div className="text-2xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(2)}%</div>
             </div>
           </CardContent>
         </Card>
@@ -563,7 +563,7 @@ export default function CountboardDashboard() {
           <CardHeader className="py-2 text-sm font-medium">Performance Metrics</CardHeader>
           <CardContent className="grid grid-cols-6 gap-4">
             <div>
-              <div className="text-2xl font-bold text-green-600">{(oeeData?.[0]?.ooe || 0) * 100}%</div>
+              <div className="text-2xl font-bold text-green-600">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(2)}%</div>
               <div className="text-sm text-muted-foreground">OK</div>
             </div>
             <div>
