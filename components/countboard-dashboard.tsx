@@ -385,14 +385,18 @@ export default function CountboardDashboard() {
   useEffect(() => {
     if (queryMachineNumber) {
       setSelectedMachineNumber(queryMachineNumber);
-      const selected = machines?.find(
-        machine => machine.machineNumber === queryMachineNumber
-      );
+      // const selected = filteredMachines?.find(
+      //   machine => machine.machineNumber === queryMachineNumber
+      // );
+      const selected = filteredMachines?.find(machine => machine.machineNumber == queryMachineNumber);
+      console.log(`filteredMachines : ${JSON.stringify(filteredMachines)}`);
+      console.log(`selected : ${JSON.stringify(selected)}`);
+
       setSelectedMachine(selected || null);
       console.log(`machine number : ${queryMachineNumber}`);
       console.log(`selected machine :`, selected);
     }
-  }, [queryMachineNumber, machines]);
+  }, [queryMachineNumber, machines, filteredMachines]);
 
   useEffect(() => {
     if (queryRefreshRate) {
@@ -696,7 +700,7 @@ export default function CountboardDashboard() {
         <div>
         {selectedMachine?.machineName ? (
         <iframe
-          src={`https://techpack-iot.dzuliot.my.id/d-solo/downuptime-postgres/down-and-up-time-postgres?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=now&panelId=23&theme=light`}
+          src={`${process.env.GRAFANA_HOST}/d-solo/downuptime-postgres/down-and-up-time-postgres?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=now&panelId=23&theme=light`}
           width="100%" 
           height="150"
         ></iframe>
