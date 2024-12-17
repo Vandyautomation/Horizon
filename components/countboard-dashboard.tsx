@@ -255,6 +255,13 @@ export default function CountboardDashboard() {
     setRefreshRate(value);
   }
 
+  const handleRefreshButton = () => {
+    refetchHourlyData();
+    refetchOeeData();
+    refetchTaskData();
+    refetchNoeeData();
+  }
+
   const handleCellClick = (index: number, hourlyId: number, type: 'causes' | 'comments', content: string) => {
     setSelectedComment({ index, hourlyId, type, content });
     setIsDialogOpen(true);
@@ -496,8 +503,18 @@ export default function CountboardDashboard() {
                 </SelectItem>
               ))} 
           </SelectContent>
-
         </Select>
+        <Button onClick={() => handleRefreshButton()} variant="default">
+            <RefreshCw className="w-4 h-4" />
+        </Button>
+        <Button onClick={() => setIsPODialogOpen(true)} variant="default">
+            <Paperclip className="w-4 h-4 mr-2"  />
+            Attach PO
+        </Button>
+        <Button onClick={() => setIsCVTDialogOpen(true)} variant="default">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Update CVT
+        </Button>
       </div>
       {selectedMachine === null && isLoading == false ? (
         <div className="text-center">Please select machine...</div>
@@ -687,16 +704,9 @@ export default function CountboardDashboard() {
         </Card>
         </TooltipProvider>
 
-        <div className="flex gap-2">
-          <Button onClick={() => setIsPODialogOpen(true)} variant="default">
-            <Paperclip className="w-4 h-4 mr-2"  />
-            Attach PO
-          </Button>
-          <Button onClick={() => setIsCVTDialogOpen(true)} variant="default">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Update CVT
-          </Button>
-        </div>
+        {/* <div className="flex gap-2">
+          
+        </div> */}
         <div>
         {selectedMachine?.machineName ? (
         <iframe

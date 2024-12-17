@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev-be": "bun run --hot api/index.ts",
+    "dev-be": "bun run api/index.ts",
     "dev-full": "concurrently \"bun run dev\" \"bun run start\"",
     "dev:reset": "bunx prisma migrate reset --force --skip-seed",
     "build": "next build",

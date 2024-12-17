@@ -26,6 +26,7 @@ type PoNumber = {
   poId: number
 }
 
+
 export function SearchablePOSelect({
   value = "", // Provide a default empty string to avoid undefined issues
   onValueChange
@@ -37,11 +38,12 @@ export function SearchablePOSelect({
   const [poNumbers, setPoNumbers] = useState<PoNumber[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [searchPoNumber, setSearchPoNumber] = useState('');
 
   useEffect(() => {
     const fetchPo = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/coois?poName=${searchPoNumber}`, {
           credentials: "include",
         });
         const data = await response.json();
@@ -53,13 +55,14 @@ export function SearchablePOSelect({
       }
     };
 
-    fetchPo();
-  }, []);
+    if (searchPoNumber) {
+      fetchPo();
+    }
+  }, [searchPoNumber]);
 
-  useEffect(() => {
-    console.log('poNumbers',poNumbers);
-  }, [poNumbers]);
-
+  const handleSearchPoNumberChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchPoNumber(event.currentTarget.value);
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -76,7 +79,7 @@ export function SearchablePOSelect({
       </PopoverTrigger>
       <PopoverContent className="p-0">
         <Command className="">
-          <CommandInput placeholder="Search PO number..." className="h-9" />
+          <CommandInput placeholder="Search PO number..." className="h-9" value={searchPoNumber} onChangeCapture={handleSearchPoNumberChange} />
           <CommandEmpty>No PO number found.</CommandEmpty>
           <CommandGroup>
             <ScrollArea className="h-60" type="always">

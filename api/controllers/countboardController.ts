@@ -1,6 +1,6 @@
 import { queryDatabase } from '../utils/queryDatabase';
 
-export async function getCoois() {
+export async function getCoois(poName: string|undefined) {
   const sqlQuery = `
     SELECT 
         MAX(Id) AS poId, 
@@ -11,13 +11,14 @@ export async function getCoois() {
         ISNULL(is_deleted, 0) = 0  
         AND po_name IS NOT NULL 
         AND po_name != ''
+        AND po_name like '%'+ @poName + '%'
     GROUP BY 
         po_name
     ORDER BY 
         poId DESC;
 
   `;
-  return await queryDatabase(sqlQuery);
+  return await queryDatabase(sqlQuery, { poName });
 }
 
 export async function attachPo(poName: string, machineName: string) {

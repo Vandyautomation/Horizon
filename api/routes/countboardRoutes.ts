@@ -3,9 +3,11 @@ import { attachPo, getCoois, updateComment, updateCVT } from '../controllers/cou
 
 const countboardRoutes = new Hono();
 
-countboardRoutes.get('/', async (c) => {
+countboardRoutes.get('/coois', async (c) => {
+  const poName = c.req.query('poName');
+
   try {
-    const data = await getCoois();
+    const data = await getCoois(poName);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
