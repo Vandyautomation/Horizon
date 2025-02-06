@@ -138,7 +138,7 @@ export default function CountboardDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedShift, setSelectedShift] = useState('');
   const [isLoadingRefresh, setIsLoadingRefresh] = useState(false); 
-  const [isLiveMode, setIsLiveMode] = useState(Boolean); 
+  const [isLiveMode, setIsLiveMode] = useState(true); 
 
   const pathname = usePathname()
   const router = useRouter()
@@ -484,7 +484,7 @@ export default function CountboardDashboard() {
     params.set('refresh', '5000');
     router.push(`${pathname}?${params.toString()}`);
   }
-  if (queryLiveMode == '') {
+  if (queryLiveMode == true) {
     queryLiveMode = true;
     params.set('isLiveMode', 'true');
     router.push(`${pathname}?${params.toString()}`);

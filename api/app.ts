@@ -5,7 +5,7 @@ import { cors } from 'hono/cors';
 const app = new Hono();
 
 app.use('/api/*',cors({ 
-    origin: 'http://localhost:3001', 
+    origin: '*', 
     allowHeaders: ['X-Custom-Header', 'Upgrade-Insecure-Requests','Access-Control-Allow-Origin'],
     allowMethods: ['POST', 'GET', 'OPTIONS'],
     credentials: true }));
