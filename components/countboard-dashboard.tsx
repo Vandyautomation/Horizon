@@ -540,7 +540,7 @@ export default function CountboardDashboard() {
     };
 
     return (
-      <div className="flex flex-col gap-0.5">
+      <div className="flex h-12 flex-col gap-0.5">
       {nooeForTime.map((nooe) => {
         const activeColor = Object.keys(colorMap).find(color => nooe[color as keyof typeof nooe] === true);
         return activeColor ? (
@@ -804,10 +804,10 @@ export default function CountboardDashboard() {
                 ) : (
                   (Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => (
                     <TableRow className="h-12" key={row.time}>
-                      <TableCell>{row.time}</TableCell>
-                      <TableCell>{row.itemNo}</TableCell>
-                      <TableCell className="text-center">{row.target}</TableCell>
-                      <TableCell className="relative overflow-hidden">
+                      <TableCell className="h-full">{row.time}</TableCell>
+                      <TableCell className="h-full">{row.itemNo}</TableCell>
+                      <TableCell className="text-center h-full">{row.target}</TableCell>
+                      <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
                           <div
                           className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
@@ -835,7 +835,7 @@ export default function CountboardDashboard() {
                       <TableCell className={row.delta >= 0 ? "text-green-600" : "text-red-600"}>{row.delta}</TableCell>
                       <TableCell>{row.scrap}</TableCell>
                       <TableCell>{row.rework}</TableCell>
-                      <TableCell className="w-24 py-0">
+                      <TableCell className="w-24 py-0 h-full">
                       {renderNooeIndicators(row.hourlyId)}
                       </TableCell>
                       <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)}>
