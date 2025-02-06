@@ -144,12 +144,11 @@ export default function CountboardDashboard() {
   const router = useRouter()
 
   const [shiftStartHour, setShiftStartHour] = useState(0);
-
   useEffect(() => {
     const now = new Date();
     const hour = now.getHours();
     let shift = 0;
-
+  
     switch (true) {
       case hour >= 6 && hour < 14:
         shift = 1;
@@ -166,16 +165,21 @@ export default function CountboardDashboard() {
       default:
         throw new Error(`Unexpected hour ${hour}`);
     }
-
-    // Set the time to the start of the shift
+  
+    // Set shift start time
     now.setHours(6 + (shift - 1) * 8, 0, 0, 0);
     setSelectedShift(shift.toString());
     setShiftStartHour(now.getTime());
   }, []);
-
-  const from = isLiveMode ? shiftStartHour : new Date().setHours(6, 0, 0, 0);
-  const to = isLiveMode? 'now' : new Date(selectedDate).getTime()
-
+  
+  const from = isLiveMode 
+    ? shiftStartHour 
+    : new Date(selectedDate).setHours(6 + (+selectedShift - 1) * 8, 0, 0, 0);
+  
+  const to = isLiveMode
+    ? Date.now() // Live mode uses current timestamp
+    : new Date(selectedDate).setHours(6 + (+selectedShift - 1) * 8 + 8, 0, 0, 0); // Set to end of shift
+  
   
 
   const { data: machines, error, isValidating } = useSWR<MachineDetail[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`, fetcher, {
