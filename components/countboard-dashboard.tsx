@@ -250,7 +250,11 @@ export default function CountboardDashboard() {
   const refetchNoeeData = () => mutate(noeeDataKey);
 
   const taskDataKey = selectedMachine?.machineDescription
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tasks/${selectedMachine.machineDescription}`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tasks/${selectedMachine.machineDescription}${
+      !isLiveMode
+      ? `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
+          : ''
+    }`
     : null;
 
   const { data: taskData } = useSWR<TaskData[]>(taskDataKey, fetcher, {

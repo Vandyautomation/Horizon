@@ -276,42 +276,100 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
   }
 }
 
-export async function getTaskMachine(machine_name: string) {
-  const sqlQuery = `
-  SELECT 
-  top 1
-    id, 
-    po_name, 
-    machine_name, 
-    required_qty, 
-    produced_qty, 
-    cvt, 
-    ct, 
-    actual_cvt, 
-    actual_ct, 
-    cvt as target_cvt,
-    ct as target_ct,
-    CASE 
-        WHEN (cast(required_qty as int) - cast(produced_qty as int)) > cvt * (
-                (8) / (ct / 3600.0)
-            )
-        THEN
-            FLOOR(cvt * (
-                    (8) / (ct / 3600.0)
-                )
-            )
-        ELSE 
-            cast(required_qty as int) - cast(produced_qty as int)
-    END AS shift_target_qty,
-    created_at, 
-    updated_at
-FROM IoT.dbo.countboard_tasks t
-WHERE po_name != '' 
-    AND machine_name = @machine_name
-    AND id > 29
-ORDER BY created_at DESC;
-  `;
-  return await queryDatabase(sqlQuery, { machine_name });
+export async function getTaskMachine(machine_name: string, date: string | null, shift: string | null) {
+  if(date && shift){
+    const sqlQuery = `
+    DECLARE @from DATETIME;
+    DECLARE @to DATETIME;
+
+    -- Set @from and @to based on shift_id
+    IF @shift = 1
+    BEGIN
+        SET @from = DATEADD(HOUR, 6, CAST(@date AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 14, CAST(@date AS DATETIME));
+    END
+    ELSE IF @shift = 2
+    BEGIN
+        SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
+    END
+    ELSE IF @shift = 3
+    BEGIN
+        SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
+    END
+
+    SELECT 
+    top 1
+      id, 
+      po_name, 
+      machine_name, 
+      required_qty, 
+      produced_qty, 
+      cvt, 
+      ct, 
+      actual_cvt, 
+      actual_ct, 
+      cvt as target_cvt,
+      ct as target_ct,
+      CASE 
+          WHEN (cast(required_qty as int) - cast(produced_qty as int)) > cvt * (
+                  (8) / (ct / 3600.0)
+              )
+          THEN
+              FLOOR(cvt * (
+                      (8) / (ct / 3600.0)
+                  )
+              )
+          ELSE 
+              cast(required_qty as int) - cast(produced_qty as int)
+      END AS shift_target_qty,
+      created_at, 
+      updated_at
+    FROM IoT.dbo.countboard_tasks t
+    WHERE 
+      ID = (select top 1 task_id from hourly where created_at between @from and @to)
+    ORDER BY created_at DESC;
+    `
+    return await queryDatabase(sqlQuery, { machine_name, date, shift });
+  }
+  else {
+    const sqlQuery = `
+    SELECT 
+    top 1
+      id, 
+      po_name, 
+      machine_name, 
+      required_qty, 
+      produced_qty, 
+      cvt, 
+      ct, 
+      actual_cvt, 
+      actual_ct, 
+      cvt as target_cvt,
+      ct as target_ct,
+      CASE 
+          WHEN (cast(required_qty as int) - cast(produced_qty as int)) > cvt * (
+                  (8) / (ct / 3600.0)
+              )
+          THEN
+              FLOOR(cvt * (
+                      (8) / (ct / 3600.0)
+                  )
+              )
+          ELSE 
+              cast(required_qty as int) - cast(produced_qty as int)
+      END AS shift_target_qty,
+      created_at, 
+      updated_at
+  FROM IoT.dbo.countboard_tasks t
+  WHERE po_name != '' 
+      AND machine_name = @machine_name
+      AND id > 29
+  ORDER BY created_at DESC;
+    `;
+    return await queryDatabase(sqlQuery, { machine_name });
+  }
 }
 
 

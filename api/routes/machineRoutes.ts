@@ -53,7 +53,9 @@ machineRoutes.get('/noee/:machineId', async (c) => {
 machineRoutes.get('/tasks/:machineName', async (c) => {
   try {
     const machineName = c.req.param('machineName'); 
-    const data = await getTaskMachine(machineName);
+    const date = c.req.query('date') || null; 
+    const shift = c.req.query('shift') || null; 
+    const data = await getTaskMachine(machineName, date, shift);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
