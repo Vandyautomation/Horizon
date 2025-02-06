@@ -24,7 +24,7 @@ import {
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import Image from 'next/image'
-import {   CalendarIcon, Paperclip, RefreshCw } from "lucide-react"
+import {   CalendarIcon, FilePlus2, Pencil, RefreshCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -174,11 +174,11 @@ export default function CountboardDashboard() {
   
   const from = isLiveMode 
     ? shiftStartHour 
-    : new Date(selectedDate).setHours(6 + (+selectedShift - 1) * 8, 0, 0, 0);
+    : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(6 + (+selectedShift - 1) * 8, 0, 0, 0);
   
   const to = isLiveMode
     ? Date.now() // Live mode uses current timestamp
-    : new Date(selectedDate).setHours(6 + (+selectedShift - 1) * 8 + 8, 0, 0, 0); // Set to end of shift
+    : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(6 + (+selectedShift - 1) * 8 + 8, 0, 0, 0); // Set to end of shift
   
   
 
@@ -634,14 +634,14 @@ export default function CountboardDashboard() {
             <RefreshCw className="w-4 h-4" style={{ animation: isLoadingRefresh ? "spin 2s linear infinite" : "none" }} />
         </Button>
         <Button onClick={() => setIsPODialogOpen(true)} variant="default">
-            <Paperclip className="w-4 h-4 mr-2"  />
-            Attach PO
+            <FilePlus2 className="w-4 h-4 mr-2"  />
+            PO
         </Button>
         <Button onClick={() => setIsCVTDialogOpen(true)} variant="default">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Update CVT
+            <Pencil className="w-4 h-4 mr-2" />
+            CVT
         </Button>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 border border-gray-250 rounded-md px-3 py-2">
         <Switch id="live-mode" 
             checked={isLiveMode}
             onCheckedChange={handleLiveMode} />
@@ -659,7 +659,7 @@ export default function CountboardDashboard() {
                   !selectedDate && "text-muted-foreground"
                 )}
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
+                <CalendarIcon className="h-4 w-4" />
                 {selectedDate ? format(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24), "PPP") : <span>Pick a date</span>}
               </Button>
             </PopoverTrigger>
