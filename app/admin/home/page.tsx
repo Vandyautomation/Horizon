@@ -16,7 +16,7 @@ export default function Landing() {
             <div>
             <h2 className="text-2xl font-bold tracking-tight">Welcome {user.firstName} {user.lastName} !</h2>
             <p className="text-muted-foreground pt-2">
-                developed by Dzulfikar Ats Tsauri 
+                developed by Albea Indonesia 
             </p>
             </div>
             </div>

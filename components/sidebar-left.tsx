@@ -29,7 +29,7 @@ const sidebarLeftData = {
     navMain: [
       {
         title: "Home",
-        url: "home",
+        url: "",
         icon: HomeIcon,
       },
       {

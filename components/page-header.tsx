@@ -6,29 +6,35 @@ import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { UserSetting } from "@/components/user-setting"
 import { ModeToggle } from "@/components/mode-toggle"
+import { usePathname } from "next/navigation"
 
 interface PageHeaderProps extends React.ComponentProps<typeof Sidebar> {
   onMenuClick: (component: string) => void;
   currentPage : string
 }
 
-export default function PageHeader({ currentPage , onMenuClick}: PageHeaderProps) {
+
+
+
+export default function PageHeader({  onMenuClick}: PageHeaderProps) {
+  const pathname = usePathname()
+  const currentPage = pathname?.split("/")[1]
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <Breadcrumb>
         <BreadcrumbList>
-          {currentPage === "home" && (
+          {currentPage === "" && (
           <BreadcrumbItem>
-            <BreadcrumbPage onClick={() => onMenuClick("home")}>Home</BreadcrumbPage>
+            <BreadcrumbPage onClick={() => onMenuClick("")}>Home</BreadcrumbPage>
           </BreadcrumbItem>)}
 
           {/* Conditionally show Users breadcrumb if currentPage is Users or Roles */}
           {currentPage === "scale" && (
             <>
             <BreadcrumbItem>
-            <BreadcrumbLink onClick={() => onMenuClick("home")}>Home</BreadcrumbLink>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
           </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -40,7 +46,7 @@ export default function PageHeader({ currentPage , onMenuClick}: PageHeaderProps
           {currentPage === "countboard" && (
             <>
             <BreadcrumbItem>
-            <BreadcrumbLink onClick={() => onMenuClick("home")}>Home</BreadcrumbLink>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
           </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -52,7 +58,7 @@ export default function PageHeader({ currentPage , onMenuClick}: PageHeaderProps
           {currentPage === "users" && (
             <>
             <BreadcrumbItem>
-            <BreadcrumbLink onClick={() => onMenuClick("home")}>Home</BreadcrumbLink>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
           </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -65,7 +71,7 @@ export default function PageHeader({ currentPage , onMenuClick}: PageHeaderProps
           {currentPage === "roles" && (
             <>
             <BreadcrumbItem>
-            <BreadcrumbLink onClick={() => onMenuClick("home")}>Home</BreadcrumbLink>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
           </BreadcrumbItem>
             <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -81,7 +87,7 @@ export default function PageHeader({ currentPage , onMenuClick}: PageHeaderProps
           {currentPage === "locations" && (
             <>
             <BreadcrumbItem>
-            <BreadcrumbLink onClick={() => onMenuClick("home")}>Home</BreadcrumbLink>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
           </BreadcrumbItem>
             <BreadcrumbSeparator />
               <BreadcrumbItem>

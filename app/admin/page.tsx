@@ -1,42 +1,27 @@
 "use client"
 
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
-import Users from "./users/page"
-import SidebarLeft from "@/components/sidebar-left"
-import PageHeader from "@/components/page-header"
-import Roles from "./users/roles/page"
-import { useState } from "react"
-import Landing from "./home/page"
-import Locations from "./users/locations/page"
-import ScaleForm from "@/components/scale-form"
-import Countboard from "../countboard/page"
+import { useEffect, useState } from "react"
+
 
 export default function AdminUI() {
+      const [user, setUser] = useState({ firstName: '', lastName: '' });
+      useEffect(() => {
+          // Retrieve user data from local storage
+          const userData = JSON.parse(localStorage.getItem('user') || '{}');
+          if (userData) {
+            setUser(userData);
+          }
+        }, []);
   
-  const [activeComponent, setActiveComponent] = useState("home");
-
-  // Function to handle menu item clicks
-  const handleMenuClick = (component:string) => {
-    setActiveComponent(component);
-  };
 
   return (
-    <SidebarProvider>
-        <SidebarLeft onMenuClick={handleMenuClick}/>
-        <SidebarInset>
-        <PageHeader onMenuClick={handleMenuClick} currentPage={activeComponent} />
-        {activeComponent === "home" && <Landing />}
-        {activeComponent === "users" && <Users />}
-        {activeComponent === "roles" && <Roles />}
-        {activeComponent === "locations" && <Locations />}
-        {activeComponent === "scale" && <ScaleForm />}
-        {activeComponent === "countboard" && <Countboard />}
-
-
-        </SidebarInset>
-    </SidebarProvider>
+    <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
+    <div>
+    <h2 className="text-2xl font-bold tracking-tight">Welcome {user.firstName} {user.lastName} !</h2>
+    <p className="text-muted-foreground pt-2">
+        developed by Dzulfikar Ats Tsauri 
+    </p>
+    </div>
+    </div>
   )
 }

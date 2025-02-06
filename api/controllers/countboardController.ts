@@ -3,6 +3,7 @@ import { queryDatabase } from '../utils/queryDatabase';
 export async function getCoois(poName: string|undefined) {
   const sqlQuery = `
     SELECT 
+    TOP 10
         MAX(Id) AS poId, 
         po_name AS poNumber
     FROM 

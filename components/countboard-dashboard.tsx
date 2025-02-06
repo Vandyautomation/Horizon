@@ -21,10 +21,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import Image from 'next/image'
-import {  Paperclip, RefreshCw } from "lucide-react"
+import {   CalendarIcon, Paperclip, RefreshCw } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
 import { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
@@ -35,6 +36,10 @@ import { SearchablePOSelect } from "./searchable-select-po"
 import useSWR, { mutate } from "swr"
 import ErrorState from "./ui/error-state"
 import { toast } from "sonner"
+import { format } from "date-fns/format"
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
+import { cn } from "@/lib/utils"
+import { Switch } from "./ui/switch"
 
 type MachineDetail = {
   machineId: number;
@@ -50,6 +55,7 @@ type HourlyData = {
   hourlyId: number;
   time: string;
   itemNo: string;
+  itemDesc: string;
   target: number;
   target_tolerance: number;
   actual: number;
@@ -112,6 +118,8 @@ const refreshRateList = [
   '5000','15000','30000','60000'
 ]
 
+const shiftList = ['1','2','3']
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function CountboardDashboard() {
@@ -127,34 +135,46 @@ export default function CountboardDashboard() {
   const [editedCVT, setEditedCVT] = useState(currentCVT);
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedShift, setSelectedShift] = useState('');
+  const [isLoadingRefresh, setIsLoadingRefresh] = useState(false); 
+  const [isLiveMode, setIsLiveMode] = useState(Boolean); 
 
+  const pathname = usePathname()
+  const router = useRouter()
 
-  const getShiftStartTimestamp = () => {
+  const [shiftStartHour, setShiftStartHour] = useState(0);
+
+  useEffect(() => {
     const now = new Date();
     const hour = now.getHours();
+    let shift = 0;
 
-    let shiftStartHour;
-    if (hour >= 6 && hour < 14) {
-      // Shift starting at 6 AM
-      shiftStartHour = 6;
-    } else if (hour >= 14 && hour < 22) {
-      // Shift starting at 2 PM
-      shiftStartHour = 14;
-    } else {
-      // Shift starting at 10 PM (previous day if before midnight)
-      shiftStartHour = 22;
-      if (hour < 6) {
-        now.setDate(now.getDate() - 1); // Move to the previous day
-      }
+    switch (true) {
+      case hour >= 6 && hour < 14:
+        shift = 1;
+        break;
+      case hour >= 14 && hour < 22:
+        shift = 2;
+        break;
+      case hour >= 22 || hour < 6:
+        shift = 3;
+        if (hour < 6) {
+          now.setDate(now.getDate() - 1); // Move to the previous day
+        }
+        break;
+      default:
+        throw new Error(`Unexpected hour ${hour}`);
     }
 
     // Set the time to the start of the shift
-    now.setHours(shiftStartHour, 0, 0, 0);
-    return now.getTime();
-  };
+    now.setHours(6 + (shift - 1) * 8, 0, 0, 0);
+    setSelectedShift(shift.toString());
+    setShiftStartHour(now.getTime());
+  }, []);
 
-  const from = getShiftStartTimestamp();
-
+  const from = isLiveMode ? shiftStartHour : new Date().setHours(6, 0, 0, 0);
+  const to = isLiveMode? 'now' : new Date(selectedDate).getTime()
 
   
 
@@ -166,17 +186,21 @@ export default function CountboardDashboard() {
     setIsLoading(isValidating);
   }, [isValidating]);
 
-  const refetchMachine = async () => {
-    setIsLoading(true);
-    try {
-      await mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // const refetchMachine = async () => {
+  //   setIsLoading(true);
+  //   try {
+  //     await mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   const hourlyDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}${
+      !isLiveMode
+        ? `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
+        : ''
+    }`
     : null;
 
   const { data: hourlyData } = useSWR<HourlyData[]>(hourlyDataKey, fetcher, {
@@ -188,7 +212,11 @@ export default function CountboardDashboard() {
   const refetchHourlyData = useCallback(() => mutate(hourlyDataKey), [hourlyDataKey]);
 
   const oeeDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/oee/${selectedMachine.machineName}`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/oee/${selectedMachine.machineName}${
+        !isLiveMode
+          ? `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
+          : ''
+      }`
     : null;
 
   const { data: oeeData } = useSWR<OoeData[]>(oeeDataKey, fetcher, {
@@ -236,30 +264,83 @@ export default function CountboardDashboard() {
 
   const handleLocationChange = (value: string) => {
     setSelectedLocation(value);
+    const params = new URLSearchParams(searchParams);
+    params.set("location", value);
+    router.push(`${pathname}?${params.toString()}`);
     setSelectedMachineNumber('');
     setSelectedMachine(null);
   };
 
   const handleMachineNumberChange = (value: string) => {
     setSelectedMachineNumber(value);
-    const selected = filteredMachines?.find(machine => machine.machineNumber === value);
-    setSelectedMachine(selected || null);
-    refetchHourlyData();
-    refetchOeeData();
-    refetchTaskData();
-    refetchNoeeData();
-    setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0)
+    const selected = filteredMachines?.find(machine => machine.machineNumber === value) || null;
+    setSelectedMachine(selected);
+    Promise.all([
+      refetchHourlyData(),
+      refetchOeeData(),
+      refetchTaskData(),
+      refetchNoeeData()
+    ]);
+    setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
+    const params = new URLSearchParams(searchParams);
+    params.set("machineNumber", value);
+    router.push(`${pathname}?${params.toString()}`);
   };
+  
 
   const handleRefreshRateChange = (value: string) => {
     setRefreshRate(value);
   }
 
-  const handleRefreshButton = () => {
-    refetchHourlyData();
-    refetchOeeData();
-    refetchTaskData();
-    refetchNoeeData();
+  const handleLiveMode = () => {
+    setIsLiveMode(!isLiveMode);
+    const params = new URLSearchParams(searchParams);
+    params.set("isLiveMode", String(!isLiveMode));
+
+
+    if (isLiveMode == false) {
+      setRefreshRate('5000')
+      params.set("refresh", '5000');
+      params.delete("date");
+      params.delete("shift");
+    } else if (isLiveMode == true){
+      setRefreshRate('30000')
+      params.set("refresh", '30000');
+      params.set("date", selectedDate.toISOString().split('T')[0]);
+      params.set("shift", selectedShift.toString());
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
+    const params = new URLSearchParams(searchParams);
+    params.set("date", date.toISOString().split('T')[0]);
+    router.push(`${pathname}?${params.toString()}`);
+    handleRefreshButton()
+  }
+
+  const handleShiftSelect = (shift: string) => {
+    setSelectedShift(shift);
+    const params = new URLSearchParams(searchParams);
+    params.set("shift", shift);
+    router.push(`${pathname}?${params.toString()}`);
+    handleRefreshButton()
+
+  }
+
+  const handleRefreshButton = async () => {
+    setIsLoadingRefresh(true);
+    try {
+      await Promise.all([
+        refetchHourlyData(),
+        refetchOeeData(),
+        refetchTaskData(),
+        refetchNoeeData()
+      ]);
+    } finally {
+      setIsLoadingRefresh(false);
+    }
   }
 
   const handleCellClick = (index: number, hourlyId: number, type: 'causes' | 'comments', content: string) => {
@@ -377,15 +458,43 @@ export default function CountboardDashboard() {
   };
 
   const searchParams = useSearchParams()
-  const queryMachineNumber = searchParams.get('machineNumber') || '1';
-  const queryLocation = searchParams.get('location') || 'INJ Bld G';
-  const queryRefreshRate = searchParams.get('refresh') || '5000';
+  const params = new URLSearchParams(searchParams);
+
+  let queryMachineNumber = searchParams.get('machineNumber') || '';
+  let queryLocation = searchParams.get('location') || '';
+  let queryRefreshRate = searchParams.get('refresh') || '';
+  let queryLiveMode = searchParams.get('isLiveMode') || true ;
+
+
+
+  if (queryMachineNumber == '') {
+    queryMachineNumber = '5';
+    params.set('machineNumber', '5');
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  if (queryLocation == '') {
+    queryLocation = 'INJ Bld G';
+    params.set('location', 'INJ Bld G');
+    router.push(`${pathname}?${params.toString()}`);
+
+  }
+  if (queryRefreshRate == '') {
+    queryRefreshRate = '5000';
+    params.set('refresh', '5000');
+    router.push(`${pathname}?${params.toString()}`);
+  }
+  if (queryLiveMode == '') {
+    queryLiveMode = true;
+    params.set('isLiveMode', 'true');
+    router.push(`${pathname}?${params.toString()}`);
+  }
 
 
   useEffect(() => {
     if (queryLocation) {
       setSelectedLocation(queryLocation);
-      console.log(`machine location : ${queryLocation}`);
+      console.log(`machine location from query : ${queryLocation}`);
     }
   }, [queryLocation]);
 
@@ -396,12 +505,12 @@ export default function CountboardDashboard() {
       //   machine => machine.machineNumber === queryMachineNumber
       // );
       const selected = filteredMachines?.find(machine => machine.machineNumber == queryMachineNumber);
-      console.log(`filteredMachines : ${JSON.stringify(filteredMachines)}`);
-      console.log(`selected : ${JSON.stringify(selected)}`);
+      console.log(`filteredMachines from query: ${JSON.stringify(filteredMachines)}`);
+      console.log(`selected from query: ${JSON.stringify(selected)}`);
 
       setSelectedMachine(selected || null);
-      console.log(`machine number : ${queryMachineNumber}`);
-      console.log(`selected machine :`, selected);
+      console.log(`machine number from query : ${queryMachineNumber}`);
+      console.log(`selected machine from query :`, selected);
     }
   }, [queryMachineNumber, machines, filteredMachines]);
 
@@ -411,6 +520,8 @@ export default function CountboardDashboard() {
       console.log(`refreshRate : ${queryRefreshRate}`);
     }
   }, [queryRefreshRate]);
+
+
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
 
@@ -447,15 +558,15 @@ export default function CountboardDashboard() {
 
 
   return (
-    <div className="p-4 space-y-4 w-full">
+    <div className="p-2 space-y-2 w-full">
       <div className="flex flex-wrap gap-2">
         {isLoading ? (
           <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
           Loading ...
         </Label>
         ) : (
-          <Select value={selectedLocation} onValueChange={handleLocationChange} onOpenChange={() => {refetchMachine()}}>
-            <SelectTrigger className="w-[130px]">
+          <Select value={selectedLocation} onValueChange={handleLocationChange} >
+            <SelectTrigger className="w-[110px]">
               <SelectValue placeholder="Building" />
             </SelectTrigger>
             <SelectContent>
@@ -472,7 +583,7 @@ export default function CountboardDashboard() {
           <div></div>
         ) : (
         <Select value={selectedMachineNumber} onValueChange={handleMachineNumberChange}>
-          <SelectTrigger className="w-[80px]">
+          <SelectTrigger className="w-[60px]">
             <SelectValue placeholder="MchNumber" />
           </SelectTrigger>
           <SelectContent>
@@ -487,6 +598,13 @@ export default function CountboardDashboard() {
         <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
           {selectedMachine?.machineDescription || "MchDesc"}
         </Label>
+        <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
+          {hourlyData && hourlyData.length > 0 ? hourlyData[hourlyData.length - 1].itemDesc : "Material Description"}
+        </Label>
+        <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
+         PO{taskData && taskData.length > 0 ? taskData[taskData.length - 1].po_name : "PO Number"}
+        </Label>
+        
         <Select value={selectedRefreshRate} onValueChange={handleRefreshRateChange}>
           <SelectTrigger className="w-[80px]">
             <SelectValue placeholder="Refresh Rate">
@@ -505,7 +623,7 @@ export default function CountboardDashboard() {
           </SelectContent>
         </Select>
         <Button onClick={() => handleRefreshButton()} variant="default">
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4" style={{ animation: isLoadingRefresh ? "spin 2s linear infinite" : "none" }} />
         </Button>
         <Button onClick={() => setIsPODialogOpen(true)} variant="default">
             <Paperclip className="w-4 h-4 mr-2"  />
@@ -515,6 +633,53 @@ export default function CountboardDashboard() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Update CVT
         </Button>
+        <div className="flex items-center space-x-2">
+        <Switch id="live-mode" 
+            checked={isLiveMode}
+            onCheckedChange={handleLiveMode} />
+        <Label htmlFor="live-mode">LIVE MODE</Label>
+        </div>
+
+        {!isLiveMode && (
+          <>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={"outline"}
+                className={cn(
+                  "w-[185px] justify-start text-left font-normal",
+                  !selectedDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDate ? format(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24), "PPP") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24) }
+                onSelect={selectedDate => handleDateSelect(new Date(selectedDate!.getTime() + 1000 * 60 * 60 * 24))}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          <Select value={selectedShift} onValueChange={handleShiftSelect}>
+            <SelectTrigger className="w-[80px]">
+              <SelectValue placeholder="Shift" />
+            </SelectTrigger>
+            <SelectContent>
+              {shiftList?.map(shift => (
+                <SelectItem key={shift} value={shift}>
+                  Shift {shift}
+                </SelectItem>
+              ))} 
+            </SelectContent>
+          </Select>
+          </>
+        )}
+
+
       </div>
       {selectedMachine === null && isLoading == false ? (
         <div className="text-center">Please select machine...</div>
@@ -533,7 +698,7 @@ export default function CountboardDashboard() {
               <div className="text-sm text-muted-foreground">Target</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-red-600">{(taskData?.[0]?.required_qty || 0) - (taskData?.[0]?.required_qty || 0)}</div>
+              <div className="text-2xl font-bold text-red-600">{(taskData?.[0]?.required_qty || 0) - (taskData?.[0]?.produced_qty || 0)}</div>
               <div className="text-sm text-muted-foreground">Gap</div>
             </div>
           </CardContent>
@@ -632,71 +797,70 @@ export default function CountboardDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {hourlyData?.map((row, index) => (
-                  <TableRow key={row.time}>
-                    <TableCell>{row.time}</TableCell>
-                    <TableCell>{row.itemNo}</TableCell>
-                    <TableCell className="text-center">{row.target}</TableCell>
-                    <TableCell className="relative overflow-hidden">
-                    <div className="flex items-center h-8 w-full">
-                        {/* Actual progress bar */}
-                        <div
-                        className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
-                        style={{
-                            width: `${Math.min((row.actual / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
-                            maxWidth: "250px",
-                        }}
-                        />
-
-                        {/* Target marker */}
-                        <div
-                        className="absolute inset-0  h-full w-px bg-green-600"
-                        style={{
-                            left: `${Math.min((row.target / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
-                        }}
-                        />
-
-                        {/* Threshold marker */}
-                        <div
-                        className="absolute inset-0 h-full w-px bg-yellow-500"
-                        style={{
-                            left: `${Math.min(((row.target_tolerance) / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
-                        }}
-                        />
-
-                        {/* Actual value text */}
-                        <span className="relative z-10 ml-2">{row.actual}</span>
-                    </div>
-                    </TableCell>
-
-                    <TableCell className={row.delta >= 0 ? "text-green-600" : "text-red-600"}>{row.delta}</TableCell>
-                    <TableCell>{row.scrap}</TableCell>
-                    <TableCell>{row.rework}</TableCell>
-                    <TableCell className="w-24 py-0">
-                    {renderNooeIndicators(row.hourlyId)}
-                    </TableCell>
-                    <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>{row.causes || 'N/A'}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{row.causes ? 'Click to edit causes' : 'Click to add causes'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>{row.comments || 'N/A'}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{row.comments ? 'Click to edit comments' : 'Click to add comments'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableCell>
+                {Array.isArray(hourlyData) && hourlyData?.length === 0 ? (
+                  <TableRow className="h-12">
+                    <TableCell colSpan={10} className="text-center">No data available</TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  (Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => (
+                    <TableRow className="h-12" key={row.time}>
+                      <TableCell>{row.time}</TableCell>
+                      <TableCell>{row.itemNo}</TableCell>
+                      <TableCell className="text-center">{row.target}</TableCell>
+                      <TableCell className="relative overflow-hidden">
+                      <div className="flex items-center h-full w-full">
+                          <div
+                          className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
+                          style={{
+                              width: `${Math.min((row.actual / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
+                              maxWidth: "250px",
+                          }}
+                          />
+                          <div
+                          className="absolute inset-0  h-full w-px bg-green-600"
+                          style={{
+                              left: `${Math.min((row.target / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
+                          }}
+                          />
+                          <div
+                          className="absolute inset-0 h-full w-px bg-yellow-500"
+                          style={{
+                              left: `${Math.min(((row.target_tolerance) / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
+                          }}
+                          />
+                          <span className="relative z-10 ml-2">{row.actual}</span>
+                      </div>
+                      </TableCell>
+
+                      <TableCell className={row.delta >= 0 ? "text-green-600" : "text-red-600"}>{row.delta}</TableCell>
+                      <TableCell>{row.scrap}</TableCell>
+                      <TableCell>{row.rework}</TableCell>
+                      <TableCell className="w-24 py-0">
+                      {renderNooeIndicators(row.hourlyId)}
+                      </TableCell>
+                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>{row.causes || 'N/A'}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{row.causes ? 'Click to edit causes' : 'Click to add causes'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>{row.comments || 'N/A'}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{row.comments ? 'Click to edit comments' : 'Click to add comments'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
             </div>
@@ -710,7 +874,7 @@ export default function CountboardDashboard() {
         <div>
         {selectedMachine?.machineName ? (
         <iframe
-          src={`${process.env.NEXT_PUBLIC_GRAFANA_HOST}/d-solo/downuptime-postgres/down-and-up-time-postgres?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=now&panelId=23&theme=light`}
+          src={`${process.env.NEXT_PUBLIC_GRAFANA_HOST}/d-solo/downuptime-postgres/down-and-up-time-postgres?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
           width="100%" 
           height="150"
         ></iframe>
