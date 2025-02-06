@@ -229,7 +229,11 @@ export default function CountboardDashboard() {
   const refetchOeeData = () => mutate(oeeDataKey);
 
   const noeeDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${selectedMachine.machineName}`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${selectedMachine.machineName}${
+      !isLiveMode
+      ?  `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
+          : ''
+    }`
     : null;
 
   const { data: noeeData } = useSWR<NooeData[]>(noeeDataKey, fetcher, {

@@ -29,7 +29,9 @@ machineRoutes.get('/hourly/:machineId', async (c) => {
 machineRoutes.get('/oee/:machineId', async (c) => {
   try {
     const machine_id = c.req.param('machineId'); 
-    const data = await getOeeMachine(machine_id);
+    const date = c.req.query('date') || null; 
+    const shift = c.req.query('shift') || null; 
+    const data = await getOeeMachine(machine_id, date, shift);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
@@ -39,7 +41,9 @@ machineRoutes.get('/oee/:machineId', async (c) => {
 machineRoutes.get('/noee/:machineId', async (c) => {
   try {
     const machine_id = c.req.param('machineId'); 
-    const data = await getNooeMachine(machine_id);
+    const date = c.req.query('date') || null; 
+    const shift = c.req.query('shift') || null; 
+    const data = await getNooeMachine(machine_id, date, shift);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
