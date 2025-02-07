@@ -556,7 +556,7 @@ export default function CountboardDashboard() {
     };
 
     return (
-      <div className="flex h-12 flex-col gap-0.5">
+      <div className="flex h-12 flex-col gap-0.5 mb-0">
       {nooeForTime.map((nooe) => {
         const activeColor = Object.keys(colorMap).find(color => nooe[color as keyof typeof nooe] === true);
         return activeColor ? (
