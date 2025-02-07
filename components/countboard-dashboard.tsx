@@ -201,7 +201,7 @@ export default function CountboardDashboard() {
 
   const hourlyDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}${
-      !isLiveMode
+      !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
         ? `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
         : ''
     }`
@@ -217,7 +217,7 @@ export default function CountboardDashboard() {
 
   const oeeDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/oee/${selectedMachine.machineName}${
-        !isLiveMode
+      !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
           ? `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
           : ''
       }`
@@ -234,7 +234,7 @@ export default function CountboardDashboard() {
 
   const noeeDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${selectedMachine.machineName}${
-      !isLiveMode
+      !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
       ?  `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
           : ''
     }`
@@ -251,7 +251,7 @@ export default function CountboardDashboard() {
 
   const taskDataKey = selectedMachine?.machineDescription
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tasks/${selectedMachine.machineDescription}${
-      !isLiveMode
+      !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
       ? `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
           : ''
     }`
@@ -475,7 +475,9 @@ export default function CountboardDashboard() {
   let queryMachineNumber = searchParams.get('machineNumber') || '';
   let queryLocation = searchParams.get('location') || '';
   let queryRefreshRate = searchParams.get('refresh') || '';
-  let queryLiveMode = searchParams.get('isLiveMode') || true ;
+  let queryLiveMode = searchParams.get('isLiveMode') || '' ;
+  let queryDate = searchParams.get('date') || '' ;
+  let queryShift = searchParams.get('shift') || '' ;
 
 
 
@@ -496,11 +498,23 @@ export default function CountboardDashboard() {
     params.set('refresh', '5000');
     router.push(`${pathname}?${params.toString()}`);
   }
-  if (queryLiveMode == true) {
-    queryLiveMode = true;
+  if (queryLiveMode == '' ) {
+    queryLiveMode = 'true'
     params.set('isLiveMode', 'true');
     router.push(`${pathname}?${params.toString()}`);
-  }
+  } 
+
+  // if (queryDate == '' ) {
+  //   queryDate = ''
+  //   params.set('date', '');
+  //   router.push(`${pathname}?${params.toString()}`);
+  // }   
+  // if (queryShift == '' ) {
+  //   queryShift = ''
+  //   params.set('shift', '');
+  //   router.push(`${pathname}?${params.toString()}`);
+  // } 
+
 
 
   useEffect(() => {
@@ -533,10 +547,34 @@ export default function CountboardDashboard() {
     }
   }, [queryRefreshRate]);
 
-  const totalActual = hourlyData?.reduce((total, item) => total + (item.actual || 0), 0) || 0
-  const totalTarget = hourlyData?.reduce((total, item) => total + (item.target || 0), 0) || 0
-  const totalGap = hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target || 0), 0) || 0
+  useEffect(() => {
+    if (queryLiveMode){
+      if(queryLiveMode == 'true'){
+        setIsLiveMode(true);
+      } else if (queryLiveMode == 'false'){
+        setIsLiveMode(false);
+      }
+      console.log(`liveMode : ${queryLiveMode}`);
+    }
+  }, [queryLiveMode]);
 
+  useEffect(() => {
+    if (queryDate) {
+      setSelectedDate(new Date(new Date(queryDate).getTime() + 1000 * 60 * 60 * 24));
+      console.log(`selectedDate : ${queryDate}`);
+    }
+  }, [queryDate]);
+
+  useEffect(() => {
+    if (queryShift) {
+      setSelectedShift(queryShift);
+      console.log(`selectedShift : ${queryShift}`);
+    }
+  }, [queryShift]);
+
+  const totalActual = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0), 0) || 0
+  const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.target || 0), 0) || 0
+  const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target || 0), 0) || 0
 
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
@@ -615,7 +653,7 @@ export default function CountboardDashboard() {
           {selectedMachine?.machineDescription || "MchDesc"}
         </Label>
         <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
-          {hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
+          {Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
         </Label>
         <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
          PO{taskData && taskData.length > 0 ? taskData[taskData.length - 1].po_name : "PO Number"}
@@ -732,7 +770,7 @@ export default function CountboardDashboard() {
               <div className="text-sm text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{taskData?.[0]?.target_cvt}</div>
+              <div className="text-2xl font-bold">{taskData?.[0]?.target_cvt || 0}</div>
               <div className="text-sm text-muted-foreground">Target</div>
             </div>
           </CardContent>
@@ -742,11 +780,11 @@ export default function CountboardDashboard() {
          <CardHeader className="py-2 text-sm font-medium">Cycle Time</CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div>
-              <div className={`text-2xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct}s</div>
+              <div className={`text-2xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}s</div>
               <div className="text-sm text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{taskData?.[0]?.target_ct}s</div>
+              <div className="text-2xl font-bold">{taskData?.[0]?.target_ct ?? 0}s</div>
               <div className="text-sm text-muted-foreground">Target</div>
             </div>
           </CardContent>

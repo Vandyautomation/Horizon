@@ -18,8 +18,7 @@ export async function addMachine(name: string, description: string) {
 
 
 export async function getHourlyMachine(machine_id: string, date: string | null, shift: string | null) {
-
-  if(date !==null && shift !== null){
+  if(date && shift){
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
@@ -119,8 +118,7 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
 }
 
 export async function getOeeMachine(machine_id: string, date: string | null, shift: string | null) {
-
-  if(date !==null && shift !== null){
+  if(date && shift){
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
@@ -233,7 +231,7 @@ export async function getOeeMachine(machine_id: string, date: string | null, shi
 
 }
 export async function getNooeMachine(machine_id: string, date: string | null, shift: string | null) {
-  if(date !==null && shift !== null){
+  if(date && shift){
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
@@ -277,7 +275,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
 }
 
 export async function getTaskMachine(machine_name: string, date: string | null, shift: string | null) {
-  if(date !==null && shift !== null){
+  if(date && shift){
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
