@@ -533,6 +533,10 @@ export default function CountboardDashboard() {
     }
   }, [queryRefreshRate]);
 
+  const totalActual = hourlyData?.reduce((total, item) => total + (item.actual || 0), 0) || 0
+  const totalTarget = hourlyData?.reduce((total, item) => total + (item.target || 0), 0) || 0
+  const totalGap = hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target || 0), 0) || 0
+
 
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
@@ -706,15 +710,15 @@ export default function CountboardDashboard() {
           <CardHeader className="py-2 text-sm font-medium">Production Status</CardHeader>
           <CardContent className="grid grid-cols-3 gap-4">
             <div>
-            <div className="text-2xl font-bold text-green-600">{hourlyData?.reduce((total, item) => total + (item.actual || 0), 0)}</div>
+            <div className="text-2xl font-bold text-green-600">{totalActual}</div>
               <div className="text-sm text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-600">{hourlyData?.reduce((total, item) => total + (item.target || 0), 0)}</div>
+              <div className="text-2xl font-bold text-yellow-600">{totalTarget}</div>
               <div className="text-sm text-muted-foreground">Target</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-red-600">{hourlyData?.reduce((total, item) => total + (item.target || 0) - (item.actual || 0), 0)}</div>
+              <div className={`text-2xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{totalGap}</div>
               <div className="text-sm text-muted-foreground">Gap</div>
             </div>
           </CardContent>
