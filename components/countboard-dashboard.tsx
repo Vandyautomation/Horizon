@@ -634,7 +634,11 @@ export default function CountboardDashboard() {
               ))} 
           </SelectContent>
         </Select>
-        <Button onClick={() => handleRefreshButton()} variant="default">
+        <Button
+          onClick={() => handleRefreshButton()}
+          disabled={isLoadingRefresh}
+          variant="default"
+        >
             <RefreshCw className="w-4 h-4" style={{ animation: isLoadingRefresh ? "spin 2s linear infinite" : "none" }} />
         </Button>
         <Button onClick={() => setIsPODialogOpen(true)} variant="default">
