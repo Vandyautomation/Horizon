@@ -257,7 +257,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     from IoT.dbo.nooe n
     join IoT.dbo.hourly h on n.hourly_id = h.id
     where h.machine_id = @machine_id
-    and h.created_at between @from and @to
+    and h.from_datetime between @from and @to
     order by hourly_id desc, n.id asc
 
     `
