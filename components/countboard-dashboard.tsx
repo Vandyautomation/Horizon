@@ -177,7 +177,7 @@ export default function CountboardDashboard() {
     : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(6 + (+selectedShift - 1) * 8, 0, 0, 0);
   
   const to = isLiveMode
-    ? Date.now() // Live mode uses current timestamp
+    ? 'now' // Live mode uses current timestamp
     : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(6 + (+selectedShift - 1) * 8 + 8, 0, 0, 0); // Set to end of shift
   
   
