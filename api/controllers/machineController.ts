@@ -326,7 +326,10 @@ export async function getTaskMachine(machine_name: string, date: string | null, 
       updated_at
     FROM IoT.dbo.countboard_tasks t
     WHERE 
-      ID = (select top 1 task_id from hourly where from_datetime between @from and @to and machine_name = @machine_name)
+     ID = (select top 1 task_id from IoT.dbo.hourly h 
+      join IoT.dbo.MachineMST mm on mm.MchID = h.machine_id
+      where from_datetime between @from and @to 
+      and mm.MchDesc = @machine_name)
     ORDER BY created_at DESC;
     `
     return await queryDatabase(sqlQuery, { machine_name, date, shift });
