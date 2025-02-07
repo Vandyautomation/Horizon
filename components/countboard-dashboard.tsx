@@ -615,7 +615,7 @@ export default function CountboardDashboard() {
           {selectedMachine?.machineDescription || "MchDesc"}
         </Label>
         <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
-          {hourlyData && hourlyData.length > 0 ? hourlyData[hourlyData.length - 1].itemDesc : "Material Description"}
+          {hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
         </Label>
         <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
          PO{taskData && taskData.length > 0 ? taskData[taskData.length - 1].po_name : "PO Number"}
