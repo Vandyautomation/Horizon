@@ -706,15 +706,15 @@ export default function CountboardDashboard() {
           <CardHeader className="py-2 text-sm font-medium">Production Status</CardHeader>
           <CardContent className="grid grid-cols-3 gap-4">
             <div>
-              <div className="text-2xl font-bold text-green-600">{taskData?.[0]?.produced_qty}</div>
+            <div className="text-2xl font-bold text-green-600">{hourlyData?.reduce((total, item) => total + (item.actual || 0), 0)}</div>
               <div className="text-sm text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-600">{taskData?.[0]?.required_qty}</div>
+              <div className="text-2xl font-bold text-yellow-600">{hourlyData?.reduce((total, item) => total + (item.target || 0), 0)}</div>
               <div className="text-sm text-muted-foreground">Target</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-red-600">{(taskData?.[0]?.required_qty || 0) - (taskData?.[0]?.produced_qty || 0)}</div>
+              <div className="text-2xl font-bold text-red-600">{hourlyData?.reduce((total, item) => total + (item.target || 0) - (item.actual || 0), 0)}</div>
               <div className="text-sm text-muted-foreground">Gap</div>
             </div>
           </CardContent>
