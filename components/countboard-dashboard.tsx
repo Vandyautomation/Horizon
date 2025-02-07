@@ -476,8 +476,8 @@ export default function CountboardDashboard() {
   let queryLocation = searchParams.get('location') || '';
   let queryRefreshRate = searchParams.get('refresh') || '';
   let queryLiveMode = searchParams.get('isLiveMode') || '' ;
-  let queryDate = searchParams.get('date') || '' ;
-  let queryShift = searchParams.get('shift') || '' ;
+  const queryDate = searchParams.get('date') || '' ;
+  const queryShift = searchParams.get('shift') || '' ;
 
 
 
