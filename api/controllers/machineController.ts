@@ -140,20 +140,21 @@ export async function getOeeMachine(machine_id: string, date: string | null, shi
         SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
     END;
 
+    
     WITH StatusData AS (
           SELECT 
               DATEADD(HOUR, -7, s.StatusDate) AS adjustedstatusdate,
               s.StatusLight,
         s.MchID,
               CASE 
-                  WHEN DATEADD(HOUR, -7, s.StatusDate) >= @from 
+                  WHEN s.StatusDate >= @from 
                   THEN DATEDIFF(SECOND,
-                        DATEADD(HOUR, -7, s.StatusDate),
-                        COALESCE(DATEADD(HOUR, -7, s.todate), @to)
+                        s.StatusDate,
+                        COALESCE(s.todate, @to)
                   ) / 3600.0
                   ELSE DATEDIFF(SECOND,
                         @from,
-                        COALESCE(DATEADD(HOUR, -7, s.todate), @to)
+                        COALESCE(s.todate, @to)
                   ) / 3600.0
               END AS totalhour
           FROM (
@@ -167,19 +168,18 @@ export async function getOeeMachine(machine_id: string, date: string | null, shi
                   MchID,
                   ROW_NUMBER() OVER(
                       PARTITION BY MchID, 
-                      CASE WHEN DATEADD(HOUR, -7, StatusDate) < @from THEN 1 ELSE 2 END 
+                      CASE WHEN StatusDate < @from THEN 1 ELSE 2 END 
                       ORDER BY StatusDate DESC
                   ) AS rnk
               FROM IoT.dbo.MchStatusTRX
-              WHERE (MchID = @machine_id OR @machine_id IS NULL)  -- Allow NULL @machine_id to retrieve all machines
+              WHERE MchID = @machine_id 
                 AND Active = 1
-                AND DATEADD(HOUR, -7, StatusDate) < @to
+                AND StatusDate < @to
                 AND StatusDate > '2023-04-01'
           ) s
           --JOIN MachineMST m ON m.MchID = s.MchID
           WHERE 
-            (MchID = @machine_id OR @machine_id IS NULL)  -- Allow NULL @machine_id to retrieve all machines
-            AND (s.rnk = 1 OR (DATEADD(HOUR, -7, s.StatusDate) BETWEEN @from AND @to))
+          s.rnk = 1 OR  s.StatusDate BETWEEN @from AND @to
       ),
       TimeCalculations AS (
           SELECT 
