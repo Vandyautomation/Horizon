@@ -127,7 +127,7 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
     } else {
       const sqlQuery = `
       declare @shift_id int;
-      set @shift_id = case when DATEPART(HOUR, GETDATE()) between 6 and 14 then 1 when DATEPART(HOUR, GETDATE()) between 15 and 23 then 2 else 3 end
+      set @shift_id = case when DATEPART(HOUR, GETDATE()) between 5 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
       SELECT sub.* 
       FROM (
           SELECT  top 8
@@ -228,7 +228,7 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
     } else {
       const sqlQuery = `
       declare @shift_id int;
-      set @shift_id = case when DATEPART(HOUR, GETDATE()) between 6 and 14 then 1 when DATEPART(HOUR, GETDATE()) between 15 and 23 then 2 else 3 end
+      set @shift_id = case when DATEPART(HOUR, GETDATE()) between 5 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
       SELECT sub.* 
       FROM (
           SELECT  top 8
