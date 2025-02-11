@@ -137,9 +137,9 @@ export default function CountboardDashboardUv() {
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedComment, setSelectedComment] = useState({ index: -1, hourlyId: -1, type: '', content: '' });
-  const [currentCVT, setCurrentCVT] = useState<number | 0>(0);
+  const [currentCVT, setCurrentTopScrap] = useState<number | 0>(0);
   const [isPODialogOpen, setIsPODialogOpen] = useState(false);
-  const [isCVTDialogOpen, setIsCVTDialogOpen] = useState(false);
+  const [IsTopScrapDialogOpen, setIsTopScrapDialogOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState('');
   const [editedCVT, setEditedCVT] = useState(currentCVT);
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
@@ -293,7 +293,7 @@ export default function CountboardDashboardUv() {
   }, [taskDataKey]);
 
   useEffect(() => {
-    setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
+    setCurrentTopScrap(taskData?.[0]?.actual_cvt ?? 0);
   }, [taskData]);
 
   const uniqueLocations = Array.from(new Set(machines?.map(machine => machine.locationName)));
@@ -319,7 +319,7 @@ export default function CountboardDashboardUv() {
       refetchNoeeData(),
       refetchSpindleData()
     ]);
-    setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
+    setCurrentTopScrap(taskData?.[0]?.actual_cvt ?? 0);
     const params = new URLSearchParams(searchParams);
     params.set("machineNumber", value);
     router.push(`${pathname}?${params.toString()}`);
@@ -421,11 +421,11 @@ export default function CountboardDashboardUv() {
 
 
 
-    const handleCVTUpdate = useCallback(
+    const handleTopScrapUpdate = useCallback(
     async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/cvt`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/topscrap`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({"taskId":taskData?.[0]?.id, "newCvt": editedCVT }),
@@ -434,20 +434,20 @@ export default function CountboardDashboardUv() {
         if (!response.ok) {
           // Attempt to extract the server's error message
           const errorData = await response.json();
-          const errorMessage = errorData.error || `Failed to Update CVT`;
+          const errorMessage = errorData.error || `Failed to Update Top Scrap`;
   
           throw new Error(errorMessage);
         }
-        toast.success(`Update CVT successfully!`);
+        toast.success(`Update Top Scrap successfully!`);
       } catch (error) {
         toast.error((error as Error).message);
-        console.error(`Failed to Update CVT:`, error);
+        console.error(`Failed to Update Top Scrap:`, error);
       } finally {
         setIsLoading(false);
       }
-      setCurrentCVT(editedCVT);
+      setCurrentTopScrap(editedCVT);
       refetchTaskData();
-      setIsCVTDialogOpen(false);
+      setIsTopScrapDialogOpen(false);
     },
     [editedCVT, refetchTaskData, taskData]
   );
@@ -719,9 +719,9 @@ export default function CountboardDashboardUv() {
             <FilePlus2 className="w-4 h-4 mr-2"  />
             PO
         </Button>
-        <Button onClick={() => setIsCVTDialogOpen(true)} variant="default">
+        <Button onClick={() => setIsTopScrapDialogOpen(true)} variant="default">
             <Pencil className="w-4 h-4 mr-2" />
-            CVT
+            Top Scrap
         </Button>
         <div className="flex items-center space-x-2 border border-gray-250 rounded-md px-3 py-2">
         <Switch id="live-mode" 
@@ -1061,22 +1061,47 @@ export default function CountboardDashboardUv() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isCVTDialogOpen} onOpenChange={setIsCVTDialogOpen}>
+        <Dialog open={IsTopScrapDialogOpen} onOpenChange={setIsTopScrapDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Update CVT</DialogTitle>
+              <DialogTitle>Update Top 4 Scrap</DialogTitle>
             </DialogHeader>
-            <DialogDescription className="p-0 m-0">Update cavity for machine {selectedMachine?.machineName}</DialogDescription>
-            <div className="space-y-4">
+            <DialogDescription className="p-0 m-0">Update top 4 scrap for machine {selectedMachine?.machineName}</DialogDescription>
+            <div className="gap-2 grid grid-cols-2">
               <div>
-                <Label htmlFor="current-cvt">Current CVT</Label>
-                <Input id="current-cvt" value={currentCVT} disabled />
+                <Label htmlFor="current-reject-a">Current Reject A</Label>
+                <Input id="current-reject-a" value={currentCVT} disabled />
               </div>
               <div>
-                <Label htmlFor="new-cvt">New CVT</Label>
+                <Label htmlFor="new-reject-a">New Reject A</Label>
+                <Select value={selectedLocation}  >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Reject A" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="Scrap A">
+                        Scrap A
+                      </SelectItem>
+                      <SelectItem value="Scrap B">
+                        Scrap B
+                      </SelectItem>
+                      <SelectItem value="Scrap C">
+                        Scrap C
+                      </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="gap-2 grid grid-cols-2">
+            <div>
+                <Label htmlFor="current-reject-b">Current Reject B</Label>
+                <Input id="current-reject-b" value={currentCVT} disabled />
+              </div>
+              <div>
+                <Label htmlFor="new-reject-b">New Reject B</Label>
                 <Input
                   autoFocus
-                  id="new-cvt"
+                  id="new-reject-b"
                   type="number"
                   onChange={(e) => {
                     const value = e.target.value === '' ? 0 : Number(e.target.value);
@@ -1084,13 +1109,14 @@ export default function CountboardDashboardUv() {
                   }}
                 />
               </div>
-            </div>
+              </div>
+              
             <DialogFooter>
               <Button
-                onClick={handleCVTUpdate}
+                onClick={handleTopScrapUpdate}
                 disabled={isLoading}
               >
-                {isLoading ? 'Loading...' : 'Update CVT'}
+                {isLoading ? 'Loading...' : 'Update Top Scrap'}
               </Button>
             </DialogFooter>
           </DialogContent>
