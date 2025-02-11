@@ -24,7 +24,7 @@ import {
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import Image from 'next/image'
-import {   CalendarIcon, FilePlus2, Pencil, RefreshCw, SprayCan } from "lucide-react"
+import {   Box, CalendarIcon, FilePlus2, Pencil, RefreshCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -62,6 +62,11 @@ type HourlyData = {
   delta: number;
   scrap: number;
   rework: number;
+  reject_a: number | 0;
+  reject_b: number | 0;
+  reject_c: number | 0;
+  reject_d: number | 0;
+  reject_e: number | 0;
   causes: string;
   comments: string;
 };
@@ -114,6 +119,10 @@ type NooeData = {
   red: boolean | null;
 };
 
+type Spindle = {
+  SpindleSTD: number;
+  SpindleACT: number;
+}
 const refreshRateList = [
   '5000','15000','30000','60000'
 ]
@@ -122,7 +131,7 @@ const shiftList = ['1','2','3']
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function CountboardDashboard() {
+export default function CountboardDashboardUv() {
   const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
@@ -182,7 +191,7 @@ export default function CountboardDashboard() {
   
   
 
-  const { data: machines, error, isValidating } = useSWR<MachineDetail[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines?type=injection`, fetcher, {
+  const { data: machines, error, isValidating } = useSWR<MachineDetail[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines?type=uv`, fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   });
@@ -199,8 +208,24 @@ export default function CountboardDashboard() {
   //   }
   // };
 
+  const spindleDataKey = selectedMachine?.machineName
+  ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/spindle/${selectedMachine.machineName}${
+    !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
+      ? `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
+      : ''
+  }`
+  : null;
+
+  const { data: spindleData } = useSWR<Spindle[]>(spindleDataKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: Number(selectedRefreshRate),
+  });
+  const refetchSpindleData = useCallback(() => mutate(spindleDataKey), [spindleDataKey]);
+
   const hourlyDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}?type=injection${
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}?type=uv${
       !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
         ? `&date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
         : ''
@@ -291,7 +316,8 @@ export default function CountboardDashboard() {
       refetchHourlyData(),
       refetchOeeData(),
       refetchTaskData(),
-      refetchNoeeData()
+      refetchNoeeData(),
+      refetchSpindleData()
     ]);
     setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
     const params = new URLSearchParams(searchParams);
@@ -459,8 +485,8 @@ export default function CountboardDashboard() {
     return 'bg-red-500';
   };
 
-  const getCvtColor = (actual_cvt: number | null, target_cvt: number | null) => {
-    if (actual_cvt === null || target_cvt === null || actual_cvt >= target_cvt) return 'text-green-500';
+  const getSpindleColor = (SpindleACT: number | null, SpindleSTD: number | null) => {
+    if (SpindleACT === null || SpindleSTD === null || SpindleACT >= SpindleSTD) return 'text-green-500';
     return 'text-red-500';
   };
 
@@ -482,14 +508,14 @@ export default function CountboardDashboard() {
 
 
   if (queryMachineNumber == '') {
-    queryMachineNumber = '5';
-    params.set('machineNumber', '5');
+    queryMachineNumber = '1';
+    params.set('machineNumber', '1');
     router.push(`${pathname}?${params.toString()}`);
   }
 
   if (queryLocation == '') {
-    queryLocation = 'INJ Bld G';
-    params.set('location', 'INJ Bld G');
+    queryLocation = 'K';
+    params.set('location', 'K');
     router.push(`${pathname}?${params.toString()}`);
 
   }
@@ -575,6 +601,16 @@ export default function CountboardDashboard() {
   const totalActual = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0), 0) || 0
   const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.target || 0), 0) || 0
   const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target || 0), 0) || 0
+
+  const totalRejectA = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_a || 0), 0) || 0
+  const totalRejectB = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_b || 0), 0) || 0
+  const totalRejectC = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_c || 0), 0) || 0
+  const totalRejectD = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_d || 0), 0) || 0
+  const totalRejectE = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_e || 0), 0) || 0
+  const totalRejectOverall = totalRejectA + totalRejectB + totalRejectC + totalRejectD + totalRejectE
+
+  console.log(`totalRejectA : ${totalRejectA}`)
+  console.log(`totalRejectOverall : ${totalRejectOverall}`)
 
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
@@ -736,7 +772,9 @@ export default function CountboardDashboard() {
           </Select>
           </>
         )}
-        <Button onClick={() => router.push("/countboard/uv")}><SprayCan/>Go to UV</Button>
+
+        <Button onClick={() => router.push("/countboard")}><Box/>Go to Injection</Button>
+
 
 
       </div>
@@ -763,33 +801,24 @@ export default function CountboardDashboard() {
           </CardContent>
         </Card>
 
-        <Card onClick={() => setIsCVTDialogOpen(true)}>
-          <CardHeader className="py-2 text-sm font-medium">Cavities</CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="py-2 text-sm font-medium">Spindles</CardHeader>
+          <CardContent className="grid grid-cols-3 gap-4">
             <div>
-              <div className={`text-2xl font-bold ${getCvtColor(taskData?.[0]?.actual_cvt ?? 0, taskData?.[0]?.target_cvt ?? 0)}`}>{taskData?.[0]?.actual_cvt ?? 0}</div>
+              <div className={`text-2xl font-bold ${getSpindleColor(spindleData?.[0]?.SpindleACT ?? 0, spindleData?.[0]?.SpindleSTD ?? 0)}`}>{spindleData?.[0]?.SpindleACT ?? 0}</div>
               <div className="text-sm text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{taskData?.[0]?.target_cvt || 0}</div>
+              <div className="text-2xl font-bold">{spindleData?.[0]?.SpindleSTD ?? 0}</div>
               <div className="text-sm text-muted-foreground">Target</div>
+            </div>
+            <div>
+              <div className={`text-2xl font-bold ${getSpindleColor(spindleData?.[0]?.SpindleACT ?? 0, spindleData?.[0]?.SpindleSTD ?? 0)}`}>{(((spindleData?.[0]?.SpindleACT ?? 0) / (spindleData?.[0]?.SpindleSTD ?? 1)) * 100).toFixed(2)}%</div>
+              <div className="text-sm text-muted-foreground">Achieve</div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-         <CardHeader className="py-2 text-sm font-medium">Cycle Time</CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <div>
-              <div className={`text-2xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}s</div>
-              <div className="text-sm text-muted-foreground">Actual</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{taskData?.[0]?.target_ct ?? 0}s</div>
-              <div className="text-sm text-muted-foreground">Target</div>
-            </div>
-          </CardContent>
-        </Card>
 
         <Card>
          <CardHeader className="py-2 text-sm font-medium text-red-500">Non O.O.E</CardHeader>
@@ -841,27 +870,50 @@ export default function CountboardDashboard() {
       <div className="p-0 w-full space-y-4 justify-between flex flex-col">
       <TooltipProvider>
       <Card className="w-full">
+
           <CardContent>
             <div className="w-full flex overflow-x-auto">
             <Table>
               <TableHeader>
+              <TableRow>
+                  <TableHead className="w-[60px]"></TableHead>
+                  <TableHead className="w-[60px]"></TableHead>
+                  <TableHead className="w-[60px]"></TableHead>
+                  <TableHead className="w-[250px] text-center"></TableHead>
+                  <TableHead></TableHead>
+                  <TableHead></TableHead>
+                  <TableHead></TableHead>
+                  <TableHead colSpan={5} className="text-center">Scrap Actual</TableHead>
+                  <TableHead></TableHead>
+                  <TableHead></TableHead>
+                  <TableHead></TableHead>
+                  <TableHead></TableHead>
+                  <TableHead></TableHead>
+                  <TableHead></TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
                 <TableRow>
                   <TableHead className="w-[60px]">Time</TableHead>
                   <TableHead className="w-[60px]">ItemNo</TableHead>
                   <TableHead className="w-[60px]">Target</TableHead>
                   <TableHead className="w-[250px] text-center">Actual Qty</TableHead>
                   <TableHead>Delta</TableHead>
-                  <TableHead className="text-center">SCRAP</TableHead>
-                  <TableHead className="text-center">RWK</TableHead>
-                  <TableHead className="text-center">NOOE</TableHead>
-                  <TableHead>Causes</TableHead>
+                  <TableHead className="w-[50px] text-center">SCRAP TOTAL</TableHead>
+                  <TableHead className="w-[50px] text-center">% SCRAP</TableHead>
+                  <TableHead className="w-[50px] text-center">A</TableHead>
+                  <TableHead className="w-[50px] text-center">B</TableHead>
+                  <TableHead className="w-[50px] text-center">C</TableHead>
+                  <TableHead className="w-[50px] text-center">D</TableHead>
+                  <TableHead className="w-[50px] text-center">E</TableHead>
+                  <TableHead className="w-[120px] text-center">NOOE</TableHead>
+                  <TableHead className="w-[250px]">Causes</TableHead>
                   <TableHead>Comments/Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {Array.isArray(hourlyData) && hourlyData?.length === 0 ? (
                   <TableRow className="h-12">
-                    <TableCell colSpan={10} className="text-center">No data available</TableCell>
+                    <TableCell colSpan={15} className="text-center">No data available</TableCell>
                   </TableRow>
                 ) : (
                   (Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => (
@@ -895,8 +947,15 @@ export default function CountboardDashboard() {
                       </TableCell>
 
                       <TableCell className={row.delta >= 0 ? "text-green-600" : "text-red-600"}>{row.delta}</TableCell>
-                      <TableCell className="text-center">{row.scrap}</TableCell>
-                      <TableCell className="text-center">{row.rework}</TableCell>
+                      <TableCell className="text-center">{row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e || 0}</TableCell>
+                      <TableCell className="text-center">{(((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual)*100).toFixed(2) || 0}%</TableCell>
+                      <TableCell className="text-center">{row.reject_a || 0}</TableCell>
+                      <TableCell className="text-center">{row.reject_b || 0}</TableCell>
+                      <TableCell className="text-center">{row.reject_c || 0}</TableCell>
+                      <TableCell className="text-center">{row.reject_d || 0}</TableCell>
+                      <TableCell className="text-center">{row.reject_e || 0}</TableCell>
+
+
                       <TableCell className="w-24 py-0 h-full">
                       {renderNooeIndicators(row.hourlyId)}
                       </TableCell>
@@ -923,6 +982,25 @@ export default function CountboardDashboard() {
                     </TableRow>
                   ))
                 )}
+
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center"></TableCell>
+                    <TableCell className={`text-center ${isNaN(totalRejectA / totalRejectOverall) ? '' : totalRejectA / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectA / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
+                      {isNaN(totalRejectA / totalRejectOverall) ? 0 : (totalRejectA / totalRejectOverall) * 100}%
+                    </TableCell>
+                    <TableCell className={`text-center ${isNaN(totalRejectB / totalRejectOverall) ? '' : totalRejectB / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectB / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
+                      {isNaN(totalRejectB / totalRejectOverall) ? 0 : (totalRejectB / totalRejectOverall) * 100}%
+                    </TableCell>
+                    <TableCell className={`text-center ${isNaN(totalRejectB / totalRejectOverall) ? '' : totalRejectB / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectC / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
+                      {isNaN(totalRejectC / totalRejectOverall) ? 0 : (totalRejectC / totalRejectOverall) * 100}%
+                    </TableCell>
+                    <TableCell className={`text-center ${isNaN(totalRejectC / totalRejectOverall) ? '' : totalRejectC / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectD / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
+                      {isNaN(totalRejectD / totalRejectOverall) ? 0 : (totalRejectD / totalRejectOverall) * 100}%
+                    </TableCell>
+                    <TableCell className={`text-center ${isNaN(totalRejectA / totalRejectOverall) ? '' : totalRejectA / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectE / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
+                      {isNaN(totalRejectE / totalRejectOverall) ? 0 : (totalRejectE / totalRejectOverall) * 100}%
+                    </TableCell>
+                  </TableRow>
               </TableBody>
             </Table>
             </div>

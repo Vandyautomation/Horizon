@@ -1,23 +1,19 @@
 import { queryDatabase } from '../utils/queryDatabase';
 
-export async function getMachine() {
+export async function getMachine(type: string | null) {
   const sqlQuery = `
   SELECT m.id as machineId, m.MchID as machineName, m.MchDesc as machineDescription, m.MchNumber as machineNumber, m.MchTon as machineTonage,
   m.MchLoc as locationName
   from MachineMST m
   where m.Active = 1
+  and m.MchProcess = upper(@type)
+  and m.MchLoc != 'NULL' and m.MchLoc != 'Mixing Bld T'
   order by MchLoc asc, cast(m.MchNumber as INT) asc
   `;
-  return await queryDatabase(sqlQuery);
+  return await queryDatabase(sqlQuery, {type});
 }
 
-export async function addMachine(name: string, description: string) {
-  const sqlQuery = `INSERT INTO Machine (name, description) VALUES (@name, @description)`;
-  return await queryDatabase(sqlQuery, { name, description });
-}
-
-
-export async function getHourlyMachine(machine_id: string, date: string | null, shift: string | null) {
+export async function getSpindle(machine_id: string, date: string | null, shift: string | null) {
   if(date && shift){
     const sqlQuery = `
     DECLARE @from DATETIME;
@@ -34,87 +30,241 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
         SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
         SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
     END
-    ELSE IF @shift = 3
+    ELSE
     BEGIN
         SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
-    END
+        SET @to = DATEADD(HOUR, 6, CAST(@date AS DATETIME));
+    END  
 
-    SELECT sub.* 
-    FROM (
-        SELECT TOP 8
-            h.id AS hourlyId,
-            from_datetime,
-            FORMAT(from_datetime, 'HH:mm') AS time,
-            FORMAT(to_datetime, 'HH:mm') AS to_hour_minute,
-            shift_id,
-            c.material_id,
-            ISNULL(running_target_qty, 0) AS target,
-            ISNULL(running_target_qty, 0) * 0.98 AS target_tolerance,
-            ISNULL(running_actual_qty, 0) AS actual,
-            task_id, target_qty, actual_qty, running_actual_qty - running_target_qty AS delta, 
-            hour_id, machine_id,
-            c.material_id AS itemNo,
-            c.material_name AS itemDesc,
-            h.cause AS causes, h.note AS comments,
-            h.ooe,
-            h.scrap,
-            h.rework
-        FROM IoT.dbo.hourly h
-        LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
-        OUTER APPLY (
-            SELECT TOP 1 *
-            FROM IoT.dbo.coois c
-            WHERE t.po_name = c.po_name AND ISNULL(c.is_deleted, 0) = 0
-            ORDER BY c.id DESC
-        ) AS c
-        WHERE machine_id = @machine_id 
-          AND shift_id = @shift
-          AND from_datetime BETWEEN @from AND @to
-        ORDER BY from_datetime DESC
-    ) AS sub
-    ORDER BY CAST(hour_id AS INT) ASC;
+    SELECT top 1 s.SpindleSTD, d.highestCountSpindleIn as SpindleACT
+    from Machine_UV_STD s
+    join UV_CountingData d on d.MchID = s.MchID-- and d.CREATED_AT between @from and @to
+    where s.Active = 1 and s.MchID = @machine_id
+    
     `
-    return await queryDatabase(sqlQuery, { machine_id, date, shift });
-  } else {
-    const sqlQuery = `
-    declare @shift_id int;
-    set @shift_id = case when DATEPART(HOUR, GETDATE()) between 6 and 14 then 1 when DATEPART(HOUR, GETDATE()) between 15 and 23 then 2 else 3 end
-    SELECT sub.* 
-    FROM (
-        SELECT  top 8
-            h.id as hourlyId,
-            FORMAT(from_datetime, 'HH:mm') AS time,
-            FORMAT(to_datetime, 'HH:mm') AS to_hour_minute,
-            
-            shift_id,
-            c.material_id,
-            ISNULL(running_target_qty, 0) AS target,
-            ISNULL(running_target_qty, 0) * 0.98 AS target_tolerance,
-            ISNULL(running_actual_qty, 0) AS actual,
-            task_id, target_qty, actual_qty, running_actual_qty - running_target_qty AS delta, hour_id, machine_id,
-            c.material_id as itemNo,
-            c.material_name as itemDesc,
-            h.cause as causes, h.note as comments,
-            h.ooe,
-            h.scrap,
-            h.rework
-        FROM IoT.dbo.hourly h
-        LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
-        outer APPLY (
-        SELECT TOP 1 *
-        FROM IoT.dbo.coois c
-        WHERE t.po_name = c.po_name AND ISNULL(c.is_deleted, 0) = 0
-        ORDER BY c.id DESC
-        ) AS c
-        WHERE machine_id = @machine_id AND shift_id = @shift_id
-      
-        ORDER BY from_datetime DESC
-    ) AS sub
-    ORDER BY cast(hour_id as int) ASC;
-    `;
-    return await queryDatabase(sqlQuery, { machine_id });
-  }  
+
+    return await queryDatabase(sqlQuery, {machine_id, date, shift});
+  }
+  else {const sqlQuery = `
+  SELECT top 1 s.SpindleSTD, d.highestCountProductIn as SpindleACT
+  from Machine_UV_STD s
+  join UV_CountingData d on d.MchID = s.MchID
+  where s.Active = 1 and s.MchID = @machine_id
+  `;
+  return await queryDatabase(sqlQuery, {machine_id, date, shift});
+  }
+}
+
+export async function addMachine(name: string, description: string) {
+  const sqlQuery = `INSERT INTO Machine (name, description) VALUES (@name, @description)`;
+  return await queryDatabase(sqlQuery, { name, description });
+}
+
+
+export async function getHourlyMachine(machine_id: string, date: string | null, shift: string | null, type: string | null) {
+  if(type === 'uv'){
+    if(date && shift){
+      const sqlQuery = `
+      DECLARE @from DATETIME;
+      DECLARE @to DATETIME;
+
+      -- Set @from and @to based on shift_id
+      IF @shift = 1
+      BEGIN
+          SET @from = DATEADD(HOUR, 6, CAST(@date AS DATETIME)); 
+          SET @to = DATEADD(HOUR, 14, CAST(@date AS DATETIME));
+      END
+      ELSE IF @shift = 2
+      BEGIN
+          SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
+          SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
+      END
+      ELSE IF @shift = 3
+      BEGIN
+          SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
+          SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
+      END
+
+      SELECT sub.* 
+      FROM (
+          SELECT TOP 8
+              h.id AS hourlyId,
+              from_datetime,
+              FORMAT(from_datetime, 'HH:mm') AS time,
+              FORMAT(to_datetime, 'HH:mm') AS to_hour_minute,
+              shift_id,
+              c.material_id,
+              ISNULL(running_target_qty, 0) AS target,
+              ISNULL(running_target_qty, 0) * 0.98 AS target_tolerance,
+              ISNULL(running_actual_qty, 0) AS actual,
+              task_id, target_qty, actual_qty, running_actual_qty - running_target_qty AS delta, 
+              hour_id, machine_id,
+              c.material_id AS itemNo,
+              c.material_name AS itemDesc,
+              h.cause AS causes, h.note AS comments,
+              h.ooe,
+              h.reject_a,
+              h.reject_b,
+              h.reject_c,
+              h.reject_d,
+              h.reject_e
+          FROM IoT.dbo.hourly_uv h
+          LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
+          OUTER APPLY (
+              SELECT TOP 1 *
+              FROM IoT.dbo.coois c
+              WHERE t.po_name = c.po_name AND ISNULL(c.is_deleted, 0) = 0
+              ORDER BY c.id DESC
+          ) AS c
+          WHERE machine_id = @machine_id 
+            AND shift_id = @shift
+            AND from_datetime BETWEEN @from AND @to
+          ORDER BY from_datetime DESC
+      ) AS sub
+      ORDER BY CAST(hour_id AS INT) ASC;
+      `
+      return await queryDatabase(sqlQuery, { machine_id, date, shift });
+    } else {
+      const sqlQuery = `
+      declare @shift_id int;
+      set @shift_id = case when DATEPART(HOUR, GETDATE()) between 6 and 14 then 1 when DATEPART(HOUR, GETDATE()) between 15 and 23 then 2 else 3 end
+      SELECT sub.* 
+      FROM (
+          SELECT  top 8
+              h.id as hourlyId,
+              FORMAT(from_datetime, 'HH:mm') AS time,
+              FORMAT(to_datetime, 'HH:mm') AS to_hour_minute,
+              
+              shift_id,
+              c.material_id,
+              ISNULL(running_target_qty, 0) AS target,
+              ISNULL(running_target_qty, 0) * 0.98 AS target_tolerance,
+              ISNULL(running_actual_qty, 0) AS actual,
+              task_id, target_qty, actual_qty, running_actual_qty - running_target_qty AS delta, hour_id, machine_id,
+              c.material_id as itemNo,
+              c.material_name as itemDesc,
+              h.cause as causes, h.note as comments,
+              h.ooe,
+              h.reject_a,
+              h.reject_b,
+              h.reject_c,
+              h.reject_d,
+              h.reject_e
+          FROM IoT.dbo.hourly_uv h
+          LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
+          outer APPLY (
+          SELECT TOP 1 *
+          FROM IoT.dbo.coois c
+          WHERE t.po_name = c.po_name AND ISNULL(c.is_deleted, 0) = 0
+          ORDER BY c.id DESC
+          ) AS c
+          WHERE machine_id = @machine_id AND shift_id = @shift_id
+        
+          ORDER BY from_datetime DESC
+      ) AS sub
+      ORDER BY cast(hour_id as int) ASC;
+      `;
+      return await queryDatabase(sqlQuery, { machine_id });
+    }
+  } else if( type === 'injection'){
+    if(date && shift){
+      const sqlQuery = `
+      DECLARE @from DATETIME;
+      DECLARE @to DATETIME;
+
+      -- Set @from and @to based on shift_id
+      IF @shift = 1
+      BEGIN
+          SET @from = DATEADD(HOUR, 6, CAST(@date AS DATETIME)); 
+          SET @to = DATEADD(HOUR, 14, CAST(@date AS DATETIME));
+      END
+      ELSE IF @shift = 2
+      BEGIN
+          SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
+          SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
+      END
+      ELSE IF @shift = 3
+      BEGIN
+          SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
+          SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
+      END
+
+      SELECT sub.* 
+      FROM (
+          SELECT TOP 8
+              h.id AS hourlyId,
+              from_datetime,
+              FORMAT(from_datetime, 'HH:mm') AS time,
+              FORMAT(to_datetime, 'HH:mm') AS to_hour_minute,
+              shift_id,
+              c.material_id,
+              ISNULL(running_target_qty, 0) AS target,
+              ISNULL(running_target_qty, 0) * 0.98 AS target_tolerance,
+              ISNULL(running_actual_qty, 0) AS actual,
+              task_id, target_qty, actual_qty, running_actual_qty - running_target_qty AS delta, 
+              hour_id, machine_id,
+              c.material_id AS itemNo,
+              c.material_name AS itemDesc,
+              h.cause AS causes, h.note AS comments,
+              h.ooe,
+              h.scrap,
+              h.rework
+          FROM IoT.dbo.hourly h
+          LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
+          OUTER APPLY (
+              SELECT TOP 1 *
+              FROM IoT.dbo.coois c
+              WHERE t.po_name = c.po_name AND ISNULL(c.is_deleted, 0) = 0
+              ORDER BY c.id DESC
+          ) AS c
+          WHERE machine_id = @machine_id 
+            AND shift_id = @shift
+            AND from_datetime BETWEEN @from AND @to
+          ORDER BY from_datetime DESC
+      ) AS sub
+      ORDER BY CAST(hour_id AS INT) ASC;
+      `
+      return await queryDatabase(sqlQuery, { machine_id, date, shift });
+    } else {
+      const sqlQuery = `
+      declare @shift_id int;
+      set @shift_id = case when DATEPART(HOUR, GETDATE()) between 6 and 14 then 1 when DATEPART(HOUR, GETDATE()) between 15 and 23 then 2 else 3 end
+      SELECT sub.* 
+      FROM (
+          SELECT  top 8
+              h.id as hourlyId,
+              FORMAT(from_datetime, 'HH:mm') AS time,
+              FORMAT(to_datetime, 'HH:mm') AS to_hour_minute,
+              
+              shift_id,
+              c.material_id,
+              ISNULL(running_target_qty, 0) AS target,
+              ISNULL(running_target_qty, 0) * 0.98 AS target_tolerance,
+              ISNULL(running_actual_qty, 0) AS actual,
+              task_id, target_qty, actual_qty, running_actual_qty - running_target_qty AS delta, hour_id, machine_id,
+              c.material_id as itemNo,
+              c.material_name as itemDesc,
+              h.cause as causes, h.note as comments,
+              h.ooe,
+              h.scrap,
+              h.rework
+          FROM IoT.dbo.hourly h
+          LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
+          outer APPLY (
+          SELECT TOP 1 *
+          FROM IoT.dbo.coois c
+          WHERE t.po_name = c.po_name AND ISNULL(c.is_deleted, 0) = 0
+          ORDER BY c.id DESC
+          ) AS c
+          WHERE machine_id = @machine_id AND shift_id = @shift_id
+        
+          ORDER BY from_datetime DESC
+      ) AS sub
+      ORDER BY cast(hour_id as int) ASC;
+      `;
+      return await queryDatabase(sqlQuery, { machine_id });
+    }  
+  }
 }
 
 export async function getOeeMachine(machine_id: string, date: string | null, shift: string | null) {
