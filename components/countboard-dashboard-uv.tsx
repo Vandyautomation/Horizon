@@ -490,10 +490,6 @@ export default function CountboardDashboardUv() {
     return 'text-red-500';
   };
 
-  const getCtColor = (actual_ct: number | null, target_ct: number | null) => {
-    if (actual_ct === null || target_ct === null || actual_ct <= target_ct) return 'text-green-500';
-    return 'text-red-500';
-  };
 
   const searchParams = useSearchParams()
   const params = new URLSearchParams(searchParams);
