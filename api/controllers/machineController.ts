@@ -36,7 +36,7 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
         SET @to = DATEADD(HOUR, 6, CAST(@date AS DATETIME));
     END  
 
-    SELECT top 1 s.SpindleSTD, d.highestCountSpindleIn as SpindleACT
+    SELECT top 1 s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
     from Machine_UV_STD s
     join UV_CountingData d on d.MchID = s.MchID-- and d.CREATED_AT between @from and @to
     where s.Active = 1 and s.MchID = @machine_id
@@ -46,7 +46,7 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
     return await queryDatabase(sqlQuery, {machine_id, date, shift});
   }
   else {const sqlQuery = `
-  SELECT top 1 s.SpindleSTD, d.highestCountProductIn as SpindleACT
+  SELECT top 1 s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
   from Machine_UV_STD s
   join UV_CountingData d on d.MchID = s.MchID
   where s.Active = 1 and s.MchID = @machine_id
