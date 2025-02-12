@@ -414,10 +414,32 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
   } else {
     const sqlQuery = `
+    DECLARE @from DATETIME;
+    DECLARE @to DATETIME;
+    DECLARE @shift int;
+    set @shift = case when DATEPART(HOUR, GETDATE()) between 5 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
+
+    -- Set @from and @to based on shift_id
+    IF @shift = 1
+    BEGIN
+        SET @from = DATEADD(HOUR, 6, CAST(@date AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 14, CAST(@date AS DATETIME));
+    END
+    ELSE IF @shift = 2
+    BEGIN
+        SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
+    END
+    ELSE IF @shift = 3
+    BEGIN
+        SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
+    END
     select top 96 n.id as NooeId, h.id as hourlyId, blue, orange, purple, grey, yellow, white, red
     from IoT.dbo.nooe n
     join IoT.dbo.hourly h on n.hourly_id = h.id
     where h.machine_id = @machine_id
+    and h.from_datetime between @from and @to
     order by hourly_id desc, n.id asc
     `;
     return await queryDatabase(sqlQuery, { machine_id });
