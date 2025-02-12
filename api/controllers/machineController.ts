@@ -455,18 +455,18 @@ export async function getTaskMachine(machine_name: string, date: string | null, 
     -- Set @from and @to based on shift_id
     IF @shift = 1
     BEGIN
-        SET @from = DATEADD(HOUR, 6, CAST(@date AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 14, CAST(@date AS DATETIME));
+        SET @from = DATEADD(HOUR, 6, CAST(getdate() AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 14, CAST(getdate() AS DATETIME));
     END
     ELSE IF @shift = 2
     BEGIN
-        SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
+        SET @from = DATEADD(HOUR, 14, CAST(getdate() AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 22, CAST(getdate() AS DATETIME));
     END
     ELSE IF @shift = 3
     BEGIN
-        SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
+        SET @from = DATEADD(HOUR, 22, CAST(getdate() AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(getdate() AS DATETIME))); -- Goes into the next day
     END
 
     SELECT 
