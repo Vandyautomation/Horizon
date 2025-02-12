@@ -422,19 +422,21 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     -- Set @from and @to based on shift_id
     IF @shift = 1
     BEGIN
-        SET @from = DATEADD(HOUR, 6, CAST(GETDATE() AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 14, CAST(GETDATE() AS DATETIME));
+        SET @from = DATEADD(HOUR, 6, cast(CAST(GETDATE() AS date)as datetime)); 
+        SET @to = DATEADD(HOUR, 14, cast(CAST(GETDATE() AS date)as datetime));
     END
     ELSE IF @shift = 2
     BEGIN
-        SET @from = DATEADD(HOUR, 14, CAST(GETDATE() AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 22, CAST(GETDATE() AS DATETIME));
+        SET @from = DATEADD(HOUR, 14,cast(CAST(GETDATE() AS date)as datetime)) 
+        SET @to = DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
     END
     ELSE IF @shift = 3
     BEGIN
-        SET @from = DATEADD(HOUR, 22, CAST(GETDATE() AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(GETDATE() AS DATETIME))); -- Goes into the next day
+        SET @from = DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
     END
+
+	select @from as dari, @to as ke, @shift as shif
     select top 96 n.id as NooeId, h.id as hourlyId, blue, orange, purple, grey, yellow, white, red
     from IoT.dbo.nooe n
     join IoT.dbo.hourly h on n.hourly_id = h.id
