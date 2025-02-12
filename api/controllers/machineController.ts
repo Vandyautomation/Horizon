@@ -422,18 +422,18 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     -- Set @from and @to based on shift_id
     IF @shift = 1
     BEGIN
-        SET @from = DATEADD(HOUR, 6, CAST(@date AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 14, CAST(@date AS DATETIME));
+        SET @from = DATEADD(HOUR, 6, CAST(GETDATE() AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 14, CAST(GETDATE() AS DATETIME));
     END
     ELSE IF @shift = 2
     BEGIN
-        SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
+        SET @from = DATEADD(HOUR, 14, CAST(GETDATE() AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 22, CAST(GETDATE() AS DATETIME));
     END
     ELSE IF @shift = 3
     BEGIN
-        SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
+        SET @from = DATEADD(HOUR, 22, CAST(GETDATE() AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(GETDATE() AS DATETIME))); -- Goes into the next day
     END
     select top 96 n.id as NooeId, h.id as hourlyId, blue, orange, purple, grey, yellow, white, red
     from IoT.dbo.nooe n
@@ -455,18 +455,18 @@ export async function getTaskMachine(machine_name: string, date: string | null, 
     -- Set @from and @to based on shift_id
     IF @shift = 1
     BEGIN
-        SET @from = DATEADD(HOUR, 6, CAST(getdate() AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 14, CAST(getdate() AS DATETIME));
+        SET @from = DATEADD(HOUR, 6, CAST(@date AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 14, CAST(@date AS DATETIME));
     END
     ELSE IF @shift = 2
     BEGIN
-        SET @from = DATEADD(HOUR, 14, CAST(getdate() AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 22, CAST(getdate() AS DATETIME));
+        SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
     END
     ELSE IF @shift = 3
     BEGIN
-        SET @from = DATEADD(HOUR, 22, CAST(getdate() AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(getdate() AS DATETIME))); -- Goes into the next day
+        SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
     END
 
     SELECT 
