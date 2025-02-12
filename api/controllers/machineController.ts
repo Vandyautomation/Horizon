@@ -436,7 +436,6 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
     END
 
-	select @from as dari, @to as ke, @shift as shif
     select top 96 n.id as NooeId, h.id as hourlyId, blue, orange, purple, grey, yellow, white, red
     from IoT.dbo.nooe n
     join IoT.dbo.hourly h on n.hourly_id = h.id
