@@ -403,7 +403,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
     END
 
-        SELECT TOP 96 
+        SELECT 
         n.id AS NooeId, 
         h.id AS hourlyId, 
         n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red
@@ -412,7 +412,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         ON n.hourly_id = h.id
     WHERE h.machine_id = @machine_id
     AND h.from_datetime BETWEEN @from AND @to
-    ORDER BY h.id DESC, n.id ASC;
+
 
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
@@ -440,7 +440,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
     END
 
-        SELECT TOP 96 
+        SELECT 
         n.id AS NooeId, 
         h.id AS hourlyId, 
         n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red
@@ -449,7 +449,6 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         ON n.hourly_id = h.id
     WHERE h.machine_id = @machine_id
     AND h.from_datetime BETWEEN @from AND @to
-    ORDER BY h.id DESC, n.id ASC;
 
     `;
     return await queryDatabase(sqlQuery, { machine_id });
