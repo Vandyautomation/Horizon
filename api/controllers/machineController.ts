@@ -404,8 +404,8 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     END
 
     select top 96 n.id as NooeId, h.id as hourlyId, blue, orange, purple, grey, yellow, white, red
-    from IoT.dbo.nooe n
-    join IoT.dbo.hourly h on n.hourly_id = h.id
+    from IoT.dbo.nooe n with(nolock)
+    join IoT.dbo.hourly h with(nolock) on n.hourly_id = h.id
     where h.machine_id = @machine_id
     and h.from_datetime between @from and @to
     order by hourly_id desc, n.id asc
@@ -437,8 +437,8 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     END
 
     select top 96 n.id as NooeId, h.id as hourlyId, blue, orange, purple, grey, yellow, white, red
-    from IoT.dbo.nooe n
-    join IoT.dbo.hourly h on n.hourly_id = h.id
+    from IoT.dbo.nooe n with(nolock)
+    join IoT.dbo.hourly h with(nolock) on n.hourly_id = h.id
     where h.machine_id = @machine_id
     and h.from_datetime between @from and @to
     order by hourly_id desc, n.id asc
