@@ -403,12 +403,16 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
     END
 
-    select top 96 n.id as NooeId, h.id as hourlyId, blue, orange, purple, grey, yellow, white, red
-    from IoT.dbo.nooe n with(nolock)
-    join IoT.dbo.hourly h with(nolock) on n.hourly_id = h.id
-    where h.machine_id = @machine_id
-    and h.from_datetime between @from and @to
-    order by hourly_id desc, n.id asc
+        SELECT TOP 96 
+        n.id AS NooeId, 
+        h.id AS hourlyId, 
+        n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red
+    FROM IoT.dbo.nooe n WITH (NOLOCK)
+    JOIN IoT.dbo.hourly h WITH (NOLOCK) 
+        ON n.hourly_id = h.id
+    WHERE h.machine_id = @machine_id
+    AND h.from_datetime BETWEEN @from AND @to
+    ORDER BY h.id DESC, n.id ASC;
 
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
@@ -436,12 +440,17 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
     END
 
-    select top 96 n.id as NooeId, h.id as hourlyId, blue, orange, purple, grey, yellow, white, red
-    from IoT.dbo.nooe n with(nolock)
-    join IoT.dbo.hourly h with(nolock) on n.hourly_id = h.id
-    where h.machine_id = @machine_id
-    and h.from_datetime between @from and @to
-    order by hourly_id desc, n.id asc
+        SELECT TOP 96 
+        n.id AS NooeId, 
+        h.id AS hourlyId, 
+        n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red
+    FROM IoT.dbo.nooe n WITH (NOLOCK)
+    JOIN IoT.dbo.hourly h WITH (NOLOCK) 
+        ON n.hourly_id = h.id
+    WHERE h.machine_id = @machine_id
+    AND h.from_datetime BETWEEN @from AND @to
+    ORDER BY h.id DESC, n.id ASC;
+
     `;
     return await queryDatabase(sqlQuery, { machine_id });
   }
