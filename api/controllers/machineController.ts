@@ -407,6 +407,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         n.id AS NooeId, 
         h.id AS hourlyId, 
         n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red
+        ,n.created_at as fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
         ON n.hourly_id = h.id
@@ -444,6 +445,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         n.id AS NooeId, 
         h.id AS hourlyId, 
         n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red
+        ,n.created_at as fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
         ON n.hourly_id = h.id
