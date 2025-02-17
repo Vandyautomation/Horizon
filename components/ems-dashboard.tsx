@@ -124,6 +124,8 @@ const refreshRateList = [
   '5000','15000','30000','60000'
 ]
 
+const fiveMinutes = Array.from({length: 12}, (_, i) => ({time: `${(i * 5).toString().padStart(2, '0')}:00`}))
+
 const energyData = [
   { hour: "00:00", consumption: 240 },
   { hour: "01:00", consumption: 200 },
@@ -658,45 +660,40 @@ export default function EmsDashboard() {
     };
 
     return (
-      <div className="flex flex-col gap-1 mb-0">
+
+      <div className="flex flex-col -mt-1 gap-2">
       {nooeForTime.map((nooe) => {
         const activeColor = Object.keys(colorMap).find(color => nooe[color as keyof typeof nooe] === true);
         return activeColor ? (
-          <TableRow>
-            <TableCell>
+
           <div 
             key={nooe.NooeId}
-            className={`w-4 h-4 ${colorMap[activeColor as keyof typeof colorMap]}`}
+            className={`w-8 h-8 ${colorMap[activeColor as keyof typeof colorMap]}`}
           />
-          </TableCell>
-          </TableRow>
+
         ) : (
-          <TableRow>
-            <TableCell>
-        <div className={`w-4 h-4 bg-green-500`} />
-        </TableCell>
-        </TableRow>
+        <div className={`w-8 h-8 bg-green-500`} />
+
       );
       })}
     </div>
     );
   };
 
-  const renderNooeTime = (hourlyId: number) => {
-    const nooeForTime = noeeData?.filter(nooe => nooe.hourlyId === hourlyId) || [];
-    if (nooeForTime.length === 0) return null;
+  const renderNooeTime = () => {
 
-
+    if (fiveMinutes.length === 0) return null;
 
     return (
       <div className="flex flex-col gap-1 mb-0">
-      {nooeForTime.map((nooe) => {
+      {fiveMinutes.map((nooe) => {
 
         return (
           <TableRow>
             <TableCell>
-            {new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(nooe.fromTime)}
+            {nooe.time}
           </TableCell>
+          
           </TableRow>
         );
       })}
@@ -777,14 +774,6 @@ export default function EmsDashboard() {
         >
             <RefreshCw className="w-4 h-4" style={{ animation: isLoadingRefresh ? "spin 2s linear infinite" : "none" }} />
         </Button>
-        <Button onClick={() => setIsPODialogOpen(true)} variant="default">
-            <FilePlus2 className="w-4 h-4 mr-2"  />
-            PO
-        </Button>
-        <Button onClick={() => setIsCVTDialogOpen(true)} variant="default">
-            <Pencil className="w-4 h-4 mr-2" />
-            CVT
-        </Button>
         <div className="flex items-center space-x-2 border border-gray-250 rounded-md px-3 py-2">
         <Switch id="live-mode" 
             checked={isLiveMode}
@@ -816,118 +805,16 @@ export default function EmsDashboard() {
               />
             </PopoverContent>
           </Popover>
-          <Select value={selectedShift} onValueChange={handleShiftSelect}>
-            <SelectTrigger className="w-[80px]">
-              <SelectValue placeholder="Shift" />
-            </SelectTrigger>
-            <SelectContent>
-              {shiftList?.map(shift => (
-                <SelectItem key={shift} value={shift}>
-                  Shift {shift}
-                </SelectItem>
-              ))} 
-            </SelectContent>
-          </Select>
           </>
         )}
-        <Button onClick={() => router.push("/countboard/uv")}><SprayCan/>Go to UV</Button>
+
 
 
       </div>
       {selectedMachine === null && isLoading == false ? (
         <div className="text-center">Please select machine...</div>
       ) : (
-      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-24">
-        <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/>
-        <Card className="p-0">
-          <CardHeader className="py-2 text-sm font-medium">Production Status</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4">
-            <div>
-            <div className="text-2xl font-bold text-green-600">{totalActual}</div>
-              <div className="text-sm text-muted-foreground">Actual</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-yellow-600">{totalTarget}</div>
-              <div className="text-sm text-muted-foreground">Target</div>
-            </div>
-            <div>
-              <div className={`text-2xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{totalGap}</div>
-              <div className="text-sm text-muted-foreground">Gap</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card onClick={() => setIsCVTDialogOpen(true)}>
-          <CardHeader className="py-2 text-sm font-medium">Cavities</CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <div>
-              <div className={`text-2xl font-bold ${getCvtColor(taskData?.[0]?.actual_cvt ?? 0, taskData?.[0]?.target_cvt ?? 0)}`}>{taskData?.[0]?.actual_cvt ?? 0}</div>
-              <div className="text-sm text-muted-foreground">Actual</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{taskData?.[0]?.target_cvt || 0}</div>
-              <div className="text-sm text-muted-foreground">Target</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-         <CardHeader className="py-2 text-sm font-medium">Cycle Time</CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <div>
-              <div className={`text-2xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}s</div>
-              <div className="text-sm text-muted-foreground">Actual</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{taskData?.[0]?.target_ct ?? 0}s</div>
-              <div className="text-sm text-muted-foreground">Target</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-         <CardHeader className="py-2 text-sm font-medium text-red-500">Non O.O.E</CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4">
-            <div>
-              <div className="text-2xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(2)}%</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="">
-          <CardHeader className="py-2 text-sm font-medium">Performance Metrics</CardHeader>
-          <CardContent className="grid grid-cols-7 gap-4">
-            <div>
-              <div className="text-2xl font-bold text-green-600">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(2)}%</div>
-              <div className="text-sm text-muted-foreground">OK</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-red-600">{oeeData?.[0]?.red.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">NQ</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-yellow-600">{oeeData?.[0]?.yellow.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">SD</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{oeeData?.[0]?.white.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">PS</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">C/O</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">BD</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">OP</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div> 
+      <></>
       )} 
       
       {/* Energy Chart */}
@@ -998,9 +885,10 @@ export default function EmsDashboard() {
                     <TableCell colSpan={25} className="text-center">No data available</TableCell>
                   </TableRow>
                 ) : (
+
                   <TableRow className="h-12">
-                    {(Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => <TableRow><TableCell>{row.time}</TableCell></TableRow>)}
-                    {(Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => <TableRow>{renderNooe(row.hourlyId)}</TableRow>)}
+                    {renderNooeTime()}
+                    {(Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => <TableCell className="text-center">{renderNooe(row.hourlyId)}</TableCell>)}
                   </TableRow>
                 )}
               </TableBody>
