@@ -178,44 +178,6 @@ export default function EmsDashboard() {
   const pathname = usePathname()
   const router = useRouter()
 
-  const [shiftStartHour, setShiftStartHour] = useState(0);
-  useEffect(() => {
-    const now = new Date();
-    const hour = now.getHours();
-    let shift = 0;
-  
-    switch (true) {
-      case hour >= 6 && hour < 14:
-        shift = 1;
-        break;
-      case hour >= 14 && hour < 22:
-        shift = 2;
-        break;
-      case hour >= 22 || hour < 6:
-        shift = 3;
-        if (hour < 6) {
-          now.setDate(now.getDate() - 1); // Move to the previous day
-        }
-        break;
-      default:
-        throw new Error(`Unexpected hour ${hour}`);
-    }
-  
-    // Set shift start time
-    now.setHours(6 + (shift - 1) * 8, 0, 0, 0);
-    setSelectedShift(shift.toString());
-    setShiftStartHour(now.getTime());
-  }, []);
-  
-  const from = isLiveMode 
-    ? shiftStartHour 
-    : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(6 + (+selectedShift - 1) * 8, 0, 0, 0);
-  
-  const to = isLiveMode
-    ? 'now' // Live mode uses current timestamp
-    : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(6 + (+selectedShift - 1) * 8 + 8, 0, 0, 0); // Set to end of shift
-  
-  
 
   const { data: machines, error, isValidating } = useSWR<MachineDetail[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines?type=injection`, fetcher, {
     revalidateOnFocus: false,
@@ -225,14 +187,6 @@ export default function EmsDashboard() {
     setIsLoading(isValidating);
   }, [isValidating]);
 
-  // const refetchMachine = async () => {
-  //   setIsLoading(true);
-  //   try {
-  //     await mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`);
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
 
   const hourlyDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}?type=injection${
@@ -250,27 +204,11 @@ export default function EmsDashboard() {
   });
   const refetchHourlyData = useCallback(() => mutate(hourlyDataKey), [hourlyDataKey]);
 
-  const oeeDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/oee/${selectedMachine.machineName}${
-      !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
-          ? `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
-          : ''
-      }`
-    : null;
-
-  const { data: oeeData } = useSWR<OoeData[]>(oeeDataKey, fetcher, {
-    revalidateOnMount: false,
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    refreshInterval: Number(selectedRefreshRate),
-  });
-
-  const refetchOeeData = () => mutate(oeeDataKey);
-
+  
   const noeeDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${selectedMachine.machineName}${
       !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
-      ?  `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
+      ?  `?date=${new URLSearchParams(window.location.search).get('date')}`
           : ''
     }`
     : null;
@@ -284,27 +222,7 @@ export default function EmsDashboard() {
 
   const refetchNoeeData = () => mutate(noeeDataKey);
 
-  const taskDataKey = selectedMachine?.machineDescription
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tasks/${selectedMachine.machineDescription}${
-      !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
-      ? `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
-          : ''
-    }`
-    : null;
-
-  const { data: taskData } = useSWR<TaskData[]>(taskDataKey, fetcher, {
-    revalidateOnMount: false,
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    refreshInterval: Number(selectedRefreshRate),
-  });
-  const refetchTaskData = useCallback(() => {
-    mutate(taskDataKey);
-  }, [taskDataKey]);
-
-  useEffect(() => {
-    setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
-  }, [taskData]);
+  
 
   const uniqueLocations = Array.from(new Set(machines?.map(machine => machine.locationName)));
   const filteredMachines = machines?.filter(machine => machine.locationName === selectedLocation);
@@ -324,11 +242,8 @@ export default function EmsDashboard() {
     setSelectedMachine(selected);
     Promise.all([
       refetchHourlyData(),
-      refetchOeeData(),
-      refetchTaskData(),
       refetchNoeeData()
     ]);
-    setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
     const params = new URLSearchParams(searchParams);
     params.set("machineNumber", value);
     router.push(`${pathname}?${params.toString()}`);
@@ -367,22 +282,13 @@ export default function EmsDashboard() {
     handleRefreshButton()
   }
 
-  const handleShiftSelect = (shift: string) => {
-    setSelectedShift(shift);
-    const params = new URLSearchParams(searchParams);
-    params.set("shift", shift);
-    router.push(`${pathname}?${params.toString()}`);
-    handleRefreshButton()
 
-  }
 
   const handleRefreshButton = async () => {
     setIsLoadingRefresh(true);
     try {
       await Promise.all([
         refetchHourlyData(),
-        refetchOeeData(),
-        refetchTaskData(),
         refetchNoeeData()
       ]);
     } finally {
@@ -390,119 +296,6 @@ export default function EmsDashboard() {
     }
   }
 
-  const handleCellClick = (index: number, hourlyId: number, type: 'causes' | 'comments', content: string) => {
-    setSelectedComment({ index, hourlyId, type, content });
-    setIsDialogOpen(true);
-  };
-
-
-  const handleCommentSave = useCallback(
-    async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/comment`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({"hourlyId":selectedComment?.hourlyId, "type": selectedComment?.type, "content":selectedComment?.content }),
-        });
-
-        if (!response.ok) {
-          // Attempt to extract the server's error message
-          const errorData = await response.json();
-          const errorMessage = errorData.error || `Failed to Update Content`;
-  
-          throw new Error(errorMessage);
-        }
-        toast.success(`Update Content successfully!`);
-      } catch (error) {
-        toast.error((error as Error).message);
-        console.error(`Failed to Update Content:`, error);
-      }
-      finally {
-        setIsLoading(false);
-      }
-      setIsDialogOpen(false);
-      refetchHourlyData();
-      setSelectedComment(selectedComment)
-    },
-    [selectedComment, refetchHourlyData]
-  );
-
-
-
-    const handleCVTUpdate = useCallback(
-    async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/cvt`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({"taskId":taskData?.[0]?.id, "newCvt": editedCVT }),
-        });
-
-        if (!response.ok) {
-          // Attempt to extract the server's error message
-          const errorData = await response.json();
-          const errorMessage = errorData.error || `Failed to Update CVT`;
-  
-          throw new Error(errorMessage);
-        }
-        toast.success(`Update CVT successfully!`);
-      } catch (error) {
-        toast.error((error as Error).message);
-        console.error(`Failed to Update CVT:`, error);
-      } finally {
-        setIsLoading(false);
-      }
-      setCurrentCVT(editedCVT);
-      refetchTaskData();
-      setIsCVTDialogOpen(false);
-    },
-    [editedCVT, refetchTaskData, taskData]
-  );
-
-  const handlePOAttach = useCallback(
-    async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/task`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({"poNumber":selectedPO, "machineName": selectedMachine?.machineName }),
-        });
-
-        if (!response.ok) {
-          // Attempt to extract the server's error message
-          const errorData = await response.json();
-          const errorMessage = errorData.error || `Failed to Attach PO`;
-  
-          throw new Error(errorMessage);
-        }
-        setIsPODialogOpen(false);
-        toast.success(`Attach PO successfully!`);
-      } catch (error) {
-        toast.error((error as Error).message);
-        console.error(`Failed to Attach PO:`, error);
-      }
-    },
-    [selectedPO, selectedMachine]
-  );
-
-
-  const getBarColor = (actual: number, target: number, target_tolerance: number) => {
-    if (actual >= target) return 'bg-green-500';
-    if (actual >= target_tolerance) return 'bg-green-500';
-    return 'bg-red-500';
-  };
-
-  const getCvtColor = (actual_cvt: number | null, target_cvt: number | null) => {
-    if (actual_cvt === null || target_cvt === null || actual_cvt >= target_cvt) return 'text-green-500';
-    return 'text-red-500';
-  };
-
-  const getCtColor = (actual_ct: number | null, target_ct: number | null) => {
-    if (actual_ct === null || target_ct === null || actual_ct <= target_ct) return 'text-green-500';
-    return 'text-red-500';
-  };
 
   const searchParams = useSearchParams()
   const params = new URLSearchParams(searchParams);
@@ -539,19 +332,6 @@ export default function EmsDashboard() {
     router.push(`${pathname}?${params.toString()}`);
   } 
 
-  // if (queryDate == '' ) {
-  //   queryDate = ''
-  //   params.set('date', '');
-  //   router.push(`${pathname}?${params.toString()}`);
-  // }   
-  // if (queryShift == '' ) {
-  //   queryShift = ''
-  //   params.set('shift', '');
-  //   router.push(`${pathname}?${params.toString()}`);
-  // } 
-
-
-
   useEffect(() => {
     if (queryLocation) {
       setSelectedLocation(queryLocation);
@@ -562,9 +342,6 @@ export default function EmsDashboard() {
   useEffect(() => {
     if (queryMachineNumber) {
       setSelectedMachineNumber(queryMachineNumber);
-      // const selected = filteredMachines?.find(
-      //   machine => machine.machineNumber === queryMachineNumber
-      // );
       const selected = filteredMachines?.find(machine => machine.machineNumber == queryMachineNumber);
       console.log(`filteredMachines from query: ${JSON.stringify(filteredMachines)}`);
       console.log(`selected from query: ${JSON.stringify(selected)}`);
@@ -607,10 +384,6 @@ export default function EmsDashboard() {
     }
   }, [queryShift]);
 
-  const totalActual = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0), 0) || 0
-  const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.target || 0), 0) || 0
-  const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target || 0), 0) || 0
-
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
 
@@ -645,60 +418,14 @@ export default function EmsDashboard() {
     );
   };
 
-  const renderNooe = (hourlyId: number) => {
-    const nooeForTime = noeeData?.filter(nooe => nooe.hourlyId === hourlyId) || [];
-    if (nooeForTime.length === 0) return null;
-
-    const colorMap = {
-      blue: 'bg-blue-500',
-      orange: 'bg-orange-500',
-      purple: 'bg-purple-500',
-      grey: 'bg-gray-500',
-      yellow: 'bg-yellow-500',
-      white: 'bg-white border border-gray-300',
-      red: 'bg-red-500',
-    };
-
-    return (
-
-      <div className="flex flex-col -mt-1 gap-2">
-      {nooeForTime.map((nooe) => {
-        const activeColor = Object.keys(colorMap).find(color => nooe[color as keyof typeof nooe] === true);
-        return activeColor ? (
-
-          <div 
-            key={nooe.NooeId}
-            className={`w-8 h-8 ${colorMap[activeColor as keyof typeof colorMap]}`}
-          />
-
-        ) : (
-        <div className={`w-8 h-8 bg-green-500`} />
-
-      );
-      })}
-    </div>
-    );
-  };
-
-  const renderNooeTime = () => {
-
-    if (fiveMinutes.length === 0) return null;
-
-    return (
-      <div className="flex flex-col gap-1 mb-0">
-      {fiveMinutes.map((nooe) => {
-
-        return (
-          <TableRow>
-            <TableCell>
-            {nooe.time}
-          </TableCell>
-          
-          </TableRow>
-        );
-      })}
-    </div>
-    );
+  const colorMap = {
+    blue: 'bg-blue-500',
+    orange: 'bg-orange-500',
+    purple: 'bg-purple-500',
+    grey: 'bg-gray-500',
+    yellow: 'bg-yellow-500',
+    white: 'bg-white border border-gray-300',
+    red: 'bg-red-500',
   };
 
 
@@ -819,15 +546,15 @@ export default function EmsDashboard() {
       
       {/* Energy Chart */}
       <Card>
-      <CardHeader>
+      {/* <CardHeader>
         <CardTitle>Hourly Energy Consumption</CardTitle>
-      </CardHeader>
-      <CardContent>
+      </CardHeader> */}
+      <CardContent className="py-0">
         <ChartContainer
           config={{
             consumption: {
               label: "Energy Consumption",
-              color: "hsl(var(--chart-1))",
+              color: "hsl(var(--chart-3))",
             },
           }}
           className="h-[300px] w-full"
@@ -836,34 +563,33 @@ export default function EmsDashboard() {
             <BarChart
               data={energyData}
               layout="horizontal"
-              barSize={Math.max(100 / energyData.length, 50)} // Dynamic bar sizing
+              barSize={Math.max(100 / energyData.length, 40)} // Dynamic bar sizing
               barGap={0}
               barCategoryGap={0}
-              margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
+              margin={{ top: 10, right: 5, bottom: -22, left: -5 }}
             >
               <XAxis 
                 dataKey="hour"  
                 tickLine={true} 
                 axisLine={true} 
-                tick={{ fontSize: 12 }} 
+                tick={{ fontSize: 14 }} 
                 interval={0} // Ensures all 24 hours show
               />
               <YAxis
                 tickLine={true}
                 axisLine={true}
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 14 }}
                 tickFormatter={(value) => `${value} kWh`}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey="consumption" fill="var(--color-consumption)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-
         </ChartContainer>
       </CardContent>
     </Card>
     {selectedMachine === null ? (
-        null
+      <div className="text-center">Please select machine...</div>
       ) : (
       <div className="p-0 w-full space-y-4 justify-between flex flex-col">
       <TooltipProvider>
@@ -872,25 +598,35 @@ export default function EmsDashboard() {
             <div className="w-full flex overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]"></TableHead>
-                  {energyData.map((item, index) => (
-                    <TableHead key={index} className="w-[60px]">{item.hour}</TableHead>
+                <TableRow className="h-4 p-0">
+                  <TableCell className="w-10 text-center">Time</TableCell>
+                  {[...Array(24)].map((_, hour) => (
+                    <TableCell className="w-10 h-4" key={hour}>{`${hour < 10 ? '0' : ''}${hour}`}:00</TableCell>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.isArray(hourlyData) && hourlyData?.length === 0 ? (
-                  <TableRow className="h-12">
-                    <TableCell colSpan={25} className="text-center">No data available</TableCell>
-                  </TableRow>
-                ) : (
+                {fiveMinutes.map((nooe, rowIndex) => (
+                  <TableRow key={rowIndex} className="h-4 p-0">
+                    <TableCell className="h-4 w-8 text-center p-0" >{nooe.time}</TableCell>
+                    {[...Array(24)].map((_, hour) => {
+                      const nooeForHour = noeeData?.find(n => new Date(n.fromTime).toISOString().split('T')[0].slice(0, 10) === nooe.time && new Date(n.fromTime).getHours() === hour);
+                      const activeColor = nooeForHour
+                        ? Object.keys(colorMap).find(color => nooeForHour[color as keyof typeof nooeForHour] === true)
+                        : null;
 
-                  <TableRow className="h-12">
-                    {renderNooeTime()}
-                    {(Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => <TableCell className="text-center">{renderNooe(row.hourlyId)}</TableCell>)}
+                      return (
+                        <TableCell key={hour} className="w-8 h-8 p-0 pl-2  text-center items-center justify-center">
+                          <div
+                            className={`w-8 h-8 items-center justify-center p-0 m-0 ${
+                              activeColor ? colorMap[activeColor as keyof typeof colorMap] : 'bg-green-500'
+                            }`}
+                          />
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
-                )}
+                ))}
               </TableBody>
             </Table>
             </div>
