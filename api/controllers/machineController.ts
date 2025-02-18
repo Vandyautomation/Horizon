@@ -411,7 +411,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         WHEN COALESCE(n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red) IS NULL 
         THEN 1 ELSE NULL 
         END AS green
-        ,dateadd(hour,6,n.created_at) as fromTime
+        ,n.created_at as fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
         ON n.hourly_id = h.id
@@ -438,7 +438,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         WHEN COALESCE(n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red) IS NULL 
         THEN 1 ELSE NULL 
         END AS green
-        ,dateadd(hour,6,n.created_at) as fromTime
+        ,n.created_at as fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
         ON n.hourly_id = h.id
@@ -464,7 +464,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         WHEN COALESCE(n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red) IS NULL 
         THEN 1 ELSE NULL 
         END AS green
-        ,dateadd(hour,6,n.created_at) as fromTime
+        ,n.created_at as fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
         ON n.hourly_id = h.id
@@ -504,7 +504,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         WHEN COALESCE(n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red) IS NULL 
         THEN 1 ELSE NULL 
         END AS green
-        ,dateadd(hour,6,n.created_at) as fromTime
+        ,n.created_at as fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
         ON n.hourly_id = h.id
