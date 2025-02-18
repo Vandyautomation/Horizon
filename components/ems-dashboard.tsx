@@ -545,7 +545,13 @@ export default function EmsDashboard() {
                     <TableCell className="h-4 w-8 text-center p-0" >{nooe.time}</TableCell>
                     {[...Array(24)].map((_, hour) => {
                         
-                        const nooeForHour = processedNoeeData?.find(n => new Date(n.fromTime).toISOString().split('T')[1].slice(3, 8) === nooe.time && new Date(n.fromTime).getHours() === hour );
+                        const date = new Date();
+                        const offsetMinutes = date.getTimezoneOffset();
+                        const nooeForHour = processedNoeeData?.find(n => {
+                          const fromTime = new Date(n.fromTime);
+                          fromTime.setMinutes(fromTime.getMinutes() + offsetMinutes);
+                          return fromTime.toISOString().split('T')[1].slice(3, 8) === nooe.time && fromTime.getHours() === hour;
+                        });
                       const activeColor = nooeForHour
                         ? Object.keys(colorMap).find(color => nooeForHour[color as keyof typeof nooeForHour] === true)
                         : null;
