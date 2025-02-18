@@ -17,7 +17,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
