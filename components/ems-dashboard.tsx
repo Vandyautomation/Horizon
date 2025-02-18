@@ -541,7 +541,7 @@ export default function EmsDashboard() {
               </TableHeader>
               <TableBody>
                 {fiveMinutes.map((nooe, rowIndex) => (
-                  <TableRow key={rowIndex} className="h-4 p-0">
+                  <TableRow key={rowIndex} className="h-4 p-0" >
                     <TableCell className="h-4 w-8 text-center p-0" >{nooe.time}</TableCell>
                     {[...Array(24)].map((_, hour) => {
                         
@@ -567,11 +567,6 @@ export default function EmsDashboard() {
 
                         // console.log(`nooeForHour ${nooeForHour}`)
                         // console.log(`activeColor ${activeColor}`)                        
-
-
-
-
-
                       return (
                         <TableCell key={hour} className="w-8 h-8 p-0 pl-2  text-center items-center justify-center">
                           <div
@@ -585,8 +580,6 @@ export default function EmsDashboard() {
                   </TableRow>
                 ))}
               </TableBody>
-              <TableFooter>
-              </TableFooter>
             </Table>
             </div>
           </CardContent>
