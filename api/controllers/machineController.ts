@@ -599,7 +599,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             MAX(PMDT) AS LatestPMDT
         FROM eEnergy.dbo.PowerMeter
         WHERE 
-        TrxType = 'Automatic' AND MchID = 'JW220004'
+        TrxType = 'Automatic' AND MchID = @machine_name
         and active = 1 and PMType = 'ENERGY'
         and PMDT between @from and @to
         GROUP BY 
@@ -633,8 +633,8 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
       DECLARE @from DATETIME;
       DECLARE @to DATETIME;
   
-        SET @from = DATEADD(HOUR, 0, CAST(getdate() AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(getdate() AS DATETIME))); -- Goes into the next day
+        SET @from =DATEADD(HOUR, 0,cast(CAST(GETDATE() AS date)as datetime)) ; 
+        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)));; -- Goes into the next day
 
     WITH HourlyReadings AS (
         SELECT 
@@ -646,7 +646,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             MAX(PMDT) AS LatestPMDT
         FROM eEnergy.dbo.PowerMeter
         WHERE 
-        TrxType = 'Automatic' AND MchID = 'JW220004'
+        TrxType = 'Automatic' AND MchID = @machine_name
         and active = 1 and PMType = 'ENERGY'
         and PMDT between @from and @to
         GROUP BY 
