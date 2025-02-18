@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { addMachine, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine } from '../controllers/machineController';
+import { addMachine, getEnergyMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine } from '../controllers/machineController';
 import { getTask } from '../controllers/scaleTaskController';
 
 
@@ -70,6 +70,17 @@ machineRoutes.get('/tasks/:machineName', async (c) => {
     const date = c.req.query('date') || null; 
     const shift = c.req.query('shift') || null; 
     const data = await getTaskMachine(machineName, date, shift);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+machineRoutes.get('/energy/:machineId', async (c) => {
+  try {
+    const machine_id = c.req.param('machineId'); 
+    const date = c.req.query('date') || null; 
+    const data = await getEnergyMachineDaily(machine_id, date);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);

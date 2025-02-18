@@ -18,6 +18,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -118,6 +119,11 @@ type NooeData = {
   yellow: boolean | null;
   white: boolean | null;
   red: boolean | null;
+};
+
+type EnergyData = {
+  hour: string;
+  consumption: number;
 };
 
 const refreshRateList = [
@@ -221,6 +227,31 @@ export default function EmsDashboard() {
   });
 
   const refetchNoeeData = () => mutate(noeeDataKey);
+  const energyDataKey = selectedMachine?.machineName
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/energy/${selectedMachine.machineName}${
+        !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
+          ? `?date=${new URLSearchParams(window.location.search).get('date')}`
+          : ''
+      }`
+    : null;
+
+  const { data: rawEnergyData } = useSWR<EnergyData[]>(energyDataKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: Number(selectedRefreshRate),
+  });
+
+  const energyData = Array.from({ length: 24 }, (_, hour) => {
+    const formattedHour = `${hour.toString().padStart(2, '0')}:00`;
+    const existingData = rawEnergyData?.find(data => data.hour === formattedHour);
+    return {
+      hour: formattedHour,
+      consumption: existingData?.consumption || 0,
+    };
+  });
+
+  const refetchEnergyData = () => mutate(energyDataKey);
 
   
 
@@ -242,7 +273,8 @@ export default function EmsDashboard() {
     setSelectedMachine(selected);
     Promise.all([
       refetchHourlyData(),
-      refetchNoeeData()
+      refetchNoeeData(),
+      refetchEnergyData()
     ]);
     const params = new URLSearchParams(searchParams);
     params.set("machineNumber", value);
@@ -289,7 +321,8 @@ export default function EmsDashboard() {
     try {
       await Promise.all([
         refetchHourlyData(),
-        refetchNoeeData()
+        refetchNoeeData(),
+        refetchEnergyData()
       ]);
     } finally {
       setIsLoadingRefresh(false);
@@ -545,10 +578,16 @@ export default function EmsDashboard() {
       )} 
       
       {/* Energy Chart */}
-      <Card>
-      {/* <CardHeader>
+      {Array.isArray(energyData) && energyData.length === 0 ? (
+        <div className="text-center">
+          No energy data available for the selected machine.
+          </div>
+      ) : (
+
+        <Card>
+      <CardHeader>
         <CardTitle>Hourly Energy Consumption</CardTitle>
-      </CardHeader> */}
+      </CardHeader>
       <CardContent className="py-0">
         <ChartContainer
           config={{
@@ -563,7 +602,7 @@ export default function EmsDashboard() {
             <BarChart
               data={energyData}
               layout="horizontal"
-              barSize={Math.max(100 / energyData.length, 40)} // Dynamic bar sizing
+              barSize={Math.max(100 / 24, 40)} // Dynamic bar sizing
               barGap={0}
               barCategoryGap={0}
               margin={{ top: 10, right: 5, bottom: -22, left: -5 }}
@@ -588,6 +627,8 @@ export default function EmsDashboard() {
         </ChartContainer>
       </CardContent>
     </Card>
+      )}
+      
     {selectedMachine === null ? (
       <div className="text-center">Please select machine...</div>
       ) : (
@@ -618,7 +659,7 @@ export default function EmsDashboard() {
                       return (
                         <TableCell key={hour} className="w-8 h-8 p-0 pl-2  text-center items-center justify-center">
                           <div
-                            className={`w-8 h-8 items-center justify-center p-0 m-0 ${
+                            className={`w-10 h-8 items-center justify-center p-0 m-0 ${
                               activeColor ? colorMap[activeColor as keyof typeof colorMap] : 'bg-green-500'
                             }`}
                           />
@@ -628,6 +669,11 @@ export default function EmsDashboard() {
                   </TableRow>
                 ))}
               </TableBody>
+              <TableFooter>
+                <TableRow >
+                  <TableCell className="h-4 text-left pb-0 pt-4 font-bold text-base" colSpan={25}>Status Light</TableCell>
+                </TableRow>
+              </TableFooter>
             </Table>
             </div>
           </CardContent>
