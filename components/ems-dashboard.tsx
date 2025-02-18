@@ -552,15 +552,15 @@ export default function EmsDashboard() {
                         
                         // console.log(`noeeData ${JSON.stringify(noeeData)}`)
 
-                        processedNoeeData.forEach(n => {
-                        console.log(`noeeDataFromTime ${new Date(n.fromTime).toISOString().split('T')[1].slice(3, 8)}`)
-                        console.log(`nooe time ${nooe.time}`)
-                        console.log(`nooehour ${new Date(n.fromTime).getHours()}`)
-                        console.log(`table hour ${hour}`)
-                        });
+                        // processedNoeeData.forEach(n => {
+                        // console.log(`noeeDataFromTime ${new Date(n.fromTime).toISOString().split('T')[1].slice(3, 8)}`)
+                        // console.log(`nooe time ${nooe.time}`)
+                        // console.log(`nooehour ${new Date(n.fromTime).getHours()}`)
+                        // console.log(`table hour ${hour}`)
+                        // });
 
-                        console.log(`nooeForHour ${nooeForHour}`)
-                        console.log(`activeColor ${activeColor}`)                        
+                        // console.log(`nooeForHour ${nooeForHour}`)
+                        // console.log(`activeColor ${activeColor}`)                        
 
 
 
