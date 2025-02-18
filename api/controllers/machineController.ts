@@ -441,7 +441,25 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         WHEN COALESCE(n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red) IS NULL 
         THEN 1 ELSE NULL 
         END AS green
-        ,dateadd(hour,0,n.created_at) as fromTime
+        		,DATEADD(
+			MINUTE, 
+			CASE 
+				WHEN five_minutes_id = 1 THEN 0
+				WHEN five_minutes_id = 2 THEN 5
+				WHEN five_minutes_id = 3 THEN 10  
+				WHEN five_minutes_id = 4 THEN 15  
+				WHEN five_minutes_id = 5 THEN 20  
+				WHEN five_minutes_id = 6 THEN 25  
+				WHEN five_minutes_id = 7 THEN 30  
+				WHEN five_minutes_id = 8 THEN 35  
+				WHEN five_minutes_id = 9 THEN 40  
+				WHEN five_minutes_id = 10 THEN 45  
+				WHEN five_minutes_id = 11 THEN 50  
+				WHEN five_minutes_id = 12 THEN 55  
+				ELSE 0  -- Default case to avoid NULL
+			END, 
+			h.from_datetime
+		) AS fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
         ON n.hourly_id = h.id
@@ -469,7 +487,25 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         WHEN COALESCE(n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red) IS NULL 
         THEN 1 ELSE NULL 
         END AS green
-        ,n.created_at as fromTime
+        		,DATEADD(
+			MINUTE, 
+			CASE 
+				WHEN five_minutes_id = 1 THEN 0
+				WHEN five_minutes_id = 2 THEN 5
+				WHEN five_minutes_id = 3 THEN 10  
+				WHEN five_minutes_id = 4 THEN 15  
+				WHEN five_minutes_id = 5 THEN 20  
+				WHEN five_minutes_id = 6 THEN 25  
+				WHEN five_minutes_id = 7 THEN 30  
+				WHEN five_minutes_id = 8 THEN 35  
+				WHEN five_minutes_id = 9 THEN 40  
+				WHEN five_minutes_id = 10 THEN 45  
+				WHEN five_minutes_id = 11 THEN 50  
+				WHEN five_minutes_id = 12 THEN 55  
+				ELSE 0  -- Default case to avoid NULL
+			END, 
+			h.from_datetime
+		) AS fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
         ON n.hourly_id = h.id
