@@ -514,10 +514,26 @@ export default function EmsDashboard() {
                   <TableRow key={rowIndex} className="h-4 p-0">
                     <TableCell className="h-4 w-8 text-center p-0" >{nooe.time}</TableCell>
                     {[...Array(24)].map((_, hour) => {
-                      const nooeForHour = noeeData?.find(n => new Date(n.fromTime).toISOString().split('T')[0].slice(0, 10) === nooe.time && new Date(n.fromTime).getHours() === hour);
+                        
+                        const nooeForHour = noeeData?.find(n => new Date(n.fromTime).toISOString().split('T')[1].slice(3, 8) === nooe.time && new Date(n.fromTime).getHours() === hour );
                       const activeColor = nooeForHour
                         ? Object.keys(colorMap).find(color => nooeForHour[color as keyof typeof nooeForHour] === true)
                         : null;
+                        
+                        // console.log(`noeeData ${JSON.stringify(noeeData)}`)
+                        // console.log(`noeeDataFromTime ${new Date(noeeData![2].fromTime).toISOString().split('T')[1].slice(3, 8)}`)
+                        // console.log(`nooe time ${nooe.time}`)
+                        
+                        // console.log(`nooehour ${new Date(noeeData![0].fromTime).getHours()}`)
+
+                        // console.log(`hour ${hour}`)
+
+
+
+
+                        // console.log(`nooeForHour ${nooeForHour}`)
+
+                        // console.log(`activeColor ${activeColor}`)
 
                       return (
                         <TableCell key={hour} className="w-8 h-8 p-0 pl-2  text-center items-center justify-center">
