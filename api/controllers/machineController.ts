@@ -407,6 +407,8 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         n.id AS NooeId, 
         h.id AS hourlyId, 
         n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red
+        , case when n.blue is null and n.orange is null and n.purple is null and n.grey is null and n.yellow is null and n.white is null and n.red is null 
+        then 1 else null end as green
         ,n.created_at as fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
@@ -431,6 +433,8 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         n.id AS NooeId, 
         h.id AS hourlyId, 
         n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red
+        , case when n.blue is null and n.orange is null and n.purple is null and n.grey is null and n.yellow is null and n.white is null and n.red is null 
+        then 1 else null end as green
         ,n.created_at as fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
@@ -467,6 +471,8 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         n.id AS NooeId, 
         h.id AS hourlyId, 
         n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red
+        , case when n.blue is null and n.orange is null and n.purple is null and n.grey is null and n.yellow is null and n.white is null and n.red is null 
+        then 1 else null end as green
         ,n.created_at as fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 

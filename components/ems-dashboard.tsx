@@ -64,6 +64,8 @@ type NooeData = {
   yellow: boolean | null;
   white: boolean | null;
   red: boolean | null;
+  green: boolean | null;
+
 };
 
 type EnergyData = {
@@ -121,6 +123,18 @@ export default function EmsDashboard() {
     revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   });
+
+  const processedNoeeData = noeeData?.map(nooe => ({
+    ...nooe,
+    blue: nooe.blue ? true : false,
+    orange: nooe.orange ? true : false,
+    purple: nooe.purple ? true : false,
+    grey: nooe.grey ? true : false,
+    yellow: nooe.yellow ? true : false,
+    white: nooe.white ? true : false,
+    red: nooe.red ? true : false,
+    green: nooe.green ? true : false,
+  }));
 
   const refetchNoeeData = () => mutate(noeeDataKey);
   const energyDataKey = selectedMachine?.machineName
@@ -322,6 +336,7 @@ export default function EmsDashboard() {
     yellow: 'bg-yellow-500',
     white: 'bg-white border border-gray-300',
     red: 'bg-red-500',
+    green: 'bg-green-500'
   };
 
 
@@ -515,7 +530,7 @@ export default function EmsDashboard() {
                     <TableCell className="h-4 w-8 text-center p-0" >{nooe.time}</TableCell>
                     {[...Array(24)].map((_, hour) => {
                         
-                        const nooeForHour = noeeData?.find(n => new Date(n.fromTime).toISOString().split('T')[1].slice(3, 8) === nooe.time && new Date(n.fromTime).getHours() === hour );
+                        const nooeForHour = processedNoeeData?.find(n => new Date(n.fromTime).toISOString().split('T')[1].slice(3, 8) === nooe.time && new Date(n.fromTime).getHours() === hour );
                       const activeColor = nooeForHour
                         ? Object.keys(colorMap).find(color => nooeForHour[color as keyof typeof nooeForHour] === true)
                         : null;
@@ -533,13 +548,13 @@ export default function EmsDashboard() {
 
                         // console.log(`nooeForHour ${nooeForHour}`)
 
-                        // console.log(`activeColor ${activeColor}`)
+                        console.log(`activeColor ${activeColor}`)
 
                       return (
                         <TableCell key={hour} className="w-8 h-8 p-0 pl-2  text-center items-center justify-center">
                           <div
                             className={`w-10 h-8 items-center justify-center p-0 m-0 ${
-                              activeColor ? colorMap[activeColor as keyof typeof colorMap] : 'bg-green-500'
+                              activeColor ? colorMap[activeColor as keyof typeof colorMap] : 'bg-transparent'
                             }`}
                           />
                         </TableCell>
