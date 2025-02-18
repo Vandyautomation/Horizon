@@ -54,6 +54,18 @@ export default function PageHeader({  onMenuClick}: PageHeaderProps) {
               </BreadcrumbItem>
             </>
           )}
+
+          {currentPage === "ems" && (
+            <>
+            <BreadcrumbItem>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
+          </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage onClick={() => onMenuClick("countboard")}>Realtime Energy Monitoring</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
           
           {currentPage === "users" && (
             <>

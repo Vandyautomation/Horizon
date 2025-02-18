@@ -346,7 +346,7 @@ export default function EmsDashboard() {
 
 
   return (
-    <div className="p-2 space-y-2 w-full">
+    <div className="p-2 space-y-2 max-w-[1800px] overflow-x-hidden">
       <div className="flex flex-wrap gap-2">
         {isLoading ? (
           <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
@@ -454,15 +454,16 @@ export default function EmsDashboard() {
       ) : (
       <></>
       )} 
-      
       {/* Energy Chart */}
+      <div className="w-auto grid grid-cols-2 gap-2">
+      <div className="w-full overflow-x-auto gap-2 border-r-2 rounded-r-xl">  
       {Array.isArray(energyData) && energyData.length === 0 ? (
         <div className="text-center">
           No energy data available for the selected machine.
           </div>
       ) : (
-
-        <Card>
+        
+        <Card className="w-screen mb-2">
       <CardHeader>
         <CardTitle>Hourly Energy Consumption</CardTitle>
       </CardHeader>
@@ -512,7 +513,7 @@ export default function EmsDashboard() {
       ) : (
       <div className="p-0 w-full space-y-4 justify-between flex flex-col">
       <TooltipProvider>
-      <Card className="w-full">
+      <Card className="w-screen ">
           <CardContent>
             <div className="w-full flex overflow-x-auto">
             <Table>
@@ -575,5 +576,81 @@ export default function EmsDashboard() {
         </TooltipProvider>
       </div>)}
   </div>
+  <div>
+  <div className="w-full overflow-x-auto gap-2 border-r-2 rounded-r-xl">
+    <Card id="total-loss">
+      <CardHeader className="font-bold text-center">Total Loss</CardHeader>
+      <CardContent className="text-center p-x-2 flex items-center justify-center">
+        <Label className="flex text-center align-center items-baseline text-6xl text-red-500 font-bold">
+          {123.23} <p className="text-base p-4">kWh</p>
+        </Label>
+        </CardContent>
+    </Card>
+    <div className="grid grid-cols-4 pt-2 gap-2">
+      <Card id="orange">
+        <CardHeader className="font-bold p-2">Breakdown</CardHeader>
+        <CardContent className="text-center p-x-2">
+          <Label className="flex items-baseline text-3xl text-orange-500 font-bold">
+            {123.23} <p className="text-base p-4">kWh</p>
+          </Label>
+          </CardContent>
+      </Card>
+      <Card id="purple">
+        <CardHeader className="font-bold p-2">Org. Disfunction</CardHeader>
+        <CardContent className="text-center p-x-2">
+          <Label className="flex items-baseline text-3xl text-purple-500 font-bold">
+            {123.23} <p className="text-base p-4">kWh</p>
+          </Label>
+          </CardContent>
+      </Card>
+      <Card id="yellow">
+        <CardHeader className="font-bold p-2">Micro stop</CardHeader>
+        <CardContent className="text-center p-x-2">
+          <Label className="flex items-baseline text-3xl text-yellow-500 font-bold">
+            {123.23} <p className="text-base p-4">kWh</p>
+          </Label>
+          </CardContent>
+      </Card>
+      <Card id="blue">
+        <CardHeader className="font-bold p-2">Changeover</CardHeader>
+        <CardContent className="text-center p-x-2">
+          <Label className="flex items-baseline text-3xl text-blue-500 font-bold">
+            {123.23} <p className="text-base p-4">kWh</p>
+          </Label>
+          </CardContent>
+      </Card>
+      <Card id="white">
+        <CardHeader className="font-bold p-2">Planned Stoppage</CardHeader>
+        <CardContent className="text-center p-x-2">
+          <Label className="flex items-baseline text-3xl text-gray-500 font-bold">
+            {123.23} <p className="text-base p-4">kWh</p>
+          </Label>
+          </CardContent>
+      </Card>
+      <Card id="red">
+        <CardHeader className="font-bold p-2">Non Quality</CardHeader>
+        <CardContent className="text-center p-x-2">
+          <Label className="flex items-baseline text-3xl text-red-500 font-bold">
+            {123.23} <p className="text-base p-4">kWh</p>
+          </Label>
+          </CardContent>
+      </Card>
+      <div className="col-span-2">
+        <Card id="green">
+          <CardHeader className="font-bold p-2 text-center">Running</CardHeader>
+          <CardContent className="text-center p-x-2 flex items-center justify-center">
+            <Label className="flex  items-baseline text-3xl text-green-500 font-bold">
+              {123.23} <p className="text-base p-4">kWh</p>
+            </Label>
+          </CardContent>
+        </Card>
+      </div>
+      
+      </div>
+    </div>
+  </div>
+  </div>
+  </div>
   )
+  
 }
