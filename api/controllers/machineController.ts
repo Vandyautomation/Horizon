@@ -381,7 +381,7 @@ export async function getOeeMachine(machine_id: string, date: string | null, shi
 
 }
 export async function getNooeMachine(machine_id: string, date: string | null, shift: string | null, ems: boolean | null) {
-  if(date && shift){
+  if(date && shift){ // HISTORY COUNTBOARD
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
@@ -421,7 +421,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
 
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
-  } else if( ems){
+  } else if( ems){ // LIVE EMS
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
@@ -446,7 +446,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     AND h.from_datetime BETWEEN @from AND @to
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
-  } else if(date && !shift){
+  } else if(date && !shift){ // HISTORY EMS
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
@@ -472,7 +472,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     AND h.from_datetime BETWEEN @from AND @to
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
-  } else {
+  } else { // LIVE COUNTBOARD
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
@@ -714,3 +714,75 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
   }
 
 
+
+
+  export async function getEnergyStatusLightMachineDaily(machine_name: string, date: string | null) {
+    if(date){
+      const sqlQuery = `
+      DECLARE @from DATETIME;
+      DECLARE @to DATETIME;
+  
+        SET @from = DATEADD(HOUR, 0, CAST(@date AS DATETIME)); 
+        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
+
+        WITH StatusWithDuration AS (
+            SELECT 
+                StatusLight,
+                StatusLightBefore, 
+                dateadd(hour,-7,PMDT) as PMDT,
+                LAG(dateadd(hour,-7,PMDT)) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
+                valueUsed
+            FROM eEnergy.dbo.PowerMeter with (nolock)
+            WHERE 
+                TrxType = 'Manual'
+                AND MchID = @machine_name
+                AND Active = 1
+                AND dateadd(hour,-7,PMDT) between @from and @to
+        )
+        SELECT 
+            StatusLightBefore,
+            SUM(valueUsed) AS TotalEnergyUsed,
+            SUM(CAST(DATEDIFF(SECOND, BeforePMDT, PMDT) AS FLOAT) / 3600) AS DurationHours
+        FROM StatusWithDuration with (nolock)
+        WHERE BeforePMDT IS NOT NULL
+        GROUP BY StatusLightBefore
+        ORDER BY MIN(PMDT);
+    
+      `
+      return await queryDatabase(sqlQuery, { machine_name, date });
+    }
+    else {
+      const sqlQuery = `
+      DECLARE @from DATETIME;
+      DECLARE @to DATETIME;
+  
+        SET @from =DATEADD(HOUR, 0,cast(CAST(GETDATE() AS date)as datetime)) ; 
+        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)));; -- Goes into the next day
+
+    
+        WITH StatusWithDuration AS (
+            SELECT 
+                StatusLight,
+                StatusLightBefore, 
+                dateadd(hour,-7,PMDT) as PMDT,
+                LAG(dateadd(hour,-7,PMDT)) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
+                valueUsed
+            FROM eEnergy.dbo.PowerMeter with (nolock)
+            WHERE 
+                TrxType = 'Manual'
+                AND MchID = @machine_name
+                AND Active = 1
+                AND dateadd(hour,-7,PMDT) between @from and @to
+        )
+        SELECT 
+            StatusLightBefore,
+            SUM(valueUsed) AS TotalEnergyUsed,
+            SUM(CAST(DATEDIFF(SECOND, BeforePMDT, PMDT) AS FLOAT) / 3600) AS DurationHours
+        FROM StatusWithDuration with (nolock)
+        WHERE BeforePMDT IS NOT NULL
+        GROUP BY StatusLightBefore
+        ORDER BY MIN(PMDT);
+      `;
+      return await queryDatabase(sqlQuery, { machine_name });
+    }
+  }

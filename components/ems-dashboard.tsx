@@ -73,6 +73,12 @@ type EnergyData = {
   consumption: number;
 };
 
+type EnergyStatusData = {
+  StatusLightBefore: string;
+  TotalEnergyUsed: number;
+  DurationHours: number;
+}
+
 const refreshRateList = [
   '5000','15000','30000','60000'
 ]
@@ -89,7 +95,6 @@ export default function EmsDashboard() {
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedShift, setSelectedShift] = useState('');
   const [isLoadingRefresh, setIsLoadingRefresh] = useState(false); 
   const [isLiveMode, setIsLiveMode] = useState(true); 
 
@@ -104,9 +109,6 @@ export default function EmsDashboard() {
   useEffect(() => {
     setIsLoading(isValidating);
   }, [isValidating]);
-
-
-
 
   
   const noeeDataKey = selectedMachine?.machineName
@@ -163,6 +165,33 @@ export default function EmsDashboard() {
 
   const refetchEnergyData = () => mutate(energyDataKey);
 
+  const energyStatusDataKey = selectedMachine?.machineName
+  ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/energy/status/${selectedMachine.machineName}${
+      !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
+        ? `?date=${new URLSearchParams(window.location.search).get('date')}`
+        : ''
+    }`
+  : null;
+
+  const { data: energyStatusData } = useSWR<EnergyStatusData[]>(energyStatusDataKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: Number(selectedRefreshRate),
+  });
+
+  const energyGreen = energyStatusData?.find(status => status.StatusLightBefore === 'GREEN');
+  const energyYellow = energyStatusData?.find(status => status.StatusLightBefore === 'YELLOW');
+  const energyPurple = energyStatusData?.find(status => status.StatusLightBefore === 'PURPLE');
+  const energyRed = energyStatusData?.find(status => status.StatusLightBefore === 'RED');
+  const energyOrange = energyStatusData?.find(status => status.StatusLightBefore === 'ORANGE');
+  const energyBlue = energyStatusData?.find(status => status.StatusLightBefore === 'BLUE');
+  const energyWhite = energyStatusData?.find(status => status.StatusLightBefore === 'WHITE');
+
+
+  
+  const refetchEnergyStatusData = () => mutate(energyStatusDataKey);
+
   
 
   const uniqueLocations = Array.from(new Set(machines?.map(machine => machine.locationName)));
@@ -183,7 +212,8 @@ export default function EmsDashboard() {
     setSelectedMachine(selected);
     Promise.all([
       refetchNoeeData(),
-      refetchEnergyData()
+      refetchEnergyData(),
+      refetchEnergyStatusData()
     ]);
     const params = new URLSearchParams(searchParams);
     params.set("machineNumber", value);
@@ -205,12 +235,10 @@ export default function EmsDashboard() {
       setRefreshRate('5000')
       params.set("refresh", '5000');
       params.delete("date");
-      params.delete("shift");
     } else if (isLiveMode == true){
       setRefreshRate('30000')
       params.set("refresh", '30000');
       params.set("date", selectedDate.toISOString().split('T')[0]);
-      params.set("shift", selectedShift.toString());
     }
     router.push(`${pathname}?${params.toString()}`);
   }
@@ -230,7 +258,8 @@ export default function EmsDashboard() {
     try {
       await Promise.all([
         refetchNoeeData(),
-        refetchEnergyData()
+        refetchEnergyData(),
+        refetchEnergyStatusData()
       ]);
     } finally {
       setIsLoadingRefresh(false);
@@ -246,7 +275,7 @@ export default function EmsDashboard() {
   let queryRefreshRate = searchParams.get('refresh') || '';
   let queryLiveMode = searchParams.get('isLiveMode') || '' ;
   const queryDate = searchParams.get('date') || '' ;
-  const queryShift = searchParams.get('shift') || '' ;
+
 
 
 
@@ -317,13 +346,6 @@ export default function EmsDashboard() {
       console.log(`selectedDate : ${queryDate}`);
     }
   }, [queryDate]);
-
-  useEffect(() => {
-    if (queryShift) {
-      setSelectedShift(queryShift);
-      console.log(`selectedShift : ${queryShift}`);
-    }
-  }, [queryShift]);
 
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
@@ -565,9 +587,6 @@ export default function EmsDashboard() {
                 ))}
               </TableBody>
               <TableFooter>
-                <TableRow >
-                  <TableCell className="h-4 text-left pb-0 pt-4 font-bold text-base" colSpan={25}>Status Light</TableCell>
-                </TableRow>
               </TableFooter>
             </Table>
             </div>
@@ -577,75 +596,121 @@ export default function EmsDashboard() {
       </div>)}
   </div>
   <div>
-  <div className="w-full overflow-x-auto gap-2 border-r-2 rounded-r-xl">
+  <div className="w-full overflow-x-auto border-r-2 rounded-r-xl">
     <Card id="total-loss">
-      <CardHeader className="font-bold text-center">Total Loss</CardHeader>
-      <CardContent className="text-center p-x-2 flex items-center justify-center">
+      <CardHeader className="font-bold text-center py-2">Total Loss</CardHeader>
+      <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
         <Label className="flex text-center align-center items-baseline text-6xl text-red-500 font-bold">
-          {123.23} <p className="text-base p-4">kWh</p>
+          {(energyGreen?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
         </Label>
         </CardContent>
     </Card>
     <div className="grid grid-cols-4 pt-2 gap-2">
       <Card id="orange">
         <CardHeader className="font-bold p-2">Breakdown</CardHeader>
-        <CardContent className="text-center p-x-2">
+        <CardContent className="text-center p-x-2 py-0">
           <Label className="flex items-baseline text-3xl text-orange-500 font-bold">
-            {123.23} <p className="text-base p-4">kWh</p>
+            {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
           </Label>
           </CardContent>
       </Card>
       <Card id="purple">
         <CardHeader className="font-bold p-2">Org. Disfunction</CardHeader>
-        <CardContent className="text-center p-x-2">
+        <CardContent className="text-center p-x-2 py-0">
           <Label className="flex items-baseline text-3xl text-purple-500 font-bold">
-            {123.23} <p className="text-base p-4">kWh</p>
+            {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
           </Label>
           </CardContent>
       </Card>
       <Card id="yellow">
         <CardHeader className="font-bold p-2">Micro stop</CardHeader>
-        <CardContent className="text-center p-x-2">
+        <CardContent className="text-center p-x-2 py-0">
           <Label className="flex items-baseline text-3xl text-yellow-500 font-bold">
-            {123.23} <p className="text-base p-4">kWh</p>
+            {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
           </Label>
           </CardContent>
       </Card>
       <Card id="blue">
         <CardHeader className="font-bold p-2">Changeover</CardHeader>
-        <CardContent className="text-center p-x-2">
+        <CardContent className="text-center p-x-2 py-0">
           <Label className="flex items-baseline text-3xl text-blue-500 font-bold">
-            {123.23} <p className="text-base p-4">kWh</p>
+            {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
           </Label>
           </CardContent>
       </Card>
       <Card id="white">
         <CardHeader className="font-bold p-2">Planned Stoppage</CardHeader>
-        <CardContent className="text-center p-x-2">
+        <CardContent className="text-center p-x-2 py-0">
           <Label className="flex items-baseline text-3xl text-gray-500 font-bold">
-            {123.23} <p className="text-base p-4">kWh</p>
+            {(energyWhite?.TotalEnergyUsed|| 0).toFixed(2)} <p className="text-base p-4">kWh</p>
           </Label>
           </CardContent>
       </Card>
       <Card id="red">
         <CardHeader className="font-bold p-2">Non Quality</CardHeader>
-        <CardContent className="text-center p-x-2">
+        <CardContent className="text-center p-x-2 py-0">
           <Label className="flex items-baseline text-3xl text-red-500 font-bold">
-            {123.23} <p className="text-base p-4">kWh</p>
+            {(energyRed?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
           </Label>
           </CardContent>
       </Card>
       <div className="col-span-2">
         <Card id="green">
           <CardHeader className="font-bold p-2 text-center">Running</CardHeader>
-          <CardContent className="text-center p-x-2 flex items-center justify-center">
+          <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
             <Label className="flex  items-baseline text-3xl text-green-500 font-bold">
-              {123.23} <p className="text-base p-4">kWh</p>
+            {(energyGreen?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
             </Label>
           </CardContent>
         </Card>
       </div>
-      
+      </div>
+      <div id="equipment" className="grid grid-cols-4 gap-2 mt-4">
+        <div className="col-span-4 items-center text-center">
+          <Label className="text-center font-bold text-lg items-center">Equipment Monitoring (On Progress) </Label>
+        </div>
+      <Card id="mtc">
+          <CardHeader className="font-bold p-2 text-center">MTC</CardHeader>
+          <CardContent className="text-center p-x-2 flex items-center justify-center bg-green-600 rounded-b-md">
+           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Connected</Label>
+          </CardContent>
+        </Card>
+        <Card id="conveyor">
+          <CardHeader className="font-bold p-2 text-center">Conveyor</CardHeader>
+          <CardContent className="text-center p-x-2 flex items-center justify-center bg-green-600 rounded-b-md">
+           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Connected</Label>
+          </CardContent>
+        </Card>
+        <Card id="crusher">
+          <CardHeader className="font-bold p-2 text-center">Crusher</CardHeader>
+          <CardContent className="text-center p-x-2 flex items-center justify-center bg-green-600 rounded-b-md">
+           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Connected</Label>
+          </CardContent>
+        </Card>
+        <Card id="masterbatch_feeder">
+          <CardHeader className="font-bold p-2 text-center">Master Batch Feeder</CardHeader>
+          <CardContent className="text-center p-x-2 flex items-center justify-center bg-red-600 rounded-b-md">
+           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Disconnected</Label>
+          </CardContent>
+        </Card>
+        <Card id="hot_runner">
+          <CardHeader className="font-bold p-2 text-center">Hot Runner</CardHeader>
+          <CardContent className="text-center p-x-2 flex items-center justify-center bg-red-600 rounded-b-md">
+           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Disconnected</Label>
+          </CardContent>
+        </Card>
+        <Card id="hopper">
+          <CardHeader className="font-bold p-2 text-center">Hopper</CardHeader>
+          <CardContent className="text-center p-x-2 flex items-center justify-center bg-red-600 rounded-b-md">
+           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Disconnected</Label>
+          </CardContent>
+        </Card>
+        <Card id="chiller">
+          <CardHeader className="font-bold p-2 text-center">Chiller</CardHeader>
+          <CardContent className="text-center p-x-2 flex items-center justify-center bg-red-600 rounded-b-md">
+           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Disconnected</Label>
+          </CardContent>
+        </Card>
       </div>
     </div>
   </div>
