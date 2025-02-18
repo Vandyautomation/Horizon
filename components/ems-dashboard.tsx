@@ -305,7 +305,7 @@ export default function EmsDashboard() {
   useEffect(() => {
     if (queryLocation) {
       setSelectedLocation(queryLocation);
-      console.log(`machine location from query : ${queryLocation}`);
+
     }
   }, [queryLocation]);
 
@@ -313,19 +313,13 @@ export default function EmsDashboard() {
     if (queryMachineNumber) {
       setSelectedMachineNumber(queryMachineNumber);
       const selected = filteredMachines?.find(machine => machine.machineNumber == queryMachineNumber);
-      console.log(`filteredMachines from query: ${JSON.stringify(filteredMachines)}`);
-      console.log(`selected from query: ${JSON.stringify(selected)}`);
-
       setSelectedMachine(selected || null);
-      console.log(`machine number from query : ${queryMachineNumber}`);
-      console.log(`selected machine from query :`, selected);
     }
   }, [queryMachineNumber, machines, filteredMachines]);
 
   useEffect(() => {
     if (queryRefreshRate) {
       setRefreshRate(queryRefreshRate);
-      console.log(`refreshRate : ${queryRefreshRate}`);
     }
   }, [queryRefreshRate]);
 
@@ -336,14 +330,12 @@ export default function EmsDashboard() {
       } else if (queryLiveMode == 'false'){
         setIsLiveMode(false);
       }
-      console.log(`liveMode : ${queryLiveMode}`);
     }
   }, [queryLiveMode]);
 
   useEffect(() => {
     if (queryDate) {
       setSelectedDate(new Date(new Date(queryDate).getTime() + 1000 * 60 * 60 * 24));
-      console.log(`selectedDate : ${queryDate}`);
     }
   }, [queryDate]);
 
@@ -530,8 +522,8 @@ export default function EmsDashboard() {
     </Card>
       )}
       
-    {selectedMachine === null ? (
-      <div className="text-center">Please select machine...</div>
+    {selectedMachine === null  || !Array.isArray(processedNoeeData) ?  (
+      <div className="text-center">Please select machine (or wait a moment)...</div>
       ) : (
       <div className="p-0 w-full space-y-4 justify-between flex flex-col">
       <TooltipProvider>
@@ -559,19 +551,20 @@ export default function EmsDashboard() {
                         : null;
                         
                         // console.log(`noeeData ${JSON.stringify(noeeData)}`)
-                        // console.log(`noeeDataFromTime ${new Date(noeeData![2].fromTime).toISOString().split('T')[1].slice(3, 8)}`)
-                        // console.log(`nooe time ${nooe.time}`)
-                        
-                        // console.log(`nooehour ${new Date(noeeData![0].fromTime).getHours()}`)
 
-                        // console.log(`hour ${hour}`)
+                        processedNoeeData.forEach(n => {
+                        console.log(`noeeDataFromTime ${new Date(n.fromTime).toISOString().split('T')[1].slice(3, 8)}`)
+                        console.log(`nooe time ${nooe.time}`)
+                        console.log(`nooehour ${new Date(n.fromTime).getHours()}`)
+                        console.log(`table hour ${hour}`)
+                        });
+
+                        console.log(`nooeForHour ${nooeForHour}`)
+                        console.log(`activeColor ${activeColor}`)                        
 
 
 
 
-                        // console.log(`nooeForHour ${nooeForHour}`)
-
-                        console.log(`activeColor ${activeColor}`)
 
                       return (
                         <TableCell key={hour} className="w-8 h-8 p-0 pl-2  text-center items-center justify-center">

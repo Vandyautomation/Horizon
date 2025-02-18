@@ -382,6 +382,7 @@ export async function getOeeMachine(machine_id: string, date: string | null, shi
 }
 export async function getNooeMachine(machine_id: string, date: string | null, shift: string | null, ems: boolean | null) {
   if(date && shift){ // HISTORY COUNTBOARD
+    console.log('HISTORY COUNTBOARD')
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
@@ -421,7 +422,9 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
 
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
-  } else if( ems){ // LIVE EMS
+  } else if(ems){ // LIVE EMS
+    console.log('LIVE EMS')
+
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
@@ -438,7 +441,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         WHEN COALESCE(n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red) IS NULL 
         THEN 1 ELSE NULL 
         END AS green
-        ,n.created_at as fromTime
+        ,dateadd(hour,0,n.created_at) as fromTime
     FROM IoT.dbo.nooe n WITH (NOLOCK)
     JOIN IoT.dbo.hourly h WITH (NOLOCK) 
         ON n.hourly_id = h.id
@@ -446,7 +449,9 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     AND h.from_datetime BETWEEN @from AND @to
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
-  } else if(date && !shift){ // HISTORY EMS
+  } else if(date && ems){ // HISTORY EMS
+    console.log('HISTORY EMS')
+
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
@@ -473,6 +478,8 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
   } else { // LIVE COUNTBOARD
+    console.log('LIVE COUNTBOARD')
+
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
