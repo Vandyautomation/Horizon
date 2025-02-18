@@ -1,6 +1,5 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import albeaLogo from "@/public/albea-white.png"
 import {
   Card,
   CardContent,
@@ -19,25 +18,22 @@ import {
   TableBody,
   TableCell,
   TableFooter,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
-import Image from 'next/image'
-import {  CalendarIcon, FilePlus2, Pencil, RefreshCw, SprayCan } from "lucide-react"
+
+import {  CalendarIcon, RefreshCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
-import { useState, useEffect, useCallback } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
+import { useState, useEffect } from "react"
+
+import { TooltipProvider } from "./ui/tooltip"
 import { Label } from "./ui/label"
-import { Input } from "./ui/input"
-import { SearchablePOSelect } from "./searchable-select-po"
+
 import useSWR, { mutate } from "swr"
 import ErrorState from "./ui/error-state"
-import { toast } from "sonner"
+
 import { format } from "date-fns/format"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { cn } from "@/lib/utils"
@@ -55,57 +51,6 @@ type MachineDetail = {
   machineNumber: string;
   locationId: number;
   locationName: string;
-};
-
-type HourlyData = {
-  hourlyId: number;
-  time: string;
-  itemNo: string;
-  itemDesc: string;
-  target: number;
-  target_tolerance: number;
-  actual: number;
-  delta: number;
-  scrap: number;
-  rework: number;
-  causes: string;
-  comments: string;
-};
-
-type OoeData = {
-  timea: number;
-  pmidle: number;
-  timeb: number;
-  breakdown: number;
-  timee: number;
-  ooe: number;
-  oee: number;
-  breakdownperc: number;
-  green: number;
-  red: number;
-  yellow: number;
-  white: number;
-  blue: number;
-  orange: number;
-  purple: number;
-  grey: number;
-};
-
-type TaskData = {
-  id: number;
-  po_name: string;
-  machine_name: string;
-  required_qty: number;
-  produced_qty: number;
-  cvt: number;
-  ct: number;
-  actual_cvt: number;
-  actual_ct: number;
-  target_cvt: number;
-  target_ct: number;
-  shift_target_qty: number;
-  created_at: string;
-  updated_at: string;
 };
 
 type NooeData = {
@@ -132,34 +77,6 @@ const refreshRateList = [
 
 const fiveMinutes = Array.from({length: 12}, (_, i) => ({time: `${(i * 5).toString().padStart(2, '0')}:00`}))
 
-const energyData = [
-  { hour: "00:00", consumption: 240 },
-  { hour: "01:00", consumption: 200 },
-  { hour: "02:00", consumption: 180 },
-  { hour: "03:00", consumption: 160 },
-  { hour: "04:00", consumption: 150 },
-  { hour: "05:00", consumption: 170 },
-  { hour: "06:00", consumption: 220 },
-  { hour: "07:00", consumption: 300 },
-  { hour: "08:00", consumption: 350 },
-  { hour: "09:00", consumption: 380 },
-  { hour: "10:00", consumption: 400 },
-  { hour: "11:00", consumption: 420 },
-  { hour: "12:00", consumption: 450 },
-  { hour: "13:00", consumption: 430 },
-  { hour: "14:00", consumption: 410 },
-  { hour: "15:00", consumption: 400 },
-  { hour: "16:00", consumption: 390 },
-  { hour: "17:00", consumption: 420 },
-  { hour: "18:00", consumption: 460 },
-  { hour: "19:00", consumption: 480 },
-  { hour: "20:00", consumption: 450 },
-  { hour: "21:00", consumption: 400 },
-  { hour: "22:00", consumption: 350 },
-  { hour: "23:00", consumption: 300 },
-]
-
-const shiftList = ['1','2','3']
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -167,13 +84,6 @@ export default function EmsDashboard() {
   const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedComment, setSelectedComment] = useState({ index: -1, hourlyId: -1, type: '', content: '' });
-  const [currentCVT, setCurrentCVT] = useState<number | 0>(0);
-  const [isPODialogOpen, setIsPODialogOpen] = useState(false);
-  const [isCVTDialogOpen, setIsCVTDialogOpen] = useState(false);
-  const [selectedPO, setSelectedPO] = useState('');
-  const [editedCVT, setEditedCVT] = useState(currentCVT);
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -194,21 +104,7 @@ export default function EmsDashboard() {
   }, [isValidating]);
 
 
-  const hourlyDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}?type=injection${
-      !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
-        ? `&date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
-        : ''
-    }`
-    : null;
 
-  const { data: hourlyData } = useSWR<HourlyData[]>(hourlyDataKey, fetcher, {
-    revalidateOnMount: false,
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    refreshInterval: Number(selectedRefreshRate),
-  });
-  const refetchHourlyData = useCallback(() => mutate(hourlyDataKey), [hourlyDataKey]);
 
   
   const noeeDataKey = selectedMachine?.machineName
@@ -272,7 +168,6 @@ export default function EmsDashboard() {
     const selected = filteredMachines?.find(machine => machine.machineNumber === value) || null;
     setSelectedMachine(selected);
     Promise.all([
-      refetchHourlyData(),
       refetchNoeeData(),
       refetchEnergyData()
     ]);
@@ -320,7 +215,6 @@ export default function EmsDashboard() {
     setIsLoadingRefresh(true);
     try {
       await Promise.all([
-        refetchHourlyData(),
         refetchNoeeData(),
         refetchEnergyData()
       ]);
@@ -419,37 +313,6 @@ export default function EmsDashboard() {
 
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
-
-  const renderNooeIndicators = (hourlyId: number) => {
-    const nooeForTime = noeeData?.filter(nooe => nooe.hourlyId === hourlyId) || [];
-    if (nooeForTime.length === 0) return null;
-
-    const colorMap = {
-      blue: 'bg-blue-500 ml-0',
-      orange: 'bg-orange-500 ml-1',
-      purple: 'bg-purple-500 ml-2',
-      grey: 'bg-gray-500 ml-3',
-      yellow: 'bg-yellow-500 ml-3',
-      white: 'bg-white border border-gray-300 ml-4',
-      red: 'bg-red-500 ml-4',
-    };
-
-    return (
-      <div className="flex h-12 flex-col gap-0.5 mb-0">
-      {nooeForTime.map((nooe) => {
-        const activeColor = Object.keys(colorMap).find(color => nooe[color as keyof typeof nooe] === true);
-        return activeColor ? (
-          <div 
-            key={nooe.NooeId}
-            className={`w-0.5 h-0.5 ${colorMap[activeColor as keyof typeof colorMap]}`}
-          />
-        ) : (
-        <div className={`w-0.5 h-0.5 bg-none`} />
-      );
-      })}
-    </div>
-    );
-  };
 
   const colorMap = {
     blue: 'bg-blue-500',
