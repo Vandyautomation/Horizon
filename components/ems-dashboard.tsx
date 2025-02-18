@@ -112,8 +112,8 @@ export default function EmsDashboard() {
   const noeeDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${selectedMachine.machineName}${
       !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
-      ?  `?date=${new URLSearchParams(window.location.search).get('date')}`
-          : ''
+      ?  `?date=${new URLSearchParams(window.location.search).get('date')}&ems=true`
+          : '&ems=true'
     }`
     : null;
 

@@ -380,7 +380,7 @@ export async function getOeeMachine(machine_id: string, date: string | null, shi
   }
 
 }
-export async function getNooeMachine(machine_id: string, date: string | null, shift: string | null) {
+export async function getNooeMachine(machine_id: string, date: string | null, shift: string | null, ems: boolean | null) {
   if(date && shift){
     const sqlQuery = `
     DECLARE @from DATETIME;
@@ -419,6 +419,31 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     AND h.from_datetime BETWEEN @from AND @to
 
 
+    `
+    return await queryDatabase(sqlQuery, {machine_id, date, shift})
+  } else if( ems){
+    const sqlQuery = `
+    DECLARE @from DATETIME;
+    DECLARE @to DATETIME;
+
+        SET @from =DATEADD(HOUR, 0,cast(CAST(GETDATE() AS date)as datetime)) ; 
+        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)));; -- Goes into the next day
+
+
+        SELECT 
+        n.id AS NooeId, 
+        h.id AS hourlyId, 
+        n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red
+        , CASE 
+        WHEN COALESCE(n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red) IS NULL 
+        THEN 1 ELSE NULL 
+        END AS green
+        ,dateadd(hour,6,n.created_at) as fromTime
+    FROM IoT.dbo.nooe n WITH (NOLOCK)
+    JOIN IoT.dbo.hourly h WITH (NOLOCK) 
+        ON n.hourly_id = h.id
+    WHERE h.machine_id = @machine_id
+    AND h.from_datetime BETWEEN @from AND @to
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
   } else if(date && !shift){
