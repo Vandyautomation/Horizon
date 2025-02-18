@@ -422,7 +422,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
 
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
-  } else if(ems){ // LIVE EMS
+  } else if(ems && !date){ // LIVE EMS
 
 
     const sqlQuery = `
