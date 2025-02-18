@@ -57,7 +57,7 @@ machineRoutes.get('/noee/:machineId', async (c) => {
     const machine_id = c.req.param('machineId'); 
     const date = c.req.query('date') || null; 
     const shift = c.req.query('shift') || null; 
-    const ems = c.req.query('ems') || null;
+    const ems = c.req.query('ems') === 'true' ? true : false;
     const data = await getNooeMachine(machine_id, date, shift, ems);
     return c.json(data);
   } catch (error) {
