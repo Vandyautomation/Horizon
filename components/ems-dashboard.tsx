@@ -359,8 +359,8 @@ export default function EmsDashboard() {
 
 
   return (
-    <div className="p-2 space-y-2 max-w-[1800px] overflow-x-hidden">
-      <div className="flex flex-wrap gap-2">
+    <div className="p-0 space-y-2 max-w-[1800px] overflow-x-hidden">
+      <div className="flex flex-wrap gap-2 pt-0">
         {isLoading ? (
           <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
           Loading ...
@@ -468,7 +468,7 @@ export default function EmsDashboard() {
       <></>
       )} 
       {/* Energy Chart */}
-      <div className="w-auto grid grid-cols-2 gap-2">
+      <div className="w-auto grid grid-cols-2 gap-2 mb-0 pb-0">
       <div className="w-full overflow-x-auto gap-2 border-r-2 rounded-r-xl">  
       {Array.isArray(energyData) && energyData.length === 0 ? (
         <div className="text-center">
@@ -526,8 +526,8 @@ export default function EmsDashboard() {
       ) : (
       <div className="p-0 w-full space-y-4 justify-between flex flex-col">
       <TooltipProvider>
-      <Card className="w-screen ">
-          <CardContent>
+      <Card className="w-screen py-0">
+          <CardContent className="py-0">
             <div className="w-full flex overflow-x-auto">
             <Table>
               <TableHeader>
