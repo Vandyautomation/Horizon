@@ -423,6 +423,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
   } else if(ems && !date){ // LIVE EMS
+    console.log('LIVE EMS')
 
 
     const sqlQuery = `
@@ -497,6 +498,10 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
   } else if(date && ems){ // HISTORY EMS
 
+    console.log('HISTORY EMS')
+    console.log(date)
+
+
 
     const sqlQuery = `
     DECLARE @from DATETIME;
@@ -505,10 +510,6 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
 
     SET @from = DATEADD(HOUR, 0, cast(CAST(@date AS date)as datetime))
     SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(@date AS date)as datetime))); -- Goes into the next day
-
-
-       SET @from = DATEADD(HOUR, 0, CAST(CAST(GETDATE() AS DATE) AS DATETIME)); 
-SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(CAST(GETDATE() AS DATE) AS DATETIME)));
 
 
     SELECT 
