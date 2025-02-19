@@ -1,6 +1,6 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,  SidebarHeader, SidebarMenu,  SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { AudioWaveformIcon,  Bot, Calculator,  ChevronDown, ChevronRight,  CommandIcon, Database, HomeIcon, LogOut, LucideIcon,  MessageSquareWarningIcon,  Plus,  ScaleIcon,  Settings2,  SprayCan,  Ticket,  User, Zap } from "lucide-react";
+import {   Bot, Calculator,  ChevronDown, ChevronRight,  CommandIcon, Database, HomeIcon,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
 import {
     Collapsible,
     CollapsibleContent,

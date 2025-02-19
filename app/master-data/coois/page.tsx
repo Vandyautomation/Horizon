@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import * as XLSX from "xlsx" 
-import { Upload, FileSpreadsheet, AlertCircle, Download, icons, RefreshCcw, RefreshCw } from "lucide-react"
+import { Upload, FileSpreadsheet, AlertCircle, Download, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -66,7 +66,7 @@ export default function CooisUpload() {
         }
         reader.readAsArrayBuffer(selectedFile)
       } catch (error) {
-        setError("Error reading the file. Please try again.")
+        setError(`Error reading the file. Please try again., ${error}`)
         setLoading(false)
         setProgress(0)
       }
@@ -94,8 +94,8 @@ export default function CooisUpload() {
             toast.error('Gagal sinkronisasi')
             setLoading(false)
           }
-        } catch (error) {
-          toast.error('Gagal sinkronisasi data')
+        } catch (error: any) {
+          toast.error('Gagal sinkronisasi data', {description: error.message})
           setLoading(false)
         }
     }
