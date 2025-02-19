@@ -179,14 +179,14 @@ export default function EmsDashboard() {
     refreshInterval: Number(selectedRefreshRate),
   });
 
-  const energyGreen = energyStatusData?.find(status => status.StatusLightBefore === 'GREEN');
-  const energyYellow = energyStatusData?.find(status => status.StatusLightBefore === 'YELLOW');
-  const energyPurple = energyStatusData?.find(status => status.StatusLightBefore === 'PURPLE');
-  const energyRed = energyStatusData?.find(status => status.StatusLightBefore === 'RED');
-  const energyOrange = energyStatusData?.find(status => status.StatusLightBefore === 'ORANGE');
-  const energyBlue = energyStatusData?.find(status => status.StatusLightBefore === 'BLUE');
-  const energyWhite = energyStatusData?.find(status => status.StatusLightBefore === 'WHITE');
-
+  const energyGreen = energyStatusData?.find(status => status.StatusLightBefore === 'GREEN') 
+  const energyYellow = energyStatusData?.find(status => status.StatusLightBefore === 'YELLOW') 
+  const energyPurple = energyStatusData?.find(status => status.StatusLightBefore === 'PURPLE') 
+  const energyRed = energyStatusData?.find(status => status.StatusLightBefore === 'RED') 
+  const energyOrange = energyStatusData?.find(status => status.StatusLightBefore === 'ORANGE') 
+  const energyBlue = energyStatusData?.find(status => status.StatusLightBefore === 'BLUE') 
+  const energyWhite = energyStatusData?.find(status => status.StatusLightBefore === 'WHITE')
+  const totalLoss = (energyYellow?.TotalEnergyUsed || 0) + (energyPurple?.TotalEnergyUsed  || 0) + (energyRed?.TotalEnergyUsed || 0) + (energyOrange?.TotalEnergyUsed || 0) + (energyBlue?.TotalEnergyUsed || 0) + (energyWhite?.TotalEnergyUsed || 0)
 
   
   const refetchEnergyStatusData = () => mutate(energyStatusDataKey);
@@ -592,7 +592,7 @@ export default function EmsDashboard() {
       <CardHeader className="font-bold text-center py-2">Total Loss</CardHeader>
       <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
         <Label className="flex text-center align-center items-baseline text-6xl text-red-500 font-bold">
-          {(energyGreen?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
+          {(totalLoss).toFixed(2)} <p className="text-base p-4">kWh</p>
         </Label>
         </CardContent>
     </Card>
