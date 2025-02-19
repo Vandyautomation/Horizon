@@ -157,6 +157,7 @@ export default function CountboardDashboardUv() {
     const now = new Date();
     const hour = now.getHours();
     let shift = 0;
+
   
     switch (true) {
       case hour >= 6 && hour < 14:
@@ -180,6 +181,26 @@ export default function CountboardDashboardUv() {
     setSelectedShift(shift.toString());
     setShiftStartHour(now.getTime());
   }, []);
+
+  useEffect(() => {
+    const refreshAtShiftChange = () => {
+      const now = new Date();
+      const hour = now.getHours();
+
+      if (hour === 6 || hour === 14 || hour === 22 ) {
+        toast.success("Refreshing ...", { duration: 1000 });
+        router.refresh();
+      }
+    };
+
+    // Run immediately
+    refreshAtShiftChange();
+
+    // Check every minute
+    const interval = setInterval(refreshAtShiftChange, 600 * 1000);
+
+    return () => clearInterval(interval);
+  }, [router]);
   
   const from = isLiveMode 
     ? shiftStartHour 

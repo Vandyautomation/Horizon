@@ -21,6 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { toast } from "sonner"
+
 
 
 import {  CalendarIcon, RefreshCw } from "lucide-react"
@@ -99,6 +101,25 @@ export default function EmsDashboard() {
 
   const pathname = usePathname()
   const router = useRouter()
+  useEffect(() => {
+    const refreshAtShiftChange = () => {
+      const now = new Date();
+      const hour = now.getHours();
+
+      if (hour === 6 || hour === 14 || hour === 22 ) {
+        toast.success("Refreshing ...", { duration: 1000 });
+        router.refresh();
+      }
+    };
+
+    // Run immediately
+    refreshAtShiftChange();
+
+    // Check every minute
+    const interval = setInterval(refreshAtShiftChange, 600 * 1000);
+
+    return () => clearInterval(interval);
+  }, [router]);
 
 
   const { data: machines, error, isValidating } = useSWR<MachineDetail[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines?type=injection`, fetcher, {

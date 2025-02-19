@@ -143,6 +143,26 @@ export default function CountboardDashboard() {
   const pathname = usePathname()
   const router = useRouter()
 
+  useEffect(() => {
+    const refreshAtShiftChange = () => {
+      const now = new Date();
+      const hour = now.getHours();
+
+      if (hour === 6 || hour === 14 || hour === 22 ) {
+        toast.success("Refreshing ...", { duration: 1000 });
+        router.refresh();
+      }
+    };
+
+    // Run immediately
+    refreshAtShiftChange();
+
+    // Check every minute
+    const interval = setInterval(refreshAtShiftChange, 600 * 1000);
+
+    return () => clearInterval(interval);
+  }, [router]);
+
   const [shiftStartHour, setShiftStartHour] = useState(0);
   useEffect(() => {
     const now = new Date();
