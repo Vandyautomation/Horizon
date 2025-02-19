@@ -423,8 +423,6 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
   } else if(ems && !date){ // LIVE EMS
-    console.log('LIVE EMS')
-
 
     const sqlQuery = `
     DECLARE @from DATETIME;
@@ -497,11 +495,6 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
   } else if(date && ems){ // HISTORY EMS
-
-    console.log('HISTORY EMS')
-    console.log(date)
-
-
 
     const sqlQuery = `
     DECLARE @from DATETIME;
@@ -834,16 +827,17 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             SELECT 
                 StatusLight,
                 StatusLightBefore, 
-                dateadd(hour,-7,PMDT) as PMDT,
-                LAG(dateadd(hour,-7,PMDT)) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
+                PMDT,
+                LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
                 valueUsed
             FROM eEnergy.dbo.PowerMeter with (nolock)
             WHERE 
                 TrxType = 'Manual'
                 AND MchID = @machine_name
                 AND Active = 1
-                AND dateadd(hour,-7,PMDT) between @from and @to
+                AND PMDT between @from and @to
         )
+
         SELECT 
             StatusLightBefore,
             SUM(valueUsed) AS TotalEnergyUsed,
@@ -862,23 +856,24 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
       DECLARE @to DATETIME;
   
         SET @from =DATEADD(HOUR, 0,cast(CAST(GETDATE() AS date)as datetime)) ; 
-        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)));; -- Goes into the next day
+        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
 
     
         WITH StatusWithDuration AS (
             SELECT 
                 StatusLight,
                 StatusLightBefore, 
-                dateadd(hour,-7,PMDT) as PMDT,
-                LAG(dateadd(hour,-7,PMDT)) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
+                PMDT,
+                LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
                 valueUsed
             FROM eEnergy.dbo.PowerMeter with (nolock)
             WHERE 
                 TrxType = 'Manual'
                 AND MchID = @machine_name
                 AND Active = 1
-                AND dateadd(hour,-7,PMDT) between @from and @to
+                AND PMDT between @from and @to
         )
+
         SELECT 
             StatusLightBefore,
             SUM(valueUsed) AS TotalEnergyUsed,
