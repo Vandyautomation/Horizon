@@ -1,51 +1,139 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,  SidebarHeader, SidebarMenu,  SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { AudioWaveformIcon,  Bot, Calculator,  ChevronDown, ChevronRight,  CommandIcon, HomeIcon, LogOut, LucideIcon,  MessageSquareWarningIcon,  Plus,  ScaleIcon,  Settings2,  Ticket,  User } from "lucide-react";
+import { AudioWaveformIcon,  Bot, Calculator,  ChevronDown, ChevronRight,  CommandIcon, Database, HomeIcon, LogOut, LucideIcon,  MessageSquareWarningIcon,  Plus,  ScaleIcon,  Settings2,  SprayCan,  Ticket,  User, Zap } from "lucide-react";
 import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
   } from "@/components/ui/collapsible"
 import { DropdownMenuShortcut } from "@/components/ui/dropdown-menu";
-import React from "react";
-const sidebarLeftData = {
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+
+
+
+  // This is sample data.
+// const sidebarRightData = {
+//     user: {
+//       name: "shadcn",
+//       email: "m@example.com",
+//       avatar: "/avatars/shadcn.jpg",
+//     },
+//     calendars: [
+//       {
+//         name: "My Calendars",
+//         items: ["Personal", "Work", "Family"],
+//       },
+//       {
+//         name: "Favorites",
+//         items: ["Holidays", "Birthdays"],
+//       },
+//       {
+//         name: "Other",
+//         items: ["Travel", "Reminders", "Deadlines"],
+//       },
+//     ],
+//   }
+  
+  interface SidebarLeftProps extends React.ComponentProps<typeof Sidebar> {
+    onMenuClick: (component: string) => void;
+  }
+
+export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) {
+  
+  const [user, setUser] = useState(localStorage.getItem('user') || '');
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setUser(localStorage.getItem('user') || '');
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  const sidebarLeftData = {
     teams: [
       {
         name: "Albea - TPA",
         logo: CommandIcon,
         plan: "Enterprise",
       },
-      {
-        name: "Albea - ARPS",
-        logo: AudioWaveformIcon,
-        plan: "Enterprise",
-      },
-      {
-        name: "Albea - BETTS",
-        logo: CommandIcon,
-        plan: "Enterprise",
-      },
+      // {
+      //   name: "Albea - ARPS",
+      //   logo: AudioWaveformIcon,
+      //   plan: "Enterprise",
+      // },
+      // {
+      //   name: "Albea - BETTS",
+      //   logo: CommandIcon,
+      //   plan: "Enterprise",
+      // },
     ],
     navMain: [
       {
         title: "Home",
         url: "",
         icon: HomeIcon,
-      },
-      {
-        title: "eScale",
-        url: "scale",
-        icon: ScaleIcon,
+        hidden: false
+
       },
       {
         title: "eCountboard",
         url: "countboard",
         icon: Calculator,
+        hidden: false
+
+      },
+      {
+        title: "eCountboard UV",
+        url: "countboard/uv",
+        icon: SprayCan,
+        hidden: false
+
+      },
+      {
+        title: "EMS",
+        url: "ems",
+        icon: Zap,
+        hidden: false
+      },
+      {
+        title: "eScale",
+        url: "/",
+        icon: ScaleIcon,
+        hidden: !user
+      },
+      {
+        title: "Master Data",
+        url: "master-data",
+        icon: Database,
+        hidden: !user,
+        isActive: false,
+        items: [
+            {
+              title: "COOIS",
+              url: "master-data/coois",
+            },
+            {
+              title: "Routing",
+              url: "master-data/routing",
+            },
+            {
+              title: "COOIS UV",
+              url: "master-data/coois-uv",
+            },
+          ],
       },
       {
         title: "Users",
         url: "users",
         icon: User,
+        hidden: !user,
         isActive: false,
         items: [
             {
@@ -66,6 +154,7 @@ const sidebarLeftData = {
         title: "Machines",
         url: "#",
         icon: Bot,
+        hidden: !user,
         items: [
             {
               title: "Transaction",
@@ -85,6 +174,7 @@ const sidebarLeftData = {
         title: "Tickets",
         url: "#",
         icon: Ticket,
+        hidden: !user,
         items: [
             {
               title: "History",
@@ -104,6 +194,7 @@ const sidebarLeftData = {
         title: "Problems",
         url: "#",
         icon: MessageSquareWarningIcon,
+        hidden: !user,
         items: [
             {
               title: "History",
@@ -121,16 +212,16 @@ const sidebarLeftData = {
       },
     ],
     navSecondary: [
-      {
-        title: "Settings",
-        url: "#",
-        icon: Settings2,
-      },
-      {
-        title: "Logout",
-        url: "login",
-        icon: LogOut,
-      },
+      // {
+      //   title: "Settings",
+      //   url: "#",
+      //   icon: Settings2,
+      // },
+      // {
+      //   title: "Logout",
+      //   url: "login",
+      //   icon: LogOut,
+      // },
     ],
     favorites: [
       {
@@ -293,34 +384,8 @@ const sidebarLeftData = {
     ],
   }
 
-  // This is sample data.
-// const sidebarRightData = {
-//     user: {
-//       name: "shadcn",
-//       email: "m@example.com",
-//       avatar: "/avatars/shadcn.jpg",
-//     },
-//     calendars: [
-//       {
-//         name: "My Calendars",
-//         items: ["Personal", "Work", "Family"],
-//       },
-//       {
-//         name: "Favorites",
-//         items: ["Holidays", "Birthdays"],
-//       },
-//       {
-//         name: "Other",
-//         items: ["Travel", "Reminders", "Deadlines"],
-//       },
-//     ],
-//   }
-  
-  interface SidebarLeftProps extends React.ComponentProps<typeof Sidebar> {
-    onMenuClick: (component: string) => void;
-  }
+    const router = useRouter()
 
-export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) {
     return (
       <Sidebar className="border-r-0" {...props} collapsible="icon">
         <SidebarHeader>
@@ -336,6 +401,8 @@ export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) 
         <SidebarRail />
       </Sidebar>
     )
+
+    
     function NavMain({
         items,
       }: {
@@ -344,12 +411,13 @@ export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) 
           url: string
           icon: LucideIcon
           isActive?: boolean,
+          hidden?: boolean,
           items?: { title: string, url: string }[] 
         }[]
       }) {
         return (
             <SidebarMenu>
-            {items.map((item) => (
+            { items.filter((item) => !item.hidden).map((item) => (
             <SidebarMenuItem key={item.title}>
             {item.items?.length  ? (
                 <Collapsible
@@ -405,11 +473,9 @@ export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) 
               <SidebarMenu>
                 {items.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <a href={item.url}>
+                    <SidebarMenuButton asChild onClick={() => router.push(item.url)}>
                         <item.icon />
                         <span>{item.title}</span>
-                      </a>
                     </SidebarMenuButton>
                     {item.badge && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
                   </SidebarMenuItem>
@@ -470,12 +536,12 @@ export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) 
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="gap-2 p-2">
+                  {/* <DropdownMenuItem className="gap-2 p-2">
                     <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                       <Plus className="size-4" />
                     </div>
                     <div className="font-medium text-muted-foreground">Add team</div>
-                  </DropdownMenuItem>
+                  </DropdownMenuItem> */}
                 </DropdownMenuContent>
               </DropdownMenu>
             </SidebarMenuItem>

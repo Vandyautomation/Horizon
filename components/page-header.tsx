@@ -19,6 +19,7 @@ interface PageHeaderProps extends React.ComponentProps<typeof Sidebar> {
 export default function PageHeader({  onMenuClick}: PageHeaderProps) {
   const pathname = usePathname()
   const currentPage = pathname?.split("/")[1]
+  const currentSubPage = pathname?.split("/")[2]
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
       <SidebarTrigger className="-ml-1" />
@@ -43,7 +44,7 @@ export default function PageHeader({  onMenuClick}: PageHeaderProps) {
             </>
           )}
 
-          {currentPage === "countboard" && (
+          {currentPage === "countboard" && currentSubPage !== "uv" && (
             <>
             <BreadcrumbItem>
             <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
@@ -51,6 +52,18 @@ export default function PageHeader({  onMenuClick}: PageHeaderProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbPage onClick={() => onMenuClick("countboard")}>eCountboard</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
+
+          {currentPage === "countboard" && currentSubPage === "uv" && (
+            <>
+            <BreadcrumbItem>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
+          </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage onClick={() => onMenuClick("countboard/uv")}>eCountboard UV</BreadcrumbPage>
               </BreadcrumbItem>
             </>
           )}
@@ -63,6 +76,66 @@ export default function PageHeader({  onMenuClick}: PageHeaderProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbPage onClick={() => onMenuClick("countboard")}>Realtime Energy Monitoring</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
+
+        {currentPage === "master-data" && !currentSubPage && (
+            <>
+            <BreadcrumbItem>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
+          </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage onClick={() => onMenuClick("master-data")}>Master Data</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
+
+        {currentSubPage === "coois" && (
+            <>
+            <BreadcrumbItem>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
+          </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+            <BreadcrumbLink onClick={() => onMenuClick("master-data")}>Master Data</BreadcrumbLink>
+          </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage onClick={() => onMenuClick("coois")}>COOIS</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
+
+          {currentSubPage === "coois-uv" && (
+            <>
+            <BreadcrumbItem>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
+          </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+            <BreadcrumbLink onClick={() => onMenuClick("master-data")}>Master Data</BreadcrumbLink>
+          </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage onClick={() => onMenuClick("coois-uv")}>COOIS UV</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
+
+          {currentSubPage === "routing" && (
+            <>
+            <BreadcrumbItem>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
+          </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+            <BreadcrumbLink onClick={() => onMenuClick("master-data")}>Master Data</BreadcrumbLink>
+          </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage onClick={() => onMenuClick("routing")}>Routing</BreadcrumbPage>
               </BreadcrumbItem>
             </>
           )}

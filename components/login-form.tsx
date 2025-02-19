@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export function LoginForm() {
   const [username, setUsername] = useState("");
@@ -18,17 +19,19 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const router = useRouter()
+
   const handleSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/login`, {
         method: 'POST',
-        credentials: "include", 
         headers: {
           'Content-Type': 'application/json',
+
         },
         body: JSON.stringify({ username, password }),
       });
@@ -42,16 +45,15 @@ export function LoginForm() {
 
       // Handle successful login
       // Store token, redirect, etc.
-      localStorage.setItem('token', data.data.token);
-      localStorage.setItem('user', JSON.stringify({
-        firstName: data.data.firstName,
-        lastName: data.data.lastName,
-      }));
+      document.cookie = `authToken=${data.data.token}; Path=/; SameSite=Strict; Secure;`;
+      localStorage.setItem('user', data.data.UserName);
+      window.dispatchEvent(new CustomEvent("storage"))
+
 
       // Redirect to the next page
       toast.success('Login successful!');
 
-      window.location.href = '/admin'
+      router.push('/')
     } catch (err) {
       setError((err as Error).message);
       console.log((err as Error).message)

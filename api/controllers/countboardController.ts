@@ -1,5 +1,104 @@
 import { queryDatabase } from '../utils/queryDatabase';
 
+export async function addRouting(data: any[][]) {
+    const validData = data.slice(1).filter((row) => {
+      const [Material, MaterialDescription, GrC, BaseQuantity, Un1, Un2, OpAc, WorkCtr, WorkCenterDescription, Machine, Unit1, Labor, Unit2, NoEmpl, CycleTime, CtrK, Cavities] = row;
+  
+      // Check for null or undefined values and ensure the data types are correct
+      if (
+        !Material || !MaterialDescription  || !CycleTime || !Cavities ||
+         typeof CycleTime !== 'number' || typeof Cavities !== 'number'
+      ) {
+        return false;
+      }
+  
+      return true;
+    });
+  
+    if (validData.length === 0) {
+      throw new Error('No valid data to insert');
+    }
+
+    // Escape single quotes by replacing ' with ''
+    const escapeSingleQuote = (value: string) => value.replace(/'/g, "''");
+
+    const sqlQuery = `
+      INSERT INTO IoT.dbo.routing (
+        material_id, 
+        material_name, 
+        cvt,
+        ct,
+        created_at,
+        modified_at,
+        is_sync
+      )
+      SELECT * FROM (
+        VALUES 
+          ${validData
+            .map(
+              (row) =>
+                `('${escapeSingleQuote(row[0])}', '${escapeSingleQuote(row[1])}', ${row[14]}, ${row[16]}, getdate(), getdate(), 0)`
+            )
+            .join(", ")}
+      ) AS new_data( material_id, material_name, cvt, ct, uploaded_at, modified_at, is_sync)
+      WHERE NOT EXISTS (
+        SELECT 1 FROM IoT.dbo.routing WHERE material_id = new_data.material_id and isnull(is_deleted,0)=0
+      )
+    `;
+  
+    return await queryDatabase(sqlQuery);
+}
+
+
+
+export async function addCoois(data: any[][]) {
+  const validData = data.slice(1).filter((row) => {
+    const [po_number, so_item, , type, pn, produk, order_qty, hasil_qty, minus_qty] = row;
+
+    // Check for null or undefined values and ensure the data types are correct
+    if (
+      !po_number || !so_item || !type || !pn || !produk ||
+      typeof order_qty !== 'number' || typeof hasil_qty !== 'number' || typeof minus_qty !== 'number'
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  if (validData.length === 0) {
+    throw new Error('No valid data to insert');
+  }
+
+  const sqlQuery = `
+    INSERT INTO IoT.dbo.coois (
+      po_name, 
+      so_name, 
+      material_id, 
+      material_name, 
+      required_qty, 
+      produced_qty,
+      uploaded_at,
+      modified_at,
+      is_sync
+    )
+    SELECT * FROM (
+      VALUES 
+        ${validData
+          .map(
+            (row) =>
+              `('${row[0]}', '${row[1]}', '${row[4]}', '${row[5]}', ${row[6]}, ${row[7]}, getdate(), getdate(), 0)`
+          )
+          .join(", ")}
+    ) AS new_data(po_name, so_item, material_id, material_name, required_qty, produced_qty, uploaded_at, modified_at, is_sync)
+    WHERE NOT EXISTS (
+      SELECT 1 FROM IoT.dbo.coois WHERE po_name = new_data.po_name and isnull(is_deleted,0)=0
+    )
+  `;
+
+  return await queryDatabase(sqlQuery);
+}
+
 export async function getCoois(poName: string|undefined) {
   const sqlQuery = `
     SELECT 

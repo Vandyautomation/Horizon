@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { attachPo, getCoois, updateComment, updateCVT } from '../controllers/countboardController';
+import { addCoois, addRouting, attachPo, getCoois, updateComment, updateCVT } from '../controllers/countboardController';
 
 const countboardRoutes = new Hono();
 
@@ -9,6 +9,28 @@ countboardRoutes.get('/coois', async (c) => {
   try {
     const data = await getCoois(poName);
     return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+countboardRoutes.post('/coois', async (c) => {
+  const data  = await c.req.json();
+  console.log(data)
+  try {
+    const res = await addCoois(data);
+    return c.json(res);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+countboardRoutes.post('/routing', async (c) => {
+  const data  = await c.req.json();
+  console.log(data)
+  try {
+    const res = await addRouting(data);
+    return c.json(res);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
   }

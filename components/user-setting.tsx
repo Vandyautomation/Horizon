@@ -12,24 +12,33 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+import { useRouter } from 'next/navigation'
+
 export function UserSetting() {
 
+  const router = useRouter()
+
+  const user = localStorage.getItem('user')
+  const handleLogout = () => {
+    document.cookie = "authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;";
+    localStorage.clear();
+    window.dispatchEvent(new CustomEvent("storage"))
+    router.push('/login')
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
-          <User><span className="sr-only">User Setting</span></User>
+        <Button variant={user ? "default" : "outline"} size="icon">
+       <User/>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem>
           Setting
         </DropdownMenuItem>
-        <DropdownMenuItem >
-        <a href='/login'>
-        Logout
-        </a>
+        <DropdownMenuItem onClick={() => handleLogout()} >
+        {user ? "Logout" : "Login"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

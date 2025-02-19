@@ -1,14 +1,22 @@
 import { Hono } from 'hono';
 import router from './routes';
 import { cors } from 'hono/cors';
+import { timeout } from 'hono/timeout'
 
 const app = new Hono();
 
-app.use('/api/*',cors({ 
+app.use('/api/*', cors({ 
     origin: '*', 
-    allowHeaders: ['X-Custom-Header', 'Upgrade-Insecure-Requests','Access-Control-Allow-Origin'],
-    allowMethods: ['POST', 'GET', 'OPTIONS'],
-    credentials: true }));
+    allowHeaders: [
+        'Content-Type', 
+        'Authorization', 
+        'X-Custom-Header',
+        'Upgrade-Insecure-Requests'
+    ],
+    allowMethods: ['POST', 'GET', 'OPTIONS', 'PUT', 'DELETE'],
+    credentials: true,
+}),timeout(30000));
+
 
 app.route('/api', router);
 

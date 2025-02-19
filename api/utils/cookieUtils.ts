@@ -8,6 +8,9 @@ export function setAuthToken(c: Context, token: string) {
     sameSite: 'strict',
     path: '/',
   });
+
+  const tokenNew = getAuthToken(c);
+  return tokenNew
 }
 
 export function getAuthToken(c: Context) {
