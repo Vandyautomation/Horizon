@@ -138,11 +138,11 @@ export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) 
         items: [
             {
               title: "Role",
-              url: "roles",
+              url: "users/roles",
             },
             {
               title: "Location",
-              url: "locations",
+              url: "users/locations",
             },
             {
               title: "UAP",

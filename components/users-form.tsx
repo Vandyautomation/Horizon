@@ -70,8 +70,8 @@ import {
     useEffect(() => {
         const fetchData = async () => {
           try {
-            const response = await fetch('http://localhost:3000/api/users', {
-              credentials: 'include',
+            const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users`, {
+              // credentials: 'include',
             });
             const data = await response.json();
             if (data.success) {
