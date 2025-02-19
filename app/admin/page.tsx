@@ -46,7 +46,7 @@ export default function AdminUI() {
             className="text-center pt-6"
         >
             <Label style={{   cursor:"pointer", fontFamily:"sans-serif", fontWeight:"bold"}}
-            className="flex items-center justify-center gap-4"><Zap/>EMS</Label>
+            className="flex items-center justify-center gap-4"><Zap/>Energy Monitoring</Label>
         </CardContent>
     </Card>
     {!user ? null :  <Card className="flex items-center justify-center  hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer" onClick={() => {router.push("/master-data")}}>
