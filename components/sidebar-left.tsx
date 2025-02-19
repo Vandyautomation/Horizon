@@ -42,7 +42,12 @@ import { useRouter } from "next/navigation";
 
 export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) {
   
-  const [user, setUser] = useState(localStorage.getItem('user') || '');
+  const [user, setUser] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return localStorage.getItem('user') || '';
+    }
+    return '';
+  });
 
   useEffect(() => {
     const handleStorageChange = () => {

@@ -12,10 +12,13 @@ export default function AdminUI() {
       const router = useRouter()
       useEffect(() => {
           // Retrieve user data from local storage
-          const userData = localStorage.getItem('user') || ''
-          if (userData) {
-            setUser(userData);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            const userData = localStorage.getItem('user') || ''
+            if (userData) {
+              setUser(userData);
+            }
           }
+
         }, []);
   
 

@@ -5,10 +5,13 @@ export default function Landing() {
     const [user, setUser] = useState({ firstName: '', lastName: '' });
     useEffect(() => {
         // Retrieve user data from local storage
-        const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        if (userData) {
-          setUser(userData);
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const userData = JSON.parse(localStorage.getItem('user') || '{}');
+          if (userData) {
+            setUser(userData);
+          }
         }
+
       }, []);
 
     return (

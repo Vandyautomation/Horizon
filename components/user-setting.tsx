@@ -13,12 +13,21 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import { useRouter } from 'next/navigation'
+import { useState } from "react"
 
 export function UserSetting() {
 
   const router = useRouter()
 
-  const user = localStorage.getItem('user')
+
+  const [user, setUser] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return localStorage.getItem('user') || '';
+    }
+    return '';
+  });
+
+
   const handleLogout = () => {
     document.cookie = "authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;";
     localStorage.clear();
