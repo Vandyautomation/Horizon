@@ -1,6 +1,6 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,  SidebarHeader, SidebarMenu,  SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import {   Bot, Calculator,  ChevronDown, ChevronRight,  CommandIcon, Database, HomeIcon,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
+import {   Bot, Calculator,  ChevronDown, ChevronRight,  CommandIcon, Database, HomeIcon,  Lightbulb,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
 import {
     Collapsible,
     CollapsibleContent,
@@ -105,6 +105,12 @@ export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) 
         title: "EMS",
         url: "ems",
         icon: Zap,
+        hidden: false
+      },
+      {
+        title: "Andon",
+        url: "andon",
+        icon: Lightbulb,
         hidden: false
       },
       {
@@ -497,7 +503,7 @@ export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) 
       }: {
         teams: {
           name: string
-          logo: React.ElementType
+          logo: React.ElementType | string
           plan: string
         }[]
       }) 

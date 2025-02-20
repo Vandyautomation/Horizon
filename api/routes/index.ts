@@ -4,6 +4,7 @@ import userRoutes from './userRoutes';
 import scaleTaskRoutes from './scaleTaskRoutes';
 import machineRoutes from './machineRoutes';
 import countboardRoutes from './countboardRoutes';
+import andonRoutes from './andonRoutes';
 
 
 const router = new Hono();
@@ -13,6 +14,7 @@ router.route('/users', userRoutes);
 router.route('/scales', scaleTaskRoutes);
 router.route('/machines', machineRoutes);
 router.route('/countboards', countboardRoutes);
+router.route('/andon', andonRoutes);
 
 
 

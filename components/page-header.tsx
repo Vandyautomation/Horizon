@@ -44,6 +44,18 @@ export default function PageHeader({  onMenuClick}: PageHeaderProps) {
             </>
           )}
 
+          {currentPage === "andon" && (
+            <>
+            <BreadcrumbItem>
+            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
+          </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage onClick={() => onMenuClick("andon")}>Andon</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
+
           {currentPage === "countboard" && currentSubPage !== "uv" && (
             <>
             <BreadcrumbItem>

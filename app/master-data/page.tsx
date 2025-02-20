@@ -20,13 +20,7 @@ export default function MasterData() {
             <Label style={{  fontSize:"1.5rem", cursor:"pointer", fontFamily:"sans-serif", fontWeight:"bold"}}>UPLOAD COOIS</Label>
         </CardContent>
     </Card>
-    <Card className="flex items-center justify-center  hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer" onClick={() => {router.push("/master-data/coois-uv")}}>
-        <CardContent
-            className="text-center"
-        >
-            <Label style={{  fontSize:"1.5rem", cursor:"pointer", fontFamily:"sans-serif", fontWeight:"bold"}}>UPLOAD COOIS UV</Label>
-        </CardContent>
-    </Card>
+   
     <Card className="flex items-center justify-center  hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer" onClick={() => {router.push("/master-data/routing")}}>
         <CardContent
             className="text-center"
