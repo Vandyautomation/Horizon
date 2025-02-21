@@ -1198,7 +1198,7 @@ export default function CountboardDashboardUv() {
               </div>
               <div>
                 <Label htmlFor="new-reject-a">New Reject A</Label>
-                <Select value={selectedRejectA}   onValueChange={(value) => setSelectedRejectA(value)}>
+                <Select value={selectedRejectA} defaultValue={selectedRejectA}  onValueChange={(value) => setSelectedRejectA(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Reject" />
                   </SelectTrigger>
@@ -1221,7 +1221,7 @@ export default function CountboardDashboardUv() {
               </div>
               <div>
                 <Label htmlFor="new-reject-b">New Reject B</Label>
-                <Select value={selectedRejectB}  onValueChange={(value) => setSelectedRejectB(value)}>
+                <Select value={selectedRejectB} defaultValue={selectedRejectB} onValueChange={(value) => setSelectedRejectB(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Reject" />
                   </SelectTrigger>
@@ -1245,7 +1245,7 @@ export default function CountboardDashboardUv() {
               </div>
               <div>
                 <Label htmlFor="new-reject-c">New Reject C</Label>
-                <Select value={selectedRejectC}  onValueChange={(value) => setSelectedRejectC(value)}>
+                <Select value={selectedRejectC} defaultValue={selectedRejectC} onValueChange={(value) => setSelectedRejectC(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Reject" />
                   </SelectTrigger>
@@ -1269,7 +1269,7 @@ export default function CountboardDashboardUv() {
               </div>
                 <div>
                   <Label htmlFor="new-reject-d">New Reject D</Label>
-                  <Select value={selectedRejectD}  onValueChange={(value) => setSelectedRejectD(value)}>
+                  <Select value={selectedRejectD} defaultValue={selectedRejectD} onValueChange={(value) => setSelectedRejectD(value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select Reject" />
                     </SelectTrigger>

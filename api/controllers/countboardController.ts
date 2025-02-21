@@ -116,7 +116,7 @@ export async function editTopScrap(hourlyId: number, reject_a : number, reject_b
       WHERE id = @hourlyId;
   UPDATE IoT.dbo.Reject_Machine_Relationship
       set reject_a_id = @reject_a, reject_b_id = @reject_b, reject_c_id = @reject_c, reject_d_id = @reject_d
-      where machine_id = (select machine_id from IoT.dbo.hourly_uv where id = @hourlyId)
+      where mchid = (select machine_id from IoT.dbo.hourly_uv where id = @hourlyId)
   `;
   return await queryDatabase(sqlQuery, { hourlyId, reject_a, reject_b, reject_c, reject_d });
 }
