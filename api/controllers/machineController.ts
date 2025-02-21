@@ -786,7 +786,8 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
     }
     else {
       const sqlQuery = `
-      DECLARE @from DATETIME;
+      
+     DECLARE @from DATETIME;
       DECLARE @to DATETIME;
   
         SET @from =DATEADD(HOUR, 0,cast(CAST(GETDATE() AS date)as datetime)) ; 
@@ -822,10 +823,10 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             e2.PMValue - e1.PMValue as consumption,
             e1.MchID
         FROM HourlyReadings h
-        JOIN eEnergy.dbo.PowerMeter e1 ON e1.PMDT = h.EarliestPMDT
-        JOIN eEnergy.dbo.PowerMeter e2 ON e2.PMDT = h.LatestPMDT
+        JOIN eEnergy.dbo.PowerMeter e1 ON e1.PMDT = h.EarliestPMDT and e1.MchID = @machine_name
+        JOIN eEnergy.dbo.PowerMeter e2 ON e2.PMDT = h.LatestPMDT and e2.MchID = @machine_name
     )
-    SELECT * FROM EnergyData
+    SELECT * FROM EnergyData 
     ORDER BY Year DESC, Month DESC, Day DESC, Hour DESC;
       `;
       return await queryDatabase(sqlQuery, { machine_name });

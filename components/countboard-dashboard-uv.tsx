@@ -154,11 +154,9 @@ export default function CountboardDashboardUv() {
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedComment, setSelectedComment] = useState({ index: -1, hourlyId: -1, type: '', content: '' });
-  const [currentCVT, setCurrentTopScrap] = useState<number | 0>(0);
   const [isPODialogOpen, setIsPODialogOpen] = useState(false);
   const [IsTopScrapDialogOpen, setIsTopScrapDialogOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState('');
-  const [editedCVT, setEditedCVT] = useState(currentCVT);
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -332,9 +330,7 @@ export default function CountboardDashboardUv() {
     mutate(taskDataKey);
   }, [taskDataKey]);
 
-  useEffect(() => {
-    setCurrentTopScrap(taskData?.[0]?.actual_cvt ?? 0);
-  }, [taskData]);
+ 
 
   const uniqueLocations = Array.from(new Set(machines?.map(machine => machine.locationName)));
   const filteredMachines = machines?.filter(machine => machine.locationName === selectedLocation);
@@ -359,7 +355,6 @@ export default function CountboardDashboardUv() {
       refetchNoeeData(),
       refetchSpindleData()
     ]);
-    setCurrentTopScrap(taskData?.[0]?.actual_cvt ?? 0);
     const params = new URLSearchParams(searchParams);
     params.set("machineNumber", value);
     router.push(`${pathname}?${params.toString()}`);
@@ -492,11 +487,10 @@ export default function CountboardDashboardUv() {
       } finally {
         setIsLoading(false);
       }
-      setCurrentTopScrap(editedCVT);
       refetchTaskData();
       setIsTopScrapDialogOpen(false);
     },
-    [editedCVT, refetchTaskData, taskData]
+    [hourlyData, selectedRejectA, selectedRejectB, selectedRejectC, selectedRejectD, refetchTaskData, taskData]
   );
 
   const handlePOAttach = useCallback(
