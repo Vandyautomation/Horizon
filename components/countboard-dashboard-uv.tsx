@@ -1264,7 +1264,7 @@ export default function CountboardDashboardUv() {
               <div className="gap-2 grid grid-cols-2">
               <div>
                 <Label htmlFor="current-reject-d">Current Reject D</Label>
-                <Input id="current-reject-d" value={Array.isArray(hourlyData) && hourlyData.slice().reverse().find(h => h.task_id !== undefined)?.reject_d_name || 'N/A'} disabled />
+                <Input id="current-reject-d" value={Array.isArray(hourlyData) && hourlyData.slice().reverse().find(h => h.task_id !== null)?.reject_d_name || 'N/A'} disabled />
               </div>
                 <div>
                   <Label htmlFor="new-reject-d">New Reject D</Label>
