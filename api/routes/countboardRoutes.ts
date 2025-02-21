@@ -26,7 +26,7 @@ countboardRoutes.get('/coois', async (c) => {
   }
 });
 
-countboardRoutes.post('/topscrap', async (c) => {
+countboardRoutes.put('/topscrap', async (c) => {
   const data  = await c.req.json() as ({hourlyId : number, reject_a : number, reject_b : number, reject_c : number, reject_d : number});
 
   try {
