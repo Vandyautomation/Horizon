@@ -1046,7 +1046,8 @@ export default function CountboardDashboardUv() {
                         <TooltipContent>{row.reject_b_name}</TooltipContent>
                       </Tooltip>
                       </TableCell>
-                      <TableCell>
+
+                      <TableCell className="text-center">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-center">{row.reject_c || 0}</span>
