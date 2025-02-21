@@ -54,7 +54,7 @@ function InjectionMoldingMachine({
   onClick,
   isSelected,
 }: { machine: Machine; onClick: () => void; isSelected: boolean }) {
-  const { scene } = useGLTF("/admin/assets/3d/injection_molding_machine.glb");
+  const { scene } = useGLTF("/admin/assets/3d/inject_new2.glb");
   const clonedScene = useMemo(() => scene?.clone(), [scene]);
 
   useEffect(() => {
@@ -72,7 +72,7 @@ function InjectionMoldingMachine({
 
   return (
     <group position={machine.position} onClick={onClick}>
-      <primitive object={clonedScene} scale={[3, 3, 3]} rotation={machine.rotation} />
+      <primitive object={clonedScene} scale={[0.015, 0.015, 0.015]} rotation={[machine.rotation[0] , machine.rotation[1] == 0 ? (3.14 * 3)/ 2 : machine.rotation[1] * (0.5), machine.rotation[2]]} />
       <Html position={[0, 3, 0]} center>
         <div className="bg-black bg-opacity-50 text-white p-2 rounded">{machine.id}</div>
       </Html>
