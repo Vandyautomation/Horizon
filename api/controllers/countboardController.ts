@@ -111,7 +111,7 @@ export async function addCoois(data: any[][]) {
 export async function editTopScrap(hourlyId: number, reject_a : number, reject_b: number, reject_c: number, reject_d: number) {
   const sqlQuery = `
 
-  UPDATE IoT.dbo.hourly 
+  UPDATE IoT.dbo.hourly_uv
       SET reject_a_id = @reject_a, reject_b_id = @reject_b, reject_c_id = @reject_c, reject_d_id = @reject_d
       WHERE id = @hourlyId;
   `;
