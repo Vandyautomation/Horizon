@@ -55,6 +55,7 @@ type MachineDetail = {
 type HourlyData = {
   hourlyId: number;
   time: string;
+  task_id: number;
   itemNo: string;
   itemDesc: string;
   target: number;
@@ -465,7 +466,7 @@ export default function CountboardDashboardUv() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             "taskId": taskData && taskData.length > 0 ? taskData[0].id : new Error("Task ID not found"),
-            "hourlyId": hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.target > 0)?.hourlyId : new Error("Hourly ID not found"),
+            "hourlyId": hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.task_id !== undefined)?.hourlyId : new Error("Task ID not found"),
             "reject_a":selectedRejectA, 
             "reject_b": selectedRejectB, 
             "reject_c": selectedRejectC, 
@@ -1192,7 +1193,7 @@ export default function CountboardDashboardUv() {
             <div className="gap-2 grid grid-cols-2">
               <div>
                 <Label htmlFor="current-reject-a">Current Reject A</Label>
-                <Input id="current-reject-a" value={Array.isArray(hourlyData) && hourlyData[hourlyData.length - 1]?.reject_a_name || 'N/A'} disabled />
+                <Input id="current-reject-a" value={Array.isArray(hourlyData) && hourlyData.slice().reverse().find(h => h.task_id !== undefined)?.reject_a_name || 'N/A'} disabled />
               </div>
               <div>
                 <Label htmlFor="new-reject-a">New Reject A</Label>
@@ -1215,7 +1216,7 @@ export default function CountboardDashboardUv() {
             <div className="gap-2 grid grid-cols-2">
               <div>
                 <Label htmlFor="current-reject-b">Current Reject B</Label>
-                <Input id="current-reject-b" value={Array.isArray(hourlyData) && hourlyData[hourlyData.length - 1]?.reject_b_name || 'N/A'} disabled />
+                <Input id="current-reject-b" value={Array.isArray(hourlyData) && hourlyData.slice().reverse().find(h => h.task_id !== undefined)?.reject_b_name || 'N/A'} disabled />
               </div>
               <div>
                 <Label htmlFor="new-reject-b">New Reject B</Label>
@@ -1239,7 +1240,7 @@ export default function CountboardDashboardUv() {
             <div className="gap-2 grid grid-cols-2">
               <div>
                 <Label htmlFor="current-reject-c">Current Reject C</Label>
-                <Input id="current-reject-c" value={Array.isArray(hourlyData) && hourlyData[hourlyData.length - 1]?.reject_c_name || 'N/A'} disabled />
+                <Input id="current-reject-c" value={Array.isArray(hourlyData) && hourlyData.slice().reverse().find(h => h.task_id !== undefined)?.reject_c_name || 'N/A'} disabled />
               </div>
               <div>
                 <Label htmlFor="new-reject-c">New Reject C</Label>
@@ -1263,7 +1264,7 @@ export default function CountboardDashboardUv() {
               <div className="gap-2 grid grid-cols-2">
               <div>
                 <Label htmlFor="current-reject-d">Current Reject D</Label>
-                <Input id="current-reject-d" value={Array.isArray(hourlyData) && hourlyData[hourlyData.length - 1]?.reject_d_name || 'N/A'} disabled />
+                <Input id="current-reject-d" value={Array.isArray(hourlyData) && hourlyData.slice().reverse().find(h => h.task_id !== undefined)?.reject_d_name || 'N/A'} disabled />
               </div>
                 <div>
                   <Label htmlFor="new-reject-d">New Reject D</Label>
