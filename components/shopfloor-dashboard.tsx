@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Progress } from "./ui/progress"
 
-import { Color, Mesh, MeshStandardMaterial, Vector3 } from "three"
+import { Color, Mesh, MeshStandardMaterial, PCFSoftShadowMap, Vector3 } from "three"
 import { Button } from "./ui/button"
 import useSWR from 'swr';
+import { Label } from "./ui/label"
 
 interface Machine {
   id: string
@@ -73,8 +74,15 @@ function InjectionMoldingMachine({
   return (
     <group position={machine.position} onClick={onClick}>
       <primitive object={clonedScene} scale={[0.015, 0.015, 0.015]} rotation={[machine.rotation[0] , machine.rotation[1] == 0 ? (3.14 * 3)/ 2 : machine.rotation[1] * (0.5), machine.rotation[2]]} />
+      {machine?.status ==='Breakdown' && (
+        <mesh position={[0, 5.5, 0]}>
+          <Html position={[0, 0, 0]} center>
+            <div className="bg-orange-500 text-white p-1 rounded-full">!!!</div>
+          </Html>
+        </mesh>
+      )}
       <Html position={[0, 3, 0]} center>
-        <div className="bg-black bg-opacity-50 text-white p-2 rounded">{machine.id}</div>
+        <div style={{ backgroundColor: statusColors[machine?.status] }} className="bg-opacity-50 text-white p-2 rounded">{machine.id}</div>
       </Html>
     </group>
   );
@@ -368,10 +376,7 @@ export default function ShopfloorDashboard() {
     <div className="w-full h-[850px] ">
       <div className="grid grid-cols-3 gap-4 mb-2">
         <Card className="absolute top-24 left-6 z-10">
-          <CardHeader>
-            <CardTitle>Building Selection</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2 pt-2 px-2">
             <Select
               value={selectedBuilding?.id.toString() || ''}
               onValueChange={(value) => {
@@ -393,7 +398,7 @@ export default function ShopfloorDashboard() {
             </Select>
           </CardContent>
         </Card>
-        <Card className="absolute top-24 right-6 z-10">
+        {/* <Card className="absolute top-24 right-6 z-10">
           <CardHeader>
             <CardTitle>Overall Equipment Effectiveness (OEE)</CardTitle>
           </CardHeader>
@@ -404,11 +409,16 @@ export default function ShopfloorDashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
-      <Card className="absolute bottom-6 left-6 w-[500px] z-10">
-        <CardHeader>
-          <CardTitle>Machines Status</CardTitle>
+      <Card className="absolute top-24 right-6 w-[500px] z-10">
+        <CardHeader className="flex">
+          <CardTitle className="flex gap-4 justify-between items-center">Machines Status
+            <div className="flex gap-2">
+              <Label>OOE <strong>53.3%</strong></Label>
+              <Label>OEE <strong>53.3%</strong></Label>
+              </div>
+            </CardTitle>  
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-2">
@@ -421,6 +431,9 @@ export default function ShopfloorDashboard() {
                 </div>
               )
             })}
+                <div key={status} className="flex flex-shrink col-span-2 items-center gap-2">
+                  <span className="text-sm"><strong>{selectedBuilding?.machines.length}</strong> Total Active Machine</span>
+                </div>
           </div>
         </CardContent>
       </Card>
@@ -443,47 +456,56 @@ export default function ShopfloorDashboard() {
         </Card>
       )}
       <div className="bg-white rounded-lg shadow-lg overflow-hidden" style={{ height: "100%", width: "100%" }}>
-        <Canvas 
-          camera={{ position: [-39.8, 23.2, -56],  fov: 40  }} 
+      <Canvas 
+          camera={{ position: [-39.8, 23.2, -56], fov: 40 }} 
+          shadows
           onCreated={({ gl }) => {
             gl.setClearColor("#808080");
-            gl.toneMappingExposure = 1.5;
+            gl.toneMappingExposure = 1.2; // Lower exposure for better balance
+            gl.shadowMap.enabled = false;
+            gl.shadowMap.type = PCFSoftShadowMap; // Softer shadows
           }}
         >
           <Suspense fallback={null}>
-            <ambientLight intensity={1.2} />
-            <directionalLight
-              position={[10, 20, 10]}
-              intensity={2}
-              castShadow
-              shadow-mapSize-width={1024}
-              shadow-mapSize-height={1024}
-            />
-            <pointLight position={[-10, 10, -10]} intensity={1.5} />
-            <pointLight position={[10, -10, 10]} intensity={1.5} />
-            <spotLight
-              position={[0, 20, 0]}
-              angle={0.3}
-              penumbra={1}
-              intensity={1.5}
-              castShadow
-            />
+            {/* Ambient Light - Higher Intensity */}
+            <ambientLight intensity={5} />
+
+            {/* Hemisphere Light - Soft natural lighting */}
+            {/* Directional Light - Reduced intensity and softer shadows */}
+          <directionalLight position={[0, 100, 0]} intensity={2} /> {/* Top Light */}
+          <directionalLight position={[0, -100, 0]} intensity={2} /> {/* Bottom Light */}
+          <directionalLight position={[100, 0, 0]} intensity={2} /> {/* Right Side Light */}
+          <directionalLight position={[-100, 0, 0]} intensity={2} /> {/* Left Side Light */}
+          <directionalLight position={[50, 50, 50]} intensity={2} /> {/* Right Side Light */}
+          <directionalLight position={[-50, 50, 50]} intensity={2} /> {/* Left Side Light */}
+
+          <directionalLight position={[-50, 0, -50]} intensity={2} /> {/* Left Side Light */}
+
+
+           
+
             <Floor />
             <FloorMiddle />
             <FloorRoad />
             <Wall position={[0, 5, 15]} size={[80, 10, 0.5]} />
             <Wall position={[40, 5, 0]} rotation={[0, Math.PI / 2, 0]} size={[30, 10, 0.5]} />
-            {Array.isArray (selectedBuilding?.machines) ? selectedBuilding?.machines.map((machine) => (
-              <InjectionMoldingMachine
-                key={machine?.id}
-                machine={machine}
-                onClick={() => setSelectedMachine(machine)}
-                isSelected={selectedMachine?.id === machine?.id}
-              />
-            )): null}
+
+            {Array.isArray(selectedBuilding?.machines) 
+              ? selectedBuilding.machines.map((machine) => (
+                  <InjectionMoldingMachine
+                    key={machine?.id}
+                    machine={machine}
+                    onClick={() => setSelectedMachine(machine)}
+                    isSelected={selectedMachine?.id === machine?.id}
+                  />
+                ))
+              : null}
+
             <OrbitControls target={[0, 0, 0]} />
           </Suspense>
         </Canvas>
+
+
       </div>
     </div>
   )

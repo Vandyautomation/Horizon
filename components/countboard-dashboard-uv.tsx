@@ -26,7 +26,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
 import {   Box, CalendarIcon, FilePlus2, Pencil, RefreshCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, use } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
@@ -40,6 +40,7 @@ import { format } from "date-fns/format"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { cn } from "@/lib/utils"
 import { Switch } from "./ui/switch"
+import { set } from "date-fns"
 
 type MachineDetail = {
   machineId: number;
@@ -69,6 +70,11 @@ type HourlyData = {
   reject_e: number | 0;
   causes: string;
   comments: string;
+  reject_a_name: string ;
+  reject_b_name: string ;
+  reject_c_name: string ;
+  reject_d_name: string ;
+  reject_e_name: string ;
 };
 
 type OoeData = {
@@ -123,6 +129,11 @@ type Spindle = {
   SpindleSTD: number;
   SpindleACT: number;
 }
+
+type RejectList = {
+  id: number;
+  name: string
+}
 const refreshRateList = [
   '5000','15000','30000','60000'
 ]
@@ -134,6 +145,12 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function CountboardDashboardUv() {
   const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const [selectedRejectA, setSelectedRejectA] = useState<string>('');
+  const [selectedRejectB, setSelectedRejectB] = useState<string>('');
+  const [selectedRejectC, setSelectedRejectC] = useState<string>('');
+  const [selectedRejectD, setSelectedRejectD] = useState<string>('');
+  const [selectedRejectE, setSelectedRejectE] = useState<string>('');
+
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedComment, setSelectedComment] = useState({ index: -1, hourlyId: -1, type: '', content: '' });
@@ -148,6 +165,8 @@ export default function CountboardDashboardUv() {
   const [selectedShift, setSelectedShift] = useState('');
   const [isLoadingRefresh, setIsLoadingRefresh] = useState(false); 
   const [isLiveMode, setIsLiveMode] = useState(true); 
+  const [loading, setLoading] = useState(true);
+  const [rejectList, setRejectList] = useState<RejectList[]>([]);
 
   const pathname = usePathname()
   const router = useRouter()
@@ -449,7 +468,13 @@ export default function CountboardDashboardUv() {
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/topscrap`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({"taskId":taskData?.[0]?.id, "newCvt": editedCVT }),
+          body: JSON.stringify({
+            "taskId":taskData?.[0]?.id, 
+            "hourlyId":hourlyData?.[hourlyData.length -1]?.hourlyId, 
+            "reject_a":selectedRejectA, 
+            "reject_b": selectedRejectB, 
+            "reject_c": selectedRejectC, 
+            "reject_d": selectedRejectD,}),
         });
 
         if (!response.ok) {
@@ -664,6 +689,48 @@ export default function CountboardDashboardUv() {
   };
 
 
+  const { data: rejectListFetched, error: rejectError } = useSWR(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/rejects`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    },
+  );
+
+  useEffect(() => {
+    setRejectList(rejectListFetched);
+  }, [rejectListFetched]);
+
+  const isLoadingRejectList = !rejectList && !rejectError;
+  const fetchRejectList = useCallback(async () => {
+    if (isLoadingRejectList) return;
+    mutate(
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/rejects`,
+      async () => {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/rejects`,
+          {
+            credentials: "include",
+          },
+        );
+        const data = await response.json();
+        return data;
+      },
+      {
+        revalidate: false,
+        rollbackOnError: true,
+      },
+    );
+  }, [isLoadingRejectList]);
+
+  useEffect(() => {
+    if (isLoadingRejectList) {
+      fetchRejectList();
+    }
+  }, [isLoadingRejectList, fetchRejectList]);
+
+
   return (
     <div className="p-2 space-y-2 w-full">
       <div className="flex flex-wrap gap-2">
@@ -740,7 +807,7 @@ export default function CountboardDashboardUv() {
             <FilePlus2 className="w-4 h-4 mr-2"  />
             PO
         </Button>
-        <Button onClick={() => setIsTopScrapDialogOpen(true)} variant="default">
+        <Button onClick={() => {setIsTopScrapDialogOpen(true), mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/rejects`)}} variant="default">
             <Pencil className="w-4 h-4 mr-2" />
             Top Scrap
         </Button>
@@ -1088,50 +1155,101 @@ export default function CountboardDashboardUv() {
               <DialogTitle>Update Top 4 Scrap</DialogTitle>
             </DialogHeader>
             <DialogDescription className="p-0 m-0">Update top 4 scrap for machine {selectedMachine?.machineName}</DialogDescription>
+
             <div className="gap-2 grid grid-cols-2">
               <div>
                 <Label htmlFor="current-reject-a">Current Reject A</Label>
-                <Input id="current-reject-a" value={currentCVT} disabled />
+                <Input id="current-reject-a" value={Array.isArray(hourlyData) && hourlyData[hourlyData.length - 1]?.reject_a_name || 'N/A'} disabled />
               </div>
               <div>
                 <Label htmlFor="new-reject-a">New Reject A</Label>
-                <Select value={selectedLocation}  >
+                <Select value={selectedRejectA}   onValueChange={setSelectedRejectA}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Reject A" />
+                    <SelectValue placeholder="Select Reject" />
                   </SelectTrigger>
                   <SelectContent>
-                      <SelectItem value="Scrap A">
-                        Scrap A
+                    {Array.isArray(rejectList) && rejectList.filter(reject => ![selectedRejectB, selectedRejectC, selectedRejectD, selectedRejectE].includes(reject.id.toString()))
+                    .map((reject) => (
+                      <SelectItem key={reject.id} value={reject.name.toString()}>
+                        {reject.name}
                       </SelectItem>
-                      <SelectItem value="Scrap B">
-                        Scrap B
-                      </SelectItem>
-                      <SelectItem value="Scrap C">
-                        Scrap C
-                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
+            
             <div className="gap-2 grid grid-cols-2">
-            <div>
+              <div>
                 <Label htmlFor="current-reject-b">Current Reject B</Label>
-                <Input id="current-reject-b" value={currentCVT} disabled />
+                <Input id="current-reject-b" value={Array.isArray(hourlyData) && hourlyData[hourlyData.length - 1]?.reject_b_name || 'N/A'} disabled />
               </div>
               <div>
                 <Label htmlFor="new-reject-b">New Reject B</Label>
-                <Input
-                  autoFocus
-                  id="new-reject-b"
-                  type="number"
-                  onChange={(e) => {
-                    const value = e.target.value === '' ? 0 : Number(e.target.value);
-                    setEditedCVT(value);
-                  }}
-                />
+                <Select value={selectedRejectB}  onValueChange={setSelectedRejectB}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Reject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.isArray(rejectList) 
+                    && rejectList.filter(reject => ![selectedRejectA, selectedRejectC, selectedRejectD, selectedRejectE].includes(reject.id.toString()))
+                    .map((reject) => (
+                      <SelectItem key={reject.id} value={reject.id.toString()}>
+                        {reject.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="gap-2 grid grid-cols-2">
+              <div>
+                <Label htmlFor="current-reject-c">Current Reject C</Label>
+                <Input id="current-reject-c" value={Array.isArray(hourlyData) && hourlyData[hourlyData.length - 1]?.reject_c_name || 'N/A'} disabled />
+              </div>
+              <div>
+                <Label htmlFor="new-reject-c">New Reject C</Label>
+                <Select value={selectedRejectC}  onValueChange={setSelectedRejectC}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Reject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.isArray(rejectList) 
+                    && rejectList.filter(reject => ![selectedRejectA, selectedRejectB, selectedRejectD, selectedRejectE].includes(reject.id.toString()))
+                    .map((reject) => (
+                      <SelectItem key={reject.id} value={reject.id.toString()}>
+                        {reject.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               </div>
-              
+
+              <div className="gap-2 grid grid-cols-2">
+              <div>
+                <Label htmlFor="current-reject-d">Current Reject D</Label>
+                <Input id="current-reject-d" value={Array.isArray(hourlyData) && hourlyData[hourlyData.length - 1]?.reject_d_name || 'N/A'} disabled />
+              </div>
+                <div>
+                  <Label htmlFor="new-reject-d">New Reject D</Label>
+                  <Select value={selectedRejectD}  onValueChange={setSelectedRejectD}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Reject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.isArray(rejectList) 
+                      && rejectList.filter(reject => ![selectedRejectA, selectedRejectB, selectedRejectC, selectedRejectE].includes(reject.id.toString()))
+                      .map((reject) => (
+                        <SelectItem key={reject.id} value={reject.id.toString()}>
+                          {reject.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>              
             <DialogFooter>
               <Button
                 onClick={handleTopScrapUpdate}

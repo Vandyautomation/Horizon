@@ -1,7 +1,19 @@
 import { Hono } from 'hono';
-import { addCoois, addRouting, attachPo, getCoois, updateComment, updateCVT } from '../controllers/countboardController';
+import { addCoois, addRouting, attachPo, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
 const countboardRoutes = new Hono();
+
+
+countboardRoutes.get('/rejects', async (c) => {
+
+
+  try {
+    const data = await getRejectLists();
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
 
 countboardRoutes.get('/coois', async (c) => {
   const poName = c.req.query('poName');

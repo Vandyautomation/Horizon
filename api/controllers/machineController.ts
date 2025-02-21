@@ -107,8 +107,19 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
               h.reject_b,
               h.reject_c,
               h.reject_d,
-              h.reject_e
+              h.reject_e,
+              isnull(rA.name,'') as reject_a_name,
+              isnull(rB.name,'') as reject_d_name,
+              isnull(rC.name,'') as reject_c_name,
+              isnull(rD.name,'') as reject_b_name,
+              isnull(rE.name,'') as reject_e_name
+
           FROM IoT.dbo.hourly_uv h
+          LEFT JOIN IoT.dbo.RejectMST rA on h.reject_a_id = rA.id
+          LEFT JOIN IoT.dbo.RejectMST rB on h.reject_b_id = rB.id
+          LEFT JOIN IoT.dbo.RejectMST rC on h.reject_c_id = rC.id
+          LEFT JOIN IoT.dbo.RejectMST rD on h.reject_d_id = rD.id
+          LEFT JOIN IoT.dbo.RejectMST rE on h.reject_e_id = rE.id
           LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
           OUTER APPLY (
               SELECT TOP 1 *
@@ -149,8 +160,18 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
               h.reject_b,
               h.reject_c,
               h.reject_d,
-              h.reject_e
+              h.reject_e,
+              isnull(rA.name,'') as reject_a_name,
+              isnull(rB.name,'') as reject_d_name,
+              isnull(rC.name,'') as reject_c_name,
+              isnull(rD.name,'') as reject_b_name,
+              isnull(rE.name,'') as reject_e_name
           FROM IoT.dbo.hourly_uv h
+          LEFT JOIN IoT.dbo.RejectMST rA on h.reject_a_id = rA.id
+          LEFT JOIN IoT.dbo.RejectMST rB on h.reject_b_id = rB.id
+          LEFT JOIN IoT.dbo.RejectMST rC on h.reject_c_id = rC.id
+          LEFT JOIN IoT.dbo.RejectMST rD on h.reject_d_id = rD.id
+          LEFT JOIN IoT.dbo.RejectMST rE on h.reject_e_id = rE.id
           LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
           outer APPLY (
           SELECT TOP 1 *

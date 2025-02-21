@@ -1,5 +1,13 @@
 import { queryDatabase } from '../utils/queryDatabase';
 
+
+export async function getRejectLists() {
+  const sqlQuery = `
+SELECT id, name from RejectMST where active = 1
+  `;
+  return await queryDatabase(sqlQuery);
+}
+
 export async function addRouting(data: any[][]) {
     const validData = data.slice(1).filter((row) => {
       const [Material, MaterialDescription, GrC, BaseQuantity, Un1, Un2, OpAc, WorkCtr, WorkCenterDescription, Machine, Unit1, Labor, Unit2, NoEmpl, CycleTime, CtrK, Cavities] = row;
