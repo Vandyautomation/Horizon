@@ -1028,36 +1028,49 @@ export default function CountboardDashboardUv() {
                       <TableCell className={row.delta >= 0 ? "text-green-600" : "text-red-600"}>{row.delta}</TableCell>
                       <TableCell className="text-center">{row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e || 0}</TableCell>
                       <TableCell className="text-center">{isNaN(((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual || 0)*100) ? 0 : (((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual || 0)*100).toFixed(2)}</TableCell>
+                      <TableCell>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-center">{row.reject_a || 0}</span>
                         </TooltipTrigger>
                         <TooltipContent>{row.reject_a_name}</TooltipContent>
                       </Tooltip>
+                      </TableCell>
+
+                      <TableCell>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-center">{row.reject_b || 0}</span>
                         </TooltipTrigger>
                         <TooltipContent>{row.reject_b_name}</TooltipContent>
                       </Tooltip>
+                      </TableCell>
+                      <TableCell>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-center">{row.reject_c || 0}</span>
                         </TooltipTrigger>
                         <TooltipContent>{row.reject_c_name}</TooltipContent>
                       </Tooltip>
+                      </TableCell>
+
+                      <TableCell>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-center">{row.reject_d || 0}</span>
                         </TooltipTrigger>
                         <TooltipContent>{row.reject_d_name}</TooltipContent>
                       </Tooltip>
+                      </TableCell>
+
+                      <TableCell>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-center">{row.reject_e || 0}</span>
                         </TooltipTrigger>
-                        <TooltipContent>{row.reject_e_name}</TooltipContent>
+                        <TooltipContent>Other</TooltipContent>
                       </Tooltip>
+                      </TableCell>
 
 
                       <TableCell className="w-24 py-0 h-full">
