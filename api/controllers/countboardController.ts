@@ -107,6 +107,21 @@ export async function addCoois(data: any[][]) {
   return await queryDatabase(sqlQuery);
 }
 
+
+export async function editTopScrap(hourlyId: number, reject_a : number, reject_b: number, reject_c: number, reject_d: number) {
+  const sqlQuery = `
+
+  UPDATE IoT.dbo.hourly 
+      SET reject_a_id = @reject_a, reject_b_id = @reject_b, reject_c_id = @reject_c, reject_d_id = @reject_d
+      WHERE id = @hourlyId;
+  END
+
+  `;
+  return await queryDatabase(sqlQuery, { hourlyId, reject_a, reject_b, reject_c, reject_d });
+}
+
+
+
 export async function getCoois(poName: string|undefined) {
   const sqlQuery = `
     SELECT 

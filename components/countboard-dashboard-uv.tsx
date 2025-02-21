@@ -469,12 +469,13 @@ export default function CountboardDashboardUv() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            "taskId":taskData?.[0]?.id, 
-            "hourlyId":hourlyData?.[hourlyData.length -1]?.hourlyId, 
+            "taskId": taskData && taskData.length > 0 ? taskData[0].id : new Error("Task ID not found"),
+            "hourlyId": hourlyData && hourlyData.length > 0 ? hourlyData[hourlyData.length - 1].hourlyId : new Error("Hourly ID not found"),
             "reject_a":selectedRejectA, 
             "reject_b": selectedRejectB, 
             "reject_c": selectedRejectC, 
-            "reject_d": selectedRejectD,}),
+            "reject_d": selectedRejectD,
+          }),
         });
 
         if (!response.ok) {
@@ -1163,14 +1164,14 @@ export default function CountboardDashboardUv() {
               </div>
               <div>
                 <Label htmlFor="new-reject-a">New Reject A</Label>
-                <Select value={selectedRejectA}   onValueChange={setSelectedRejectA}>
+                <Select value={selectedRejectA}   onValueChange={(value) => setSelectedRejectA(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Reject" />
                   </SelectTrigger>
                   <SelectContent>
                     {Array.isArray(rejectList) && rejectList.filter(reject => ![selectedRejectB, selectedRejectC, selectedRejectD, selectedRejectE].includes(reject.id.toString()))
                     .map((reject) => (
-                      <SelectItem key={reject.id} value={reject.name.toString()}>
+                      <SelectItem key={reject.id} value={reject.id.toString()}>
                         {reject.name}
                       </SelectItem>
                     ))}
@@ -1186,7 +1187,7 @@ export default function CountboardDashboardUv() {
               </div>
               <div>
                 <Label htmlFor="new-reject-b">New Reject B</Label>
-                <Select value={selectedRejectB}  onValueChange={setSelectedRejectB}>
+                <Select value={selectedRejectB}  onValueChange={(value) => setSelectedRejectB(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Reject" />
                   </SelectTrigger>
@@ -1210,7 +1211,7 @@ export default function CountboardDashboardUv() {
               </div>
               <div>
                 <Label htmlFor="new-reject-c">New Reject C</Label>
-                <Select value={selectedRejectC}  onValueChange={setSelectedRejectC}>
+                <Select value={selectedRejectC}  onValueChange={(value) => setSelectedRejectC(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Reject" />
                   </SelectTrigger>
@@ -1234,7 +1235,7 @@ export default function CountboardDashboardUv() {
               </div>
                 <div>
                   <Label htmlFor="new-reject-d">New Reject D</Label>
-                  <Select value={selectedRejectD}  onValueChange={setSelectedRejectD}>
+                  <Select value={selectedRejectD}  onValueChange={(value) => setSelectedRejectD(value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select Reject" />
                     </SelectTrigger>
