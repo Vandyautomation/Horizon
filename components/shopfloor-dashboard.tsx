@@ -431,7 +431,7 @@ export default function ShopfloorDashboard() {
                 </div>
               )
             })}
-                <div key={status} className="flex flex-shrink col-span-2 items-center gap-2">
+                <div className="flex flex-shrink col-span-2 items-center gap-2">
                   <span className="text-sm"><strong>{selectedBuilding?.machines.length}</strong> Total Active Machine</span>
                 </div>
           </div>
@@ -446,7 +446,7 @@ export default function ShopfloorDashboard() {
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center justify-between">
                 <span className="font-semibold">Status:</span>
-                <span style={{ color: statusColors[selectedMachine.status] }}>{selectedMachine.status}</span>
+                <span style={{ color: statusColors[selectedMachine?.status] }}>{selectedMachine?.status}</span>
               </div>
               <div className="grid grid-cols-1 gap-4">
                 <Button onClick={() => setSelectedMachine(null)} >Reset Selection</Button>
