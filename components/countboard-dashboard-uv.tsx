@@ -465,7 +465,7 @@ export default function CountboardDashboardUv() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             "taskId": taskData && taskData.length > 0 ? taskData[0].id : new Error("Task ID not found"),
-            "hourlyId": hourlyData && hourlyData.length > 0 ? hourlyData[hourlyData.length - 1].hourlyId : new Error("Hourly ID not found"),
+            "hourlyId": hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.target > 0)?.hourlyId : new Error("Hourly ID not found"),
             "reject_a":selectedRejectA, 
             "reject_b": selectedRejectB, 
             "reject_c": selectedRejectC, 
@@ -1028,7 +1028,7 @@ export default function CountboardDashboardUv() {
                       <TableCell className={row.delta >= 0 ? "text-green-600" : "text-red-600"}>{row.delta}</TableCell>
                       <TableCell className="text-center">{row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e || 0}</TableCell>
                       <TableCell className="text-center">{isNaN(((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual || 0)*100) ? 0 : (((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual || 0)*100).toFixed(2)}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-center">{row.reject_a || 0}</span>
@@ -1037,7 +1037,7 @@ export default function CountboardDashboardUv() {
                       </Tooltip>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="text-center">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-center">{row.reject_b || 0}</span>
@@ -1054,7 +1054,7 @@ export default function CountboardDashboardUv() {
                       </Tooltip>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="text-center">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-center">{row.reject_d || 0}</span>
@@ -1063,7 +1063,7 @@ export default function CountboardDashboardUv() {
                       </Tooltip>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="text-center">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-center">{row.reject_e || 0}</span>
