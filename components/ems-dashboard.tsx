@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils"
 import { Switch } from "./ui/switch"
 import { ResponsiveContainer, XAxis, YAxis, BarChart, Bar } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart"
+import Image from "next/image"
 
 
 
@@ -209,6 +210,7 @@ export default function EmsDashboard() {
   const energyWhite = energyStatusData?.find(status => status.StatusLightBefore === 'WHITE')
   const totalLoss = (energyYellow?.TotalEnergyUsed || 0) + (energyPurple?.TotalEnergyUsed  || 0) + (energyRed?.TotalEnergyUsed || 0) + (energyOrange?.TotalEnergyUsed || 0) + (energyBlue?.TotalEnergyUsed || 0) + (energyWhite?.TotalEnergyUsed || 0)
 
+  const totalEnergy = totalLoss + (energyGreen?.TotalEnergyUsed || 0)
   
   const refetchEnergyStatusData = () => mutate(energyStatusDataKey);
 
@@ -609,6 +611,23 @@ export default function EmsDashboard() {
   </div>
   <div>
   <div className="w-full overflow-x-auto border-r-2 rounded-r-xl">
+    <div className="flex pb-4 gap-4 justify-center">
+    <Image
+      src='/admin/injection.png'
+      alt="injection"
+      width={200}
+      height={200}
+      className="rounded-lg"
+      />
+      <Card id="total-energy">
+        <CardHeader className="font-bold text-center py-2">Total Energy Used</CardHeader>
+        <CardContent className="text-center p-x-2 flex items-center justify-center py-8 align-middle">
+          <Label className="flex text-center align-center items-baseline text-6xl text-primary font-bold">
+            {(totalEnergy).toFixed(2)} <p className="text-base p-4">kWh</p>
+          </Label>
+          </CardContent>
+      </Card>
+      </div>
     <Card id="total-loss">
       <CardHeader className="font-bold text-center py-2">Total Loss</CardHeader>
       <CardContent className="text-center p-x-2 flex items-center justify-center py-0">

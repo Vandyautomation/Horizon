@@ -24,7 +24,7 @@ export async function addRouting(data: any[][]) {
     });
   
     if (validData.length === 0) {
-      throw new Error('No valid data to insert');
+      throw new Error('Data tidak valid untuk di insert, periksa kembali');
     }
 
     // Escape single quotes by replacing ' with ''
@@ -75,7 +75,7 @@ export async function addCoois(data: any[][]) {
   });
 
   if (validData.length === 0) {
-    throw new Error('No valid data to insert');
+    throw new Error('Data tidak valid untuk di insert, periksa kembali');
   }
 
   const sqlQuery = `

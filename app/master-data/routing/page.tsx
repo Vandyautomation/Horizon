@@ -93,7 +93,7 @@ export default function RoutingUpload() {
             setLoading(false)
           } else {
             toast.error('Gagal sinkronisasi', {
-              description: response.toString()
+              description: response.statusText
             })
             setLoading(false)
           }
@@ -117,7 +117,7 @@ export default function RoutingUpload() {
                 <div>
                     <p className="">Perhatikan hal-hal berikut sebelum upload :</p>
                     <p className="">1. Pastikan data sudah benar, yaitu ROUTING</p>
-                    <p className="">2. Pastikan data komplit, hindari data kosong</p>
+                    <p className="">2. Pastikan data komplit, hindari data kosong, untuk COATING Cavities diisi 0</p>
                     <p className="">3. Sheet yang dipilih adalah sheet yang paling terakhir</p>
                     <p className="">4. Kolom yang dipilih adalah G5:W10000</p>
                     <p className="">5. Data yang wajib ada : PO, PN, PRODUK, ORDER, HASIL</p>
