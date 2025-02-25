@@ -197,8 +197,26 @@ export async function updateCVT(taskId: number, newCvt: number) {
     return await queryDatabase(sqlQuery, { taskId, newCvt });
   }
 
-  export async function updateComment(hourlyId: number, type: string, content: string) {
-    const sqlQuery = `
+  export async function updateComment(hourlyId: number, type: string, content: string, uap: string | null) {
+    if (uap == "uv") {
+      const sqlQuery = `
+    IF (@type = 'causes')
+    BEGIN
+    UPDATE IoT.dbo.hourly_uv
+        SET cause = @content
+        WHERE id = @hourlyId;
+    END
+    ELSE IF (@type = 'comments')
+    BEGIN
+    UPDATE IoT.dbo.hourly_uv
+        SET note = @content
+        WHERE id = @hourlyId;
+    END
+    `;
+    return await queryDatabase(sqlQuery, { hourlyId, type, content });
+
+    } else {
+      const sqlQuery = `
     IF (@type = 'causes')
     BEGIN
     UPDATE IoT.dbo.hourly 
@@ -211,8 +229,8 @@ export async function updateCVT(taskId: number, newCvt: number) {
         SET note = @content
         WHERE id = @hourlyId;
     END
-
     `;
     return await queryDatabase(sqlQuery, { hourlyId, type, content });
+    }    
   }
 

@@ -430,7 +430,7 @@ export default function CountboardDashboardUv() {
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/comment`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({"hourlyId":selectedComment?.hourlyId, "type": selectedComment?.type, "content":selectedComment?.content }),
+          body: JSON.stringify({"hourlyId":selectedComment?.hourlyId, "type": selectedComment?.type, "content":selectedComment?.content, "uap":"uv" }),
         });
 
         if (!response.ok) {

@@ -82,9 +82,9 @@ countboardRoutes.put('/cvt', async (c) => {
 });
 
 countboardRoutes.put('/comment', async (c) => {
-  const { hourlyId, type, content } = await c.req.json();
+  const { hourlyId, type, content, uap } = await c.req.json();
   try {
-    await updateComment(hourlyId, type, content);
+    await updateComment(hourlyId, type, content, uap);
     return c.json({ message: 'Content updated successfully' });
   } catch (error) {
     console.error("Error updating content:", error);
