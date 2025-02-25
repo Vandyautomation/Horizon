@@ -27,7 +27,7 @@ import { toast } from "sonner"
 
 import {  CalendarIcon, RefreshCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 
 import { TooltipProvider } from "./ui/tooltip"
 import { Label } from "./ui/label"
@@ -68,6 +68,11 @@ type NooeData = {
   red: boolean | null;
   green: boolean | null;
 
+};
+
+type AdditionalData = {
+  actual_ct: number;
+  oee: number;
 };
 
 type EnergyData = {
@@ -219,6 +224,25 @@ export default function EmsDashboard() {
   const uniqueLocations = Array.from(new Set(machines?.map(machine => machine.locationName)));
   const filteredMachines = machines?.filter(machine => machine.locationName === selectedLocation);
 
+
+  const additionalDataKey = selectedMachine?.machineDescription
+  ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/energy/additional/${selectedMachine.machineName}${
+    !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
+    ? `?date=${new URLSearchParams(window.location.search).get('date')}`
+        : ''
+  }`
+  : null;
+
+  const { data: additionalData } = useSWR<AdditionalData[]>(additionalDataKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: Number(selectedRefreshRate),
+  });
+  const refetchTaskData = useCallback(() => {
+    mutate(additionalDataKey);
+  }, [additionalDataKey]);
+
   const handleLocationChange = (value: string) => {
     setSelectedLocation(value);
     const params = new URLSearchParams(searchParams);
@@ -235,7 +259,8 @@ export default function EmsDashboard() {
     Promise.all([
       refetchNoeeData(),
       refetchEnergyData(),
-      refetchEnergyStatusData()
+      refetchEnergyStatusData(),
+      refetchTaskData()
     ]);
     const params = new URLSearchParams(searchParams);
     params.set("machineNumber", value);
@@ -610,8 +635,8 @@ export default function EmsDashboard() {
       </div>)}
   </div>
   <div>
-  <div className="w-full overflow-x-auto border-r-2 rounded-r-xl">
-    <div className="flex pb-4 gap-4 justify-center">
+  <div className="w-full overflow-x-auto ">
+    <div className="flex pb-4 gap-4 justify-center items-center px-3 py-2 border border-gray-250 shadow-sm rounded-xl">
     <Image
       src='/admin/injection.png'
       alt="injection"
@@ -619,24 +644,25 @@ export default function EmsDashboard() {
       height={200}
       className="rounded-lg"
       />
-      <Card id="total-energy">
-        <CardHeader className="font-bold text-center py-2">Total Energy Used</CardHeader>
-        <CardContent className="text-center p-x-2 flex items-center justify-center py-8 align-middle">
-          <Label className="flex text-center align-center items-baseline text-6xl text-primary font-bold">
-            {(totalEnergy).toFixed(2)} <p className="text-base p-4">kWh</p>
+          <Label className="flex flex-col text-4xl text-primary font-bold">
+          <div className="flex flex-row text-center align-center items-center">
+            <p className=" text-base p-4">Total Consumption</p> {(totalEnergy).toFixed(2)} <p className="text-base p-4">kWh</p>
+          </div>
+          <div className="flex flex-row text-center align-center items-center">
+            <p className="flex flex-row text-base p-4">Cycle Time</p> {(additionalData?.[0].actual_ct || 0).toFixed(2)} <p className="text-base p-4">s/cycle</p>
+          </div>
           </Label>
-          </CardContent>
-      </Card>
       </div>
+
+    <div className="grid grid-cols-4 pt-2 gap-2">
     <Card id="total-loss">
       <CardHeader className="font-bold text-center py-2">Total Loss</CardHeader>
       <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
-        <Label className="flex text-center align-center items-baseline text-6xl text-red-500 font-bold">
+        <Label className="flex text-center align-center items-baseline text-3xl text-red-500 font-bold">
           {(totalLoss).toFixed(2)} <p className="text-base p-4">kWh</p>
         </Label>
         </CardContent>
     </Card>
-    <div className="grid grid-cols-4 pt-2 gap-2">
       <Card id="orange">
         <CardHeader className="font-bold p-2">Breakdown</CardHeader>
         <CardContent className="text-center p-x-2 py-0">
@@ -661,6 +687,14 @@ export default function EmsDashboard() {
           </Label>
           </CardContent>
       </Card>
+      <Card id="oee">
+      <CardHeader className="font-bold text-center py-2">OEE</CardHeader>
+      <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
+        <Label className="flex text-center align-center items-baseline text-3xl text-primary font-bold">
+          {((additionalData?.[0].oee || 0) * 100).toFixed(2)} <p className="text-base p-4">%</p>
+        </Label>
+        </CardContent>
+    </Card>
       <Card id="blue">
         <CardHeader className="font-bold p-2">Changeover</CardHeader>
         <CardContent className="text-center p-x-2 py-0">
@@ -685,16 +719,6 @@ export default function EmsDashboard() {
           </Label>
           </CardContent>
       </Card>
-      <div className="col-span-2">
-        <Card id="green">
-          <CardHeader className="font-bold p-2 text-center">Running</CardHeader>
-          <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
-            <Label className="flex  items-baseline text-3xl text-green-500 font-bold">
-            {(energyGreen?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
-            </Label>
-          </CardContent>
-        </Card>
-      </div>
       </div>
       <div id="equipment" className="grid grid-cols-4 gap-2 mt-4">
         <div className="col-span-4 items-center text-center">

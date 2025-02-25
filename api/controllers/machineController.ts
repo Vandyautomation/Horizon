@@ -916,3 +916,172 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
       return await queryDatabase(sqlQuery, { machine_name });
     }
   }
+
+  export async function getEnergyAdditionalData(machine_name: string, date: string | null) {
+    if(date){
+      const sqlQuery = `
+      DECLARE @from DATETIME;
+      DECLARE @to DATETIME;
+  
+      SET @from = DATEADD(HOUR, 0, CAST(@date AS DATETIME)); 
+      SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
+
+        WITH StatusData AS (
+                SELECT 
+                    DATEADD(HOUR, -7, s.StatusDate) AS adjustedstatusdate,
+                    s.StatusLight,
+                s.MchID,
+                    CASE 
+                        WHEN s.StatusDate >= @from 
+                        THEN DATEDIFF(SECOND,
+                                s.StatusDate,
+                                COALESCE(s.todate, @to)
+                        ) / 3600.0
+                        ELSE DATEDIFF(SECOND,
+                                @from,
+                                COALESCE(s.todate, @to)
+                        ) / 3600.0
+                    END AS totalhour
+                FROM (
+                    SELECT 
+                        StatusDate,
+                        LEAD(StatusDate) OVER(
+                            PARTITION BY MchID 
+                            ORDER BY StatusDate
+                        ) AS todate,
+                        StatusLight,
+                        MchID,
+                        ROW_NUMBER() OVER(
+                            PARTITION BY MchID, 
+                            CASE WHEN StatusDate < @from THEN 1 ELSE 2 END 
+                            ORDER BY StatusDate DESC
+                        ) AS rnk
+                    FROM IoT.dbo.MchStatusTRX
+                    WHERE MchID = @machine_name 
+                        AND Active = 1
+                        AND StatusDate < @to
+                        AND StatusDate > '2023-04-01'
+                ) s
+                --JOIN MachineMST m ON m.MchID = s.MchID
+                WHERE 
+                s.rnk = 1 OR  s.StatusDate BETWEEN @from AND @to
+            ),
+            TimeCalculations AS (
+                SELECT 
+            MchID,
+                    DATEDIFF(SECOND, @from, @to) / 3600.0 AS timea,
+                    SUM(CASE WHEN StatusLight IN ('WHITE', 'BLUE') THEN totalhour ELSE 0 END) AS pmidle,
+                    SUM(CASE WHEN StatusLight IN ('RED', 'YELLOW', 'ORANGE', 'PURPLE', 'BLUE', 'GREY') 
+                        THEN totalhour ELSE 0 END) AS totalred,
+                    SUM(CASE WHEN StatusLight = 'GREEN' THEN totalhour ELSE 0 END) AS totalgreen,
+                    SUM(CASE WHEN StatusLight = 'YELLOW' THEN totalhour ELSE 0 END) AS totalyellow,
+                    SUM(CASE WHEN StatusLight = 'RED' THEN totalhour ELSE 0 END) AS totalred2,
+                    SUM(CASE WHEN StatusLight = 'BLUE' THEN totalhour ELSE 0 END) AS totalblue,
+                    SUM(CASE WHEN StatusLight = 'WHITE' THEN totalhour ELSE 0 END) AS totalwhite,
+                    SUM(CASE WHEN StatusLight = 'ORANGE' THEN totalhour ELSE 0 END) AS totalorange,
+                    SUM(CASE WHEN StatusLight = 'PURPLE' THEN totalhour ELSE 0 END) AS totalpurple,
+                    SUM(CASE WHEN StatusLight = 'GREY' THEN totalhour ELSE 0 END) AS totalgrey
+                FROM StatusData
+            group by MchID
+            )
+
+        SELECT TOP 1 
+            actual_ct
+            ,COALESCE((totalgreen + totalwhite) / NULLIF(timea, 0), 0) AS oee
+        FROM IoT.dbo.countboard_tasks t
+        JOIN IoT.dbo.MachineMST m on m.mchdesc = t.machine_name
+        CROSS JOIN TimeCalculations
+        WHERE t.ID = (select top 1 task_id from IoT.dbo.hourly h 
+            where from_datetime between @from and @to 
+            and h.MchID = @machine_name)
+                AND m.MchID = @machine_name
+                
+        ORDER BY created_at DESC;
+
+
+    
+      `
+      return await queryDatabase(sqlQuery, { machine_name, date });
+    }
+    else {
+      const sqlQuery = `
+      
+     DECLARE @from DATETIME;
+      DECLARE @to DATETIME;
+  
+        SET @from =DATEADD(HOUR, 0,cast(CAST(GETDATE() AS date)as datetime)) ; 
+        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)));; -- Goes into the next day
+
+        WITH StatusData AS (
+                SELECT 
+                    DATEADD(HOUR, -7, s.StatusDate) AS adjustedstatusdate,
+                    s.StatusLight,
+                s.MchID,
+                    CASE 
+                        WHEN s.StatusDate >= @from 
+                        THEN DATEDIFF(SECOND,
+                                s.StatusDate,
+                                COALESCE(s.todate, @to)
+                        ) / 3600.0
+                        ELSE DATEDIFF(SECOND,
+                                @from,
+                                COALESCE(s.todate, @to)
+                        ) / 3600.0
+                    END AS totalhour
+                FROM (
+                    SELECT 
+                        StatusDate,
+                        LEAD(StatusDate) OVER(
+                            PARTITION BY MchID 
+                            ORDER BY StatusDate
+                        ) AS todate,
+                        StatusLight,
+                        MchID,
+                        ROW_NUMBER() OVER(
+                            PARTITION BY MchID, 
+                            CASE WHEN StatusDate < @from THEN 1 ELSE 2 END 
+                            ORDER BY StatusDate DESC
+                        ) AS rnk
+                    FROM IoT.dbo.MchStatusTRX
+                    WHERE MchID = @machine_name 
+                        AND Active = 1
+                        AND StatusDate < @to
+                        AND StatusDate > '2023-04-01'
+                ) s
+                --JOIN MachineMST m ON m.MchID = s.MchID
+                WHERE 
+                s.rnk = 1 OR  s.StatusDate BETWEEN @from AND @to
+            ),
+            TimeCalculations AS (
+                SELECT 
+            MchID,
+                    DATEDIFF(SECOND, @from, @to) / 3600.0 AS timea,
+                    SUM(CASE WHEN StatusLight IN ('WHITE', 'BLUE') THEN totalhour ELSE 0 END) AS pmidle,
+                    SUM(CASE WHEN StatusLight IN ('RED', 'YELLOW', 'ORANGE', 'PURPLE', 'BLUE', 'GREY') 
+                        THEN totalhour ELSE 0 END) AS totalred,
+                    SUM(CASE WHEN StatusLight = 'GREEN' THEN totalhour ELSE 0 END) AS totalgreen,
+                    SUM(CASE WHEN StatusLight = 'YELLOW' THEN totalhour ELSE 0 END) AS totalyellow,
+                    SUM(CASE WHEN StatusLight = 'RED' THEN totalhour ELSE 0 END) AS totalred2,
+                    SUM(CASE WHEN StatusLight = 'BLUE' THEN totalhour ELSE 0 END) AS totalblue,
+                    SUM(CASE WHEN StatusLight = 'WHITE' THEN totalhour ELSE 0 END) AS totalwhite,
+                    SUM(CASE WHEN StatusLight = 'ORANGE' THEN totalhour ELSE 0 END) AS totalorange,
+                    SUM(CASE WHEN StatusLight = 'PURPLE' THEN totalhour ELSE 0 END) AS totalpurple,
+                    SUM(CASE WHEN StatusLight = 'GREY' THEN totalhour ELSE 0 END) AS totalgrey
+                FROM StatusData
+            group by MchID
+            )
+
+        SELECT TOP 1 
+            actual_ct
+            ,COALESCE((totalgreen + totalwhite) / NULLIF(timea, 0), 0) AS oee
+        FROM IoT.dbo.countboard_tasks t
+        JOIN IoT.dbo.MachineMST m on m.mchdesc = t.machine_name
+        CROSS JOIN TimeCalculations
+        WHERE po_name != '' 
+                AND m.MchID = @machine_name
+        ORDER BY created_at DESC;
+
+      `;
+      return await queryDatabase(sqlQuery, { machine_name });
+    }
+  }
