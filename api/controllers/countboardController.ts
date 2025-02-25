@@ -127,6 +127,7 @@ export async function editProcess(hourlyId: number, process: string) {
   UPDATE IoT.dbo.hourly_uv
       SET process = @process
       WHERE id = @hourlyId;
+      
   UPDATE IoT.dbo.Reject_Machine_Relationship
       set process = @process
       where mchid = (select machine_id from IoT.dbo.hourly_uv where id = @hourlyId)

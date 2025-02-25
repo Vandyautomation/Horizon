@@ -24,7 +24,7 @@ import {
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import Image from 'next/image'
-import {   Box, CalendarIcon, Edit, FilePlus2, Pencil, RefreshCw } from "lucide-react"
+import {   Box, CalendarIcon, FilePlus2, Pencil, RefreshCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { useState, useEffect, useCallback, use } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -40,7 +40,7 @@ import { format } from "date-fns/format"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { cn } from "@/lib/utils"
 import { Switch } from "./ui/switch"
-import { set } from "date-fns"
+
 
 type MachineDetail = {
   machineId: number;
@@ -162,7 +162,7 @@ export default function CountboardDashboardUv() {
   const [IsTopScrapDialogOpen, setIsTopScrapDialogOpen] = useState(false);
   const [IsProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
 
-  const [selectedProcess, setSelectedProcess] = useState<string>('');
+  const [selectedProcess, setSelectedProcess] = useState('');
 
   const [selectedPO, setSelectedPO] = useState('');
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
@@ -473,7 +473,7 @@ export default function CountboardDashboardUv() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             "taskId": taskData && taskData.length > 0 ? taskData[0].id : new Error("Task ID not found"),
-            "hourlyId": hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.task_id !== null)?.hourlyId : new Error("Task ID not found"),
+            "hourlyId": hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.task_id !== null)?.hourlyId : null,
             "reject_a":selectedRejectA, 
             "reject_b": selectedRejectB, 
             "reject_c": selectedRejectC, 
@@ -503,13 +503,14 @@ export default function CountboardDashboardUv() {
 
   const handleProcessChange = useCallback(
     async () => {
+      setIsLoading(true);
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/process`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
             {
-              "hourlyId":hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.task_id !== null)?.hourlyId : new Error("Task ID not found"),
+              "hourlyId":hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.task_id !== null)?.hourlyId : null,
               "process": selectedProcess 
             }),
         });
@@ -521,14 +522,16 @@ export default function CountboardDashboardUv() {
   
           throw new Error(errorMessage);
         }
-        setIsPODialogOpen(false);
+        setIsProcessDialogOpen(false);
         toast.success(`Change Process success!`);
       } catch (error) {
         toast.error((error as Error).message);
         console.error(`Failed to Change Process:`, error);
+      } finally {
+        setIsLoading(false);
       }
     },
-    [selectedPO, selectedMachine]
+    [selectedProcess, hourlyData]
   );
 
 
@@ -1284,10 +1287,10 @@ export default function CountboardDashboardUv() {
             <DialogDescription className="p-0 m-0">Select Current Process for this machine</DialogDescription>
             <div className="space-y-4">
             <Select value={selectedProcess} 
-                    defaultValue={hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.task_id !== null)?.process || 'N/A' : "N/A"}  
+                    defaultValue={selectedProcess}  
                     onValueChange={(value) => setSelectedProcess(value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select Reject" />
+                    <SelectValue placeholder="Select Process" />
                   </SelectTrigger>
                   <SelectContent>
                       <SelectItem value="Top Coat" >

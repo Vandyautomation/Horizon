@@ -169,7 +169,8 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
               isnull(rB.name,'') as reject_b_name,
               isnull(rC.name,'') as reject_c_name,
               isnull(rD.name,'') as reject_d_name,
-              isnull(rE.name,'') as reject_e_name
+              isnull(rE.name,'') as reject_e_name,
+              h.process
           FROM IoT.dbo.hourly_uv h
           LEFT JOIN IoT.dbo.RejectMST rA on h.reject_a_id = rA.id
           LEFT JOIN IoT.dbo.RejectMST rB on h.reject_b_id = rB.id
