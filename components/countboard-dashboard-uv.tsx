@@ -1149,22 +1149,28 @@ export default function CountboardDashboardUv() {
                           return (
                             <>
                               <div
-                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.actual_in, row.actual_in)}`}
+                                className={`absolute inset-0 h-full rounded z-10 ${getBarColor(row.actual, row.actual_in, row.actual_in)}`}
                                 style={{
                                   width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
                                   maxWidth: "200px",
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-px bg-blue-300"
+                                className="absolute inset-0 h-full w-px z-20 bg-blue-300"
                                 style={{
                                   left: `${Math.min((row.actual_in / maxValue) * 100, 100)}%`, // Accurate target position
                                 }}
                               />
+                              <div
+                                className="absolute inset-0 h-full rounded z-5 bg-blue-300"
+                                style={{
+                                  width: `${Math.min((row.actual_in / maxValue) * 100, 100)}%`, // Accurate target position
+                                  maxWidth: "200px",
+                                }} />
                             </>
                           );
                         })()}
-                          <span className="relative z-10 ml-2">{row.actual}</span>
+                          <span className="relative z-30 ml-2">{row.actual}</span>
                       </div>
                       </TableCell>
                       <TableCell className="text-center" style={{color: row.actual >= row.actual_in ? "green" : "red"}} >{row.gap}</TableCell>
