@@ -1038,8 +1038,8 @@ export default function CountboardDashboardUv() {
                   <TableHead className="w-[50px] text-center">C</TableHead>
                   <TableHead className="w-[50px] text-center">D</TableHead>
                   <TableHead className="w-[50px] text-center">E</TableHead>
-                  <TableHead className="w-[120px] text-center">NOOE</TableHead>
-                  <TableHead className="w-[250px] text-center">Actual Input vs Output</TableHead>
+                  <TableHead className="w-[100px] text-center">NOOE</TableHead>
+                  <TableHead className="w-[200px] text-center">Actual Input vs Output</TableHead>
                   <TableHead>Gap</TableHead>
                   <TableHead className="w-[125px] text-center">Causes</TableHead>
                   <TableHead className="w-[125px] text-center">Comments/Actions</TableHead>
@@ -1084,7 +1084,7 @@ export default function CountboardDashboardUv() {
                             </>
                           );
                         })()}
-                        <span className="relative z-10 ml-2">{row.actual}</span>
+                        <span className="relative z-10 ml-2">{row.actual} ({row.process || "N/A"})</span>
                       </div>
                     </TableCell>
 
@@ -1149,14 +1149,14 @@ export default function CountboardDashboardUv() {
                           return (
                             <>
                               <div
-                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.actual_in, row.actual_in)}`}
+                                className={`absolute inset-0 h-full z-5 rounded ${getBarColor(row.actual, row.actual_in, row.actual_in)}`}
                                 style={{
                                   width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
-                                  maxWidth: "250px",
+                                  maxWidth: "200px",
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full rounded bg-blue-300"
+                                className="absolute inset-0 h-full w-px bg-blue-300"
                                 style={{
                                   left: `${Math.min((row.actual_in / maxValue) * 100, 100)}%`, // Accurate target position
                                 }}
@@ -1167,8 +1167,7 @@ export default function CountboardDashboardUv() {
                           <span className="relative z-10 ml-2">{row.actual}</span>
                       </div>
                       </TableCell>
-
-                      <TableCell className={row.gap >= 0 ? "text-green-600" : "text-red-600"}>{row.gap}</TableCell>
+                      <TableCell className="text-center" style={{color: row.gap >= 0 ? "green" : "red"}} >{row.gap}</TableCell>
 
 
 
