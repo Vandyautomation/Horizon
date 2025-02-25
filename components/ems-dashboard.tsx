@@ -638,7 +638,7 @@ export default function EmsDashboard() {
   <div className="w-full overflow-x-auto ">
     <div className="flex pb-4 gap-4 justify-center items-center px-3 py-2 border border-gray-250 shadow-sm rounded-xl">
     <Image
-      src='/admin/injection.png'
+      src='/admin/injection-new.png'
       alt="injection"
       width={200}
       height={200}
