@@ -120,7 +120,7 @@ export default function RoutingUpload() {
                     <p className="">2. Pastikan data komplit, hindari data kosong, untuk COATING Cavities diisi 0</p>
                     <p className="">3. Sheet yang dipilih adalah sheet yang paling terakhir</p>
                     <p className="">4. Kolom yang dipilih adalah G5:W10000</p>
-                    <p className="">5. Data yang wajib ada : PO, PN, PRODUK, ORDER, HASIL</p>
+                    <p className="">5. Data yang wajib ada : Material, Material Description, Cycle Time, Cavities</p>
                     <p className="flex">6. Download contoh file ROUTING : <><a href="/admin/contoh_routing.xlsx" download className="text-secondary-foreground underline flex items-center"> Contoh ROUTING <Download size={16}/></a></></p>
                 </div>
                 <div
@@ -141,9 +141,12 @@ export default function RoutingUpload() {
           </div>
           
           {selectedFile && 
-            <div className="flex">
-                <p className="mt-2 text-sm text-gray-500">Selected file:</p>
-                <p className="mt-2 text-sm text-primary font-bold"> {selectedFile.name}</p>
+            <div className="flex mt-2">
+                <p className=" text-sm text-gray-500">Selected file:</p>
+                <p className="ml-2 text-sm text-primary font-bold"> {selectedFile.name}</p>
+                <p className="ml-2 text-sm" style={{color: selectedFile.name.toLowerCase().includes("routing") ? "green" : "red"}}>
+                  {selectedFile.name.toLowerCase().includes("routing") ? "OK" : "Warning ! This file name seems incorrect, please recheck before upload!"}
+                </p>
             </div>}
           <div className="mt-4">
            

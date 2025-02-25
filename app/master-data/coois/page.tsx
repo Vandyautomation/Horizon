@@ -136,10 +136,13 @@ export default function CooisUpload() {
           </div>
           
           {selectedFile && 
-            <div className="flex">
-                <p className="mt-2 text-sm text-gray-500">Selected file:</p>
-                <p className="mt-2 text-sm text-primary font-bold"> {selectedFile.name}</p>
-            </div>}
+            <div className="flex mt-2">
+            <p className=" text-sm text-gray-500">Selected file:</p>
+            <p className="ml-2 text-sm text-primary font-bold"> {selectedFile.name}</p>
+            <p className="ml-2 text-sm" style={{color: selectedFile.name.toLowerCase().includes("coois") ? "green" : "red"}}>
+              {selectedFile.name.toLowerCase().includes("coois") ? "OK" : "Warning ! This file name seems incorrect, please recheck before upload!"}
+            </p>
+        </div>}
           <div className="mt-4">
            
            <Progress value={progress} />

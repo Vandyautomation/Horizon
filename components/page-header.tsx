@@ -115,23 +115,7 @@ export default function PageHeader({  onMenuClick}: PageHeaderProps) {
           </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage onClick={() => onMenuClick("coois")}>COOIS</BreadcrumbPage>
-              </BreadcrumbItem>
-            </>
-          )}
-
-          {currentSubPage === "coois-uv" && (
-            <>
-            <BreadcrumbItem>
-            <BreadcrumbLink onClick={() => onMenuClick("")}>Home</BreadcrumbLink>
-          </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-            <BreadcrumbLink onClick={() => onMenuClick("master-data")}>Master Data</BreadcrumbLink>
-          </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage onClick={() => onMenuClick("coois-uv")}>COOIS UV</BreadcrumbPage>
+                <BreadcrumbPage onClick={() => onMenuClick("master-data/coois")}>COOIS</BreadcrumbPage>
               </BreadcrumbItem>
             </>
           )}
@@ -147,7 +131,7 @@ export default function PageHeader({  onMenuClick}: PageHeaderProps) {
           </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage onClick={() => onMenuClick("routing")}>Routing</BreadcrumbPage>
+                <BreadcrumbPage onClick={() => onMenuClick("master-data/routing")}>Routing</BreadcrumbPage>
               </BreadcrumbItem>
             </>
           )}
