@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { addCoois, addRouting, attachPo, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
+import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
 const countboardRoutes = new Hono();
 
@@ -31,6 +31,17 @@ countboardRoutes.put('/topscrap', async (c) => {
 
   try {
     const res = await editTopScrap(data.hourlyId, data.reject_a, data.reject_b, data.reject_c, data.reject_d);
+    return c.json(res);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+countboardRoutes.put('/process', async (c) => {
+  const data  = await c.req.json() as ({hourlyId : number, process: string});
+
+  try {
+    const res = await editProcess(data.hourlyId, data.process);
     return c.json(res);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);

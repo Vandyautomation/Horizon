@@ -122,6 +122,19 @@ export async function editTopScrap(hourlyId: number, reject_a : number, reject_b
 }
 
 
+export async function editProcess(hourlyId: number, process: string) {
+  const sqlQuery = `
+  UPDATE IoT.dbo.hourly_uv
+      SET process = @process
+      WHERE id = @hourlyId;
+  UPDATE IoT.dbo.Reject_Machine_Relationship
+      set process = @process
+      where mchid = (select machine_id from IoT.dbo.hourly_uv where id = @hourlyId)
+  `;
+  return await queryDatabase(sqlQuery, { hourlyId, process });
+}
+
+
 
 export async function getCoois(poName: string|undefined) {
   const sqlQuery = `

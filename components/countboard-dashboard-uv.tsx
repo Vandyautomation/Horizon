@@ -24,7 +24,7 @@ import {
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import Image from 'next/image'
-import {   Box, CalendarIcon, FilePlus2, Pencil, RefreshCw } from "lucide-react"
+import {   Box, CalendarIcon, Edit, FilePlus2, Pencil, RefreshCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { useState, useEffect, useCallback, use } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -61,7 +61,9 @@ type HourlyData = {
   target: number;
   target_tolerance: number;
   actual: number;
+  actual_in: number;
   delta: number;
+  gap: number;
   scrap: number;
   rework: number;
   reject_a: number | 0;
@@ -76,6 +78,7 @@ type HourlyData = {
   reject_c_name: string ;
   reject_d_name: string ;
   reject_e_name: string ;
+  process: string;
 };
 
 type OoeData = {
@@ -157,6 +160,10 @@ export default function CountboardDashboardUv() {
   const [selectedComment, setSelectedComment] = useState({ index: -1, hourlyId: -1, type: '', content: '' });
   const [isPODialogOpen, setIsPODialogOpen] = useState(false);
   const [IsTopScrapDialogOpen, setIsTopScrapDialogOpen] = useState(false);
+  const [IsProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
+
+  const [selectedProcess, setSelectedProcess] = useState<string>('');
+
   const [selectedPO, setSelectedPO] = useState('');
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
   const [isLoading, setIsLoading] = useState(false);
@@ -494,6 +501,37 @@ export default function CountboardDashboardUv() {
     [hourlyData, selectedRejectA, selectedRejectB, selectedRejectC, selectedRejectD, refetchTaskData, taskData]
   );
 
+  const handleProcessChange = useCallback(
+    async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/process`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            {
+              "hourlyId":hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.task_id !== null)?.hourlyId : new Error("Task ID not found"),
+              "process": selectedProcess 
+            }),
+        });
+
+        if (!response.ok) {
+          // Attempt to extract the server's error message
+          const errorData = await response.json();
+          const errorMessage = errorData.error || `Failed to Change Process`;
+  
+          throw new Error(errorMessage);
+        }
+        setIsPODialogOpen(false);
+        toast.success(`Change Process success!`);
+      } catch (error) {
+        toast.error((error as Error).message);
+        console.error(`Failed to Change Process:`, error);
+      }
+    },
+    [selectedPO, selectedMachine]
+  );
+
+
   const handlePOAttach = useCallback(
     async () => {
       try {
@@ -526,6 +564,8 @@ export default function CountboardDashboardUv() {
     if (actual >= target_tolerance) return 'bg-green-500';
     return 'bg-red-500';
   };
+
+
 
   const getSpindleColor = (SpindleACT: number | null, SpindleSTD: number | null) => {
     if (SpindleACT === null || SpindleSTD === null || SpindleACT >= SpindleSTD) return 'text-green-500';
@@ -807,6 +847,16 @@ export default function CountboardDashboardUv() {
             <Pencil className="w-4 h-4 mr-2" />
             Top Scrap
         </Button>
+        
+        {selectedMachine?.locationName == 'K' || selectedMachine?.locationName == 'E' ? (
+        <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle cursor-pointer" onClick={() => {setIsProcessDialogOpen(true)}}>
+        Process : {hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.task_id !== null)?.process || 'N/A' : "N/A"}
+            <Pencil className="w-4 h-4 rounded ml-4" />
+        </Label>  
+        ) : ( null)}
+        
+
+
         <div className="flex items-center space-x-2 border border-gray-250 rounded-md px-3 py-2">
         <Switch id="live-mode" 
             checked={isLiveMode}
@@ -986,14 +1036,16 @@ export default function CountboardDashboardUv() {
                   <TableHead className="w-[50px] text-center">D</TableHead>
                   <TableHead className="w-[50px] text-center">E</TableHead>
                   <TableHead className="w-[120px] text-center">NOOE</TableHead>
-                  <TableHead className="w-[250px]">Causes</TableHead>
-                  <TableHead>Comments/Actions</TableHead>
+                  <TableHead className="w-[250px] text-center">Actual Input vs Output</TableHead>
+                  <TableHead>Gap</TableHead>
+                  <TableHead className="w-[125px] text-center">Causes</TableHead>
+                  <TableHead className="w-[125px] text-center">Comments/Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {Array.isArray(hourlyData) && hourlyData?.length === 0 ? (
                   <TableRow className="h-12">
-                    <TableCell colSpan={15} className="text-center">No data available</TableCell>
+                    <TableCell colSpan={17} className="text-center">No data available</TableCell>
                   </TableRow>
                 ) : (
                   (Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => (
@@ -1003,28 +1055,36 @@ export default function CountboardDashboardUv() {
                       <TableCell className="text-center h-full">{row.target}</TableCell>
                       <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
-                          <div
-                          className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
-                          style={{
-                              width: `${Math.min((row.actual / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
-                              maxWidth: "250px",
-                          }}
-                          />
-                          <div
-                          className="absolute inset-0  h-full w-px bg-green-600"
-                          style={{
-                              left: `${Math.min((row.target / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
-                          }}
-                          />
-                          <div
-                          className="absolute inset-0 h-full w-px bg-yellow-500"
-                          style={{
-                              left: `${Math.min(((row.target_tolerance) / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
-                          }}
-                          />
-                          <span className="relative z-10 ml-2">{row.actual}</span>
+                        {(() => {
+                          const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.target), 0) || 100;
+                          return (
+                            <>
+                              <div
+                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
+                                style={{
+                                  width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
+                                  maxWidth: "250px",
+                                }}
+                              />
+                              <div
+                                className="absolute inset-0 h-full w-px bg-green-600"
+                                style={{
+                                  left: `${Math.min((row.target / maxValue) * 100, 100)}%`, // Accurate target position
+                                }}
+                              />
+                              <div
+                                className="absolute inset-0 h-full w-px bg-yellow-500"
+                                style={{
+                                  left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`, // Accurate tolerance position
+                                }}
+                              />
+                            </>
+                          );
+                        })()}
+                        <span className="relative z-10 ml-2">{row.actual}</span>
                       </div>
-                      </TableCell>
+                    </TableCell>
+
 
                       <TableCell className={row.delta >= 0 ? "text-green-600" : "text-red-600"}>{row.delta}</TableCell>
                       <TableCell className="text-center">{row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e || 0}</TableCell>
@@ -1078,7 +1138,38 @@ export default function CountboardDashboardUv() {
                       <TableCell className="w-24 py-0 h-full">
                       {renderNooeIndicators(row.hourlyId)}
                       </TableCell>
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)}>
+
+                      <TableCell className="relative overflow-hidden h-full">
+                      <div className="flex items-center h-full w-full">
+                      {(() => {
+                          const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.actual_in), 0) || 100;
+                          return (
+                            <>
+                              <div
+                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.actual_in, row.actual_in)}`}
+                                style={{
+                                  width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
+                                  maxWidth: "250px",
+                                }}
+                              />
+                              <div
+                                className="absolute inset-0 h-full rounded bg-blue-300"
+                                style={{
+                                  left: `${Math.min((row.actual_in / maxValue) * 100, 100)}%`, // Accurate target position
+                                }}
+                              />
+                            </>
+                          );
+                        })()}
+                          <span className="relative z-10 ml-2">{row.actual}</span>
+                      </div>
+                      </TableCell>
+
+                      <TableCell className={row.gap >= 0 ? "text-green-600" : "text-red-600"}>{row.gap}</TableCell>
+
+
+
+                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)} className="text-center">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span>{row.causes || 'N/A'}</span>
@@ -1088,7 +1179,7 @@ export default function CountboardDashboardUv() {
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)}>
+                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)} className="text-center">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span>{row.comments || 'N/A'}</span>
@@ -1180,6 +1271,37 @@ export default function CountboardDashboardUv() {
             </div>
             <DialogFooter>
               <Button onClick={handlePOAttach}>Attach PO</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+
+        <Dialog open={IsProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change Process</DialogTitle>
+            </DialogHeader>
+            <DialogDescription className="p-0 m-0">Select Current Process for this machine</DialogDescription>
+            <div className="space-y-4">
+            <Select value={selectedProcess} 
+                    defaultValue={hourlyData && hourlyData.length > 0 ? hourlyData.slice().reverse().find(h => h.task_id !== null)?.process || 'N/A' : "N/A"}  
+                    onValueChange={(value) => setSelectedProcess(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Reject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="Top Coat" >
+                        Top Coat
+                      </SelectItem>
+                      <SelectItem value="Base Coat" >
+                        Base Coat
+                      </SelectItem>
+                  </SelectContent>
+                </Select>
+              
+            </div>
+            <DialogFooter>
+              <Button onClick={handleProcessChange}>Update Process</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

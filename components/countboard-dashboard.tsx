@@ -891,26 +891,33 @@ export default function CountboardDashboard() {
                       <TableCell className="text-center h-full">{row.target}</TableCell>
                       <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
-                          <div
-                          className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
-                          style={{
-                              width: `${Math.min((row.actual / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
-                              maxWidth: "250px",
-                          }}
-                          />
-                          <div
-                          className="absolute inset-0  h-full w-px bg-green-600"
-                          style={{
-                              left: `${Math.min((row.target / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
-                          }}
-                          />
-                          <div
-                          className="absolute inset-0 h-full w-px bg-yellow-500"
-                          style={{
-                              left: `${Math.min(((row.target_tolerance) / (row.target + 50)) * 100, 100)}%`, // Limit to 100%
-                          }}
-                          />
-                          <span className="relative z-10 ml-2">{row.actual}</span>
+                        {(() => {
+                          const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.target), 0) || 100;
+                          return (
+                            <>
+                              <div
+                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
+                                style={{
+                                  width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
+                                  maxWidth: "250px",
+                                }}
+                              />
+                              <div
+                                className="absolute inset-0 h-full w-px bg-green-600"
+                                style={{
+                                  left: `${Math.min((row.target / maxValue) * 100, 100)}%`, // Accurate target position
+                                }}
+                              />
+                              <div
+                                className="absolute inset-0 h-full w-px bg-yellow-500"
+                                style={{
+                                  left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`, // Accurate tolerance position
+                                }}
+                              />
+                            </>
+                          );
+                        })()}
+                        <span className="relative z-10 ml-2">{row.actual}</span>
                       </div>
                       </TableCell>
 
