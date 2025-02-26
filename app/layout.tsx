@@ -20,7 +20,7 @@ export const metadata = {
   title: "IoT App",
   description: "IoT App",
   icons: {
-    icon: "/admin/favicon.png",
+    icon: "/admin/android-chrome-192x192.png",
     apple: "/admin/apple-touch-icon.png",
     other: "/admin/android-chrome-192x192.png",
   },

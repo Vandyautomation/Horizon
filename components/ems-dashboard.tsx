@@ -107,14 +107,14 @@ export default function EmsDashboard() {
 
   const pathname = usePathname()
   const router = useRouter()
-  
+
   useEffect(() => {
     const refreshAtShiftChange = () => {
       const now = new Date();
       const hour = now.getHours();
       const lastRefreshedHour = localStorage.getItem("lastRefreshedHour");
 
-      if ((hour === 6 || hour === 16 || hour === 22) && lastRefreshedHour != hour.toString()) {
+      if ((hour === 6 || hour === 14 || hour === 22) && lastRefreshedHour != hour.toString()) {
         localStorage.setItem("lastRefreshedHour", hour.toString());
         toast.success("Auto Refreshing every shift ...", { duration: 1000 });
         setTimeout(() => {

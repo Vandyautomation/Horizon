@@ -220,7 +220,7 @@ export default function CountboardDashboardUv() {
       const hour = now.getHours();
       const lastRefreshedHour = localStorage.getItem("lastRefreshedHour");
 
-      if ((hour === 6 || hour === 16 || hour === 22) && lastRefreshedHour != hour.toString()) {
+      if ((hour === 6 || hour === 14 || hour === 22) && lastRefreshedHour != hour.toString()) {
         localStorage.setItem("lastRefreshedHour", hour.toString());
         toast.success("Auto Refreshing every shift ...", { duration: 1000 });
         setTimeout(() => {

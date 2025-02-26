@@ -28,6 +28,14 @@ export async function getChangeState(machine_name: string, date: string | null, 
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name
         and StatusDate between @from and @to
+  
+
+        UNION ALL
+
+        SELECT TOP 1 ID, @from as AdjustedStatusDate, StatusLight as Color
+        from IoT.dbo.MchStatusTRX with (nolock)
+        Where MchID = @machine_name
+        and StatusDate < @from 
         order by StatusDate DESC
         `;
         return await queryDatabase(sqlQuery, {machine_name, date, shift});
@@ -55,10 +63,19 @@ export async function getChangeState(machine_name: string, date: string | null, 
             SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
         END
     
+
         SELECT ID, StatusDate as AdjustedStatusDate, StatusLight as Color
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name
         and StatusDate between @from and @to
+  
+
+        UNION ALL
+
+        SELECT TOP 1 ID, @from as AdjustedStatusDate, StatusLight as Color
+        from IoT.dbo.MchStatusTRX with (nolock)
+        Where MchID = @machine_name
+        and StatusDate < @from 
         order by StatusDate DESC
         `;
         return await queryDatabase(sqlQuery, {machine_name, date, shift});
