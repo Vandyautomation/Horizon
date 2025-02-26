@@ -40,6 +40,7 @@ import { format } from "date-fns/format"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { cn } from "@/lib/utils"
 import { Switch } from "./ui/switch"
+import ChangeState from "./change-state"
 
 
 type MachineDetail = {
@@ -132,6 +133,12 @@ type NooeData = {
 type Spindle = {
   SpindleSTD: number;
   SpindleACT: number;
+}
+
+type StateData = {
+  ID: string;
+  AdjustedStatusDate: string;
+  Color: string
 }
 
 type RejectList = {
@@ -320,6 +327,24 @@ export default function CountboardDashboardUv() {
 
   const refetchNoeeData = () => mutate(noeeDataKey);
 
+
+  const stateDataKey = selectedMachine?.machineName
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state/${selectedMachine.machineName}${
+      !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
+      ?  `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
+          : ''
+    }`
+    : null;
+
+  const { data: stateData } = useSWR<StateData[]>(stateDataKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: Number(selectedRefreshRate),
+  });
+
+  const refetchStateData = () => mutate(stateDataKey);
+
   const taskDataKey = selectedMachine?.machineDescription
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tasks/${selectedMachine.machineDescription}${
       !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
@@ -361,7 +386,8 @@ export default function CountboardDashboardUv() {
       refetchOeeData(),
       refetchTaskData(),
       refetchNoeeData(),
-      refetchSpindleData()
+      refetchSpindleData(),
+      refetchStateData()
     ]);
     const params = new URLSearchParams(searchParams);
     params.set("machineNumber", value);
@@ -417,7 +443,8 @@ export default function CountboardDashboardUv() {
         refetchHourlyData(),
         refetchOeeData(),
         refetchTaskData(),
-        refetchNoeeData()
+        refetchNoeeData(),
+        refetchStateData(),
       ]);
     } finally {
       setIsLoadingRefresh(false);
@@ -1230,12 +1257,13 @@ export default function CountboardDashboardUv() {
           
         </div> */}
         <div>
-        {selectedMachine?.machineName ? (
-        <iframe
-          src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
-          width="100%" 
-          height="150"
-        ></iframe>
+        {selectedMachine?.machineName && stateData?.length ? (
+          <ChangeState data={stateData} />
+        // <iframe
+        //   src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
+        //   width="100%" 
+        //   height="150"
+        // ></iframe>
         ) : (
           <></>
         )}

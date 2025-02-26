@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { addMachine, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine } from '../controllers/machineController';
+import { addMachine, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine } from '../controllers/machineController';
 import { getTask } from '../controllers/scaleTaskController';
 
 
@@ -9,6 +9,18 @@ machineRoutes.get('/', async (c) => {
   try {
     const type = c.req.query('type') || null;
     const data = await getMachine(type);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+machineRoutes.get('/state/:machineId', async (c) => {
+  try {
+    const machine_id = c.req.param('machineId'); 
+    const date = c.req.query('date') || null; 
+    const shift = c.req.query('shift') || null; 
+    const data = await getChangeState(machine_id, date, shift);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);

@@ -1,5 +1,72 @@
 import { queryDatabase } from '../utils/queryDatabase';
 
+
+export async function getChangeState(machine_name: string, date: string | null, shift: string | null) {
+    if(date && shift){
+        const sqlQuery = `
+        DECLARE @from DATETIME;
+        DECLARE @to DATETIME;
+    
+        -- Set @from and @to based on shift_id
+        IF @shift = 1
+        BEGIN
+            SET @from = DATEADD(HOUR, 6, CAST(@date AS DATETIME)); 
+            SET @to = DATEADD(HOUR, 14, CAST(@date AS DATETIME));
+        END
+        ELSE IF @shift = 2
+        BEGIN
+            SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
+            SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
+        END
+        ELSE
+        BEGIN
+            SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
+            SET @to = DATEADD(HOUR, 6, CAST(@date AS DATETIME));
+        END  
+    
+        SELECT ID, StatusDate as AdjustedStatusDate, StatusLight as Color
+        from IoT.dbo.MchStatusTRX with (nolock)
+        Where MchID = @machine_name
+        and StatusDate between @from and @to
+        order by StatusDate DESC
+        `;
+        return await queryDatabase(sqlQuery, {machine_name, date, shift});
+    } else {
+        const sqlQuery = `
+        DECLARE @from DATETIME;
+        DECLARE @to DATETIME;
+    
+        set @shift = case when DATEPART(HOUR, GETDATE()) between 5 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
+
+        -- Set @from and @to based on shift_id
+        IF @shift = 1
+        BEGIN
+            SET @from = DATEADD(HOUR, 6, cast(CAST(GETDATE() AS date)as datetime)); 
+            SET @to = DATEADD(HOUR, 14, cast(CAST(GETDATE() AS date)as datetime));
+        END
+        ELSE IF @shift = 2
+        BEGIN
+            SET @from = DATEADD(HOUR, 14,cast(CAST(GETDATE() AS date)as datetime)) 
+            SET @to = DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+        END
+        ELSE IF @shift = 3
+        BEGIN
+            SET @from = DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+            SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
+        END
+    
+        SELECT ID, StatusDate as AdjustedStatusDate, StatusLight as Color
+        from IoT.dbo.MchStatusTRX with (nolock)
+        Where MchID = @machine_name
+        and StatusDate between @from and @to
+        order by StatusDate DESC
+        `;
+        return await queryDatabase(sqlQuery, {machine_name, date, shift});
+
+    }
+    
+  }
+
 export async function getMachine(type: string | null) {
   const sqlQuery = `
   SELECT m.id as machineId, m.MchID as machineName, m.MchDesc as machineDescription, m.MchNumber as machineNumber, m.MchTon as machineTonage,

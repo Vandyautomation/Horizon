@@ -40,6 +40,7 @@ import { format } from "date-fns/format"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { cn } from "@/lib/utils"
 import { Switch } from "./ui/switch"
+import ChangeState from "./change-state"
 
 type MachineDetail = {
   machineId: number;
@@ -113,6 +114,12 @@ type NooeData = {
   white: boolean | null;
   red: boolean | null;
 };
+
+type StateData = {
+  ID: string;
+  AdjustedStatusDate: string;
+  Color: string
+}
 
 const refreshRateList = [
   '5000','15000','30000','60000'
@@ -209,6 +216,23 @@ export default function CountboardDashboard() {
   useEffect(() => {
     setIsLoading(isValidating);
   }, [isValidating]);
+
+  const stateDataKey = selectedMachine?.machineName
+  ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state/${selectedMachine.machineName}${
+    !isLiveMode && new URLSearchParams(window.location.search).get('date') !== null
+    ?  `?date=${new URLSearchParams(window.location.search).get('date')}&shift=${new URLSearchParams(window.location.search).get('shift')}`
+        : ''
+  }`
+  : null;
+
+const { data: stateData } = useSWR<StateData[]>(stateDataKey, fetcher, {
+  revalidateOnMount: false,
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  refreshInterval: Number(selectedRefreshRate),
+});
+
+const refetchStateData = () => mutate(stateDataKey);
 
   // const refetchMachine = async () => {
   //   setIsLoading(true);
@@ -311,7 +335,8 @@ export default function CountboardDashboard() {
       refetchHourlyData(),
       refetchOeeData(),
       refetchTaskData(),
-      refetchNoeeData()
+      refetchNoeeData(),
+      refetchStateData(),
     ]);
     setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
     const params = new URLSearchParams(searchParams);
@@ -368,7 +393,9 @@ export default function CountboardDashboard() {
         refetchHourlyData(),
         refetchOeeData(),
         refetchTaskData(),
-        refetchNoeeData()
+        refetchNoeeData(),
+        refetchStateData(),
+
       ]);
     } finally {
       setIsLoadingRefresh(false);
@@ -961,12 +988,8 @@ export default function CountboardDashboard() {
           
         </div> */}
         <div>
-        {selectedMachine?.machineName ? (
-        <iframe
-          src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
-          width="100%" 
-          height="150"
-        ></iframe>
+        {selectedMachine?.machineName && stateData?.length ? (
+          <ChangeState data={stateData} />
         ) : (
           <></>
         )}
