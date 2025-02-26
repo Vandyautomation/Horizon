@@ -53,6 +53,9 @@ countboardRoutes.post('/coois', async (c) => {
   console.log(data)
   try {
     const res = await addCoois(data);
+
+    await fetch("http://dmksrv02:443/upload/api/coois_sync")
+
     return c.json(res);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
@@ -64,6 +67,9 @@ countboardRoutes.post('/routing', async (c) => {
   console.log(data)
   try {
     const res = await addRouting(data);
+
+    await fetch("http://dmksrv02:443/upload/api/routing_sync")
+
     return c.json(res);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
