@@ -820,42 +820,42 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
         SET @from = DATEADD(HOUR, 0, CAST(@date AS DATETIME)); 
         SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
 
-    WITH HourlyReadings AS (
-        SELECT 
-            DATEPART(YEAR, PMDT) AS Year,
-            DATEPART(MONTH, PMDT) AS Month,
-            DATEPART(DAY, PMDT) AS Day,
-            DATEPART(HOUR, PMDT) AS Hour,
-            MIN(PMDT) AS EarliestPMDT,
-            MAX(PMDT) AS LatestPMDT
-        FROM eEnergy.dbo.PowerMeter
-        WHERE 
-        TrxType = 'Automatic' AND MchID = @machine_name
-        and active = 1 and PMType = 'ENERGY'
-        and PMDT between @from and @to
-        GROUP BY 
-            DATEPART(YEAR, PMDT),
-            DATEPART(MONTH, PMDT),
-            DATEPART(DAY, PMDT),
-            DATEPART(HOUR, PMDT)
-    ),
-    EnergyData AS (
-        SELECT 
-            h.Year, h.Month, h.Day, 
-            CASE 
-                WHEN LEN(concat('0',h.Hour)) = 3 THEN SUBSTRING(concat('0',h.Hour), 2, 2) + ':00'
-                ELSE concat('0',h.Hour) + ':00'
-            END AS hour,
-            e1.PMValue AS StartEnergy,
-            e2.PMValue AS EndEnergy,
-            e2.PMValue - e1.PMValue AS consumption,
-            e1.MchID
-        FROM HourlyReadings h
-        JOIN eEnergy.dbo.PowerMeter e1 ON e1.PMDT = h.EarliestPMDT
-        JOIN eEnergy.dbo.PowerMeter e2 ON e2.PMDT = h.LatestPMDT
-    )
-    SELECT * FROM EnergyData
-    ORDER BY Year DESC, Month DESC, Day DESC, Hour DESC;
+    
+        WITH HourlyReadings AS (
+            SELECT 
+                DATEPART(YEAR, PMDT) AS Year,
+                DATEPART(MONTH, PMDT) AS Month,
+                DATEPART(DAY, PMDT) AS Day,
+                DATEPART(HOUR, PMDT) AS Hour,
+                MIN(PMDT) AS EarliestPMDT,
+                LEAD(MIN(PMDT)) OVER (PARTITION BY DATEPART(YEAR, PMDT), DATEPART(MONTH, PMDT), DATEPART(DAY, PMDT) ORDER BY DATEPART(HOUR, PMDT)) AS LatestPMDT
+            FROM eEnergy.dbo.PowerMeter
+            WHERE 
+                TrxType = 'Automatic' AND MchID = @machine_name
+                AND active = 1 AND PMType = 'ENERGY'
+                AND PMDT BETWEEN @from AND @to
+            GROUP BY 
+                DATEPART(YEAR, PMDT),
+                DATEPART(MONTH, PMDT),
+                DATEPART(DAY, PMDT),
+                DATEPART(HOUR, PMDT)
+        )
+        ,EnergyData AS (
+            SELECT 
+                h.Year, h.Month, h.Day, 
+                FORMAT(DATEADD(HOUR, h.Hour, '1900-01-01'), 'HH:00') AS Hour,
+                e1.PMValue AS StartEnergy,
+                e2.PMValue AS EndEnergy,
+                e2.PMValue - e1.PMValue AS Consumption,
+                e1.MchID
+            FROM HourlyReadings h
+            JOIN eEnergy.dbo.PowerMeter e1 ON e1.PMDT = h.EarliestPMDT AND e1.MchID = @machine_name
+            JOIN eEnergy.dbo.PowerMeter e2 ON e2.PMDT = h.LatestPMDT AND e2.MchID = @machine_name
+            WHERE h.LatestPMDT IS NOT NULL  -- Avoid NULL joins for the last hour
+        )
+        SELECT * FROM EnergyData 
+        ORDER BY Year DESC, Month DESC, Day DESC, Hour DESC;
+
       `
       return await queryDatabase(sqlQuery, { machine_name, date });
     }
@@ -868,6 +868,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
         SET @from =DATEADD(HOUR, 0,cast(CAST(GETDATE() AS date)as datetime)) ; 
         SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)));; -- Goes into the next day
 
+    
     WITH HourlyReadings AS (
         SELECT 
             DATEPART(YEAR, PMDT) AS Year,
@@ -875,34 +876,34 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             DATEPART(DAY, PMDT) AS Day,
             DATEPART(HOUR, PMDT) AS Hour,
             MIN(PMDT) AS EarliestPMDT,
-            MAX(PMDT) AS LatestPMDT
+            LEAD(MIN(PMDT)) OVER (PARTITION BY DATEPART(YEAR, PMDT), DATEPART(MONTH, PMDT), DATEPART(DAY, PMDT) ORDER BY DATEPART(HOUR, PMDT)) AS LatestPMDT
         FROM eEnergy.dbo.PowerMeter
         WHERE 
-        TrxType = 'Automatic' AND MchID = @machine_name
-        and active = 1 and PMType = 'ENERGY'
-        and PMDT between @from and @to
+            TrxType = 'Automatic' AND MchID = @machine_name
+            AND active = 1 AND PMType = 'ENERGY'
+            AND PMDT BETWEEN @from AND @to
         GROUP BY 
             DATEPART(YEAR, PMDT),
             DATEPART(MONTH, PMDT),
             DATEPART(DAY, PMDT),
             DATEPART(HOUR, PMDT)
-    ),
-    EnergyData AS (
+    )
+    ,EnergyData AS (
         SELECT 
-            h.Year, h.Month, h.Day, CASE 
-                WHEN LEN(concat('0',h.Hour)) = 3 THEN SUBSTRING(concat('0',h.Hour), 2, 2) + ':00'
-                ELSE concat('0',h.Hour) + ':00'
-            END AS hour,
+            h.Year, h.Month, h.Day, 
+            FORMAT(DATEADD(HOUR, h.Hour, '1900-01-01'), 'HH:00') AS Hour,
             e1.PMValue AS StartEnergy,
             e2.PMValue AS EndEnergy,
-            e2.PMValue - e1.PMValue as consumption,
+            e2.PMValue - e1.PMValue AS Consumption,
             e1.MchID
         FROM HourlyReadings h
-        JOIN eEnergy.dbo.PowerMeter e1 ON e1.PMDT = h.EarliestPMDT and e1.MchID = @machine_name
-        JOIN eEnergy.dbo.PowerMeter e2 ON e2.PMDT = h.LatestPMDT and e2.MchID = @machine_name
+        JOIN eEnergy.dbo.PowerMeter e1 ON e1.PMDT = h.EarliestPMDT AND e1.MchID = @machine_name
+        JOIN eEnergy.dbo.PowerMeter e2 ON e2.PMDT = h.LatestPMDT AND e2.MchID = @machine_name
+        WHERE h.LatestPMDT IS NOT NULL  -- Avoid NULL joins for the last hour
     )
     SELECT * FROM EnergyData 
     ORDER BY Year DESC, Month DESC, Day DESC, Hour DESC;
+
       `;
       return await queryDatabase(sqlQuery, { machine_name });
     }
