@@ -16,9 +16,14 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-export const metadata: Metadata = {
-  title: "Andon Admin UI",
-  description: "Build by Dzulfikar",
+export const metadata = {
+  title: "IoT App",
+  description: "IoT App",
+  icons: {
+    icon: "/admin/favicon.png",
+    apple: "/admin/apple-touch-icon.png",
+    other: "/admin/android-chrome-192x192.png",
+  },
 };
 
 export default function RootLayout({

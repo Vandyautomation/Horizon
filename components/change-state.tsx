@@ -124,7 +124,7 @@ export default function ChangeState({ data }: ChangeStateProps) {
   return (
     <div className="w-full max-w-6xl mx-auto p-6">
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Change State</h2>
+        <h2 className="text-sm font-semibold">Change State</h2>
 
         <div className="relative">
           <div className="h-8 flex">{segments}</div>

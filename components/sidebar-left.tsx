@@ -10,6 +10,8 @@ import { DropdownMenuShortcut } from "@/components/ui/dropdown-menu";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import Image from "next/image"
+
 
 
 
@@ -518,7 +520,7 @@ export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) 
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton className="w-fit px-1.5">
                     <div className="flex aspect-square size-5 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                      <activeTeam.logo className="size-3" />
+                    <Image src="/admin/android-chrome-192x192.png" alt="IoT App" width={24} height={24} />
                     </div>
                     <span className="truncate font-semibold">{activeTeam.name}</span>
                     <ChevronDown className="opacity-100" />
@@ -540,7 +542,8 @@ export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) 
                       className="gap-2 p-2"
                     >
                       <div className="flex size-6 items-center justify-center rounded-sm border">
-                        <team.logo className="size-4 shrink-0" />
+                        <Image src="/admin/android-chrome-192x192.png" alt={team.name} width={24} height={24} />
+                        {/* <team.logo className="size-4 shrink-0" /> */}
                       </div>
                       {team.name}
                       <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
