@@ -154,21 +154,20 @@ export default function CountboardDashboard() {
     const refreshAtShiftChange = () => {
       const now = new Date();
       const hour = now.getHours();
+      const lastRefreshedHour = localStorage.getItem("lastRefreshedHour");
 
-      if (hour === 6 || hour === 14 || hour === 22 ) {
-        toast.success("Refreshing ...", { duration: 1000 });
-        router.refresh();
+      if ((hour === 6 || hour === 16 || hour === 22) && lastRefreshedHour != hour.toString()) {
+        localStorage.setItem("lastRefreshedHour", hour.toString());
+        toast.success("Auto Refreshing every shift ...", { duration: 1000 });
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
       }
     };
 
-    // Run immediately
     refreshAtShiftChange();
-
-    // Check every minute
-    const interval = setInterval(refreshAtShiftChange, 600 * 1000);
-
-    return () => clearInterval(interval);
   }, [router]);
+
 
   const [shiftStartHour, setShiftStartHour] = useState(0);
   useEffect(() => {
