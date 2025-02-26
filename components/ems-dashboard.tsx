@@ -643,14 +643,17 @@ export default function EmsDashboard() {
       height={200}
       className="rounded-lg"
       />
-          <Label className="flex flex-col text-4xl text-primary font-bold">
-          <div className="flex flex-row text-center align-center items-center">
-            <p className=" text-base p-4">Total Consumption</p> {(totalEnergy).toFixed(2)} <p className="text-base p-4">kWh</p>
-          </div>
-          <div className="flex flex-row text-center align-center items-center">
-            <p className="flex flex-row text-base p-4">Cycle Time</p> {(additionalData?.[0].actual_ct || 0).toFixed(2)} <p className="text-base p-4">s/cycle</p>
-          </div>
-          </Label>
+      { additionalData && additionalData.length && (
+        <Label className="flex flex-col text-4xl text-primary font-bold">
+        <div className="flex flex-row text-center align-center items-center">
+          <p className=" text-base p-4">Total Consumption</p> {(totalEnergy).toFixed(2)} <p className="text-base p-4">kWh</p>
+        </div>
+        <div className="flex flex-row text-center align-center items-center">
+          <p className="flex flex-row text-base p-4">Cycle Time</p> {(additionalData?.[0].actual_ct || 0).toFixed(2)} <p className="text-base p-4">s/cycle</p>
+        </div>
+        </Label>
+      )}
+          
       </div>
 
     <div className="grid grid-cols-4 pt-2 gap-2">
@@ -690,7 +693,7 @@ export default function EmsDashboard() {
       <CardHeader className="font-bold text-center py-2">OEE</CardHeader>
       <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
         <Label className="flex text-center align-center items-baseline text-3xl text-primary font-bold">
-          {((additionalData?.[0].oee || 0) * 100).toFixed(2)} <p className="text-base p-4">%</p>
+          { additionalData && additionalData.length ?  ((additionalData?.[0].oee || 0) * 100).toFixed(2) : (0).toFixed(2)} <p className="text-base p-4">%</p>
         </Label>
         </CardContent>
     </Card>

@@ -1078,7 +1078,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
         CROSS JOIN TimeCalculations
         WHERE t.ID = (select top 1 task_id from IoT.dbo.hourly h 
             where from_datetime between @from and @to 
-            and h.MchID = @machine_name)
+            and h.machine_id = @machine_name)
                 AND m.MchID = @machine_name
                 
         ORDER BY created_at DESC;
