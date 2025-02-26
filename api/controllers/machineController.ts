@@ -843,10 +843,10 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
         ,EnergyData AS (
             SELECT 
                 h.Year, h.Month, h.Day, 
-                FORMAT(DATEADD(HOUR, h.Hour, '1900-01-01'), 'HH:00') AS Hour,
+                FORMAT(DATEADD(HOUR, h.Hour, '1900-01-01'), 'HH:00') AS hour,
                 e1.PMValue AS StartEnergy,
                 e2.PMValue AS EndEnergy,
-                e2.PMValue - e1.PMValue AS Consumption,
+                e2.PMValue - e1.PMValue AS consumption,
                 e1.MchID
             FROM HourlyReadings h
             JOIN eEnergy.dbo.PowerMeter e1 ON e1.PMDT = h.EarliestPMDT AND e1.MchID = @machine_name
@@ -891,10 +891,10 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
     ,EnergyData AS (
         SELECT 
             h.Year, h.Month, h.Day, 
-            FORMAT(DATEADD(HOUR, h.Hour, '1900-01-01'), 'HH:00') AS Hour,
+            FORMAT(DATEADD(HOUR, h.Hour, '1900-01-01'), 'HH:00') AS hour,
             e1.PMValue AS StartEnergy,
             e2.PMValue AS EndEnergy,
-            e2.PMValue - e1.PMValue AS Consumption,
+            e2.PMValue - e1.PMValue AS consumption,
             e1.MchID
         FROM HourlyReadings h
         JOIN eEnergy.dbo.PowerMeter e1 ON e1.PMDT = h.EarliestPMDT AND e1.MchID = @machine_name
