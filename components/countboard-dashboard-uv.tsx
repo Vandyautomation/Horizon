@@ -1256,12 +1256,12 @@ export default function CountboardDashboardUv() {
         </div> */}
         <div className="w-full border border-gray-250 rounded-md">
         {selectedMachine?.machineName && stateData?.length ? (
-          <ChangeState data={stateData} />
-        // <iframe
-        //   src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
-        //   width="100%" 
-        //   height="150"
-        // ></iframe>
+          // <ChangeState data={stateData} />
+        <iframe
+          src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
+          width="100%" 
+          height="150"
+        ></iframe>
         ) : (
           <></>
         )}
