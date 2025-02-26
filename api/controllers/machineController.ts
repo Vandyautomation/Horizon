@@ -36,7 +36,7 @@ export async function getChangeState(machine_name: string, date: string | null, 
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name
         and Dateadd(hour,-7,StatusDate) < @from  and Active = 1
-        order by StatusDate DESC
+        order by AdjustedStatusDate DESC
         `;
         return await queryDatabase(sqlQuery, {machine_name, date, shift});
     } else {
@@ -77,7 +77,7 @@ export async function getChangeState(machine_name: string, date: string | null, 
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name
         and Dateadd(hour,-7,StatusDate) < @from  and Active = 1
-        order by StatusDate DESC
+        order by AdjustedStatusDate DESC
         `;
         return await queryDatabase(sqlQuery, {machine_name});
 

@@ -137,7 +137,7 @@ export default function ChangeState({ data }: ChangeStateProps) {
         <h2 className="text-sm font-semibold">Change State</h2>
 
         <div className="relative">
-          <div className="h-8 flex">{segments}</div>
+          <div className="h-16 flex">{segments}</div>
 
           {tooltip && (
             <div
