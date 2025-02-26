@@ -24,10 +24,10 @@ export async function getChangeState(machine_name: string, date: string | null, 
             SET @to = DATEADD(HOUR, 6, CAST(@date AS DATETIME));
         END  
     
-        SELECT ID, StatusDate as AdjustedStatusDate, StatusLight as Color
+        SELECT ID, Dateadd(hour,-7,StatusDate) as AdjustedStatusDate, StatusLight as Color
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name  and Active = 1
-        and StatusDate between @from and @to
+        and Dateadd(hour,-7,StatusDate) between @from and @to
   
 
         UNION ALL
@@ -35,7 +35,7 @@ export async function getChangeState(machine_name: string, date: string | null, 
         SELECT TOP 1 ID, @from as AdjustedStatusDate, StatusLight as Color
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name
-        and StatusDate < @from  and Active = 1
+        and Dateadd(hour,-7,StatusDate) < @from  and Active = 1
         order by StatusDate DESC
         `;
         return await queryDatabase(sqlQuery, {machine_name, date, shift});
@@ -65,10 +65,10 @@ export async function getChangeState(machine_name: string, date: string | null, 
         END
     
 
-        SELECT ID, StatusDate as AdjustedStatusDate, StatusLight as Color
+        SELECT ID, Dateadd(hour,-7,StatusDate) as AdjustedStatusDate, StatusLight as Color
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name and Active = 1
-        and StatusDate between @from and @to
+        and Dateadd(hour,-7,StatusDate) between @from and @to
   
 
         UNION ALL
@@ -76,7 +76,7 @@ export async function getChangeState(machine_name: string, date: string | null, 
         SELECT TOP 1 ID, @from as AdjustedStatusDate, StatusLight as Color
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name
-        and StatusDate < @from  and Active = 1
+        and Dateadd(hour,-7,StatusDate) < @from  and Active = 1
         order by StatusDate DESC
         `;
         return await queryDatabase(sqlQuery, {machine_name});
