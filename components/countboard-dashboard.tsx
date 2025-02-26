@@ -987,7 +987,7 @@ const refetchStateData = () => mutate(stateDataKey);
         {/* <div className="flex gap-2">
           
         </div> */}
-        <div>
+      <div className="w-full border border-gray-250 rounded-xl shadow-md">
         {selectedMachine?.machineName && stateData?.length ? (
           <ChangeState data={stateData} />
         ) : (

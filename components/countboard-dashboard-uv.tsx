@@ -1256,7 +1256,7 @@ export default function CountboardDashboardUv() {
         {/* <div className="flex gap-2">
           
         </div> */}
-        <div>
+        <div className="w-full border border-gray-250 rounded-md">
         {selectedMachine?.machineName && stateData?.length ? (
           <ChangeState data={stateData} />
         // <iframe

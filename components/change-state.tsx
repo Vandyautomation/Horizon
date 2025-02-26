@@ -28,9 +28,19 @@ export default function ChangeState({ data }: ChangeStateProps) {
   const sortedData = [...data].sort(
     (a, b) => new Date(a.AdjustedStatusDate).getTime() - new Date(b.AdjustedStatusDate).getTime()
   )
+  const calculateShiftStartTime = (date: Date) => {
+    const hour = date.getHours();
+    if (hour >= 6 && hour < 14) {
+      return new Date(date.setHours(6, 0, 0, 0));
+    } else if (hour >= 14 && hour < 22) {
+      return new Date(date.setHours(14, 0, 0, 0));
+    } else {
+      return new Date(date.setHours(22, 0, 0, 0));
+    }
+  };
 
-  const startTime = new Date(sortedData[0].AdjustedStatusDate)
-  const endTime = new Date(sortedData[sortedData.length - 1].AdjustedStatusDate)
+  const startTime = calculateShiftStartTime(new Date(sortedData[0].AdjustedStatusDate));
+  const endTime = calculateShiftStartTime(new Date(sortedData[sortedData.length - 1].AdjustedStatusDate));
   const totalDuration = endTime.getTime() - startTime.getTime()
 
   const getColorClass = (color: string) => {
@@ -67,7 +77,7 @@ export default function ChangeState({ data }: ChangeStateProps) {
       case "BLUE":
         return "text-blue-500"
       case "WHITE":
-        return "text-white"
+        return "text-primary"
       case "RED":
         return "text-red-500"
       default:
@@ -122,7 +132,7 @@ export default function ChangeState({ data }: ChangeStateProps) {
   })
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-6">
+    <div className="w-full mx-auto py-6 px-4">
       <div className="space-y-4">
         <h2 className="text-sm font-semibold">Change State</h2>
 
