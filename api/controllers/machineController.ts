@@ -66,7 +66,7 @@ export async function getChangeState(machine_name: string, date: string | null, 
 
         SELECT ID, StatusDate as AdjustedStatusDate, StatusLight as Color
         from IoT.dbo.MchStatusTRX with (nolock)
-        Where MchID = @machine_name
+        Where MchID = @machine_name and Active = 1
         and StatusDate between @from and @to
   
 
@@ -75,7 +75,7 @@ export async function getChangeState(machine_name: string, date: string | null, 
         SELECT TOP 1 ID, @from as AdjustedStatusDate, StatusLight as Color
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name
-        and StatusDate < @from 
+        and StatusDate < @from  and Active = 1
         order by StatusDate DESC
         `;
         return await queryDatabase(sqlQuery, {machine_name, date, shift});
