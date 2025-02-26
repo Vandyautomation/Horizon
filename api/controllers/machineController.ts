@@ -43,6 +43,7 @@ export async function getChangeState(machine_name: string, date: string | null, 
         const sqlQuery = `
         DECLARE @from DATETIME;
         DECLARE @to DATETIME;
+        DECLARE @shift int;
     
         set @shift = case when DATEPART(HOUR, GETDATE()) between 5 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
 
@@ -78,7 +79,7 @@ export async function getChangeState(machine_name: string, date: string | null, 
         and StatusDate < @from  and Active = 1
         order by StatusDate DESC
         `;
-        return await queryDatabase(sqlQuery, {machine_name, date, shift});
+        return await queryDatabase(sqlQuery, {machine_name});
 
     }
     
