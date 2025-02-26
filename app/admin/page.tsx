@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Calculator, Database, Lightbulb, SprayCan, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react"
+import Image  from "next/image"
 
 
 export default function AdminUI() {
@@ -27,7 +28,7 @@ export default function AdminUI() {
     <div>
     <h2 className="text-2xl font-bold tracking-tight">Welcome {user}!</h2>
     <h3>Which menu do you want to go? <em>{user ? null : '(login to get more access)'}</em></h3>
-    <div className="grid grid-cols-5 py-4 gap-4">
+    <div className="grid grid-cols-7 py-4 gap-4">
     <Card className="flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer" onClick={() => {router.push("/countboard")}}>
         <CardContent
             className="text-center pt-6"
@@ -58,6 +59,20 @@ export default function AdminUI() {
         >
             <Label style={{   cursor:"pointer", fontFamily:"sans-serif", fontWeight:"bold"}}
             className="flex items-center justify-center gap-4"><Lightbulb/>Andon</Label>
+        </CardContent>
+    </Card>
+    <Card className="flex items-center justify-center  hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer" onClick={() => window.open("http://dmksrv02:3000", "_blank")}>
+        <CardContent
+            className="text-center pt-4 pb-4">
+                <div>
+            <Image
+                src="/admin/logo-grafana-new2.png"
+                alt="grafana"
+                width={100}
+                height={50}
+                className="flex items-center justify-center"
+            />
+            </div>
         </CardContent>
     </Card>
     {!user ? null :  <Card className="flex items-center justify-center  hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer" onClick={() => {router.push("/master-data")}}>
