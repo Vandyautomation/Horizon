@@ -326,8 +326,8 @@ export default function EmsDashboard() {
 
 
   if (queryMachineNumber == '') {
-    queryMachineNumber = '5';
-    params.set('machineNumber', '5');
+    queryMachineNumber = '3';
+    params.set('machineNumber', '3');
     router.push(`${pathname}?${params.toString()}`);
   }
 
