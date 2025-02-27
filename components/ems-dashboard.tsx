@@ -39,7 +39,7 @@ import { format } from "date-fns/format"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { cn } from "@/lib/utils"
 import { Switch } from "./ui/switch"
-import { ResponsiveContainer, XAxis, YAxis, BarChart, Bar } from "recharts"
+import { ResponsiveContainer, XAxis, YAxis, BarChart, Bar, ReferenceLine, Cell } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart"
 import Image from "next/image"
 
@@ -533,7 +533,7 @@ export default function EmsDashboard() {
         <div className="px-3 py-2 border border-gray-250 shadow-sm rounded-xl">
         <div className="flex pb-4 gap-4 justify-between items-center align-top ">
         <div>
-          <Label className="w-20">Status Machine {additionalData?.[0]?.statusLight && <div className={`h-2 w-28 rounded-full ${bgColorMap(additionalData?.[0]?.statusLight?.toLowerCase() || "grey")} mt-1`}></div>} 
+          <Label className="w-20">Machine Status {additionalData?.[0]?.statusLight && <div className={`h-2 w-28 rounded-full ${bgColorMap(additionalData?.[0]?.statusLight?.toLowerCase() || "grey")} mt-1`}></div>} 
           </Label>
           <div className="h-40"></div>
           </div>
@@ -671,12 +671,35 @@ export default function EmsDashboard() {
                 axisLine={true}
                 tick={{ fontSize: 14 }}
                 tickFormatter={(value) => `${value} kWh`}
-                domain={[0, (additionalData?.[0]?.budgetEnergyPerJam || 11000) * 1]}
+                domain={[0, (additionalData?.[0]?.budgetEnergyPerJam || 0) * 1]}
+              />
+              <ReferenceLine 
+                y={(additionalData?.[0]?.budgetEnergyPerJam || 11300)/1000} 
+                stroke="red" 
+                strokeDasharray="5 5" 
+                label={{
+                  value: "Threshold",
+                  position: "right",
+                  fill: "red",
+                  fontSize: 14,
+                }}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="consumption" fill="var(--color-consumption)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="consumption"  radius={[4, 4, 0, 0]}>
+              {energyData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={
+                    entry.consumption > (additionalData?.[0]?.budgetEnergyPerJam || 11300/1000) 
+                      ? "red"  // 🔴 Change to red if exceeding threshold
+                      : "var(--color-consumption)" // Default color
+                  }
+                />
+              ))}
+                </Bar>
             </BarChart>
           </ResponsiveContainer>
+
         </ChartContainer>
       </CardContent>
     </Card>
