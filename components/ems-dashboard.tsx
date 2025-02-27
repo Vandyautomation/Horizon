@@ -716,9 +716,9 @@ export default function EmsDashboard() {
             <Table>
               <TableHeader>
                 <TableRow className="h-2 p-0">
-                  <TableCell className="w-10  text-sm text-center">Time</TableCell>
+                  <TableCell className="w-10  text-center">Time</TableCell>
                   {[...Array(24)].map((_, hour) => (
-                    <TableCell className="w-10 h-2 text-xs" key={hour}>{`${hour < 10 ? '0' : ''}${hour}`}:00</TableCell>
+                    <TableCell className="w-10 h-2 " key={hour}>{`${hour < 10 ? '0' : ''}${hour}`}:00</TableCell>
                   ))}
                 </TableRow>
               </TableHeader>
