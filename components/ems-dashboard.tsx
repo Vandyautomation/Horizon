@@ -533,10 +533,10 @@ export default function EmsDashboard() {
         <div className="px-3 py-2 border border-gray-250 shadow-sm rounded-xl">
         <div className="flex pb-4 gap-4 justify-between items-center align-top ">
         <div>
-          <Label className="w-20">Machine Status {additionalData?.[0]?.statusLight && <div className={`h-2 w-28 rounded-full ${bgColorMap(additionalData?.[0]?.statusLight?.toLowerCase() || "grey")} mt-1`}></div>} 
+          <Label className="w-20 pl-2">Machine Status {additionalData?.[0]?.statusLight && <div className={`h-8 w-28 rounded-full ${bgColorMap(additionalData?.[0]?.statusLight?.toLowerCase() || "grey")} mt-1`}></div>} 
           </Label>
-          <div className="h-40"></div>
-          </div>
+          <div className="h-24"></div>
+        </div>
         <Image
           src='/admin/injection-new.png'
           alt="injection"
@@ -571,57 +571,57 @@ export default function EmsDashboard() {
 
         <div className="grid grid-cols-4 gap-2 w-full">
         <Card id="total-loss" className="col-span-2">
-          <CardHeader className="font-bold text-center py-2">Total Loss</CardHeader>
+          <CardHeader className="font-bold text-center text-xl py-2">Total Loss</CardHeader>
           <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
-            <Label className="flex text-center align-center items-baseline text-3xl text-red-500 font-bold">
+            <Label className="flex text-center align-center items-baseline text-6xl text-red-500 font-bold">
               {(totalLoss).toFixed(2)} <p className="text-base p-4">kWh</p>
             </Label>
             </CardContent>
         </Card>
           <Card id="orange">
-            <CardHeader className="font-bold p-2">Breakdown</CardHeader>
-            <CardContent className="text-center p-x-2 py-0">
-              <Label className="flex items-baseline text-3xl text-orange-500 font-bold">
+            <CardHeader className="font-bold text-lg p-2">Breakdown</CardHeader>
+            <CardContent className="text-center p-x-2 pb-0 pt-3">
+              <Label className="flex items-baseline text-5xl text-orange-500 font-bold">
                 {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
               </Label>
               </CardContent>
           </Card>
           <Card id="purple">
-            <CardHeader className="font-bold p-2">Org. Disfunction</CardHeader>
-            <CardContent className="text-center p-x-2 py-0">
-              <Label className="flex items-baseline text-3xl text-purple-500 font-bold">
+            <CardHeader className="font-bold text-lg p-2">Org. Disfunction</CardHeader>
+            <CardContent className="text-center p-x-2  pb-0 pt-3">
+              <Label className="flex items-baseline text-5xl text-purple-500 font-bold">
                 {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
               </Label>
               </CardContent>
           </Card>
           <Card id="yellow">
-            <CardHeader className="font-bold p-2">Micro stop</CardHeader>
+            <CardHeader className="font-bold text-lg p-2">Micro stop</CardHeader>
             <CardContent className="text-center p-x-2 py-0">
-              <Label className="flex items-baseline text-3xl text-yellow-500 font-bold">
+              <Label className="flex items-baseline text-5xl text-yellow-500 font-bold">
                 {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
               </Label>
               </CardContent>
           </Card>
           <Card id="blue">
-            <CardHeader className="font-bold p-2">Changeover</CardHeader>
-            <CardContent className="text-center p-x-2 py-0">
-              <Label className="flex items-baseline text-3xl text-blue-500 font-bold">
+            <CardHeader className="font-bold text-lg p-2">Changeover</CardHeader>
+            <CardContent className="text-center  p-x-2 py-0">
+              <Label className="flex items-baseline text-5xl text-blue-500 font-bold">
                 {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
               </Label>
               </CardContent>
           </Card>
           <Card id="white">
-            <CardHeader className="font-bold p-2">Planned Stoppage</CardHeader>
+            <CardHeader className="font-bold text-lg p-2">Planned Stoppage</CardHeader>
             <CardContent className="text-center p-x-2 py-0">
-              <Label className="flex items-baseline text-3xl text-gray-500 font-bold">
+              <Label className="flex items-baseline text-5xl text-gray-500 font-bold">
                 {(energyWhite?.TotalEnergyUsed|| 0).toFixed(2)} <p className="text-base p-4">kWh</p>
               </Label>
               </CardContent>
           </Card>
           <Card id="red">
-            <CardHeader className="font-bold p-2">Non Quality</CardHeader>
+            <CardHeader className="font-bold text-lg p-2">Non Quality</CardHeader>
             <CardContent className="text-center p-x-2 py-0">
-              <Label className="flex items-baseline text-3xl text-red-500 font-bold">
+              <Label className="flex items-baseline text-5xl text-red-500 font-bold">
                 {(energyRed?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
               </Label>
               </CardContent>
@@ -671,7 +671,7 @@ export default function EmsDashboard() {
                 axisLine={true}
                 tick={{ fontSize: 14 }}
                 tickFormatter={(value) => `${value} kWh`}
-                domain={[0, (additionalData?.[0]?.budgetEnergyPerJam || 0) * 1.2]}
+                domain={[0, (additionalData?.[0]?.budgetEnergyPerJam || 11300/1000) * 1.2]}
               />
               <ReferenceLine 
                 y={(additionalData?.[0]?.budgetEnergyPerJam || 11300)/1000} 
