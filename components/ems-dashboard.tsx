@@ -160,7 +160,7 @@ export default function EmsDashboard() {
     refreshInterval: Number(selectedRefreshRate),
   });
 
-  const processedNoeeData = noeeData?.map(nooe => ({
+  const processedNoeeData = Array.isArray(noeeData) ? noeeData.map(nooe => ({
     ...nooe,
     blue: nooe.blue ? true : false,
     orange: nooe.orange ? true : false,
@@ -170,7 +170,7 @@ export default function EmsDashboard() {
     white: nooe.white ? true : false,
     red: nooe.red ? true : false,
     green: nooe.green ? true : false,
-  }));
+  })): [];
 
   const refetchNoeeData = () => mutate(noeeDataKey);
   const energyDataKey = selectedMachine?.machineName
