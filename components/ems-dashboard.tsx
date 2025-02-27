@@ -671,7 +671,7 @@ export default function EmsDashboard() {
                 axisLine={true}
                 tick={{ fontSize: 14 }}
                 tickFormatter={(value) => `${value} kWh`}
-                domain={[0, (additionalData?.[0]?.budgetEnergyPerJam || 0) * 1]}
+                domain={[0, (additionalData?.[0]?.budgetEnergyPerJam || 0) * 1.2]}
               />
               <ReferenceLine 
                 y={(additionalData?.[0]?.budgetEnergyPerJam || 11300)/1000} 
