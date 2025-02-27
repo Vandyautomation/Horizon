@@ -71,8 +71,17 @@ type NooeData = {
 };
 
 type AdditionalData = {
-  actual_ct: number;
   oee: number;
+  statusLight: string;
+  budgetEnergyPerJam: number;
+  budgetEnergyPerHari: number;
+  isMtctActive: boolean;
+  isConveyorActive: boolean;
+  isCrusherActive: boolean;
+  isDryerHopperActive: boolean;
+  isMBFeederActive: boolean;
+  isChillerActive: boolean;
+  isCorepullActive: boolean;
 };
 
 type EnergyData = {
@@ -399,14 +408,17 @@ export default function EmsDashboard() {
     green: 'bg-green-500'
   };
 
-
+  const bgColorMap = (color: string) => {
+    const colorKey = color.toLowerCase() as keyof typeof colorMap;
+    return colorMap[colorKey] || 'bg-gray-500';
+  };
 
 
 
 
 
   return (
-    <div className="p-0 space-y-2 max-w-[1800px] overflow-x-hidden">
+    <div className="p-0 space-y-2 w-full  overflow-x-hidden">
       <div className="flex flex-wrap gap-2 pt-0">
         {isLoading ? (
           <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
@@ -515,15 +527,116 @@ export default function EmsDashboard() {
       <></>
       )} 
       {/* Energy Chart */}
-      <div className="w-auto grid grid-cols-2 gap-2 mb-0 pb-0">
-      <div className="w-full overflow-x-auto gap-2 border-r-2 rounded-r-xl">  
+      <div className="w-full grid grid-cols-1 gap-2 mb-0 pb-0">
+      <div className="w-full">
+      <div className="w-full overflow-x-auto flex gap-2">
+        <div className="px-3 py-2 border border-gray-250 shadow-sm rounded-xl">
+        <div className="flex pb-4 gap-4 justify-between items-center align-top ">
+        <div>
+          <Label className="w-20">Status Machine {additionalData?.[0]?.statusLight && <div className={`h-2 w-28 rounded-full ${bgColorMap(additionalData?.[0]?.statusLight?.toLowerCase() || "grey")} mt-1`}></div>} 
+          </Label>
+          <div className="h-40"></div>
+          </div>
+        <Image
+          src='/admin/injection-new.png'
+          alt="injection"
+          width={200}
+          height={200}
+          className="rounded-lg"
+          />
+          { additionalData && additionalData.length && (
+            <Label className="flex flex-col text-3xl text-primary font-bold ">
+            <div className="flex flex-row text-center align-center items-center">
+              <p className=" text-base p-4">Plan Energy</p> {(additionalData?.[0]?.budgetEnergyPerHari || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
+            </div>
+            <div className="flex flex-row text-center align-center items-center">
+              <p className=" text-base p-4">Actual Energy</p> {(totalEnergy || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
+            </div>
+            <div className="flex flex-row text-center align-center items-center">
+              <p className="flex flex-row text-base p-4">OEE</p> {((additionalData?.[0]?.oee) * 100 || 0).toFixed(2)} <p className="text-base p-4">%</p>
+            </div>
+            </Label>
+          )}
+          </div>
+            <div className="flex flex-row text-center align-center items-center gap-4 justify-between">
+              <Label className="w-20">MTC<div className="h-2 w-full rounded-full bg-green-500 mt-1"></div></Label>
+              <Label className="w-20">Crusher<div className="h-2 w-full rounded-full bg-green-500 mt-1"></div></Label>
+              <Label className="w-20">Dry Hopper<div className="h-2 w-full rounded-full bg-green-500 mt-1"></div></Label>
+              <Label className="w-20">Conveyor<div className="h-2 w-full rounded-full bg-green-500 mt-1"></div></Label>
+              <Label className="w-20">MB Feeder<div className="h-2 w-full rounded-full bg-green-500 mt-1"></div></Label>
+              <Label className="w-20">Chiller<div className="h-2 w-full rounded-full bg-green-500 mt-1"></div></Label>
+              <Label className="w-20">Corepull<div className="h-2 w-full rounded-full bg-green-500 mt-1"></div></Label>
+            </div>
+          </div>
+
+        <div className="grid grid-cols-4 gap-2 w-full">
+        <Card id="total-loss" className="col-span-2">
+          <CardHeader className="font-bold text-center py-2">Total Loss</CardHeader>
+          <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
+            <Label className="flex text-center align-center items-baseline text-3xl text-red-500 font-bold">
+              {(totalLoss).toFixed(2)} <p className="text-base p-4">kWh</p>
+            </Label>
+            </CardContent>
+        </Card>
+          <Card id="orange">
+            <CardHeader className="font-bold p-2">Breakdown</CardHeader>
+            <CardContent className="text-center p-x-2 py-0">
+              <Label className="flex items-baseline text-3xl text-orange-500 font-bold">
+                {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
+              </Label>
+              </CardContent>
+          </Card>
+          <Card id="purple">
+            <CardHeader className="font-bold p-2">Org. Disfunction</CardHeader>
+            <CardContent className="text-center p-x-2 py-0">
+              <Label className="flex items-baseline text-3xl text-purple-500 font-bold">
+                {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
+              </Label>
+              </CardContent>
+          </Card>
+          <Card id="yellow">
+            <CardHeader className="font-bold p-2">Micro stop</CardHeader>
+            <CardContent className="text-center p-x-2 py-0">
+              <Label className="flex items-baseline text-3xl text-yellow-500 font-bold">
+                {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
+              </Label>
+              </CardContent>
+          </Card>
+          <Card id="blue">
+            <CardHeader className="font-bold p-2">Changeover</CardHeader>
+            <CardContent className="text-center p-x-2 py-0">
+              <Label className="flex items-baseline text-3xl text-blue-500 font-bold">
+                {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
+              </Label>
+              </CardContent>
+          </Card>
+          <Card id="white">
+            <CardHeader className="font-bold p-2">Planned Stoppage</CardHeader>
+            <CardContent className="text-center p-x-2 py-0">
+              <Label className="flex items-baseline text-3xl text-gray-500 font-bold">
+                {(energyWhite?.TotalEnergyUsed|| 0).toFixed(2)} <p className="text-base p-4">kWh</p>
+              </Label>
+              </CardContent>
+          </Card>
+          <Card id="red">
+            <CardHeader className="font-bold p-2">Non Quality</CardHeader>
+            <CardContent className="text-center p-x-2 py-0">
+              <Label className="flex items-baseline text-3xl text-red-500 font-bold">
+                {(energyRed?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
+              </Label>
+              </CardContent>
+          </Card>
+          </div>
+          
+        </div>
+      </div>
       {Array.isArray(energyData) && energyData.length === 0 ? (
         <div className="text-center">
           No energy data available for the selected machine.
           </div>
       ) : (
         
-        <Card className="w-screen mb-2">
+        <Card className="w-full ">
       <CardHeader>
         <CardTitle>Hourly Energy Consumption</CardTitle>
       </CardHeader>
@@ -535,7 +648,7 @@ export default function EmsDashboard() {
               color: "hsl(var(--chart-3))",
             },
           }}
-          className="h-[300px] w-full"
+          className="h-[225px] w-full"
         >
           <ResponsiveContainer width="100%" height="400px">
             <BarChart
@@ -558,6 +671,7 @@ export default function EmsDashboard() {
                 axisLine={true}
                 tick={{ fontSize: 14 }}
                 tickFormatter={(value) => `${value} kWh`}
+                domain={[0, (additionalData?.[0]?.budgetEnergyPerJam || 11000) * 1]}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey="consumption" fill="var(--color-consumption)" radius={[4, 4, 0, 0]} />
@@ -571,24 +685,24 @@ export default function EmsDashboard() {
     {selectedMachine === null  || !Array.isArray(processedNoeeData) ?  (
       <div className="text-center">Please select machine (or wait a moment)...</div>
       ) : (
-      <div className="p-0 w-full space-y-4 justify-between flex flex-col">
+      <div className="p-0 w-full  justify-between flex flex-col">
       <TooltipProvider>
-      <Card className="w-screen py-0">
+      <Card className="w-full py-0">
           <CardContent className="py-0">
             <div className="w-full flex overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="h-4 p-0">
-                  <TableCell className="w-10 text-center">Time</TableCell>
+                <TableRow className="h-2 p-0">
+                  <TableCell className="w-10  text-xs text-center">Time</TableCell>
                   {[...Array(24)].map((_, hour) => (
-                    <TableCell className="w-10 h-4" key={hour}>{`${hour < 10 ? '0' : ''}${hour}`}:00</TableCell>
+                    <TableCell className="w-10 h-2 text-xs" key={hour}>{`${hour < 10 ? '0' : ''}${hour}`}:00</TableCell>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {fiveMinutes.map((nooe, rowIndex) => (
-                  <TableRow key={rowIndex} className="h-4 p-0" >
-                    <TableCell className="h-4 w-8 text-center p-0" >{nooe.time}</TableCell>
+                  <TableRow key={rowIndex} className="h-2 p-0" >
+                    <TableCell className="h-2 text-xs w-8 text-center p-0" >{nooe.time}</TableCell>
                     {[...Array(24)].map((_, hour) => {
                         
                         const date = new Date();
@@ -614,9 +728,9 @@ export default function EmsDashboard() {
                         // console.log(`nooeForHour ${nooeForHour}`)
                         // console.log(`activeColor ${activeColor}`)                        
                       return (
-                        <TableCell key={hour} className="w-8 h-8 p-0 pl-2  text-center items-center justify-center">
+                        <TableCell key={hour} className="w-8 h-2 p-0 pl-2  text-center items-center justify-center">
                           <div
-                            className={`w-10 h-8 items-center justify-center p-0 m-0 ${
+                            className={`w-10 h-2 items-center justify-center p-0 m-0 ${
                               activeColor ? colorMap[activeColor as keyof typeof colorMap] : 'bg-transparent'
                             }`}
                           />
@@ -632,145 +746,6 @@ export default function EmsDashboard() {
         </Card>
         </TooltipProvider>
       </div>)}
-  </div>
-  <div>
-  <div className="w-full overflow-x-auto ">
-    <div className="flex pb-4 gap-4 justify-center items-center px-3 py-2 border border-gray-250 shadow-sm rounded-xl">
-    <Image
-      src='/admin/injection-new.png'
-      alt="injection"
-      width={200}
-      height={200}
-      className="rounded-lg"
-      />
-      { additionalData && additionalData.length && (
-        <Label className="flex flex-col text-4xl text-primary font-bold">
-        <div className="flex flex-row text-center align-center items-center">
-          <p className=" text-base p-4">Total Consumption</p> {(totalEnergy).toFixed(2)} <p className="text-base p-4">kWh</p>
-        </div>
-        <div className="flex flex-row text-center align-center items-center">
-          <p className="flex flex-row text-base p-4">Cycle Time</p> {(additionalData?.[0].actual_ct || 0).toFixed(2)} <p className="text-base p-4">s/cycle</p>
-        </div>
-        </Label>
-      )}
-          
-      </div>
-
-    <div className="grid grid-cols-4 pt-2 gap-2">
-    <Card id="total-loss">
-      <CardHeader className="font-bold text-center py-2">Total Loss</CardHeader>
-      <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
-        <Label className="flex text-center align-center items-baseline text-3xl text-red-500 font-bold">
-          {(totalLoss).toFixed(2)} <p className="text-base p-4">kWh</p>
-        </Label>
-        </CardContent>
-    </Card>
-      <Card id="orange">
-        <CardHeader className="font-bold p-2">Breakdown</CardHeader>
-        <CardContent className="text-center p-x-2 py-0">
-          <Label className="flex items-baseline text-3xl text-orange-500 font-bold">
-            {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
-          </Label>
-          </CardContent>
-      </Card>
-      <Card id="purple">
-        <CardHeader className="font-bold p-2">Org. Disfunction</CardHeader>
-        <CardContent className="text-center p-x-2 py-0">
-          <Label className="flex items-baseline text-3xl text-purple-500 font-bold">
-            {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
-          </Label>
-          </CardContent>
-      </Card>
-      <Card id="yellow">
-        <CardHeader className="font-bold p-2">Micro stop</CardHeader>
-        <CardContent className="text-center p-x-2 py-0">
-          <Label className="flex items-baseline text-3xl text-yellow-500 font-bold">
-            {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
-          </Label>
-          </CardContent>
-      </Card>
-      <Card id="oee">
-      <CardHeader className="font-bold text-center py-2">OEE</CardHeader>
-      <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
-        <Label className="flex text-center align-center items-baseline text-3xl text-primary font-bold">
-          { additionalData && additionalData.length ?  ((additionalData?.[0].oee || 0) * 100).toFixed(2) : (0).toFixed(2)} <p className="text-base p-4">%</p>
-        </Label>
-        </CardContent>
-    </Card>
-      <Card id="blue">
-        <CardHeader className="font-bold p-2">Changeover</CardHeader>
-        <CardContent className="text-center p-x-2 py-0">
-          <Label className="flex items-baseline text-3xl text-blue-500 font-bold">
-            {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
-          </Label>
-          </CardContent>
-      </Card>
-      <Card id="white">
-        <CardHeader className="font-bold p-2">Planned Stoppage</CardHeader>
-        <CardContent className="text-center p-x-2 py-0">
-          <Label className="flex items-baseline text-3xl text-gray-500 font-bold">
-            {(energyWhite?.TotalEnergyUsed|| 0).toFixed(2)} <p className="text-base p-4">kWh</p>
-          </Label>
-          </CardContent>
-      </Card>
-      <Card id="red">
-        <CardHeader className="font-bold p-2">Non Quality</CardHeader>
-        <CardContent className="text-center p-x-2 py-0">
-          <Label className="flex items-baseline text-3xl text-red-500 font-bold">
-            {(energyRed?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
-          </Label>
-          </CardContent>
-      </Card>
-      </div>
-      <div id="equipment" className="grid grid-cols-4 gap-2 mt-4">
-        <div className="col-span-4 items-center text-center">
-          <Label className="text-center font-bold text-lg items-center">Equipment Monitoring (On Progress) </Label>
-        </div>
-      <Card id="mtc">
-          <CardHeader className="font-bold p-2 text-center">MTC</CardHeader>
-          <CardContent className="text-center p-x-2 flex items-center justify-center bg-green-600 rounded-b-md">
-           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Connected</Label>
-          </CardContent>
-        </Card>
-        <Card id="conveyor">
-          <CardHeader className="font-bold p-2 text-center">Conveyor</CardHeader>
-          <CardContent className="text-center p-x-2 flex items-center justify-center bg-green-600 rounded-b-md">
-           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Connected</Label>
-          </CardContent>
-        </Card>
-        <Card id="crusher">
-          <CardHeader className="font-bold p-2 text-center">Crusher</CardHeader>
-          <CardContent className="text-center p-x-2 flex items-center justify-center bg-green-600 rounded-b-md">
-           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Connected</Label>
-          </CardContent>
-        </Card>
-        <Card id="masterbatch_feeder">
-          <CardHeader className="font-bold p-2 text-center">Master Batch Feeder</CardHeader>
-          <CardContent className="text-center p-x-2 flex items-center justify-center bg-red-600 rounded-b-md">
-           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Disconnected</Label>
-          </CardContent>
-        </Card>
-        <Card id="hot_runner">
-          <CardHeader className="font-bold p-2 text-center">Hot Runner</CardHeader>
-          <CardContent className="text-center p-x-2 flex items-center justify-center bg-red-600 rounded-b-md">
-           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Disconnected</Label>
-          </CardContent>
-        </Card>
-        <Card id="hopper">
-          <CardHeader className="font-bold p-2 text-center">Hopper</CardHeader>
-          <CardContent className="text-center p-x-2 flex items-center justify-center bg-red-600 rounded-b-md">
-           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Disconnected</Label>
-          </CardContent>
-        </Card>
-        <Card id="chiller">
-          <CardHeader className="font-bold p-2 text-center">Chiller</CardHeader>
-          <CardContent className="text-center p-x-2 flex items-center justify-center bg-red-600 rounded-b-md">
-           <Label className="text-white text-center justify-center align-center pt-4 font-bold">Disconnected</Label>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  </div>
   </div>
   </div>
   )

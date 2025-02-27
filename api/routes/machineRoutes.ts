@@ -20,8 +20,10 @@ machineRoutes.get('/state/:machineId', async (c) => {
     const machine_id = c.req.param('machineId'); 
     const date = c.req.query('date') || null; 
     const shift = c.req.query('shift') || null; 
-    const data = await getChangeState(machine_id, date, shift);
-    return c.json(data);
+    // const data = await getChangeState(machine_id, date, shift);
+    // return c.json(data);
+    return c.json(200);
+
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
   }

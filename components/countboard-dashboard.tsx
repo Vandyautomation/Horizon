@@ -987,7 +987,7 @@ const refetchStateData = () => mutate(stateDataKey);
           
         </div> */}
       <div className="w-full border border-gray-250 rounded-xl shadow-md">
-        {selectedMachine?.machineName && stateData?.length ? (
+        {selectedMachine?.machineName ? (
           // <ChangeState data={stateData} />
           <iframe
           src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}

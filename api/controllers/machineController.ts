@@ -1072,17 +1072,12 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             )
 
         SELECT TOP 1 
-            actual_ct
+            statusLight
             ,COALESCE((totalgreen + totalwhite) / NULLIF(timea, 0), 0) AS oee
-        FROM IoT.dbo.countboard_tasks t
-        JOIN IoT.dbo.MachineMST m on m.mchdesc = t.machine_name
+        FROM IoT.dbo.mchstatustrx t
         CROSS JOIN TimeCalculations
-        WHERE t.ID = (select top 1 task_id from IoT.dbo.hourly h 
-            where from_datetime between @from and @to 
-            and h.machine_id = @machine_name)
-                AND m.MchID = @machine_name
-                
-        ORDER BY created_at DESC;
+        WHERE t.MchID = @machine_name  
+        ORDER BY t.ID DESC;
 
 
     
@@ -1158,14 +1153,12 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             )
 
         SELECT TOP 1 
-            actual_ct
+            statusLight
             ,COALESCE((totalgreen + totalwhite) / NULLIF(timea, 0), 0) AS oee
-        FROM IoT.dbo.countboard_tasks t
-        JOIN IoT.dbo.MachineMST m on m.mchdesc = t.machine_name
+        FROM IoT.dbo.mchstatustrx t
         CROSS JOIN TimeCalculations
-        WHERE po_name != '' 
-                AND m.MchID = @machine_name
-        ORDER BY created_at DESC;
+        WHERE t.MchID = @machine_name
+        ORDER BY t.ID DESC;
 
       `;
       return await queryDatabase(sqlQuery, { machine_name });
