@@ -533,7 +533,8 @@ export default function EmsDashboard() {
         <div className="px-3 py-2 border border-gray-250 shadow-sm rounded-xl">
         <div className="flex pb-4 gap-4 justify-between items-center align-top ">
         <div>
-          <Label className="w-20 pl-2">Machine Status {additionalData?.[0]?.statusLight && <div className={`h-8 w-28 rounded-full ${bgColorMap(additionalData?.[0]?.statusLight?.toLowerCase() || "grey")} mt-1`}></div>} 
+          <Label className="w-20 pl-2">Machine Status {additionalData?.[0]?.statusLight && 
+            <div className={`h-8 w-28 rounded-full ${bgColorMap(additionalData?.[0]?.statusLight?.toLowerCase() || "grey")} mt-1`}/>} 
           </Label>
           <div className="h-24"></div>
         </div>
@@ -579,7 +580,7 @@ export default function EmsDashboard() {
             </CardContent>
         </Card>
           <Card id="orange">
-            <CardHeader className="font-bold text-lg p-2">Breakdown</CardHeader>
+            <CardHeader className="font-bold text-lg p-2 text-center">Breakdown</CardHeader>
             <CardContent className="text-center p-x-2 pb-0 pt-3">
               <Label className="flex items-baseline text-5xl text-orange-500 font-bold">
                 {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
@@ -587,7 +588,7 @@ export default function EmsDashboard() {
               </CardContent>
           </Card>
           <Card id="purple">
-            <CardHeader className="font-bold text-lg p-2">Org. Disfunction</CardHeader>
+            <CardHeader className="font-bold text-lg p-2 text-center">Org. Disfunction</CardHeader>
             <CardContent className="text-center p-x-2  pb-0 pt-3">
               <Label className="flex items-baseline text-5xl text-purple-500 font-bold">
                 {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
@@ -595,7 +596,7 @@ export default function EmsDashboard() {
               </CardContent>
           </Card>
           <Card id="yellow">
-            <CardHeader className="font-bold text-lg p-2">Micro stop</CardHeader>
+            <CardHeader className="font-bold text-lg p-2 text-center">Micro stop</CardHeader>
             <CardContent className="text-center p-x-2 py-0">
               <Label className="flex items-baseline text-5xl text-yellow-500 font-bold">
                 {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
@@ -603,7 +604,7 @@ export default function EmsDashboard() {
               </CardContent>
           </Card>
           <Card id="blue">
-            <CardHeader className="font-bold text-lg p-2">Changeover</CardHeader>
+            <CardHeader className="font-bold text-lg p-2 text-center">Changeover</CardHeader>
             <CardContent className="text-center  p-x-2 py-0">
               <Label className="flex items-baseline text-5xl text-blue-500 font-bold">
                 {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
@@ -611,7 +612,7 @@ export default function EmsDashboard() {
               </CardContent>
           </Card>
           <Card id="white">
-            <CardHeader className="font-bold text-lg p-2">Planned Stoppage</CardHeader>
+            <CardHeader className="font-bold text-lg p-2 text-center">Planned Stoppage</CardHeader>
             <CardContent className="text-center p-x-2 py-0">
               <Label className="flex items-baseline text-5xl text-gray-500 font-bold">
                 {(energyWhite?.TotalEnergyUsed|| 0).toFixed(2)} <p className="text-base p-4">kWh</p>
@@ -619,7 +620,7 @@ export default function EmsDashboard() {
               </CardContent>
           </Card>
           <Card id="red">
-            <CardHeader className="font-bold text-lg p-2">Non Quality</CardHeader>
+            <CardHeader className="font-bold text-lg p-2 text-center">Non Quality</CardHeader>
             <CardContent className="text-center p-x-2 py-0">
               <Label className="flex items-baseline text-5xl text-red-500 font-bold">
                 {(energyRed?.TotalEnergyUsed || 0).toFixed(2)} <p className="text-base p-4">kWh</p>
