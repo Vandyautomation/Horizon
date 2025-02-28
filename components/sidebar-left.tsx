@@ -165,7 +165,7 @@ export default function SidebarLeft({ onMenuClick, ...props }:SidebarLeftProps) 
       },
       {
         title: "Machines",
-        url: "#",
+        url: "machines",
         icon: Bot,
         hidden: !user,
         items: [

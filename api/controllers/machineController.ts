@@ -88,10 +88,11 @@ export async function getChangeState(machine_name: string, date: string | null, 
 export async function getMachine(type: string | null) {
   const sqlQuery = `
   SELECT m.id as machineId, m.MchID as machineName, m.MchDesc as machineDescription, m.MchNumber as machineNumber, m.MchTon as machineTonage,
-  m.MchLoc as locationName
+  m.MchLoc as locationName,
+  m.position, m.rotation, m.MchProcess as Process, m.uap
   from MachineMST m
   where m.Active = 1
-  and m.MchProcess = upper(@type)
+  and (m.MchProcess = upper(@type) or @type is null)
   and m.MchLoc != 'NULL' and m.MchLoc != 'Mixing Bld T'
   order by MchLoc asc, cast(m.MchNumber as INT) asc
   `;
