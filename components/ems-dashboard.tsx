@@ -728,7 +728,7 @@ export default function EmsDashboard() {
                 stroke="red" 
                 strokeDasharray="5 5" 
                 label={{
-                  value: `${((budgetEnergyHourly)/1000).toFixed(2)}kWh`,
+                  value: `${((additionalData?.[0]?.budgetEnergyPerJam || 11772.5)/1000).toFixed(2)}kWh`,
                   position: "left",
                   fill: "red",
                   fontSize: 12,
