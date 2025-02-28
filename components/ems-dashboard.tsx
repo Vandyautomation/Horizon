@@ -113,7 +113,7 @@ export default function EmsDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoadingRefresh, setIsLoadingRefresh] = useState(false); 
   const [isLiveMode, setIsLiveMode] = useState(true); 
-
+  const [tolerance, setTolerance] = useState(0);
   const pathname = usePathname()
   const router = useRouter()
 
@@ -260,6 +260,13 @@ export default function EmsDashboard() {
     setSelectedMachine(null);
   };
 
+  const handleToleranceChange = (value: string) => {
+    setTolerance(parseInt(value));
+    const params = new URLSearchParams(searchParams);
+    params.set("tolerance", value);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
   const handleMachineNumberChange = (value: string) => {
     setSelectedMachineNumber(value);
     const selected = filteredMachines?.find(machine => machine.machineNumber === value) || null;
@@ -329,6 +336,7 @@ export default function EmsDashboard() {
   let queryLocation = searchParams.get('location') || '';
   let queryRefreshRate = searchParams.get('refresh') || '';
   let queryLiveMode = searchParams.get('isLiveMode') || '' ;
+  let queryTolerance = searchParams.get('tolerance') || '' ;
   const queryDate = searchParams.get('date') || '' ;
 
 
@@ -356,6 +364,11 @@ export default function EmsDashboard() {
     params.set('isLiveMode', 'true');
     router.push(`${pathname}?${params.toString()}`);
   } 
+  if(queryTolerance == ''){
+    queryTolerance = '0';
+    params.set('tolerance', '0');
+    router.push(`${pathname}?${params.toString()}`);
+  }
 
   useEffect(() => {
     if (queryLocation) {
@@ -377,6 +390,13 @@ export default function EmsDashboard() {
       setRefreshRate(queryRefreshRate);
     }
   }, [queryRefreshRate]);
+
+  useEffect(() => {
+    if (queryTolerance) {
+      setTolerance(parseInt(queryTolerance));
+    }
+  }, [queryTolerance]);
+
 
   useEffect(() => {
     if (queryLiveMode){
@@ -412,6 +432,8 @@ export default function EmsDashboard() {
     const colorKey = color.toLowerCase() as keyof typeof colorMap;
     return colorMap[colorKey] || 'bg-gray-500';
   };
+
+  let budgetEnergyHourly = (additionalData?.[0]?.budgetEnergyPerJam || 11772.5) + ((additionalData?.[0]?.budgetEnergyPerJam || 11772.5) * tolerance/100);
 
 
 
@@ -490,6 +512,7 @@ export default function EmsDashboard() {
             onCheckedChange={handleLiveMode} />
         <Label htmlFor="live-mode">LIVE MODE</Label>
         </div>
+
 
         {!isLiveMode && (
           <>
@@ -637,11 +660,37 @@ export default function EmsDashboard() {
           </div>
       ) : (
         
-        <Card className="w-full ">
+        <Card className="w-full">
       <CardHeader>
-        <CardTitle>Hourly Energy Consumption</CardTitle>
+        <CardTitle className="flex items-center justify-between">Hourly Energy Consumption
+        <Select value={tolerance.toString()} onValueChange={(value) => handleToleranceChange(value)}>
+          <SelectTrigger className="w-[150px]">
+            Tolerance
+            <SelectValue placeholder="Tolerance" />
+          </SelectTrigger>
+          <SelectContent>
+              <SelectItem key="0" value="0">
+                0%
+              </SelectItem>
+              <SelectItem key="5" value="5">
+                5%
+              </SelectItem>
+              <SelectItem key="10" value="10">
+                10%
+              </SelectItem>
+              <SelectItem key="15" value="15">
+                15%
+              </SelectItem>
+              <SelectItem key="20" value="20">
+                20%
+              </SelectItem>
+          </SelectContent>
+        </Select>
+        </CardTitle>
+        
       </CardHeader>
       <CardContent className="py-0">
+        
         <ChartContainer
           config={{
             consumption: {
@@ -672,17 +721,17 @@ export default function EmsDashboard() {
                 axisLine={true}
                 tick={{ fontSize: 14 }}
                 tickFormatter={(value) => `${value} kWh`}
-                domain={[0, (additionalData?.[0]?.budgetEnergyPerJam || 11300/1000) * 1.2]}
+                domain={[0, (budgetEnergyHourly/1000) * 1.2]}
               />
               <ReferenceLine 
-                y={(additionalData?.[0]?.budgetEnergyPerJam || 11300)/1000} 
+                y={(additionalData?.[0]?.budgetEnergyPerJam || 11772.5)/1000} 
                 stroke="red" 
                 strokeDasharray="5 5" 
                 label={{
-                  value: "Threshold",
-                  position: "right",
+                  value: `${((budgetEnergyHourly)/1000).toFixed(2)}kWh`,
+                  position: "left",
                   fill: "red",
-                  fontSize: 14,
+                  fontSize: 12,
                 }}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
@@ -691,7 +740,7 @@ export default function EmsDashboard() {
                 <Cell
                   key={`cell-${index}`}
                   fill={
-                    entry.consumption > (additionalData?.[0]?.budgetEnergyPerJam || 11300/1000) 
+                    entry.consumption > (budgetEnergyHourly/1000) 
                       ? "red"  // 🔴 Change to red if exceeding threshold
                       : "var(--color-consumption)" // Default color
                   }
