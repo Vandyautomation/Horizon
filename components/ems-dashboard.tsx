@@ -223,7 +223,7 @@ export default function EmsDashboard() {
   const energyWhite = energyStatusData?.find(status => status.StatusLightBefore === 'WHITE')
   const totalLoss = (energyYellow?.TotalEnergyUsed || 0) + (energyPurple?.TotalEnergyUsed  || 0) + (energyRed?.TotalEnergyUsed || 0) + (energyOrange?.TotalEnergyUsed || 0) + (energyBlue?.TotalEnergyUsed || 0) + (energyWhite?.TotalEnergyUsed || 0)
 
-  const totalEnergy = totalLoss + (energyGreen?.TotalEnergyUsed || 0)
+  const totalEnergy = energyData.reduce((total, data) => total + data.consumption, 0);
   
   const refetchEnergyStatusData = () => mutate(energyStatusDataKey);
 
