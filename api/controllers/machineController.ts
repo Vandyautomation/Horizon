@@ -1105,6 +1105,10 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             statusLight
             ,COALESCE(totalgreen / NULLIF(timea, 0), 1) AS ooe
             ,COALESCE((totalgreen + totalwhite) / NULLIF(timea, 0), 0) AS oee
+            , case when @machine_name = 'MT280100' then 7300 
+            when @machine_name = 'JW220004' then 11300
+            else 0
+            end as budgetEnergyPerJam
         FROM IoT.dbo.mchstatustrx t
         CROSS JOIN TimeCalculations
         WHERE t.MchID = @machine_name  
@@ -1187,6 +1191,10 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             statusLight
             ,COALESCE((totalgreen + totalwhite) / NULLIF(timea, 0), 0) AS oee,
             COALESCE(totalgreen / NULLIF(timea, 0), 1) AS ooe
+            , case when @machine_name = 'MT280100' then 7300 
+            when @machine_name = 'JW220004' then 11300
+            else 0
+            end as budgetEnergyPerJam
         FROM IoT.dbo.mchstatustrx t
         CROSS JOIN TimeCalculations
         WHERE t.MchID = @machine_name
