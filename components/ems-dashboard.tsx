@@ -639,7 +639,7 @@ export default function EmsDashboard() {
             <div className="px-3 py-2 border border-gray-250 shadow-sm rounded-xl">
               <div className="flex pb-4 gap-4 justify-between items-center align-top ">
                 <div>
-                  <Label className="w-20 pl-2">
+                  <Label className="w-20 pl-2 row-span-2 align-top">
                     Machine Status{' '}
                     {additionalData?.[0]?.statusLight && (
                       <div
@@ -662,19 +662,32 @@ export default function EmsDashboard() {
                 {additionalData && additionalData.length && (
                   <Label className="flex flex-col text-3xl text-primary font-bold ">
                     <div className="flex flex-row text-center align-center items-center">
-                      <p className=" text-base p-4">Energy Budget</p>{' '}
-                      {(budgetEnergyDaily || 0).toFixed(2)}{' '}
-                      <p className="text-base p-4">kWh</p>
+                      <p className=" text-sm p-4 flex ">Energy Budget</p>{' '}
+                      {budgetEnergyDaily > 1_000_000
+                        ? (budgetEnergyDaily / 1_000_000).toFixed(2) + ' GWh'
+                        : budgetEnergyDaily > 1000
+                        ? (budgetEnergyDaily / 1000).toFixed(2) + ' MWh'
+                        : budgetEnergyDaily.toFixed(2) + ' kWh'}
                     </div>
                     <div className="flex flex-row text-center align-center items-center">
-                      <p className=" text-base p-4">Energy Actual</p>{' '}
-                      {(totalEnergy || 0).toFixed(2)}{' '}
-                      <p className="text-base p-4">kWh</p>
+                      <p className=" text-sm p-4">Energy Actual</p>{' '}
+                      {totalEnergy > 1_000_000
+                        ? (totalEnergy / 1_000_000).toFixed(2) + ' GWh'
+                        : totalEnergy > 1000
+                        ? (totalEnergy / 1000).toFixed(2) + ' MWh'
+                        : totalEnergy.toFixed(2) + ' kWh'}
                     </div>
-                    <div className="flex flex-row text-center align-center items-center">
-                      <p className="flex flex-row text-base p-4">OEE</p>{' '}
-                      {(additionalData?.[0]?.oee * 100 || 0).toFixed(2)}{' '}
-                      <p className="text-base p-4">%</p>
+                    <div className="flex justify-between text-md text-center align-center items-center">
+                      <div className="flex items-center">
+                        <p className="inline p-2 text-sm">OEE</p>{' '}
+                        {(additionalData?.[0]?.oee * 100 || 0).toFixed(2)}{' '}
+                        <p className="text-sm">%</p>
+                      </div>
+                      <div className="flex items-center">
+                        <p className="inline p-2 text-sm">OOE</p>{' '}
+                        {(additionalData?.[0]?.ooe * 100 || 0).toFixed(2)}{' '}
+                        <p className="text-sm ">%</p>
+                      </div>
                     </div>
                   </Label>
                 )}
@@ -727,7 +740,7 @@ export default function EmsDashboard() {
                   Breakdown
                 </CardHeader>
                 <CardContent className="text-center p-x-2 pb-0 pt-3">
-                  <Label className="flex items-baseline text-5xl text-orange-500 font-bold">
+                  <Label className="flex text-center items-baseline text-5xl text-orange-500 font-bold">
                     {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)}{' '}
                     <p className="text-base p-4">kWh</p>
                   </Label>
@@ -738,7 +751,7 @@ export default function EmsDashboard() {
                   Org. Disfunction
                 </CardHeader>
                 <CardContent className="text-center p-x-2  pb-0 pt-3">
-                  <Label className="flex items-baseline text-5xl text-purple-500 font-bold">
+                  <Label className="flex text-center items-baseline text-5xl text-purple-500 font-bold">
                     {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)}{' '}
                     <p className="text-base p-4">kWh</p>
                   </Label>
@@ -749,7 +762,7 @@ export default function EmsDashboard() {
                   Micro stop
                 </CardHeader>
                 <CardContent className="text-center p-x-2 py-0">
-                  <Label className="flex items-baseline text-5xl text-yellow-500 font-bold">
+                  <Label className="flex text-center items-baseline text-5xl text-yellow-500 font-bold">
                     {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)}{' '}
                     <p className="text-base p-4">kWh</p>
                   </Label>
@@ -760,7 +773,7 @@ export default function EmsDashboard() {
                   Changeover
                 </CardHeader>
                 <CardContent className="text-center  p-x-2 py-0">
-                  <Label className="flex items-baseline text-5xl text-blue-500 font-bold">
+                  <Label className="flex text-center items-baseline text-5xl text-blue-500 font-bold">
                     {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)}{' '}
                     <p className="text-base p-4">kWh</p>
                   </Label>
@@ -771,7 +784,7 @@ export default function EmsDashboard() {
                   Planned Stoppage
                 </CardHeader>
                 <CardContent className="text-center p-x-2 py-0">
-                  <Label className="flex items-baseline text-5xl text-gray-500 font-bold">
+                  <Label className="flex text-center items-baseline text-5xl text-gray-500 font-bold">
                     {(energyWhite?.TotalEnergyUsed || 0).toFixed(2)}{' '}
                     <p className="text-base p-4">kWh</p>
                   </Label>
@@ -782,7 +795,7 @@ export default function EmsDashboard() {
                   Non Quality
                 </CardHeader>
                 <CardContent className="text-center p-x-2 py-0">
-                  <Label className="flex items-baseline text-5xl text-red-500 font-bold">
+                  <Label className="flex text-center items-baseline text-5xl text-red-500 font-bold">
                     {(energyRed?.TotalEnergyUsed || 0).toFixed(2)}{' '}
                     <p className="text-base p-4">kWh</p>
                   </Label>
