@@ -495,7 +495,7 @@ export default function EmsDashboard() {
   let budgetEnergyHourly =
     (additionalData?.[0]?.budgetEnergyPerJam || 11772.5) +
     ((additionalData?.[0]?.budgetEnergyPerJam || 11772.5) * tolerance) / 100;
-  let budgetEnergyDaily = budgetEnergyHourly * 24;
+  let budgetEnergyDaily = (budgetEnergyHourly / 1000) * 24;
 
   return (
     <div className="p-0 space-y-2 w-full  overflow-x-hidden">
