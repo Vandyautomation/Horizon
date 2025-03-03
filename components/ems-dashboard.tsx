@@ -872,7 +872,12 @@ export default function EmsDashboard() {
                       axisLine={true}
                       tick={{ fontSize: 14 }}
                       tickFormatter={(value) => `${value} kWh`}
-                      domain={[0, (budgetEnergyHourly / 1000) * 1.2]}
+                      domain={[
+                        0,
+                        parseFloat(
+                          ((budgetEnergyHourly / 1000) * 1.2).toFixed(2)
+                        ),
+                      ]}
                     />
                     <ReferenceLine
                       y={
