@@ -121,8 +121,8 @@ function InjectionMoldingMachine({
       {machine?.status === 'Breakdown' && (
         <mesh position={[0, 0, 0]}>
           <Html position={[0, 4, 0]} center>
-            <div className="bg-orange-500 text-white p-0.5 text-sm rounded-full border">
-              Breakdown!
+            <div className="bg-orange-500 text-white p-1 text-sm rounded-full border">
+              Breakdown!!!
             </div>
           </Html>
         </mesh>
@@ -160,7 +160,7 @@ function InjectionMoldingMachine({
       <Html position={[0, 0, -3]} center>
         <div
           style={{
-            backgroundColor: statusColors[machine?.status],
+            backgroundColor: 'black',
             boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
           }}
           className={`bg-opacity-50 text-white p-1 rounded text-xs text-nowrap ${
@@ -193,14 +193,16 @@ function InjectionMoldingMachine({
 function YoureHere() {
   return (
     <Html position={[-40, 1, 0]} center>
-      <div className="text-center text-sm">
-        <div className="bg-primary text-white p-1 rounded-md">You are here</div>
+      <div className="text-center flex flex-nowrap items-center">
+        <div className="bg-primary  rounded text-xs text-white p-2 flex flex-nowrap">
+          You're Here
+        </div>
         <div
-          className="w-0 h-0 mx-auto"
+          className="w-0 h-0 mt-1 "
           style={{
-            borderLeft: '8px solid transparent',
-            borderRight: '8px solid transparent',
-            borderTop: '8px solid var(--primary)',
+            borderLeft: '10px solid transparent',
+            borderRight: '10px solid transparent',
+            borderTop: '10px solid primary',
           }}
         />
       </div>
@@ -338,21 +340,20 @@ export default function ShopfloorDashboard() {
           </CardContent>
         </Card> */}
       </div>
-      <Card className="absolute top-24 right-6 w-[500px] z-10">
-        <CardHeader className="flex">
-          <CardTitle className="flex gap-4 justify-between items-center">
-            Machines Status
-            <div className="flex gap-2">
-              <Label>
+      <Card className="absolute top-24 right-6 w-[500px] z-10 p-0">
+        <CardHeader className="flex pb-2 pt-2">
+          <CardTitle className="flex justify-between items-center pb-0 mb-0">
+            <div className="flex gap-x-8 ">
+              <Label className="text-lg">
                 OOE <strong>53.3%</strong>
               </Label>
-              <Label>
+              <Label className="text-lg">
                 OEE <strong>53.3%</strong>
               </Label>
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0 mt-0">
           <div className="grid grid-cols-3 gap-2">
             {Object.entries(statusColors).map(([status, color]) => {
               const count = selectedBuilding?.machines.filter(
@@ -398,14 +399,18 @@ export default function ShopfloorDashboard() {
           <CardContent>
             <div className="grid grid-cols-1 gap-4">
               <div className="flex items-center justify-between">
-                <span className="font-semibold">Status:</span>
+                <span className="font-semibold">Status</span>
                 <span style={{ color: statusColors[selectedMachine?.status] }}>
                   {selectedMachine?.status}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="font-semibold">Energy Consumption:</span>{' '}
+                <span className="font-semibold">Energy Consumption</span>{' '}
                 {selectedMachine?.consumption} kWh
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-semibold">Cycle Time</span>{' '}
+                {selectedMachine?.consumption} s
               </div>
               <div className="grid grid-cols-1 gap-4">
                 <Button
