@@ -1103,7 +1103,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
 
         SELECT TOP 1 
             statusLight
-            ,COALESCE(totalgreen / NULLIF(timea, 0), 1) AS ooe,
+            ,COALESCE(totalgreen / NULLIF(timea, 0), 1) AS ooe
             ,COALESCE((totalgreen + totalwhite) / NULLIF(timea, 0), 0) AS oee
         FROM IoT.dbo.mchstatustrx t
         CROSS JOIN TimeCalculations
