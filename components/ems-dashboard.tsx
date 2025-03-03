@@ -493,8 +493,8 @@ export default function EmsDashboard() {
   };
 
   let budgetEnergyHourly =
-    (additionalData?.[0]?.budgetEnergyPerJam || 11772.5) +
-    ((additionalData?.[0]?.budgetEnergyPerJam || 11772.5) * tolerance) / 100;
+    (additionalData?.[0]?.budgetEnergyPerJam || 10300) +
+    ((additionalData?.[0]?.budgetEnergyPerJam || 10300) * tolerance) / 100;
   let budgetEnergyDaily = (budgetEnergyHourly / 1000) * 24;
 
   return (
@@ -711,15 +711,15 @@ export default function EmsDashboard() {
                 </Label>
                 <Label className="w-20">
                   MB Feeder
-                  <div className="h-2 w-full rounded-full bg-green-500 mt-1"></div>
+                  <div className="h-2 w-full rounded-full bg-red-500 mt-1"></div>
                 </Label>
                 <Label className="w-20">
                   Chiller
-                  <div className="h-2 w-full rounded-full bg-green-500 mt-1"></div>
+                  <div className="h-2 w-full rounded-full bg-red-500 mt-1"></div>
                 </Label>
                 <Label className="w-20">
                   Corepull
-                  <div className="h-2 w-full rounded-full bg-green-500 mt-1"></div>
+                  <div className="h-2 w-full rounded-full bg-red-500 mt-1"></div>
                 </Label>
               </div>
             </div>
@@ -876,14 +876,14 @@ export default function EmsDashboard() {
                     />
                     <ReferenceLine
                       y={
-                        (additionalData?.[0]?.budgetEnergyPerJam || 11772.5) /
+                        (additionalData?.[0]?.budgetEnergyPerJam || 10300) /
                         1000
                       }
                       stroke="red"
                       strokeDasharray="5 5"
                       label={{
                         value: `${(
-                          (additionalData?.[0]?.budgetEnergyPerJam || 11772.5) /
+                          (additionalData?.[0]?.budgetEnergyPerJam || 10300) /
                           1000
                         ).toFixed(2)}kWh`,
                         position: 'left',

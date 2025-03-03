@@ -1,5 +1,33 @@
+import { machine } from 'os';
 import { queryDatabase } from '../utils/queryDatabase';
 
+export async function updateMachine(machineId: string, machineDescription: string, machineTonage: string, machineLocation: string, machineProcess: string, machineUap: string, machineEquipment: string, position: string, rotation: string) {
+let sqlQuery = `
+    UPDATE MachineMST
+    SET 
+    MchDesc = @machineDescription,
+    MchTon = @machineTonage,
+    MchLoc = @machinLocation,
+    MchProcess = @machineProcess,
+    UAP = @machineUap,
+    position = @position,
+    rotation = @rotation
+    WHERE MchID = @machineId;`
+    
+    const equipment = machineEquipment.split(',');
+    for (let i = 0; i < equipment.length; i++) {
+    sqlQuery += `
+    MERGE MachineEquipmentMST AS target
+    USING (SELECT @machineId AS MchID, @machineEquipment AS EquipmentID) AS source
+    ON (target.MchID = source.MchID)
+    WHEN MATCHED THEN 
+            UPDATE SET EquipmentID = source.EquipmentID
+    WHEN NOT MATCHED THEN
+            INSERT (MchID, EquipmentID) VALUES (source.MchID, source.EquipmentID);
+    `;
+    }
+  return await queryDatabase(sqlQuery, {machineId, machineDescription, machineTonage, machineLocation, machineProcess, machineUap, machineEquipment, position, rotation});
+}
 
 export async function getChangeState(machine_name: string, date: string | null, shift: string | null) {
     if(date && shift){
@@ -89,9 +117,10 @@ export async function getMachine(type: string | null) {
   const sqlQuery = `
   SELECT m.id as machineId, m.MchID as machineName, m.MchDesc as machineDescription, m.MchNumber as machineNumber, m.MchTon as machineTonage,
   m.MchLoc as locationName,
-  m.position, m.rotation, m.MchProcess as Process, m.uap
+  m.position, m.rotation, m.MchProcess as Process, m.uap, em.EquipmentID as equipment, m.MchTon as tonage
   from MachineMST m
-  where m.Active = 1
+  left join MachineEquipmentMST em on m.MchID = em.MchID
+  where m.Active = 1 --and em.Active = 1
   and (m.MchProcess = upper(@type) or @type is null)
   and m.MchLoc != 'NULL' and m.MchLoc != 'Mixing Bld T'
   order by MchLoc asc, cast(m.MchNumber as INT) asc
