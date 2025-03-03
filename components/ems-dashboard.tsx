@@ -401,23 +401,23 @@ export default function EmsDashboard() {
   if (queryMachineNumber == '') {
     queryMachineNumber = '3';
     params.set('machineNumber', '3');
-    router.push(`${pathname}?${params.toString()}`);
+    // router.push(`${pathname}?${params.toString()}`);
   }
 
   if (queryLocation == '') {
     queryLocation = 'INJ Bld G';
     params.set('location', 'INJ Bld G');
-    router.push(`${pathname}?${params.toString()}`);
+    // router.push(`${pathname}?${params.toString()}`);
   }
   if (queryRefreshRate == '') {
     queryRefreshRate = '5000';
     params.set('refresh', '5000');
-    router.push(`${pathname}?${params.toString()}`);
+    // router.push(`${pathname}?${params.toString()}`);
   }
   if (queryLiveMode == '') {
     queryLiveMode = 'true';
     params.set('isLiveMode', 'true');
-    router.push(`${pathname}?${params.toString()}`);
+    // router.push(`${pathname}?${params.toString()}`);
   }
   if (queryTolerance == '') {
     queryTolerance = '0';

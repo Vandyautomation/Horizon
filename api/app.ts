@@ -2,9 +2,11 @@ import { Hono } from 'hono';
 import router from './routes';
 import { cors } from 'hono/cors';
 import { timeout } from 'hono/timeout'
+import { logger } from 'hono/logger';
 
 const app = new Hono();
 
+app.use(logger());
 app.use('/api/*', cors({ 
     origin: '*', 
     allowHeaders: [
