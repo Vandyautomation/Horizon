@@ -639,14 +639,18 @@ export default function ShopfloorDashboard() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                <span className="font-semibold">Cavity</span>{' '}
-                <div>
-                <span className={selectedMachine?.cavity >= selectedMachine?.target_cavity ? "text-green-500" : "text-red-500"}>
-                  {selectedMachine?.cavity}
-                </span> / {selectedMachine?.target_cavity}
+                  <span className="font-semibold">Cavity</span>{' '}
+                  <div>
+                  <span className={selectedMachine?.cavity >= selectedMachine?.target_cavity ? "text-green-500" : "text-red-500"}>
+                    {selectedMachine?.cavity}
+                  </span> / {selectedMachine?.target_cavity}
+                  </div>
                 </div>
+                <div className="flex items-center justify-between">
+                <span className="font-semibold">OEE & OOE</span>{' '}
+                  {((selectedMachine?.oee || 0) * 100).toFixed(2)}% & {((selectedMachine?.ooe || 0) * 100).toFixed(2)}%
                 </div>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <Button
                   onClick={() => {
                     window.open(
