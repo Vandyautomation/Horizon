@@ -539,6 +539,8 @@ export default function ShopfloorDashboard() {
                   ))}
               </SelectContent>
             </Select>
+
+            {selectedBuilding?.machines.length == 0 && <Label>Please define the machine position in this <a href="/admin/machines" className="text-blue-500">link</a></Label>}
           </CardContent>
         </Card>
         {/* <Card className="absolute top-24 right-6 z-10">
