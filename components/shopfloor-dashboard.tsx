@@ -23,7 +23,7 @@ import { Color, Mesh, MeshStandardMaterial, PCFSoftShadowMap } from 'three';
 import { Button } from './ui/button';
 import useSWR from 'swr';
 import { Label } from './ui/label';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Calculator, Power, Zap } from 'lucide-react';
 
 interface Machine {
@@ -34,6 +34,12 @@ interface Machine {
   MchLoc: string;
   MchNumber: string;
   consumption: number;
+  cycletime: number;
+  target_cycletime: number;
+  cavity: number;
+  target_cavity: number;
+  oee: number;
+  ooe: number;
   status:
     | 'Running'
     | 'PlannedStop'
@@ -47,6 +53,8 @@ interface Machine {
 interface Building {
   id: number;
   name: string;
+  oee: number;
+  ooe: number;
   machines: Machine[];
 }
 
@@ -76,6 +84,127 @@ function Wall({
     </mesh>
   );
 }
+// function InjectionMoldingMachine({
+//   machine,
+//   onClick,
+//   isSelected,
+// }: {
+//   machine: Machine;
+//   onClick: () => void;
+//   isSelected: boolean;
+// }) {
+//   const { scene } = useGLTF('/admin/assets/3d/inject_new2.glb');
+
+//   const clonedScene = useMemo(() => scene?.clone(), [scene]);
+
+//   useEffect(() => {
+//     if (clonedScene) {
+//       clonedScene.traverse((child) => {
+//         if ((child as any).isMesh && (child as Mesh).material) {
+//           const originalColor = new Color(statusColors[machine?.status]);
+//           // Create a new material instance rather than modifying the existing one
+//           const newMaterial = new MeshStandardMaterial({
+//             ...((child as any).material as any),
+//             color: originalColor,
+//             emissive: originalColor.clone().multiplyScalar(0.3),
+//             metalness: 0.9,
+//             roughness: 0.3,
+//             flatShading: false, // Ensure smooth shading
+//             transparent: false,
+//             opacity: 1.0,
+//             wireframe: false,
+//           });
+          
+          
+//           // Assign the new material to the mesh
+//           (child as Mesh).material = newMaterial;
+//           (child as Mesh).castShadow = true;
+//           (child as Mesh).receiveShadow = true;
+//         }
+//       });
+//     }
+//     // return clonedScene;
+//     }, [clonedScene, machine?.status, machine?.id]);
+
+// //  const clonedScene = useMemo(() => {
+//   //   const cloned = scene?.clone();
+//   //   if (cloned) {
+//   //     cloned.traverse((child) => {
+//   //       if ((child as any).isMesh && (child as Mesh).material) {
+//   //         const originalColor = new Color(statusColors[machine?.status]);
+//   //         // Create a new material instance rather than modifying the existing one
+//   //         const newMaterial = new MeshStandardMaterial({
+//   //           ...((child as any).material as any),
+//   //           color: originalColor,
+//   //           emissive: originalColor.clone().multiplyScalar(0.3),
+//   //           metalness: 0.9,
+//   //           roughness: 0.3,
+//   //           flatShading: false, // Ensure smooth shading
+//   //           transparent: false,
+//   //           opacity: 1.0,
+//   //           wireframe: false,
+//   //         });
+          
+          
+//   //         // Assign the new material to the mesh
+//   //         (child as Mesh).material = newMaterial;
+//   //         (child as Mesh).castShadow = true;
+//   //         (child as Mesh).receiveShadow = true;
+//   //       }
+//   //     });
+//   //   }
+//   //   return cloned;
+//   // }, [scene, machine?.status, machine?.id]); // Add machine.id as dependency to ensure unique instance
+
+//   return (
+//     <group position={machine.position} onClick={onClick}>
+//       <primitive
+//         object={clonedScene}
+//         scale={[0.015, 0.015, 0.015]}
+//         rotation={[
+//           machine.rotation[0],
+//           machine.rotation[1] == 0 ? (3.14 * 3) / 2 : machine.rotation[1] * 0.5,
+//           machine.rotation[2],
+//         ]}
+//       />
+//       {machine?.status === 'Breakdown' && (
+//         <mesh position={[0, 0, 0]}>
+//           <Html position={[0, 4, 0]} center>
+//             <div className="bg-orange-500 text-white p-1 text-sm rounded-full border">
+//               Breakdown!!!
+//             </div>
+//           </Html>
+//         </mesh>
+//       )}
+//       <Html position={[0, 3, 0]} center>
+//         <div
+//           style={{
+//             backgroundColor: statusColors[machine?.status],
+//             boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
+//           }}
+//           className={`bg-opacity-50 text-white p-1 rounded ${
+//             isSelected ? 'font-bold' : ''
+//           }`}
+//         >
+//           {machine.id}
+//         </div>
+//       </Html>
+//       <Html position={[0, 0, -3]} center>
+//         <div
+//           style={{
+//             backgroundColor: 'black',
+//             boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
+//           }}
+//           className={`bg-opacity-50 text-white p-1 rounded text-xs text-nowrap ${
+//             isSelected ? 'font-bold' : ''
+//           }`}
+//         >
+//           {machine.consumption} kWh
+//         </div>
+//       </Html>
+//     </group>
+//   );
+// }
 
 function InjectionMoldingMachine({
   machine,
@@ -121,7 +250,7 @@ function InjectionMoldingMachine({
       {machine?.status === 'Breakdown' && (
         <mesh position={[0, 0, 0]}>
           <Html position={[0, 4, 0]} center>
-            <div className="bg-orange-500 text-white p-1 text-sm rounded-full border">
+            <div className="bg-orange-500 text-white p-1 text-sm border animate-pulse">
               Breakdown!!!
             </div>
           </Html>
@@ -160,14 +289,27 @@ function InjectionMoldingMachine({
       <Html position={[0, 0, -3]} center>
         <div
           style={{
-            backgroundColor: 'black',
+            backgroundColor: 'gray',
             boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
           }}
           className={`bg-opacity-50 text-white p-1 rounded text-xs text-nowrap ${
             isSelected ? 'font-bold' : ''
           }`}
         >
-          {machine.consumption} kWh
+          {machine.consumption} { machine.consumption != null ? 'kWh': '-'}
+        </div>
+      </Html>
+      <Html position={[0, 0, 3]} center>
+        <div
+          style={{
+            backgroundColor: 'black',
+            boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
+          }}
+          className={`bg-opacity-50 ${machine.cycletime > machine.target_cycletime ? 'text-red-400' : 'text-white'} p-1 rounded text-xs text-nowrap ${
+            isSelected ? 'font-bold' : ''
+          }`}
+        >
+          {machine.cycletime} { machine.cycletime != null ? 's': '-'}
         </div>
       </Html>
       {/* <group position={[0, 3, -3]} rotation={[0, Math.PI / 2, 0]}>
@@ -194,7 +336,7 @@ function YoureHere() {
   return (
     <Html position={[-40, 1, 0]} center>
       <div className="text-center flex flex-nowrap items-center">
-        <div className="bg-primary  rounded text-xs text-white p-2 flex flex-nowrap">
+        <div className="bg-primary  rounded text-xs text-primary-foreground p-2 flex flex-nowrap">
           You're Here
         </div>
         <div
@@ -272,24 +414,93 @@ function FloorRoad() {
 }
 
 export default function ShopfloorDashboard() {
+  const [buildings, setBuildings] = useState<Building[] | undefined>(undefined);
+  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
+  const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
+  const [refreshTime, setRefreshTime] = useState('')
+  const [startHour, setStartHour] = useState(0);
+
+    useEffect(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    
+    if (hour >= 6 && hour < 14) {
+      setStartHour(6);
+    } else if (hour >= 14 && hour < 22) {
+      setStartHour(14);
+    } else {
+      setStartHour(22);
+    }
+  }, []);
+
   const fetcher = (url: string) => fetch(url).then((res) => res.json());
   const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings`;
-  const { data: buildings, error } = useSWR<Building[]>(key, fetcher, {
+  const { data: rawBuildings, error } = useSWR<Building[]>(key, fetcher, {
     refreshInterval: 5000,
   });
+
+  // Log fetch results
+  useEffect(() => {
+    if (error) {
+      console.error("Error fetching buildings data:", error);
+    } else if (rawBuildings) {
+      console.log("Buildings data fetched:", rawBuildings);
+    }
+  }, [rawBuildings, error]);
+
+  // Filter out machines with null positions and update state
+  useEffect(() => {
+    if (!rawBuildings || !Array.isArray(rawBuildings) ||!rawBuildings.length) return;
+    
+    const filteredBuildings = rawBuildings.map(building => ({
+      ...building,
+      machines: building.machines.filter(machine => machine.position != null)
+    }));
+    
+    setBuildings(filteredBuildings);
+    
+    // Only update selectedBuilding if it exists but don't include it in the dependency array
+    if (selectedBuilding) {
+      const updatedSelectedBuilding = filteredBuildings.find(building => building.id === selectedBuilding.id) || null;
+      setRefreshTime(new Date().toLocaleTimeString())
+      // Only set if there's an actual change to prevent infinite loops
+      if (JSON.stringify(updatedSelectedBuilding) !== JSON.stringify(selectedBuilding)) {
+        setSelectedMachine(null); // Reset selected machine when building updates
+        setSelectedBuilding(updatedSelectedBuilding);
+        console.log("Selected building updated:", updatedSelectedBuilding);
+      }
+    }
+  }, [rawBuildings]); // Remove selectedBuilding from dependencies
+
+
   const router = useRouter();
-
-  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(
-    null
-  );
-  const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
-
+  const pathname = usePathname();
   useEffect(() => {
     if (buildings && buildings.length > 0 && !selectedBuilding) {
       setSelectedBuilding(buildings[0]);
       console.log(buildings[0]);
     }
   }, [buildings, selectedBuilding]);
+
+   const searchParams = useSearchParams()
+    const params = new URLSearchParams(searchParams);
+
+  let queryLocation = searchParams.get('building') || '';
+    if (queryLocation == '') {
+    queryLocation = 'INJ Bld G';
+    params.set('building', 'INJ Bld G');
+  }
+
+  useEffect(() => {
+    if (queryLocation && buildings && Array.isArray(buildings)) {
+      const foundBuilding = buildings.find(building => building.name === queryLocation);
+      if (foundBuilding) {
+        setSelectedBuilding(foundBuilding);
+        router.push(`${pathname}?${params.toString()}`);
+        console.log(`machine building from query : ${queryLocation}`);
+      }
+    }
+  }, [queryLocation, buildings]);
 
   // if (error) return <div>Failed to load</div>;
   // if (!buildings) return <div>Loading...</div>;
@@ -306,7 +517,10 @@ export default function ShopfloorDashboard() {
                 const building = buildings?.find(
                   (b) => b.id.toString() === value
                 );
+                const buildingName = building?.name || '';
                 setSelectedBuilding(building || null);
+                params.set('building', buildingName);
+                router.push(`${pathname}?${params.toString()}`);
                 setSelectedMachine(null);
               }}
             >
@@ -345,10 +559,15 @@ export default function ShopfloorDashboard() {
           <CardTitle className="flex justify-between items-center pb-0 mb-0">
             <div className="flex gap-x-8 ">
               <Label className="text-lg">
-                OOE <strong>53.3%</strong>
+                OOE <strong>{((selectedBuilding?.oee || 0)* 100).toFixed(2)}%</strong>
               </Label>
               <Label className="text-lg">
-                OEE <strong>53.3%</strong>
+                OEE <strong>{((selectedBuilding?.ooe || 0)* 100).toFixed(2)}%</strong>
+              </Label>
+            </div>
+            <div>
+              <Label>
+                Data is from {startHour}:00 to now
               </Label>
             </div>
           </CardTitle>
@@ -374,12 +593,15 @@ export default function ShopfloorDashboard() {
                 </div>
               );
             })}
-            <div className="flex flex-shrink col-span-2 items-center gap-2">
+            <div className="flex flex-shrink items-center gap-2">
               <span className="text-sm">
                 <strong>{selectedBuilding?.machines.length}</strong> Total
-                Active Machine
               </span>
             </div>
+            <Label className="text-xs">
+                last refresh at{' '}
+                {refreshTime}
+              </Label>
           </div>
         </CardContent>
       </Card>
@@ -405,13 +627,25 @@ export default function ShopfloorDashboard() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="font-semibold">Energy Consumption</span>{' '}
+                <span className="font-semibold">Energy</span>{' '}
                 {selectedMachine?.consumption} kWh
               </div>
-              <div className="flex items-center justify-between">
-                <span className="font-semibold">Cycle Time</span>{' '}
-                {selectedMachine?.consumption} s
-              </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">Cycle Time</span>{' '}
+                  <div>
+                  <span className={selectedMachine?.cycletime <= selectedMachine?.target_cycletime ? "text-green-500" : "text-red-500"}>
+                    {selectedMachine?.cycletime}
+                  </span> / {selectedMachine?.target_cycletime} s
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                <span className="font-semibold">Cavity</span>{' '}
+                <div>
+                <span className={selectedMachine?.cavity >= selectedMachine?.target_cavity ? "text-green-500" : "text-red-500"}>
+                  {selectedMachine?.cavity}
+                </span> / {selectedMachine?.target_cavity}
+                </div>
+                </div>
               <div className="grid grid-cols-1 gap-4">
                 <Button
                   onClick={() => {
@@ -465,9 +699,19 @@ export default function ShopfloorDashboard() {
             <directionalLight position={[0, -100, 0]} intensity={2} />{' '}
             <directionalLight position={[100, 0, 0]} intensity={2} />{' '}
             <directionalLight position={[-100, 0, 0]} intensity={2} />{' '}
-            <directionalLight position={[50, 50, 50]} intensity={2} />{' '}
+            <directionalLight position={[50, 50, 50]} intensity={2} castShadow/>{' '}
             <directionalLight position={[-50, 50, 50]} intensity={2} />{' '}
             <directionalLight position={[-50, 0, -50]} intensity={2} />{' '}
+              <spotLight
+              position={[0, 50, 0]}
+              angle={0.3}
+              penumbra={1}
+              intensity={2}
+              castShadow
+              shadow-mapSize-width={1024}
+              shadow-mapSize-height={1024}
+            />
+  
             <Floor />
             <FloorMiddle />
             <FloorRoad />
@@ -500,7 +744,6 @@ export default function ShopfloorDashboard() {
           </Suspense>
         </Canvas>
       </div>
-      ;
     </div>
   );
 }

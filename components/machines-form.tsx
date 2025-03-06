@@ -194,7 +194,7 @@ export function MachinesForm() {
       ),
     },
     {
-      accessorKey: 'equipments',
+      accessorKey: 'equipment',
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -233,7 +233,7 @@ export function MachinesForm() {
       id: 'actions',
       header: ({ column }) => <>Action</>,
       cell: ({ row }) => {
-        const machine = row.original;
+        const machine = row.original
         return (
           <div className="text-right">
             <DropdownMenu>
@@ -248,21 +248,21 @@ export function MachinesForm() {
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
+                {/* <DropdownMenuSeparator /> */}
+                {/* <DropdownMenuItem
                   className="text-red-600"
                   onClick={() => setDeletingMachine(machine)}
                 >
                   <Trash className="mr-2 h-4 w-4" />
                   Delete
-                </DropdownMenuItem>
+                </DropdownMenuItem> */}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        );
+        )
       },
     },
-  ];
+  ]
 
   // Initialize table
   const table = useReactTable({
@@ -285,7 +285,7 @@ export function MachinesForm() {
         pageSize: 10,
       },
     },
-  });
+  })
 
   useEffect(() => {
     const fetchData = async () => {
@@ -293,8 +293,8 @@ export function MachinesForm() {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`,
           {}
-        );
-        const data = await response.json();
+        )
+        const data = await response.json()
         if (data) {
           const formattedData = data.map((item: any) => ({
             id: item.machineId.toString(),
@@ -306,18 +306,19 @@ export function MachinesForm() {
             location: item.locationName,
             position: item.position,
             rotation: item.rotation,
-          }));
-          setMachines(formattedData);
+            equipment: item.equipment,
+          }))
+          setMachines(formattedData)
         } else {
-          console.error('Failed to fetch machines:', data.error);
+          console.error('Failed to fetch machines:', data.error)
         }
       } catch (error) {
-        console.error('Error fetching machines:', error);
+        console.error('Error fetching machines:', error)
       }
-    };
+    }
 
-    fetchData();
-  }, []);
+    fetchData()
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -325,26 +326,26 @@ export function MachinesForm() {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/equipments`,
           {}
-        );
-        const data = await response.json();
+        )
+        const data = await response.json()
         if (data) {
           const formattedData = data.map((item: any) => ({
             id: item.EquipmentID.toString(),
             name: item.Name,
             brand: item.Brand,
             energyBudget: item.EnergyBudget,
-          }));
-          setEquipments(formattedData);
+          }))
+          setEquipments(formattedData)
         } else {
-          console.error('Failed to fetch equipments:', data.error);
+          console.error('Failed to fetch equipments:', data.error)
         }
       } catch (error) {
-        console.error('Error fetching equipments:', error);
+        console.error('Error fetching equipments:', error)
       }
-    };
+    }
 
-    fetchData();
-  }, []);
+    fetchData()
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -352,22 +353,22 @@ export function MachinesForm() {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/locations`,
           {}
-        );
-        const data = await response.json();
+        )
+        const data = await response.json()
         if (data) {
           const formattedData = data.map((item: any) => ({
             name: item.name,
-          }));
-          setLocation(formattedData);
+          }))
+          setLocation(formattedData)
         } else {
-          console.error('Failed to fetch locations:', data.error);
+          console.error('Failed to fetch locations:', data.error)
         }
       } catch (error) {
-        console.error('Error fetching locations:', error);
+        console.error('Error fetching locations:', error)
       }
-    };
-    fetchData();
-  }, []);
+    }
+    fetchData()
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -375,32 +376,32 @@ export function MachinesForm() {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/uaps`,
           {}
-        );
-        const data = await response.json();
+        )
+        const data = await response.json()
         if (data) {
           const formattedData = data.map((item: any) => ({
             name: item.name,
-          }));
-          setUAP(formattedData);
+          }))
+          setUAP(formattedData)
         } else {
-          console.error('Failed to fetch UAPs:', data.error);
+          console.error('Failed to fetch UAPs:', data.error)
         }
       } catch (error) {
-        console.error('Error fetching UAPs:', error);
+        console.error('Error fetching UAPs:', error)
       }
-    };
-    fetchData();
-  }, []);
+    }
+    fetchData()
+  }, [])
 
   const addMachine = (newMachine: Omit<Machine, 'id'>) => {
-    const id = (machines.length + 1).toString();
-    setMachines([...machines, { ...newMachine, id }]);
-  };
+    const id = (machines.length + 1).toString()
+    setMachines([...machines, { ...newMachine, id }])
+  }
 
   const updateMachine = async (updatedMachine: Machine) => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/${updatedMachine.id}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/${updatedMachine.name}`,
         {
           method: 'PUT',
           headers: {
@@ -415,29 +416,30 @@ export function MachinesForm() {
             machineLocation: updatedMachine.location,
             machinePosition: updatedMachine.position,
             machineRotation: updatedMachine.rotation,
+            machineEquipment: updatedMachine.equipment,
           }),
         }
-      );
+      )
 
       if (!response.ok) {
-        throw new Error('Failed to update machine');
-      }
-
-      setMachines(
-        machines.map((machine) =>
-          machine.id === updatedMachine.id ? updatedMachine : machine
+        throw new Error('Failed to update machine')
+      } else {
+        setMachines(
+          machines.map((machine) =>
+            machine.id === updatedMachine.id ? updatedMachine : machine
+          )
         )
-      );
-      toast.success('Machine updated successfully');
+        toast.success('Machine updated successfully')
+      }
     } catch (error) {
-      console.error('Error updating machine:', error);
-      toast.error('Failed to update machine');
+      console.error('Error updating machine:', error)
+      toast.error('Failed to update machine')
     }
-  };
+  }
 
   const deleteMachine = (id: string) => {
-    setMachines(machines.filter((machine) => machine.id !== id));
-  };
+    setMachines(machines.filter((machine) => machine.id !== id))
+  }
 
   return (
     <div className="h-full flex-1 flex-col space-y-4 p-4 md:flex">
@@ -451,10 +453,10 @@ export function MachinesForm() {
         <div className="ml-auto px-3 space-x-3">
           <Dialog>
             <DialogTrigger asChild>
-              <Button>
+              {/* <Button>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Machine
-              </Button>
+              </Button> */}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
@@ -466,8 +468,8 @@ export function MachinesForm() {
               </DialogHeader>
               <form
                 onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
+                  e.preventDefault()
+                  const formData = new FormData(e.currentTarget)
                   const newMachine = {
                     name: formData.get('name') as string,
                     description: formData.get('description') as string,
@@ -478,10 +480,10 @@ export function MachinesForm() {
                     uap: formData.get('uap') as string,
                     equipment: formData.get('equipment') as string,
                     tonage: formData.get('tonage') as string,
-                  };
-                  addMachine(newMachine);
-                  e.currentTarget.reset();
-                  toast.success('Machine created successfully');
+                  }
+                  addMachine(newMachine)
+                  e.currentTarget.reset()
+                  toast.success('Machine created successfully')
                 }}
               >
                 <div className="grid gap-4 py-4">
@@ -575,9 +577,14 @@ export function MachinesForm() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="submit">Save changes</Button>
-                  </DialogClose>
+                  <Button
+                    type="submit"
+                    onClick={() => {
+                      DialogTrigger
+                    }}
+                  >
+                    Add machine
+                  </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -625,7 +632,7 @@ export function MachinesForm() {
                       >
                         {column.id}
                       </DropdownMenuCheckboxItem>
-                    );
+                    )
                   })}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -654,6 +661,7 @@ export function MachinesForm() {
                 table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
+                    className="text-center"
                     data-state={row.getIsSelected() && 'selected'}
                   >
                     {row.getVisibleCells().map((cell) => (
@@ -726,13 +734,13 @@ export function MachinesForm() {
             {deletingMachine && (
               <form
                 onSubmit={(e) => {
-                  e.preventDefault();
+                  e.preventDefault()
                   const deletedMachine = {
                     id: deletingMachine.id,
-                  };
-                  deleteMachine(deletedMachine.id);
-                  setDeletingMachine(null);
-                  toast.success('Machine deleted successfully');
+                  }
+                  deleteMachine(deletedMachine.id)
+                  setDeletingMachine(null)
+                  toast.success('Machine deleted successfully')
                 }}
               >
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -761,7 +769,7 @@ export function MachinesForm() {
           open={!!editingMachine}
           onOpenChange={() => setEditingMachine(null)}
         >
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[850px]">
             <DialogHeader>
               <DialogTitle>Edit Machine</DialogTitle>
               <DialogDescription>
@@ -772,260 +780,340 @@ export function MachinesForm() {
             {editingMachine && (
               <form
                 onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
+                  e.preventDefault()
+                  const formData = new FormData(e.currentTarget)
                   const updatedMachine = {
                     id: editingMachine.id,
                     name: formData.get('name') as string,
                     description: formData.get('description') as string,
                     process: formData.get('process') as string,
-                    location: formData.get('location') as string,
+                    location: editingMachine.location,
                     position: formData.get('position') as string,
-                    rotation: formData.get('rotation') as string,
+                    rotation: editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]',
                     uap: formData.get('uap') as string,
-                    equipment: formData.get('equipment') as string,
+                    equipment: editingMachine.equipment,
                     tonage: formData.get('tonage') as string,
-                  };
-                  updateMachine(updatedMachine);
-                  setEditingMachine(null);
-                  toast.success('Machine edited successfully');
+                  }
+                  updateMachine(updatedMachine)
+                  setEditingMachine(null)
                 }}
               >
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-name" className="text-right">
-                      MchID
-                    </Label>
-                    <Input
-                      id="edit-name"
-                      name="name"
-                      defaultValue={editingMachine.name}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-description" className="text-right">
-                      Description
-                    </Label>
-                    <Input
-                      id="edit-description"
-                      name="description"
-                      defaultValue={editingMachine.description}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-tonage" className="text-right">
-                      Tonage
-                    </Label>
-                    <Input
-                      id="edit-tonage"
-                      name="tonage"
-                      defaultValue={editingMachine.tonage}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-process" className="text-right">
-                      Process
-                    </Label>
-                    <Input
-                      id="edit-process"
-                      name="process"
-                      defaultValue={editingMachine.process}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-location" className="text-right">
-                      Location
-                    </Label>
-                    <Select
-                      value={editingMachine.location}
-                      onValueChange={(value) => {
-                        setEditingMachine({
-                          ...editingMachine,
-                          location: value,
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Location.map((loc) => (
-                          <SelectItem key={loc.name} value={loc.name}>
-                            {loc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-uap" className="text-right">
-                      UAP
-                    </Label>
-                    <Select
-                      value={editingMachine.uap}
-                      onValueChange={(value) => {
-                        setEditingMachine({
-                          ...editingMachine,
-                          uap: value,
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="UAP" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {UAP.map((uap) => (
-                          <SelectItem key={uap.name} value={uap.name}>
-                            {uap.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div
-                    className={`grid grid-cols-4 gap-4 ${
-                      editingMachine.equipment ? 'items-start' : 'items-center'
-                    }`}
-                  >
-                    <Label htmlFor="edit-equipment" className="text-center">
-                      Equipments
-                    </Label>
-                    {(() => {
-                      const selectedEquipments = editingMachine.equipment
-                        ? editingMachine.equipment.split(',').filter(Boolean)
-                        : [];
+                <div className="grid grid-cols-2 gap-4 py-4">
+                  <div className="">
+                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
+                      <Label htmlFor="edit-name" className="text-right">
+                        MchID
+                      </Label>
+                      <Input
+                        id="edit-name"
+                        name="name"
+                        defaultValue={editingMachine.name}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
+                      <Label htmlFor="edit-description" className="text-right">
+                        Description
+                      </Label>
+                      <Input
+                        id="edit-description"
+                        name="description"
+                        defaultValue={editingMachine.description}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
+                      <Label htmlFor="edit-tonage" className="text-right">
+                        Tonage
+                      </Label>
+                      <Input
+                        id="edit-tonage"
+                        name="tonage"
+                        defaultValue={editingMachine.tonage}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
+                      <Label htmlFor="edit-process" className="text-right">
+                        Process
+                      </Label>
+                      <Input
+                        id="edit-process"
+                        name="process"
+                        defaultValue={editingMachine.process}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
+                      <Label htmlFor="edit-location" className="text-right">
+                        Location
+                      </Label>
+                      <Select
+                        name="location"
+                        value={editingMachine.location}
+                        onValueChange={(value) => {
+                          setEditingMachine({
+                            ...editingMachine,
+                            location: value,
+                          })
+                        }}
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Location" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Location.map((loc) => (
+                            <SelectItem key={loc.name} value={loc.name}>
+                              {loc.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
+                      <Label htmlFor="edit-uap" className="text-right">
+                        UAP
+                      </Label>
+                      <Select
+                        name="uap"
+                        value={editingMachine.uap}
+                        onValueChange={(value) => {
+                          setEditingMachine({
+                            ...editingMachine,
+                            uap: value,
+                          })
+                        }}
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="UAP" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {UAP.map((uap) => (
+                            <SelectItem key={uap.name} value={uap.name}>
+                              {uap.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                      return (
-                        <div className="col-span-3">
-                          <div className="mb-2 flex flex-wrap gap-2">
-                            {selectedEquipments.map((eq: string) => (
-                              <span
-                                key={eq}
-                                className="flex items-center rounded-full bg-primary px-2 py-1 text-xs text-primary-foreground"
-                              >
-                                {eq}
-                                <button
-                                  onClick={() => {
-                                    const newSelections =
-                                      selectedEquipments.filter(
-                                        (item: string) => item !== eq
-                                      );
-                                    setEditingMachine({
-                                      ...editingMachine,
-                                      equipment: newSelections.join(','),
-                                    });
-                                  }}
-                                  className="ml-1 text-red-500"
+                    <div
+                      className={`grid grid-cols-4 gap-4 pb-4 ${
+                        editingMachine.equipment
+                          ? 'items-start'
+                          : 'items-center'
+                      }`}
+                    >
+                      <Label htmlFor="edit-equipment" className="text-center">
+                        Equipments
+                      </Label>
+                      {(() => {
+                        const selectedEquipments = editingMachine.equipment
+                          ? editingMachine.equipment.split(',').filter(Boolean)
+                          : []
+
+                        return (
+                          <div className="col-span-3">
+                            <div className="mb-2 flex flex-wrap gap-2">
+                              {selectedEquipments.map((eq: string) => (
+                                <span
+                                  key={eq}
+                                  className="flex items-center rounded-full bg-primary px-2 py-1 text-xs text-primary-foreground"
                                 >
-                                  X
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-between"
-                              >
-                                {selectedEquipments.length
-                                  ? 'Add/Remove Equipments'
-                                  : 'Select Equipments'}
-                                <ChevronDown className="ml-2 h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-48">
-                              <DropdownMenuCheckboxItem
-                                className="pl-2"
-                                checked={
-                                  selectedEquipments.length ===
-                                  equipments.length
-                                }
-                                onSelect={(e) => e.preventDefault()}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setEditingMachine({
-                                      ...editingMachine,
-                                      equipment: equipments.join(','),
-                                    });
-                                  } else {
-                                    setEditingMachine({
-                                      ...editingMachine,
-                                      equipment: '',
-                                    });
-                                  }
-                                }}
-                              >
-                                Select All
-                              </DropdownMenuCheckboxItem>
-                              {equipments.map((eq) => {
-                                const isSelected = selectedEquipments.includes(
-                                  eq.name
-                                );
-                                return (
-                                  <DropdownMenuCheckboxItem
-                                    className="pl-2"
-                                    key={eq.id}
-                                    checked={isSelected}
-                                    onSelect={(e) => e.preventDefault()}
-                                    onCheckedChange={(checked) => {
-                                      let newSelections = [
-                                        ...selectedEquipments,
-                                      ];
-                                      if (checked) {
-                                        newSelections.push(eq.name);
-                                      } else {
-                                        newSelections = newSelections.filter(
-                                          (item: string) => item !== eq.name
-                                        );
-                                      }
+                                  {eq}
+                                  <button
+                                    onClick={() => {
+                                      const newSelections =
+                                        selectedEquipments.filter(
+                                          (item: string) => item !== eq
+                                        )
                                       setEditingMachine({
                                         ...editingMachine,
                                         equipment: newSelections.join(','),
-                                      });
+                                      })
                                     }}
+                                    className="ml-1 text-red-500"
                                   >
-                                    {eq.name} - {eq.energyBudget || 0} kWh
-                                  </DropdownMenuCheckboxItem>
-                                );
-                              })}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                    X
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-between"
+                                >
+                                  {selectedEquipments.length
+                                    ? 'Add/Remove Equipments'
+                                    : 'Select Equipments'}
+                                  <ChevronsUpDown className="ml-2 h-2 w-2 text-primary/50" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="start"
+                                className="w-48"
+                              >
+                                <DropdownMenuCheckboxItem
+                                  className=""
+                                  checked={
+                                    selectedEquipments.length ===
+                                    equipments.length
+                                  }
+                                  onSelect={(e) => e.preventDefault()}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setEditingMachine({
+                                        ...editingMachine,
+                                        equipment: equipments
+                                          .map((eq) => eq.name)
+                                          .join(','),
+                                      })
+                                    } else {
+                                      setEditingMachine({
+                                        ...editingMachine,
+                                        equipment: '',
+                                      })
+                                    }
+                                  }}
+                                >
+                                  Select All
+                                </DropdownMenuCheckboxItem>
+                                {/* ; */}
+                                {equipments.map((eq) => {
+                                  const isSelected =
+                                    selectedEquipments.includes(eq.name)
+                                  return (
+                                    <DropdownMenuCheckboxItem
+                                      className=""
+                                      key={eq.id}
+                                      checked={isSelected}
+                                      onSelect={(e) => e.preventDefault()}
+                                      onCheckedChange={(checked) => {
+                                        let newSelections = [
+                                          ...selectedEquipments,
+                                        ]
+                                        if (checked) {
+                                          newSelections.push(eq.name)
+                                        } else {
+                                          newSelections = newSelections.filter(
+                                            (item: string) => item !== eq.name
+                                          )
+                                        }
+                                        setEditingMachine({
+                                          ...editingMachine,
+                                          equipment: newSelections.join(','),
+                                        })
+                                      }}
+                                    >
+                                      {eq.name} - {eq.energyBudget || 0} kWh
+                                    </DropdownMenuCheckboxItem>
+                                  )
+                                })}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                  <div>
+                    <div>
+                      <div className="grid grid-cols-4 items-center gap-4 pb-4">
+                        <Label
+                          htmlFor="edit-position"
+                          className="text-right"
+                        ></Label>
+                        <div className="col-span-3">
+                          <div className=" mr-12 text-center">Position</div>
+                          <div className="text-sm text-muted-foreground text-center mr-12">
+                            Selected position:{' '}
+                            {editingMachine.position || 'None'}
+                          </div>
+                          <div className="grid grid-cols-2 gap-0.5 mb-1 ml-16">
+                            {Array.from({ length: 14 }).map((_, colIndex) =>
+                              Array.from({ length: 2 }).map((_, rowIndex) => {
+                                // Calculate position values
+                                // x goes from -35 (left) to +30 (right), middle (col 7) is x=0
+                                const x = -(colIndex - 6) * 5
+                                // y is always 0
+                                const y = 0
+                                // z goes from -10 (top) to 0 (bottom row)
+                                const z = rowIndex === 0 ? -10 : 10
+                                const positionValue = `[${x}, ${y}, ${z}]`
+                                const isSelected =
+                                  editingMachine.position === positionValue
+
+                                return (
+                                  <button
+                                    key={`${rowIndex}-${colIndex}`}
+                                    type="button"
+                                    className={`h-4 w-4 flex items-center justify-center text-xs border rounded ${
+                                      isSelected
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'hover:bg-muted'
+                                    }`}
+                                    onClick={() => {
+                                      setEditingMachine({
+                                        ...editingMachine,
+                                        position: positionValue,
+                                      })
+                                    }}
+                                    title={positionValue}
+                                  >
+                                    {isSelected ? '✓' : ''}
+                                  </button>
+                                )
+                              })
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-2 text-center mr-10">
+                            TV Display is here
+                          </div>
                         </div>
-                      );
-                    })()}
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-position" className="text-right">
-                      Position
-                    </Label>
-                    <Input
-                      id="edit-position"
-                      name="position"
-                      defaultValue={editingMachine.position}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-rotation" className="text-right">
-                      Rotation
-                    </Label>
-                    <Input
-                      id="edit-rotation"
-                      name="rotation"
-                      defaultValue={editingMachine.rotation}
-                      className="col-span-3"
-                    />
+                        <Input
+                          id="edit-position"
+                          name="position"
+                          value={editingMachine.position || ''}
+                          onChange={(e) =>
+                            setEditingMachine({
+                              ...editingMachine,
+                              position: e.target.value,
+                              rotation: JSON.parse(e.target.value)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]' 
+                            })
+                          }
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
+                      <Label htmlFor="edit-rotation" className="text-right">
+                        Rotation
+                      </Label>
+                      <Input
+                        id="edit-rotation"
+                        name="rotation"
+                        disabled
+                        defaultValue={editingMachine.rotation}
+                        className="col-span-3"
+                        value={
+                           editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]' 
+                        }
+                          onSubmit={() =>
+                            setEditingMachine({
+                              ...editingMachine,
+                              rotation: editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]',
+                            })
+                          }
+                      />
+                    </div>
                   </div>
                 </div>
                 <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="submit">Save changes</Button>
-                  </DialogClose>
+                  <Button type="submit" onClick={() => DialogTrigger}>
+                    Save changes
+                  </Button>
                 </DialogFooter>
               </form>
             )}
@@ -1033,5 +1121,5 @@ export function MachinesForm() {
         </Dialog>
       </div>
     </div>
-  );
+  )
 }

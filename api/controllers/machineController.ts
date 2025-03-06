@@ -1,4 +1,3 @@
-import { machine } from 'os';
 import { queryDatabase } from '../utils/queryDatabase';
 
 export async function updateMachine(machineId: string, machineDescription: string, machineTonage: string, machineLocation: string, machineProcess: string, machineUap: string, machineEquipment: string, position: string, rotation: string) {
@@ -7,25 +6,49 @@ let sqlQuery = `
     SET 
     MchDesc = @machineDescription,
     MchTon = @machineTonage,
-    MchLoc = @machinLocation,
+    MchLoc = @machineLocation,
     MchProcess = @machineProcess,
     UAP = @machineUap,
     position = @position,
     rotation = @rotation
     WHERE MchID = @machineId;`
     
-    const equipment = machineEquipment.split(',');
-    for (let i = 0; i < equipment.length; i++) {
-    sqlQuery += `
-    MERGE MachineEquipmentMST AS target
-    USING (SELECT @machineId AS MchID, @machineEquipment AS EquipmentID) AS source
-    ON (target.MchID = source.MchID)
-    WHEN MATCHED THEN 
-            UPDATE SET EquipmentID = source.EquipmentID
-    WHEN NOT MATCHED THEN
-            INSERT (MchID, EquipmentID) VALUES (source.MchID, source.EquipmentID);
-    `;
+    // Check if machineEquipment exists before splitting
+    const equipment = machineEquipment ? machineEquipment.split(',') : [];
+
+    if (equipment.length === 0) {
+        sqlQuery += `
+        UPDATE MachineEquipmentMST 
+        SET Active = 0, modified_at = GETDATE()
+        WHERE MchID = @machineId`;
+    } else {
+        for (let i = 0; i < equipment.length; i++) {
+        // Extract the current equipment item
+            const currentEquipment = equipment[i].trim();
+            
+            sqlQuery += `
+            MERGE MachineEquipmentMST AS target
+            USING (SELECT @machineId AS MchID, '${currentEquipment}' AS EquipmentID) AS source
+            ON (target.MchID = source.MchID AND target.EquipmentID = source.EquipmentID)
+            WHEN MATCHED THEN 
+                    UPDATE SET Active = 1
+            WHEN NOT MATCHED THEN
+                    INSERT (MchID, EquipmentID, Active, created_at) VALUES (source.MchID, source.EquipmentID, 1, getdate());
+            `;
+
+            if (i === equipment.length - 1) {
+                // After processing all equipment items, set Active=0 for any equipment not in the payload
+                sqlQuery += `
+                UPDATE MachineEquipmentMST 
+                SET Active = 0, modified_at = GETDATE()
+                WHERE MchID = @machineId
+                AND EquipmentID NOT IN (${equipment.map(e => `'${e.trim()}'`).join(',')});
+                `;
+            }
+        } 
     }
+    
+
   return await queryDatabase(sqlQuery, {machineId, machineDescription, machineTonage, machineLocation, machineProcess, machineUap, machineEquipment, position, rotation});
 }
 
@@ -115,15 +138,31 @@ export async function getChangeState(machine_name: string, date: string | null, 
 
 export async function getMachine(type: string | null) {
   const sqlQuery = `
-  SELECT m.id as machineId, m.MchID as machineName, m.MchDesc as machineDescription, m.MchNumber as machineNumber, m.MchTon as machineTonage,
-  m.MchLoc as locationName,
-  m.position, m.rotation, m.MchProcess as Process, m.uap, em.EquipmentID as equipment, m.MchTon as tonage
-  from MachineMST m
-  left join MachineEquipmentMST em on m.MchID = em.MchID
-  where m.Active = 1 --and em.Active = 1
-  and (m.MchProcess = upper(@type) or @type is null)
-  and m.MchLoc != 'NULL' and m.MchLoc != 'Mixing Bld T'
-  order by MchLoc asc, cast(m.MchNumber as INT) asc
+  SELECT 
+    m.id as machineId, 
+    m.MchID as machineName, 
+    m.MchDesc as machineDescription, 
+    m.MchNumber as machineNumber, 
+    m.MchTon as machineTonage,
+    m.MchLoc as locationName,
+    m.position, 
+    m.rotation, 
+    m.MchProcess as Process, 
+    m.uap, 
+    STRING_AGG(em.EquipmentID, ', ') AS equipment,  -- Concatenates multiple EquipmentIDs
+    m.MchTon as tonage
+FROM IoT.dbo.MachineMST m
+LEFT JOIN IoT.dbo.MachineEquipmentMST em ON m.MchID = em.MchID and em.Active = 1
+WHERE 
+    m.Active = 1 
+    AND m.MchLoc IS NOT NULL 
+    AND m.MchLoc != 'Mixing Bld T'
+GROUP BY 
+    m.id, m.MchID, m.MchDesc, m.MchNumber, m.MchTon, 
+    m.MchLoc, m.position, m.rotation, m.MchProcess, m.uap
+ORDER BY 
+    m.MchLoc ASC, CAST(m.MchNumber AS INT) ASC;
+
   `;
   return await queryDatabase(sqlQuery, {type});
 }
