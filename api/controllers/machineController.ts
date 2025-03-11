@@ -1,6 +1,6 @@
 import { queryDatabase } from '../utils/queryDatabase';
 
-export async function updateMachine(machineId: string, machineDescription: string, machineTonage: string, machineLocation: string, machineProcess: string, machineUap: string, machineEquipment: string, position: string, rotation: string) {
+export async function updateMachine(machineId: string, machineDescription: string, machineTonage: string, machineLocation: string, machineProcess: string, machineUap: string, machineEquipment: string, position: string, rotation: string, energyBudget: number) {
 let sqlQuery = `
     UPDATE MachineMST
     SET 
@@ -10,7 +10,8 @@ let sqlQuery = `
     MchProcess = @machineProcess,
     UAP = @machineUap,
     position = @position,
-    rotation = @rotation
+    rotation = @rotation,
+    energyBudget = @energyBudget
     WHERE MchID = @machineId;`
     
     // Check if machineEquipment exists before splitting
@@ -49,7 +50,7 @@ let sqlQuery = `
     }
     
 
-  return await queryDatabase(sqlQuery, {machineId, machineDescription, machineTonage, machineLocation, machineProcess, machineUap, machineEquipment, position, rotation});
+    return await queryDatabase(sqlQuery, { machineId, machineDescription, machineTonage, machineLocation, machineProcess, machineUap, machineEquipment, position, rotation, energyBudget });
 }
 
 export async function getChangeState(machine_name: string, date: string | null, shift: string | null) {
@@ -138,29 +139,32 @@ export async function getChangeState(machine_name: string, date: string | null, 
 
 export async function getMachine(type: string | null) {
   const sqlQuery = `
-  SELECT 
-    m.id as machineId, 
-    m.MchID as machineName, 
-    m.MchDesc as machineDescription, 
-    m.MchNumber as machineNumber, 
+    SELECT
+    m.id as machineId,
+    m.MchID as machineName,
+    m.MchDesc as machineDescription,
+    m.MchNumber as machineNumber,
     m.MchTon as machineTonage,
     m.MchLoc as locationName,
-    m.position, 
-    m.rotation, 
-    m.MchProcess as Process, 
-    m.uap, 
-    STRING_AGG(em.EquipmentID, ', ') AS equipment,  -- Concatenates multiple EquipmentIDs
-    m.MchTon as tonage
+    m.position,
+    m.rotation,
+    m.MchProcess as Process,
+    m.uap,
+    STRING_AGG(e.Name , ', ') AS equipment,  -- Concatenates multiple EquipmentIDs
+    m.MchTon as tonage,
+	sum(e.EnergyBudget) as EquipmentEnergyBudget,
+	m.energyBudget as MachineEnergyBudget
 FROM IoT.dbo.MachineMST m
 LEFT JOIN IoT.dbo.MachineEquipmentMST em ON m.MchID = em.MchID and em.Active = 1
-WHERE 
-    m.Active = 1 
-    AND m.MchLoc IS NOT NULL 
+LEFT JOIN IoT.dbo.EquipmentMST e on e.EquipmentID = em.EquipmentID and e.Active = 1
+WHERE
+    m.Active = 1
+    AND m.MchLoc IS NOT NULL
     AND m.MchLoc != 'Mixing Bld T'
-GROUP BY 
-    m.id, m.MchID, m.MchDesc, m.MchNumber, m.MchTon, 
-    m.MchLoc, m.position, m.rotation, m.MchProcess, m.uap
-ORDER BY 
+GROUP BY
+    m.id, m.MchID, m.MchDesc, m.MchNumber, m.MchTon,
+    m.MchLoc, m.position, m.rotation, m.MchProcess, m.uap, m.energyBudget
+ORDER BY
     m.MchLoc ASC, CAST(m.MchNumber AS INT) ASC;
 
   `;

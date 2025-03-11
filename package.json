@@ -7,6 +7,8 @@
     "dev-be": "bun run api/index.ts",
     "dev-full": "concurrently \"bun run dev\" \"bun run start\"",
     "dev:reset": "bunx prisma migrate reset --force --skip-seed",
+    "build-be": "tsc && tsc-alias",
+    "start-be": "bun ./dist/api/index.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -79,6 +81,7 @@
     "eslint-config-next": "15.0.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsc-alias": "^1.8.11",
     "typescript": "^5"
   }
 }

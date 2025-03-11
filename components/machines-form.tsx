@@ -61,6 +61,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Badge } from './ui/badge';
+import { set } from 'date-fns';
 
 type Machine = {
   id: string;
@@ -73,9 +75,12 @@ type Machine = {
   rotation: string;
   uap: string;
   equipment: string;
+  energyBudget: number;
+  equipmentEnergyBudget: number;
 };
 type Equipment = {
   id: string;
+  equipmentId: string;
   name: string;
   brand: string;
   energyBudget: number;
@@ -99,6 +104,9 @@ export function MachinesForm() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const [deletingMachine, setDeletingMachine] = useState<Machine | null>(null);
+
+  const [selectedEquipments, setSelectedEquipments] = useState<string[]>([]);
+  const [inputedEnergyBudget, setInputedEnergyBudget] = useState<number>(0);
 
   // const UAP = ['BASIC', 'PREMIUM', 'LEAN', 'UV'];
   // const Location = [
@@ -204,30 +212,51 @@ export function MachinesForm() {
           <ChevronsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
+      cell: ({ row }) => (
+      <div className="font-medium overflow-x-scroll h-8 w-[100px]">
+        {row.getValue('equipment')}
+      </div>
+      ),
     },
     {
-      accessorKey: 'position',
+      accessorKey: 'energyBudget',
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          Position
+          EnergyBudget
           <ChevronsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
+      cell: ({ row }) => (
+        <div className="font-medium">
+           {typeof row.getValue('energyBudget') === 'number'
+          ? row.getValue<number>('energyBudget').toLocaleString()
+          : row.getValue('energyBudget')}
+          </div>
+      ),
     },
     {
-      accessorKey: 'rotation',
+      accessorKey: 'equipmentEnergyBudget',
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          Rotation
+          Total EnergyBudget
           <ChevronsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
+      cell: ({ row }) => {
+        const energyBudget = Number(row.getValue('energyBudget')) || 0;
+        const equipmentEnergyBudget = Number(row.getValue('equipmentEnergyBudget')) || 0;
+        return (
+            <div className="font-medium">
+            {(energyBudget + equipmentEnergyBudget).toLocaleString()}
+            </div>
+        );
+      },
     },
     {
       id: 'actions',
@@ -244,7 +273,7 @@ export function MachinesForm() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setEditingMachine(machine)}>
+                <DropdownMenuItem onClick={() => {setEditingMachine(machine), setInputedEnergyBudget(machine.energyBudget), setSelectedEquipments(equipments.filter((eq) => machine.equipment.split(', ').includes(eq.name)).map((eq) => eq.equipmentId))}}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
@@ -286,38 +315,43 @@ export function MachinesForm() {
       },
     },
   })
+  
+  const fetchMachines = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`,
+        {}
+      )
+      const data = await response.json()
+      if (data) {
+        const formattedData = data.map((item: any) => ({
+          id: item.machineId.toString(),
+          name: item.machineName,
+          description: item.machineDescription,
+          tonage: item.tonage,
+          process: item.Process,
+          uap: item.uap,
+          location: item.locationName,
+          position: item.position,
+          rotation: item.rotation,
+          equipment: item.equipment,
+          energyBudget: item.MachineEnergyBudget,
+          equipmentEnergyBudget: item.EquipmentEnergyBudget,
+        }))
+        setMachines(formattedData)
+        return formattedData
+      } else {
+        console.error('Failed to fetch machines:', data.error)
+        return []
+      }
+    } catch (error) {
+      console.error('Error fetching machines:', error)
+      return []
+    }
+  }
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`,
-          {}
-        )
-        const data = await response.json()
-        if (data) {
-          const formattedData = data.map((item: any) => ({
-            id: item.machineId.toString(),
-            name: item.machineName,
-            description: item.machineDescription,
-            tonage: item.tonage,
-            process: item.Process,
-            uap: item.uap,
-            location: item.locationName,
-            position: item.position,
-            rotation: item.rotation,
-            equipment: item.equipment,
-          }))
-          setMachines(formattedData)
-        } else {
-          console.error('Failed to fetch machines:', data.error)
-        }
-      } catch (error) {
-        console.error('Error fetching machines:', error)
-      }
-    }
-
-    fetchData()
+    fetchMachines()
   }, [])
 
   useEffect(() => {
@@ -331,6 +365,7 @@ export function MachinesForm() {
         if (data) {
           const formattedData = data.map((item: any) => ({
             id: item.EquipmentID.toString(),
+            equipmentId: item.EquipmentID,
             name: item.Name,
             brand: item.Brand,
             energyBudget: item.EnergyBudget,
@@ -417,6 +452,7 @@ export function MachinesForm() {
             machinePosition: updatedMachine.position,
             machineRotation: updatedMachine.rotation,
             machineEquipment: updatedMachine.equipment,
+            machineEnergyBudget: updatedMachine.energyBudget,
           }),
         }
       )
@@ -424,11 +460,7 @@ export function MachinesForm() {
       if (!response.ok) {
         throw new Error('Failed to update machine')
       } else {
-        setMachines(
-          machines.map((machine) =>
-            machine.id === updatedMachine.id ? updatedMachine : machine
-          )
-        )
+        fetchMachines();
         toast.success('Machine updated successfully')
       }
     } catch (error) {
@@ -480,6 +512,8 @@ export function MachinesForm() {
                     uap: formData.get('uap') as string,
                     equipment: formData.get('equipment') as string,
                     tonage: formData.get('tonage') as string,
+                    energyBudget: (formData.get('energyBudget') || 0) as number,
+                    equipmentEnergyBudget: (formData.get('equipmentEnergyBudget') || 0) as number,
                   }
                   addMachine(newMachine)
                   e.currentTarget.reset()
@@ -767,7 +801,7 @@ export function MachinesForm() {
         </Dialog>
         <Dialog
           open={!!editingMachine}
-          onOpenChange={() => setEditingMachine(null)}
+          onOpenChange={() => {setEditingMachine(null), setInputedEnergyBudget(0), setSelectedEquipments([])}}
         >
           <DialogContent className="sm:max-w-[850px]">
             <DialogHeader>
@@ -791,8 +825,10 @@ export function MachinesForm() {
                     position: formData.get('position') as string,
                     rotation: editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]',
                     uap: formData.get('uap') as string,
-                    equipment: editingMachine.equipment,
+                    equipment: selectedEquipments.join(','),
                     tonage: formData.get('tonage') as string,
+                    energyBudget: (formData.get('energyBudget') || 0) as number,
+                    equipmentEnergyBudget: (formData.get('equipmentEnergyBudget') || 0) as number,
                   }
                   updateMachine(updatedMachine)
                   setEditingMachine(null)
@@ -841,6 +877,20 @@ export function MachinesForm() {
                         id="edit-process"
                         name="process"
                         defaultValue={editingMachine.process}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
+                      <Label htmlFor="edit-energyBudget" className="text-right">
+                        EnergyBudget
+                      </Label>
+                      <Input
+                        id="edit-energyBudget"
+                        name="energyBudget"
+                        defaultValue={editingMachine.energyBudget || 0}
+                        onChange={(e) => {
+                          setInputedEnergyBudget(Number(e.target.value))
+                        }}
                         className="col-span-3"
                       />
                     </div>
@@ -908,29 +958,31 @@ export function MachinesForm() {
                         Equipments
                       </Label>
                       {(() => {
-                        const selectedEquipments = editingMachine.equipment
-                          ? editingMachine.equipment.split(',').filter(Boolean)
-                          : []
+                        // const selectedEquipments = editingMachine.equipment
+                        //   ? editingMachine.equipment.split(',').filter(Boolean)
+                        //   : []
+
 
                         return (
                           <div className="col-span-3">
                             <div className="mb-2 flex flex-wrap gap-2">
-                              {selectedEquipments.map((eq: string) => (
+                              {selectedEquipments.map((eq) => (
                                 <span
-                                  key={eq}
+                                  key={equipments.find((item) => item.equipmentId === eq)?.name}
                                   className="flex items-center rounded-full bg-primary px-2 py-1 text-xs text-primary-foreground"
                                 >
-                                  {eq}
+                                  {equipments.find((item) => item.equipmentId === eq)?.name}
                                   <button
                                     onClick={() => {
                                       const newSelections =
                                         selectedEquipments.filter(
-                                          (item: string) => item !== eq
+                                          (item: string) => item !== equipments.find((item) => item.equipmentId === eq)?.name
                                         )
                                       setEditingMachine({
                                         ...editingMachine,
                                         equipment: newSelections.join(','),
                                       })
+                                      setSelectedEquipments(newSelections)
                                     }}
                                     className="ml-1 text-red-500"
                                   >
@@ -970,23 +1022,24 @@ export function MachinesForm() {
                                           .map((eq) => eq.name)
                                           .join(','),
                                       })
+                                      setSelectedEquipments(equipments.map((eq) => eq.equipmentId))
                                     } else {
                                       setEditingMachine({
                                         ...editingMachine,
                                         equipment: '',
                                       })
+                                      setSelectedEquipments([])
                                     }
                                   }}
                                 >
                                   Select All
                                 </DropdownMenuCheckboxItem>
-                                {/* ; */}
                                 {equipments.map((eq) => {
                                   const isSelected =
-                                    selectedEquipments.includes(eq.name)
+                                    selectedEquipments.includes(eq.equipmentId)
                                   return (
                                     <DropdownMenuCheckboxItem
-                                      className=""
+                                      className="w-[400px]"
                                       key={eq.id}
                                       checked={isSelected}
                                       onSelect={(e) => e.preventDefault()}
@@ -994,20 +1047,28 @@ export function MachinesForm() {
                                         let newSelections = [
                                           ...selectedEquipments,
                                         ]
+                                        let newSelectionsId = [
+                                          ...selectedEquipments,
+                                        ]
                                         if (checked) {
                                           newSelections.push(eq.name)
+                                          newSelectionsId.push(eq.equipmentId)
                                         } else {
                                           newSelections = newSelections.filter(
                                             (item: string) => item !== eq.name
+                                          )
+                                          newSelectionsId = newSelectionsId.filter(
+                                            (item: string) => item !== eq.equipmentId
                                           )
                                         }
                                         setEditingMachine({
                                           ...editingMachine,
                                           equipment: newSelections.join(','),
                                         })
+                                        setSelectedEquipments(newSelectionsId)
                                       }}
                                     >
-                                      {eq.name} - {eq.energyBudget || 0} kWh
+                                      {eq.name} - {eq.energyBudget/1000 || 0} kWh
                                     </DropdownMenuCheckboxItem>
                                   )
                                 })}
@@ -1106,6 +1167,22 @@ export function MachinesForm() {
                               rotation: editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]',
                             })
                           }
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
+                      <Label htmlFor="edit-totalenergy" className="text-right">
+                        Total EnergyBudget
+                      </Label>
+                      <Input
+                        id="edit-totalenergy"
+                        name="totalenergy"
+                        disabled
+                        defaultValue={editingMachine.energyBudget + editingMachine.equipmentEnergyBudget}
+                        className="col-span-3"
+                        value={
+                           inputedEnergyBudget + (selectedEquipments.length ? equipments.filter((eq) => selectedEquipments.includes(eq.equipmentId)).reduce((acc, eq) => acc + eq.energyBudget, 0) : 0)
+                        }
                       />
                     </div>
                   </div>

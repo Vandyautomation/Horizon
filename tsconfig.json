@@ -5,6 +5,7 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    "outDir": "./dist",
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -19,8 +20,13 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     }
+  },
+  "tsc-alias": {
+    "resolveFullPaths": true
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "api/config/database.js"],
   "exclude": ["node_modules"]

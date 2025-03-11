@@ -18,8 +18,8 @@ machineRoutes.get('/', async (c) => {
 machineRoutes.put('/:machineId', async (c) => {
   try {
     const machine_id = c.req.param('machineId');
-    const { machineDescription, machineTonage, machineLocation, machineProcess, machineUap, machineEquipment, machinePosition, machineRotation } = await c.req.json();
-    const data = await updateMachine(machine_id, machineDescription, machineTonage, machineLocation, machineProcess, machineUap, machineEquipment, machinePosition, machineRotation);
+    const { machineDescription, machineTonage, machineLocation, machineProcess, machineUap, machineEquipment, machinePosition, machineRotation, machineEnergyBudget } = await c.req.json();
+    const data = await updateMachine(machine_id, machineDescription, machineTonage, machineLocation, machineProcess, machineUap, machineEquipment, machinePosition, machineRotation, machineEnergyBudget);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);

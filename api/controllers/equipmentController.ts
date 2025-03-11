@@ -10,8 +10,31 @@ export async function getEquipment() {
 }
 
 
-export async function addEquipment(name: string, description: string) {
-  const sqlQuery = `INSERT INTO EquipmentMST (name, description) VALUES (@name, @description)`;
-  return await queryDatabase(sqlQuery, { name, description });
+export async function addEquipment(equipmentId: string, category: string, name: string, brand: string, energyBudget: string) {
+  const sqlQuery = `
+  INSERT INTO EquipmentMST (EquipmentId, Category, name, brand, energyBudget, created_at, modified_at, active) 
+  VALUES (@equipmentId, @category, @name, @brand, @energyBudget, getdate(), getdate(), 1)`;
+  return await queryDatabase(sqlQuery, { equipmentId, category, name, brand, energyBudget });
 }
 
+export async function updateEquipment(id: number, equipmentId: string, category: string, name: string, brand: string, energyBudget: string) {
+  const sqlQuery = `
+  UPDATE EquipmentMST 
+  SET Category = @category, 
+      equipmentId = @equipmentId,
+      name = @name, 
+      brand = @brand, 
+      energyBudget = @energyBudget, 
+      modified_at = getdate()
+  WHERE id = @id`;
+  return await queryDatabase(sqlQuery, { id, equipmentId, category, name, brand, energyBudget });
+}
+
+export async function deleteEquipment(id: number) {
+  const sqlQuery = `
+  UPDATE EquipmentMST 
+  SET active = 0, 
+      modified_at = getdate()
+  WHERE id = @id`;
+  return await queryDatabase(sqlQuery, { id });
+}

@@ -57,6 +57,7 @@ import {
 
 type Equipment = {
   id: string;
+  equipmentId: string;
   name: string;
   brand: string;
   energyBudget: number;
@@ -74,10 +75,19 @@ export function EquipmentsForm() {
     null
   );
 
-  // Define columns for TanStack table
+  const Category = [
+    {"id": 1, "name": "MTC"}, 
+    {"id": 2, "name": "Dry Hopper"}, 
+    {"id": 3, "name": "Conveyor"}, 
+    {"id":4, "name":"Crusher"}, 
+    {"id":5, "name":"MB Feeder"}
+    , {"id":5, "name":"Chiller"}
+    , {"id":6, "name":"Core Pull"}
+    , {"id":7, "name":"Dehumidifying Dryer"}
+  ];
   const columns: ColumnDef<Equipment>[] = [
     {
-      accessorKey: 'id',
+      accessorKey: 'equipmentId',
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -86,10 +96,7 @@ export function EquipmentsForm() {
           EquipmentID
           <ChevronsUpDown className="ml-2 h-4 w-4" />
         </Button>
-      ),
-      cell: ({ row }) => (
-        <div className="font-medium">{row.getValue('id')}</div>
-      ),
+      )
     },
     {
       accessorKey: 'name',
@@ -125,6 +132,13 @@ export function EquipmentsForm() {
           EnergyBudget
           <ChevronsUpDown className="ml-2 h-4 w-4" />
         </Button>
+      ),
+      cell: ({ row }) => (
+      <div className="font-medium">
+        {typeof row.getValue('energyBudget') === 'number'
+          ? row.getValue<number>('energyBudget').toLocaleString()
+          : row.getValue('energyBudget')}
+      </div>
       ),
     },
     {
@@ -195,7 +209,8 @@ export function EquipmentsForm() {
         const data = await response.json();
         if (data) {
           const formattedData = data.map((item: any) => ({
-            id: item.EquipmentID.toString(),
+            id: item.ID,
+            equipmentId: item.EquipmentID.toString(),
             name: item.Name,
             brand: item.Brand,
             energyBudget: item.EnergyBudget,
@@ -212,21 +227,110 @@ export function EquipmentsForm() {
     fetchData();
   }, []);
 
-  const addEquipment = (newEquipment: Omit<Equipment, 'id'>) => {
-    const id = (equipments.length + 1).toString();
-    setEquipments([...equipments, { ...newEquipment, id }]);
+  const addEquipment = async (newEquipment: Equipment) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/equipments`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            equipmentId: newEquipment.equipmentId,
+            name: newEquipment.name,
+            brand: newEquipment.brand,
+            energyBudget: newEquipment.energyBudget,
+          }),
+        }
+      );
+      
+      if (!response.ok) {
+        toast.error('Equipment creation failed');
+        throw new Error('Failed to add equipment');
+      }
+      
+      // Refresh the equipment list
+      const updatedResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/equipments`
+      );
+      const data = await updatedResponse.json();
+      const formattedData = data.map((item: any) => ({
+        id: item.id,
+        equipmenetId: item.EquipmentID.toString(),
+        name: item.Name,
+        brand: item.Brand,
+        energyBudget: item.EnergyBudget,
+      }));
+      setEquipments(formattedData);
+      toast.success('Equipment created successfully');
+    } catch (error) {
+      console.error('Error adding equipment:', error);
+      toast.error('Failed to add equipment');
+    }
   };
 
-  const updateEquipment = (updatedEquipment: Equipment) => {
-    setEquipments(
-      equipments.map((machine) =>
-        machine.id === updatedEquipment.id ? updatedEquipment : machine
-      )
-    );
+  const updateEquipment = async (updatedEquipment: Equipment) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/equipments/${updatedEquipment.id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            equipmentId: updatedEquipment.equipmentId,
+            name: updatedEquipment.name,
+            brand: updatedEquipment.brand,
+            energyBudget: updatedEquipment.energyBudget,
+          }),
+        }
+      );
+      
+      if (!response.ok) {
+        toast.error('Failed to update equipment');
+        throw new Error('Failed to update equipment');
+      }
+      
+      // Update the local state
+      setEquipments(
+        equipments.map((machine) =>
+          machine.id === updatedEquipment.id ? updatedEquipment : machine
+        )
+      );
+      toast.success('Equipment edited successfully');
+
+    } catch (error) {
+      console.error('Error updating equipment:', error);
+      toast.error('Failed to update equipment');
+    }
   };
 
-  const deleteEquipment = (id: string) => {
-    setEquipments(equipments.filter((machine) => machine.id !== id));
+  const deleteEquipment = async (id: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/equipments/${id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        toast.error('Failed to delete equipment');
+        throw new Error('Failed to delete equipment');
+      }
+      
+      // Update the local state after successful deletion
+      setEquipments(equipments.filter((machine) => machine.id !== id));
+      toast.success('Equipment deleted successfully');
+    } catch (error) {
+      console.error('Error deleting equipment:', error);
+      toast.error('Failed to delete equipment');
+    }
   };
 
   return (
@@ -260,21 +364,21 @@ export function EquipmentsForm() {
                   const formData = new FormData(e.currentTarget);
                   const newEquipment = {
                     id: formData.get('id') as string,
+                    equipmentId: formData.get('equipmentId') as string,
                     name: formData.get('name') as string,
                     brand: formData.get('brand') as string,
                     energyBudget: (formData.get('energyBudget') || 0) as number,
                   };
                   addEquipment(newEquipment);
                   e.currentTarget.reset();
-                  toast.success('Equipment created successfully');
                 }}
               >
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">
+                    <Label htmlFor="equipmentId" className="text-right">
                       EquipmentID
                     </Label>
-                    <Input id="id" name="id" className="col-span-3" required />
+                    <Input id="equipmentId" name="equipmentId" className="col-span-3" required />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">
@@ -283,6 +387,17 @@ export function EquipmentsForm() {
                     <Input
                       id="name"
                       name="name"
+                      className="col-span-3"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="brand" className="text-right">
+                      Brand
+                    </Label>
+                    <Input
+                      id="brand"
+                      name="brand"
                       className="col-span-3"
                       required
                     />
@@ -501,21 +616,23 @@ export function EquipmentsForm() {
                   const formData = new FormData(e.currentTarget);
                   const updatedEquipment = {
                     id: editingEquipment.id,
+                    equipmentId: formData.get('equipmentId') as string,
                     name: formData.get('name') as string,
                     brand: formData.get('brand') as string,
                     energyBudget: (formData.get('energyBudget') || 0) as number,
                   };
                   updateEquipment(updatedEquipment);
                   setEditingEquipment(null);
-                  toast.success('Equipment edited successfully');
                 }}
               >
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">
+                    <Label htmlFor="equipmentId" className="text-right">
                       EquipmentID
                     </Label>
-                    <Input id="id" name="id" className="col-span-3" required />
+                    <Input id="equipmentId" name="equipmentId" className="col-span-3" required
+                    defaultValue={editingEquipment.equipmentId} 
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">
@@ -525,6 +642,19 @@ export function EquipmentsForm() {
                       id="name"
                       name="name"
                       className="col-span-3"
+                      defaultValue={editingEquipment.name}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="brand" className="text-right">
+                      Brand
+                    </Label>
+                    <Input
+                      id="brand"
+                      name="brand"
+                      className="col-span-3"
+                      defaultValue={editingEquipment.brand}
                       required
                     />
                   </div>
@@ -536,14 +666,14 @@ export function EquipmentsForm() {
                       id="energyBudget"
                       name="energyBudget"
                       className="col-span-3"
+                      defaultValue={editingEquipment.energyBudget.toString()}
                       required
                     />
                   </div>
                 </div>
                 <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="submit">Save changes</Button>
-                  </DialogClose>
+                    <Button type="submit" onClick={() => DialogTrigger}>
+                      Save changes</Button>
                 </DialogFooter>
               </form>
             )}
