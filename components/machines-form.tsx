@@ -105,6 +105,8 @@ export function MachinesForm() {
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const [deletingMachine, setDeletingMachine] = useState<Machine | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState('');
+
   const [selectedEquipments, setSelectedEquipments] = useState<string[]>([]);
   const [inputedEnergyBudget, setInputedEnergyBudget] = useState<number>(0);
 
@@ -273,7 +275,14 @@ export function MachinesForm() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => {setEditingMachine(machine), setInputedEnergyBudget(machine.energyBudget), setSelectedEquipments(equipments.filter((eq) => machine.equipment.split(', ').includes(eq.name)).map((eq) => eq.equipmentId))}}>
+                <DropdownMenuItem onClick={() => {
+                  setEditingMachine(machine);
+                  setInputedEnergyBudget(machine.energyBudget);
+                  // Extract equipment IDs by matching names from the machine equipment list
+                  const equipmentNames = machine.equipment ? machine.equipment.split(',').map(name => name.trim()) : [];
+                  const matchedEquipments = equipments.filter(eq => equipmentNames.includes(eq.name));
+                  setSelectedEquipments(matchedEquipments.map(eq => eq.equipmentId));
+                }}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
@@ -801,7 +810,7 @@ export function MachinesForm() {
         </Dialog>
         <Dialog
           open={!!editingMachine}
-          onOpenChange={() => {setEditingMachine(null), setInputedEnergyBudget(0), setSelectedEquipments([])}}
+          onOpenChange={() => {setEditingMachine(null), setInputedEnergyBudget(0), setSelectedEquipments([]), setSearchQuery('')}}
         >
           <DialogContent className="sm:max-w-[850px]">
             <DialogHeader>
@@ -887,6 +896,7 @@ export function MachinesForm() {
                       <Input
                         id="edit-energyBudget"
                         name="energyBudget"
+                        type='number'
                         defaultValue={editingMachine.energyBudget || 0}
                         onChange={(e) => {
                           setInputedEnergyBudget(Number(e.target.value))
@@ -976,7 +986,7 @@ export function MachinesForm() {
                                     onClick={() => {
                                       const newSelections =
                                         selectedEquipments.filter(
-                                          (item: string) => item !== equipments.find((item) => item.equipmentId === eq)?.name
+                                          (item) => item !== eq
                                         )
                                       setEditingMachine({
                                         ...editingMachine,
@@ -991,7 +1001,17 @@ export function MachinesForm() {
                                 </span>
                               ))}
                             </div>
-                            <DropdownMenu>
+                            <DropdownMenu onOpenChange={(open) => {
+                              if (open) {
+                                // Set timeout to ensure the DOM is ready before focusing
+                                setTimeout(() => {
+                                  const searchInput = document.getElementById('equipment-search-input');
+                                  if (searchInput) {
+                                    searchInput.focus();
+                                  }
+                                }, 0);
+                              }
+                            }}>
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="outline"
@@ -1005,8 +1025,32 @@ export function MachinesForm() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="start"
-                                className="w-48"
+                                className="w-64 max-h-80 overflow-y-auto"
+                                onCloseAutoFocus={(e) => {
+                                  // Prevent the dropdown from stealing focus back
+                                  e.preventDefault();
+                                }}
                               >
+                                <div className="p-2" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    id="equipment-search-input"
+                                    type="text"
+                                    placeholder="Search equipments..."
+                                    className="w-full p-2 text-sm border rounded"
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                      setSearchQuery(e.target.value);
+                                    }}
+                                    onClick={(e) => {
+                                      // Prevent click from closing the dropdown
+                                      e.stopPropagation();
+                                    }}
+                                    onKeyDown={(e) => {
+                                      // Prevent keyboard events from closing the dropdown
+                                      e.stopPropagation();
+                                    }}
+                                  />
+                                </div>
                                 <DropdownMenuCheckboxItem
                                   className=""
                                   checked={
@@ -1034,44 +1078,46 @@ export function MachinesForm() {
                                 >
                                   Select All
                                 </DropdownMenuCheckboxItem>
-                                {equipments.map((eq) => {
-                                  const isSelected =
-                                    selectedEquipments.includes(eq.equipmentId)
-                                  return (
-                                    <DropdownMenuCheckboxItem
-                                      className="w-[400px]"
-                                      key={eq.id}
-                                      checked={isSelected}
-                                      onSelect={(e) => e.preventDefault()}
-                                      onCheckedChange={(checked) => {
-                                        let newSelections = [
-                                          ...selectedEquipments,
-                                        ]
-                                        let newSelectionsId = [
-                                          ...selectedEquipments,
-                                        ]
-                                        if (checked) {
-                                          newSelections.push(eq.name)
-                                          newSelectionsId.push(eq.equipmentId)
-                                        } else {
-                                          newSelections = newSelections.filter(
-                                            (item: string) => item !== eq.name
-                                          )
-                                          newSelectionsId = newSelectionsId.filter(
-                                            (item: string) => item !== eq.equipmentId
-                                          )
-                                        }
-                                        setEditingMachine({
-                                          ...editingMachine,
-                                          equipment: newSelections.join(','),
-                                        })
-                                        setSelectedEquipments(newSelectionsId)
-                                      }}
-                                    >
-                                      {eq.name} - {eq.energyBudget/1000 || 0} kWh
-                                    </DropdownMenuCheckboxItem>
-                                  )
-                                })}
+                                {equipments
+                                  .filter((eq) => {
+                                    if (!searchQuery) return true;
+                                    return eq.name.toLowerCase().includes(searchQuery.toLowerCase());
+                                  })
+                                  .map((eq) => {
+                                    const isSelected =
+                                      selectedEquipments.includes(eq.equipmentId)
+                                    return (
+                                      <DropdownMenuCheckboxItem
+                                        className="w-full"
+                                        key={eq.id}
+                                        checked={isSelected}
+                                        onSelect={(e) => e.preventDefault()}
+                                        onCheckedChange={(checked) => {
+                                          let newSelectionsId = [
+                                            ...selectedEquipments,
+                                          ]
+                                          if (checked) {
+                                            newSelectionsId.push(eq.equipmentId)
+                                          } else {
+                                            newSelectionsId = newSelectionsId.filter(
+                                              (item) => item !== eq.equipmentId
+                                            )
+                                          }
+                                          const newSelectedNames = newSelectionsId.map(id => 
+                                            equipments.find(item => item.equipmentId === id)?.name
+                                          ).filter(Boolean);
+                                          
+                                          setEditingMachine({
+                                            ...editingMachine,
+                                            equipment: newSelectedNames.join(','),
+                                          })
+                                          setSelectedEquipments(newSelectionsId)
+                                        }}
+                                      >
+                                        {eq.name} - {eq.energyBudget/1000 || 0} kWh
+                                      </DropdownMenuCheckboxItem>
+                                    )
+                                  })}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
