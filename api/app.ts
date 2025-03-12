@@ -5,8 +5,9 @@ import { timeout } from 'hono/timeout'
 import { logger } from 'hono/logger';
 
 const app = new Hono();
-
-app.use(logger());
+if (process.env.NODE_ENV === 'development') {
+    app.use(logger());
+}
 app.use('/api/*', cors({ 
     origin: '*', 
     allowHeaders: [
