@@ -11,7 +11,8 @@
     "start-be": "bun ./dist/api/index.js",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "export-local": "next build && rm -rf /opt/homebrew/var/www/out && mv out/ /opt/homebrew/var/www"
   },
   "prisma": {
     "seed": "bun run prisma/seed.ts"

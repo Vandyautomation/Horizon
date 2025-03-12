@@ -1,5 +1,7 @@
 import sql from 'mssql';
 
+let timeout = 90000;
+
 const dbConfig = {
   connectionString: process.env.DATABASE_URL,
   user: process.env.DB_USER,
@@ -9,7 +11,9 @@ const dbConfig = {
   options: {
     encrypt: true, // Use SSL if required by your setup
     enableArithAbort: true,
-    trustServerCertificate: true
+    trustServerCertificate: true,
+    connectTimeout: timeout,
+    requestTimeout: timeout,
   },
   pool: {
     max: 10, // Maximum connections in pool
