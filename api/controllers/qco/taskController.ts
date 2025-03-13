@@ -1,27 +1,24 @@
+import { queryDatabase } from '@/api/utils/queryDatabase';
 
-import { PrismaClient } from '@prisma/client';
-import { Prisma } from '@prisma/client';
+export async function getTasks(limit?: number, offset?: number) {
+    const orderByClause = (limit || offset) ? 'ORDER BY t.id' : '';
+    const offsetClause = offset ? 'OFFSET @offset ROWS' : '';
+    const limitClause = limit ? `${offset ? '' : 'OFFSET 0 ROWS'} FETCH NEXT @limit ROWS ONLY` : '';
 
+    const sqlQuery = `
+        SELECT t.*, i.name as item_name, tc.name as category_name, ust.name as user_sub_task_name, r.name as role_name, u.name as user_name
+        FROM tasks t
+        LEFT JOIN items i ON i.id = t.item_id
+        LEFT JOIN task_categories tc ON tc.id = t.category_id
+        LEFT JOIN user_sub_tasks ust ON ust.task_id = t.id
+        LEFT JOIN roles r ON r.id = ust.role_id
+        LEFT JOIN users u ON u.role_id = r.id
+        ${orderByClause}
+        ${offsetClause}
+        ${limitClause}
+    `;
 
-const prisma = new PrismaClient();
-
-export async function getTasks() {
-    const tasks = await prisma.tasks.findMany({
-        relationLoadStrategy: 'join',
-        include: {
-            items: true,
-            task_categories: true,
-            user_sub_tasks: {
-                include: {
-                    role: {
-                        include: {
-                            users: true
-                        }
-                    }
-                }
-            }
-        }
-    });
+    const tasks = await queryDatabase(sqlQuery, { offset, limit });
 
     return {
         data: tasks,
@@ -31,37 +28,27 @@ export async function getTasks() {
 }
 
 export async function getTasksByUuid(uuidString: string) {
-    const task = await prisma.tasks.findFirst({
-        where: {
-            OR: [
-                { uuid: uuidString },
-                { id: Number.isNaN(Number(uuidString)) ? undefined : Number(uuidString) }
-            ]
-        },
-        include: {
-            items: true,
-            task_categories: true,
-            user_sub_tasks: {
-                include: {
-                    role: {
-                        include: {
-                            users: true
-                        }
-                    }
-                }
-            }
-        }
-    });
+    const isNumeric = !isNaN(parseFloat(uuidString)) && isFinite(Number(uuidString));
+
+    const task = await queryDatabase(`
+        SELECT t.*, i.*, tc.*, ust.*, r.*, u.*
+        FROM tasks t
+        LEFT JOIN items i ON i.task_id = t.id
+        LEFT JOIN task_categories tc ON tc.id = t.category_id
+        LEFT JOIN user_sub_tasks ust ON ust.task_id = t.id
+        LEFT JOIN roles r ON r.id = ust.role_id
+        LEFT JOIN users u ON u.role_id = r.id
+        WHERE t.uuid = ? OR ${isNumeric ? 't.id = ?' : 'FALSE'}
+    `, [uuidString, ...(isNumeric ? [parseInt(uuidString, 10)] : [])]);
+
     return {
-        data: task,
+        data: task[0] || null,
         messages: ['success get data'],
         success: true
     };
 }
 
-
 export async function summary(start_at: string) {
-
     if (start_at && isNaN(Date.parse(start_at as string))) {
         return {
             data: null,
@@ -70,30 +57,26 @@ export async function summary(start_at: string) {
         };
     }
 
-    let total_finished = await prisma.tasks.count({
-        where: {
-            status: 'finished',
-            ...(start_at && {
-                start_at: {
-                    gte: new Date(start_at as string),
-                    lt: new Date(new Date(start_at as string).setDate(new Date(start_at as string).getDate() + 1))
-                }
-            })
-        }
-    });
-
-    let real_times = await prisma.$queryRaw<Prisma.Decimal[]>`
-        SELECT ${Prisma.sql`TIMESTAMPDIFF(SECOND, started_at, ended_at)`} AS sql_real_time
+    const total_finished = await queryDatabase(`
+        SELECT COUNT(*) as count
         FROM tasks
         WHERE status = 'finished'
-        ${start_at ? Prisma.sql`AND DATE(start_at) = ${new Date(start_at as string)}` : Prisma.empty}
-    `;
+        ${start_at ? 'AND CONVERT(date, start_at) = @date' : ''}
+    `, start_at ? { date: new Date(start_at) } : {});
 
-    let total_time = real_times.reduce((sum, real_time) => sum + Number(real_time as unknown as { sql_real_time: number }), 0);
+    const real_times = await queryDatabase(`
+        SELECT DATEDIFF(SECOND, started_at, ended_at) AS sql_real_time
+        FROM tasks
+        WHERE status = 'finished'
+        ${start_at ? 'AND CONVERT(date, start_at) = @date' : ''}
+    `, start_at ? { date: new Date(start_at) } : {});
+
+    const total_time = real_times.reduce((sum: number, row: { sql_real_time: string | number }) =>
+        sum + Number(row.sql_real_time), 0);
 
     return {
         data: {
-            total_finished,
+            total_finished: total_finished[0].count,
             total_time: convertSecondToHourMinute(total_time)
         },
         messages: ['success get data'],
@@ -106,6 +89,3 @@ function convertSecondToHourMinute(seconds: number) {
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}m`;
 }
-
-
-

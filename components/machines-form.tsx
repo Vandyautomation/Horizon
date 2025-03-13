@@ -61,8 +61,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from './ui/badge';
-import { set } from 'date-fns';
 
 type Machine = {
   id: string;
@@ -75,12 +73,9 @@ type Machine = {
   rotation: string;
   uap: string;
   equipment: string;
-  energyBudget: number;
-  equipmentEnergyBudget: number;
 };
 type Equipment = {
   id: string;
-  equipmentId: string;
   name: string;
   brand: string;
   energyBudget: number;
@@ -104,11 +99,6 @@ export function MachinesForm() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const [deletingMachine, setDeletingMachine] = useState<Machine | null>(null);
-
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const [selectedEquipments, setSelectedEquipments] = useState<string[]>([]);
-  const [inputedEnergyBudget, setInputedEnergyBudget] = useState<number>(0);
 
   // const UAP = ['BASIC', 'PREMIUM', 'LEAN', 'UV'];
   // const Location = [
@@ -214,51 +204,30 @@ export function MachinesForm() {
           <ChevronsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => (
-      <div className="font-medium overflow-x-scroll h-8 w-[100px]">
-        {row.getValue('equipment')}
-      </div>
-      ),
     },
     {
-      accessorKey: 'energyBudget',
+      accessorKey: 'position',
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          EnergyBudget
+          Position
           <ChevronsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => (
-        <div className="font-medium">
-           {typeof row.getValue('energyBudget') === 'number'
-          ? row.getValue<number>('energyBudget').toLocaleString()
-          : row.getValue('energyBudget')}
-          </div>
-      ),
     },
     {
-      accessorKey: 'equipmentEnergyBudget',
+      accessorKey: 'rotation',
       header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          Total EnergyBudget
+          Rotation
           <ChevronsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => {
-        const energyBudget = Number(row.getValue('energyBudget')) || 0;
-        const equipmentEnergyBudget = Number(row.getValue('equipmentEnergyBudget')) || 0;
-        return (
-            <div className="font-medium">
-            {(energyBudget + equipmentEnergyBudget).toLocaleString()}
-            </div>
-        );
-      },
     },
     {
       id: 'actions',
@@ -275,14 +244,7 @@ export function MachinesForm() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => {
-                  setEditingMachine(machine);
-                  setInputedEnergyBudget(machine.energyBudget);
-                  // Extract equipment IDs by matching names from the machine equipment list
-                  const equipmentNames = machine.equipment ? machine.equipment.split(',').map(name => name.trim()) : [];
-                  const matchedEquipments = equipments.filter(eq => equipmentNames.includes(eq.name));
-                  setSelectedEquipments(matchedEquipments.map(eq => eq.equipmentId));
-                }}>
+                <DropdownMenuItem onClick={() => setEditingMachine(machine)}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
@@ -324,43 +286,38 @@ export function MachinesForm() {
       },
     },
   })
-  
-  const fetchMachines = async () => {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`,
-        {}
-      )
-      const data = await response.json()
-      if (data) {
-        const formattedData = data.map((item: any) => ({
-          id: item.machineId.toString(),
-          name: item.machineName,
-          description: item.machineDescription,
-          tonage: item.tonage,
-          process: item.Process,
-          uap: item.uap,
-          location: item.locationName,
-          position: item.position,
-          rotation: item.rotation,
-          equipment: item.equipment,
-          energyBudget: item.MachineEnergyBudget,
-          equipmentEnergyBudget: item.EquipmentEnergyBudget,
-        }))
-        setMachines(formattedData)
-        return formattedData
-      } else {
-        console.error('Failed to fetch machines:', data.error)
-        return []
-      }
-    } catch (error) {
-      console.error('Error fetching machines:', error)
-      return []
-    }
-  }
 
   useEffect(() => {
-    fetchMachines()
+    const fetchData = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`,
+          {}
+        )
+        const data = await response.json()
+        if (data) {
+          const formattedData = data.map((item: any) => ({
+            id: item.machineId.toString(),
+            name: item.machineName,
+            description: item.machineDescription,
+            tonage: item.tonage,
+            process: item.Process,
+            uap: item.uap,
+            location: item.locationName,
+            position: item.position,
+            rotation: item.rotation,
+            equipment: item.equipment,
+          }))
+          setMachines(formattedData)
+        } else {
+          console.error('Failed to fetch machines:', data.error)
+        }
+      } catch (error) {
+        console.error('Error fetching machines:', error)
+      }
+    }
+
+    fetchData()
   }, [])
 
   useEffect(() => {
@@ -374,7 +331,6 @@ export function MachinesForm() {
         if (data) {
           const formattedData = data.map((item: any) => ({
             id: item.EquipmentID.toString(),
-            equipmentId: item.EquipmentID,
             name: item.Name,
             brand: item.Brand,
             energyBudget: item.EnergyBudget,
@@ -461,7 +417,6 @@ export function MachinesForm() {
             machinePosition: updatedMachine.position,
             machineRotation: updatedMachine.rotation,
             machineEquipment: updatedMachine.equipment,
-            machineEnergyBudget: updatedMachine.energyBudget,
           }),
         }
       )
@@ -469,7 +424,11 @@ export function MachinesForm() {
       if (!response.ok) {
         throw new Error('Failed to update machine')
       } else {
-        fetchMachines();
+        setMachines(
+          machines.map((machine) =>
+            machine.id === updatedMachine.id ? updatedMachine : machine
+          )
+        )
         toast.success('Machine updated successfully')
       }
     } catch (error) {
@@ -521,8 +480,6 @@ export function MachinesForm() {
                     uap: formData.get('uap') as string,
                     equipment: formData.get('equipment') as string,
                     tonage: formData.get('tonage') as string,
-                    energyBudget: (formData.get('energyBudget') || 0) as number,
-                    equipmentEnergyBudget: (formData.get('equipmentEnergyBudget') || 0) as number,
                   }
                   addMachine(newMachine)
                   e.currentTarget.reset()
@@ -810,7 +767,7 @@ export function MachinesForm() {
         </Dialog>
         <Dialog
           open={!!editingMachine}
-          onOpenChange={() => {setEditingMachine(null), setInputedEnergyBudget(0), setSelectedEquipments([]), setSearchQuery('')}}
+          onOpenChange={() => setEditingMachine(null)}
         >
           <DialogContent className="sm:max-w-[850px]">
             <DialogHeader>
@@ -834,10 +791,8 @@ export function MachinesForm() {
                     position: formData.get('position') as string,
                     rotation: editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]',
                     uap: formData.get('uap') as string,
-                    equipment: selectedEquipments.join(','),
+                    equipment: editingMachine.equipment,
                     tonage: formData.get('tonage') as string,
-                    energyBudget: (formData.get('energyBudget') || 0) as number,
-                    equipmentEnergyBudget: (formData.get('equipmentEnergyBudget') || 0) as number,
                   }
                   updateMachine(updatedMachine)
                   setEditingMachine(null)
@@ -886,21 +841,6 @@ export function MachinesForm() {
                         id="edit-process"
                         name="process"
                         defaultValue={editingMachine.process}
-                        className="col-span-3"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
-                      <Label htmlFor="edit-energyBudget" className="text-right">
-                        EnergyBudget
-                      </Label>
-                      <Input
-                        id="edit-energyBudget"
-                        name="energyBudget"
-                        type='number'
-                        defaultValue={editingMachine.energyBudget || 0}
-                        onChange={(e) => {
-                          setInputedEnergyBudget(Number(e.target.value))
-                        }}
                         className="col-span-3"
                       />
                     </div>
@@ -968,31 +908,29 @@ export function MachinesForm() {
                         Equipments
                       </Label>
                       {(() => {
-                        // const selectedEquipments = editingMachine.equipment
-                        //   ? editingMachine.equipment.split(',').filter(Boolean)
-                        //   : []
-
+                        const selectedEquipments = editingMachine.equipment
+                          ? editingMachine.equipment.split(',').filter(Boolean)
+                          : []
 
                         return (
                           <div className="col-span-3">
                             <div className="mb-2 flex flex-wrap gap-2">
-                              {selectedEquipments.map((eq) => (
+                              {selectedEquipments.map((eq: string) => (
                                 <span
-                                  key={equipments.find((item) => item.equipmentId === eq)?.name}
+                                  key={eq}
                                   className="flex items-center rounded-full bg-primary px-2 py-1 text-xs text-primary-foreground"
                                 >
-                                  {equipments.find((item) => item.equipmentId === eq)?.name}
+                                  {eq}
                                   <button
                                     onClick={() => {
                                       const newSelections =
                                         selectedEquipments.filter(
-                                          (item) => item !== eq
+                                          (item: string) => item !== eq
                                         )
                                       setEditingMachine({
                                         ...editingMachine,
                                         equipment: newSelections.join(','),
                                       })
-                                      setSelectedEquipments(newSelections)
                                     }}
                                     className="ml-1 text-red-500"
                                   >
@@ -1001,17 +939,7 @@ export function MachinesForm() {
                                 </span>
                               ))}
                             </div>
-                            <DropdownMenu onOpenChange={(open) => {
-                              if (open) {
-                                // Set timeout to ensure the DOM is ready before focusing
-                                setTimeout(() => {
-                                  const searchInput = document.getElementById('equipment-search-input');
-                                  if (searchInput) {
-                                    searchInput.focus();
-                                  }
-                                }, 0);
-                              }
-                            }}>
+                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="outline"
@@ -1025,32 +953,8 @@ export function MachinesForm() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="start"
-                                className="w-64 max-h-80 overflow-y-auto"
-                                onCloseAutoFocus={(e) => {
-                                  // Prevent the dropdown from stealing focus back
-                                  e.preventDefault();
-                                }}
+                                className="w-48"
                               >
-                                <div className="p-2" onClick={(e) => e.stopPropagation()}>
-                                  <input
-                                    id="equipment-search-input"
-                                    type="text"
-                                    placeholder="Search equipments..."
-                                    className="w-full p-2 text-sm border rounded"
-                                    value={searchQuery}
-                                    onChange={(e) => {
-                                      setSearchQuery(e.target.value);
-                                    }}
-                                    onClick={(e) => {
-                                      // Prevent click from closing the dropdown
-                                      e.stopPropagation();
-                                    }}
-                                    onKeyDown={(e) => {
-                                      // Prevent keyboard events from closing the dropdown
-                                      e.stopPropagation();
-                                    }}
-                                  />
-                                </div>
                                 <DropdownMenuCheckboxItem
                                   className=""
                                   checked={
@@ -1066,58 +970,47 @@ export function MachinesForm() {
                                           .map((eq) => eq.name)
                                           .join(','),
                                       })
-                                      setSelectedEquipments(equipments.map((eq) => eq.equipmentId))
                                     } else {
                                       setEditingMachine({
                                         ...editingMachine,
                                         equipment: '',
                                       })
-                                      setSelectedEquipments([])
                                     }
                                   }}
                                 >
                                   Select All
                                 </DropdownMenuCheckboxItem>
-                                {equipments
-                                  .filter((eq) => {
-                                    if (!searchQuery) return true;
-                                    return eq.name.toLowerCase().includes(searchQuery.toLowerCase());
-                                  })
-                                  .map((eq) => {
-                                    const isSelected =
-                                      selectedEquipments.includes(eq.equipmentId)
-                                    return (
-                                      <DropdownMenuCheckboxItem
-                                        className="w-full"
-                                        key={eq.id}
-                                        checked={isSelected}
-                                        onSelect={(e) => e.preventDefault()}
-                                        onCheckedChange={(checked) => {
-                                          let newSelectionsId = [
-                                            ...selectedEquipments,
-                                          ]
-                                          if (checked) {
-                                            newSelectionsId.push(eq.equipmentId)
-                                          } else {
-                                            newSelectionsId = newSelectionsId.filter(
-                                              (item) => item !== eq.equipmentId
-                                            )
-                                          }
-                                          const newSelectedNames = newSelectionsId.map(id => 
-                                            equipments.find(item => item.equipmentId === id)?.name
-                                          ).filter(Boolean);
-                                          
-                                          setEditingMachine({
-                                            ...editingMachine,
-                                            equipment: newSelectedNames.join(','),
-                                          })
-                                          setSelectedEquipments(newSelectionsId)
-                                        }}
-                                      >
-                                        {eq.name} - {eq.energyBudget/1000 || 0} kWh
-                                      </DropdownMenuCheckboxItem>
-                                    )
-                                  })}
+                                {/* ; */}
+                                {equipments.map((eq) => {
+                                  const isSelected =
+                                    selectedEquipments.includes(eq.name)
+                                  return (
+                                    <DropdownMenuCheckboxItem
+                                      className=""
+                                      key={eq.id}
+                                      checked={isSelected}
+                                      onSelect={(e) => e.preventDefault()}
+                                      onCheckedChange={(checked) => {
+                                        let newSelections = [
+                                          ...selectedEquipments,
+                                        ]
+                                        if (checked) {
+                                          newSelections.push(eq.name)
+                                        } else {
+                                          newSelections = newSelections.filter(
+                                            (item: string) => item !== eq.name
+                                          )
+                                        }
+                                        setEditingMachine({
+                                          ...editingMachine,
+                                          equipment: newSelections.join(','),
+                                        })
+                                      }}
+                                    >
+                                      {eq.name} - {eq.energyBudget || 0} kWh
+                                    </DropdownMenuCheckboxItem>
+                                  )
+                                })}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1213,22 +1106,6 @@ export function MachinesForm() {
                               rotation: editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]',
                             })
                           }
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-4 items-center gap-4 pb-4">
-                      <Label htmlFor="edit-totalenergy" className="text-right">
-                        Total EnergyBudget
-                      </Label>
-                      <Input
-                        id="edit-totalenergy"
-                        name="totalenergy"
-                        disabled
-                        defaultValue={editingMachine.energyBudget + editingMachine.equipmentEnergyBudget}
-                        className="col-span-3"
-                        value={
-                           inputedEnergyBudget + (selectedEquipments.length ? equipments.filter((eq) => selectedEquipments.includes(eq.equipmentId)).reduce((acc, eq) => acc + eq.energyBudget, 0) : 0)
-                        }
                       />
                     </div>
                   </div>

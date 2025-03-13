@@ -19,7 +19,7 @@
       "seed": "bun run prisma/seed.ts"
    },
    "dependencies": {
-      "@prisma/client": "^5.21.1",
+      "@prisma/client": "^6.5.0",
       "@radix-ui/react-alert-dialog": "^1.1.2",
       "@radix-ui/react-collapsible": "^1.1.1",
       "@radix-ui/react-dialog": "^1.1.2",
@@ -61,7 +61,8 @@
       "mssql": "^11.0.1",
       "next": "15.0.1",
       "next-themes": "^0.3.0",
-      "prisma": "^5.21.1",
+      "pg": "^8.4.0",
+      "prisma": "^6.5.0",
       "react": "19.0.0-rc-69d4b800-20241021",
       "react-chartjs-2": "^5.3.0",
       "react-day-picker": "8.10.1",
@@ -74,8 +75,7 @@
       "tailwindcss-animate": "^1.0.7",
       "three": "^0.173.0",
       "typeorm": "0.3.21",
-      "xlsx": "^0.18.5",
-      "pg": "^8.4.0"
+      "xlsx": "^0.18.5"
    },
    "devDependencies": {
       "@types/node": "^16.11.10",

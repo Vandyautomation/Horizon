@@ -288,6 +288,7 @@ model items {
   identity   String?   @db.NVarChar(255)
   created_at DateTime? @db.DateTime
   updated_at DateTime? @db.DateTime
+  tasks      tasks[]
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -836,11 +837,12 @@ model RejectMST {
 }
 
 model roles {
-  id           BigInt    @id @default(autoincrement())
-  name         String    @unique(map: "roles_name_unique") @db.NVarChar(255)
-  display_name String    @db.NVarChar(255)
-  created_at   DateTime? @db.DateTime
-  updated_at   DateTime? @db.DateTime
+  id             BigInt           @id @default(autoincrement())
+  name           String           @unique(map: "roles_name_unique") @db.NVarChar(255)
+  display_name   String           @db.NVarChar(255)
+  created_at     DateTime?        @db.DateTime
+  updated_at     DateTime?        @db.DateTime
+  user_sub_tasks user_sub_tasks[]
 }
 
 model routing {
@@ -921,17 +923,18 @@ model StatusMST {
 }
 
 model sub_tasks {
-  id             BigInt    @id(map: "PK__sub_task__3213E83F7C858DC6") @default(autoincrement())
-  uuid           String    @db.NVarChar(255)
+  id             BigInt           @id(map: "PK__sub_task__3213E83F7C858DC6") @default(autoincrement())
+  uuid           String           @db.NVarChar(255)
   category_id    Int
   index          Int?
-  name           String    @db.NVarChar(255)
+  name           String           @db.NVarChar(255)
   role_id        Int?
   standard_time  Int?
-  is_parallel    Boolean   @default(false, map: "DF__sub_tasks__is_pa__08D548FA")
-  is_preparation Boolean   @default(false, map: "DF__sub_tasks__is_pr__09C96D33")
-  created_at     DateTime? @db.DateTime
-  updated_at     DateTime? @db.DateTime
+  is_parallel    Boolean          @default(false, map: "DF__sub_tasks__is_pa__08D548FA")
+  is_preparation Boolean          @default(false, map: "DF__sub_tasks__is_pr__09C96D33")
+  created_at     DateTime?        @db.DateTime
+  updated_at     DateTime?        @db.DateTime
+  user_sub_tasks user_sub_tasks[]
 }
 
 model task_categories {
@@ -940,28 +943,32 @@ model task_categories {
   name       String    @db.NVarChar(255)
   created_at DateTime? @db.DateTime
   updated_at DateTime? @db.DateTime
+  tasks      tasks[]
 }
 
 model tasks {
-  id           BigInt    @id(map: "PK__tasks__3213E83FDFA2D712") @default(autoincrement())
-  uuid         String    @db.NVarChar(255)
-  mold_id      Int?
-  machine_id   Int?
-  item_id      Int?
-  category_id  Int?
-  mold_name    String?   @db.NVarChar(255)
-  machine_name String?   @db.NVarChar(255)
-  is_notif     Boolean   @default(false, map: "DF__tasks__is_notif__1352D76D")
-  notif_at     DateTime? @db.DateTime
-  start_at     DateTime? @db.DateTime
-  started_at   DateTime? @db.DateTime
-  ended_at     DateTime? @db.DateTime
-  status       String?   @db.NVarChar(255)
-  note         String?   @db.VarChar(500)
-  is_snoozed   Boolean   @default(false, map: "DF__tasks__is_snooze__1446FBA6")
-  created_at   DateTime? @db.DateTime
-  updated_at   DateTime? @db.DateTime
-  pro          String?   @db.VarChar(50)
+  id             BigInt           @id(map: "PK__tasks__3213E83FDFA2D712") @default(autoincrement())
+  uuid           String           @db.NVarChar(255)
+  mold_id        Int?
+  machine_id     Int?
+  items          items            @relation(fields: [item_id], references: [id])
+  item_id        BigInt
+  categories     task_categories  @relation(fields: [category_id], references: [id])
+  category_id    BigInt
+  mold_name      String           @db.NVarChar(255)
+  machine_name   String?          @db.NVarChar(255)
+  is_notif       Boolean          @default(false, map: "DF__tasks__is_notif__1352D76D")
+  notif_at       DateTime?        @db.DateTime
+  start_at       DateTime?        @db.DateTime
+  started_at     DateTime?        @db.DateTime
+  ended_at       DateTime?        @db.DateTime
+  status         String?          @db.NVarChar(255)
+  note           String?          @db.VarChar(500)
+  is_snoozed     Boolean          @default(false, map: "DF__tasks__is_snooze__1446FBA6")
+  created_at     DateTime?        @db.DateTime
+  updated_at     DateTime?        @db.DateTime
+  pro            String?          @db.VarChar(50)
+  user_sub_tasks user_sub_tasks[]
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -1106,12 +1113,10 @@ model token_andon {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model user_access_history {
-  id               Int       @default(autoincrement()) @id
+  id               Int       @id @default(autoincrement())
   user_rfid        String?   @db.VarChar(50)
   last_login_date  DateTime? @db.DateTime
   last_logout_date DateTime? @db.DateTime
-
-
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -1126,9 +1131,12 @@ model user_roles {
 model user_sub_tasks {
   id              BigInt    @id(map: "PK__user_sub__3213E83F06587439") @default(autoincrement())
   uuid            String    @db.NVarChar(255)
-  task_id         Int?
-  sub_task_id     Int?
-  role_id         Int?
+  tasks           tasks     @relation(fields: [task_id], references: [id])
+  task_id         BigInt
+  sub_tasks       sub_tasks @relation(fields: [sub_task_id], references: [id])
+  sub_task_id     BigInt
+  roles           roles     @relation(fields: [role_id], references: [id])
+  role_id         BigInt
   index           Int?
   name            String    @db.NVarChar(255)
   note            String?   @db.NVarChar(255)
@@ -1149,7 +1157,7 @@ model user_sub_tasks {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model UserAccessMST {
-  UserRFID           String  @db.VarChar(50) @id
+  UserRFID           String   @id @db.VarChar(50)
   UserName           String?  @db.VarChar(50)
   UserDept           String?  @db.VarChar(50)
   UserTitle          String?  @db.VarChar(50)
@@ -1159,10 +1167,7 @@ model UserAccessMST {
   role_id            Int?
   UserUAP            String?  @db.VarChar(50)
   UserHashedPassword String?  @db.VarChar(Max)
-
-
 }
-
 
 model users {
   id                BigInt    @id(map: "PK__users__3213E83FF7EF7C2C") @default(autoincrement())
