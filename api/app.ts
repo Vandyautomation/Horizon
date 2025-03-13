@@ -3,11 +3,12 @@ import router from './routes';
 import { cors } from 'hono/cors';
 import { timeout } from 'hono/timeout'
 import { logger } from 'hono/logger';
+import "reflect-metadata"
 
 const app = new Hono();
-if (process.env.NODE_ENV === 'development') {
+
     app.use(logger());
-}
+
 app.use('/api/*', cors({ 
     origin: '*', 
     allowHeaders: [
