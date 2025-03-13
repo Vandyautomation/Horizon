@@ -261,6 +261,30 @@ export function MachinesForm() {
       },
     },
     {
+      accessorKey: 'position',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Position
+          <ChevronsUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+    },
+    {
+      accessorKey: 'rotation',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Rotation
+          <ChevronsUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+    },
+    {
       id: 'actions',
       header: ({ column }) => <>Action</>,
       cell: ({ row }) => {
@@ -319,6 +343,10 @@ export function MachinesForm() {
       globalFilter,
     },
     initialState: {
+      columnVisibility: {
+        "rotation": false,
+        "position": false,
+      },
       pagination: {
         pageSize: 10,
       },
@@ -1149,7 +1177,7 @@ export function MachinesForm() {
                                 // z goes from -10 (top) to 0 (bottom row)
                                 const z = rowIndex === 0 ? -10 : 10
                                 const positionValue = `[${x}, ${y}, ${z}]`
-                                const isSelected =
+                                const isSelected = 
                                   editingMachine.position === positionValue
 
                                 return (

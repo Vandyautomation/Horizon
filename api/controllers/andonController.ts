@@ -67,12 +67,15 @@ export async function getBuildings() {
     `, {});
     
     // Convert position and rotation to arrays for all machines
+    if (machines.position == '' || machines.rotation == '') {
+        machines.position = null;
+        machines.rotation = null;
+    }
     const formattedMachines = machines.map((machine: any) => ({
         ...machine,
         position: JSON.parse(machine.position),
         rotation: JSON.parse(machine.rotation)
     }));
-    
     // Group machines by building
     const buildingGroups: { [key: string]: any[] } = {};
     formattedMachines.forEach((machine: any) => {
@@ -82,6 +85,7 @@ export async function getBuildings() {
         }
         buildingGroups[building].push(machine);
     });
+
     
     // Create result array with one entry per building
     const result = Object.entries(buildingGroups).map(([name, machines], index) => ({
@@ -93,4 +97,6 @@ export async function getBuildings() {
     }));
     
     return result;
+
+
 }
