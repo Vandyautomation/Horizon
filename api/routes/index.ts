@@ -9,6 +9,7 @@ import { cors } from 'hono/cors';
 import equipmentRoutes from './equipmentRoutes';
 import locationRoutes from './locationRoutes';
 import uapRoutes from './uapRoutes';
+import qcoRouter from './qco';
 
 
 
@@ -25,6 +26,7 @@ router.route('/andon', andonRoutes);
 router.route('/equipments', equipmentRoutes);
 router.route('/locations', locationRoutes);
 router.route('/uaps', uapRoutes);
+router.route('/qco', qcoRouter);
 
 
 

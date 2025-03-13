@@ -7,261 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id            Int            @id @default(autoincrement())
-  username      String         @unique
-  firstName     String
-  lastName      String
-  password      String
-  createdAt     DateTime       @default(now())
-  modifiedAt    DateTime       @updatedAt
-  deletedAt     DateTime?
-  createdBy     Int?
-  modifiedBy    Int?
-  UserGroups    UserGroup[]
-  UserLocations UserLocation[]
-  UserRoles     UserRole[]
-  Tickets       Ticket[]       @relation("TicketToUser")
-}
-
-model UserGroup {
-  id         Int       @id @default(autoincrement())
-  userId     Int
-  groupId    Int
-  createdAt  DateTime  @default(now())
-  modifiedAt DateTime  @updatedAt
-  deletedAt  DateTime?
-  createdBy  Int?
-  modifiedBy Int?
-  group      Group     @relation(fields: [groupId], references: [id])
-  user       User      @relation(fields: [userId], references: [id])
-}
-
-model Group {
-  id         Int         @id @default(autoincrement())
-  name       String      @unique
-  createdAt  DateTime    @default(now())
-  modifiedAt DateTime    @updatedAt
-  deletedAt  DateTime?
-  createdBy  Int?
-  modifiedBy Int?
-  UserGroup  UserGroup[]
-}
-
-model UserLocation {
-  id         Int       @id @default(autoincrement())
-  userId     Int
-  locationId Int
-  createdAt  DateTime  @default(now())
-  modifiedAt DateTime  @updatedAt
-  deletedAt  DateTime?
-  createdBy  Int?
-  modifiedBy Int?
-  location   Location  @relation(fields: [locationId], references: [id])
-  user       User      @relation(fields: [userId], references: [id])
-}
-
-model Location {
-  id           Int            @id @default(autoincrement())
-  name         String         @unique
-  createdAt    DateTime       @default(now())
-  modifiedAt   DateTime       @updatedAt
-  deletedAt    DateTime?
-  createdBy    Int?
-  modifiedBy   Int?
-  uap          String
-  UserLocation UserLocation[]
-  Machine      Machine[]      @relation("LocationToMachine")
-}
-
-model UserRole {
-  id         Int       @id @default(autoincrement())
-  userId     Int
-  name       String    @unique
-  type       String
-  process    String
-  createdAt  DateTime  @default(now())
-  modifiedAt DateTime  @updatedAt
-  deletedAt  DateTime?
-  createdBy  Int?
-  modifiedBy Int?
-  user       User      @relation(fields: [userId], references: [id])
-}
-
-model Machine {
-  id                  Int                  @id @default(autoincrement())
-  name                String               @unique
-  description         String
-  createdAt           DateTime             @default(now())
-  modifiedAt          DateTime?            @updatedAt
-  deletedAt           DateTime?
-  createdBy           Int?
-  modifiedBy          Int?
-  locationId          Int?
-  number              String
-  rfid                String?
-  tonage              String
-  MachineTransactions MachineTransaction[]
-  Ticket              Ticket[]
-  Location            Location[]           @relation("LocationToMachine")
-}
-
-model MachineTransaction {
-  id        Int       @id @default(autoincrement())
-  machineId Int
-  statusId  Int
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
-  createdBy Int?
-  machine   Machine   @relation(fields: [machineId], references: [id])
-}
-
-model MachineStatus {
-  id          Int       @id @default(autoincrement())
-  name        String    @unique
-  description String
-  createdAt   DateTime  @default(now())
-  modifiedAt  DateTime  @updatedAt
-  deletedAt   DateTime?
-  createdBy   Int?
-  modifiedBy  Int?
-  Problem     Problem[]
-}
-
-model ProblemGroup {
-  id         Int       @id @default(autoincrement())
-  name       String    @unique
-  createdAt  DateTime  @default(now())
-  modifiedAt DateTime  @updatedAt
-  deletedAt  DateTime?
-  createdBy  Int?
-  modifiedBy Int?
-  Problems   Problem[]
-}
-
-model Problem {
-  id            Int             @id @default(autoincrement())
-  name          String          @unique
-  statusId      Int
-  groupId       Int
-  createdAt     DateTime        @default(now())
-  modifiedAt    DateTime        @updatedAt
-  deletedAt     DateTime?
-  createdBy     Int?
-  modifiedBy    Int?
-  group         ProblemGroup    @relation(fields: [groupId], references: [id])
-  status        MachineStatus   @relation(fields: [statusId], references: [id])
-  ProblemAction ProblemAction[]
-}
-
-model ProblemAction {
-  id             Int       @id @default(autoincrement())
-  name           String    @unique
-  problemId      Int
-  picPersonnelId Int
-  isEscalated    Boolean
-  createdAt      DateTime  @default(now())
-  modifiedAt     DateTime  @updatedAt
-  deletedAt      DateTime?
-  createdBy      Int?
-  modifiedBy     Int?
-  problem        Problem   @relation(fields: [problemId], references: [id])
-  Ticket         Ticket[]
-}
-
-model Ticket {
-  id                Int                 @id @default(autoincrement())
-  machineId         Int
-  problemActionId   Int
-  createdAt         DateTime            @default(now())
-  modifiedAt        DateTime            @updatedAt
-  deletedAt         DateTime?
-  createdBy         Int?
-  modifiedBy        Int?
-  machine           Machine             @relation(fields: [machineId], references: [id])
-  problemAction     ProblemAction       @relation(fields: [problemActionId], references: [id])
-  TicketNotes       TicketNote[]
-  TicketTransaction TicketTransaction[]
-  User              User[]              @relation("TicketToUser")
-}
-
-model TicketNote {
-  id         Int       @id @default(autoincrement())
-  ticketId   Int
-  notes      String
-  createdAt  DateTime  @default(now())
-  modifiedAt DateTime  @updatedAt
-  deletedAt  DateTime?
-  createdBy  Int?
-  modifiedBy Int?
-  ticket     Ticket    @relation(fields: [ticketId], references: [id])
-}
-
-model TicketTransaction {
-  id        Int       @id @default(autoincrement())
-  ticketId  Int
-  type      String
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
-  createdBy Int?
-  ticket    Ticket    @relation(fields: [ticketId], references: [id])
-}
-
-model PO_master_data_SCM {
-  id          Int           @id @default(autoincrement())
-  po_name     String        @unique
-  material_id String
-  scaleTasks  scale_tasks[]
-}
-
-model scale_tasks {
-  id                Int                  @id @default(autoincrement())
-  po_name           String
-  material_id       String
-  status            String
-  scale_asset_id    Int
-  created_at        DateTime             @default(now())
-  modified_at       DateTime?
-  deleted_at        DateTime?
-  total_consumption Decimal              @default(0.0)
-  measurements      scale_measurements[]
-  po                PO_master_data_SCM   @relation(fields: [po_name], references: [po_name])
-  scaleAsset        scale_assets         @relation(fields: [scale_asset_id], references: [id])
-  transactions      scale_transaction[]
-}
-
-model scale_transaction {
-  id         Int         @id @default(autoincrement())
-  task_id    Int
-  type       String
-  created_at DateTime    @default(now())
-  deleted_at DateTime?
-  task       scale_tasks @relation(fields: [task_id], references: [id])
-}
-
-model scale_measurements {
-  id             Int          @id @default(autoincrement())
-  task_id        Int
-  scale_asset_id Int
-  weight         Decimal      @db.Decimal(18, 2)
-  created_at     DateTime     @default(now())
-  deleted_at     DateTime?
-  scaleAsset     scale_assets @relation(fields: [scale_asset_id], references: [id])
-  task           scale_tasks  @relation(fields: [task_id], references: [id], onUpdate: NoAction)
-}
-
-model scale_assets {
-  id           Int                  @id @default(autoincrement())
-  name         String
-  description  String
-  location     String
-  created_at   DateTime             @default(now())
-  modified_at  DateTime?
-  deleted_at   DateTime?
-  measurements scale_measurements[]
-  scaleTasks   scale_tasks[]
-}
-
 model coois {
   id            BigInt    @id @default(autoincrement())
   so_name       String?   @db.VarChar(100)
@@ -310,8 +55,13 @@ model hourly {
   cause              String?   @db.VarChar(Max)
   ooe                String?   @db.VarChar(Max)
   note               String?   @db.VarChar(Max)
-  scrap              Int?
-  rework             Int?
+  scrap              Int?      @default(0, map: "DF__hourly__scrap__5090EFD7")
+  rework             Int?      @default(0, map: "DF__hourly__rework__51851410")
+
+  @@index([from_datetime, machine_id, hour_id], map: "IDX_HOURLY_FROMDATETIME_MACHINEID_HOURID")
+  @@index([id], map: "IDX_hourly_id")
+  @@index([machine_id], map: "IDX_hourly_machine_id")
+  @@index([task_id, from_datetime], map: "IDX_HOURLY_TASKID_FROMDATETIME")
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -320,8 +70,13 @@ model MchStatusTRX {
   MchID       String    @default("", map: "DF_MchStatusTRX_MchID") @db.VarChar(30)
   StatusLight String    @default("", map: "DF_MchStatusTRX_StatusLight") @db.VarChar(10)
   Active      Boolean
-  id          BigInt    @id @default(autoincrement())
+  id          BigInt    @default(autoincrement())
 
+  @@index([id, MchID], map: "idx_id_mchid")
+  @@index([MchID], map: "idx_mchstatustrx_mchid")
+  @@index([StatusDate], map: "idx_mchstatustrx_statusdate")
+  @@index([StatusDate, MchID, Active], map: "IX_MchStatusTRX_StatusDate_MchID")
+  @@ignore
 }
 
 model nooe {
@@ -336,4 +91,1174 @@ model nooe {
   white           Boolean?
   red             Boolean?
   created_at      DateTime?
+
+  @@index([hourly_id, id], map: "IDX_nooe_covering")
+  @@index([hourly_id, id], map: "IDX_nooe_hourly_id")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ActionPlanMST {
+  ActionPlan      String   @db.VarChar(200)
+  Active          Boolean  @default(false, map: "DF_ActionPlanMST_Acrive")
+  ActionPlanGroup String?  @db.VarChar(50)
+  problemActID    String?  @db.VarChar(20)
+  EskalasiFlag    Boolean?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model andon_monitoring_report {
+  id         Int       @default(autoincrement())
+  created_at DateTime?
+  ooe        Decimal?  @db.Decimal(5, 3)
+  oee        Decimal?  @db.Decimal(5, 3)
+  machine_id String?   @db.VarChar(50)
+  shift      Int?
+  green      Decimal?  @db.Decimal(5, 3)
+  yellow     Decimal?  @db.Decimal(5, 3)
+  red        Decimal?  @db.Decimal(5, 3)
+  white      Decimal?  @db.Decimal(5, 3)
+  purple     Decimal?  @db.Decimal(5, 3)
+  grey       Decimal?  @db.Decimal(5, 3)
+  orange     Decimal?  @db.Decimal(5, 3)
+  blue       Decimal?  @db.Decimal(5, 3)
+  from       DateTime?
+  to         DateTime?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model BOMDetail {
+  MixID    String? @db.VarChar(20)
+  BOMID    String? @db.VarChar(50)
+  Remark   String? @db.VarChar(50)
+  ItemNo   Int?
+  ItemDesc String? @db.VarChar(50)
+  Qty      Float?
+  UoM      String? @db.VarChar(2)
+
+  @@ignore
+}
+
+model categories {
+  id         Int       @id(map: "PK__categori__3213E83F5DE15777") @default(autoincrement())
+  parent_id  Int?
+  order      Int       @default(1, map: "DF__categorie__order__7993056A")
+  name       String    @db.NVarChar(255)
+  slug       String    @unique(map: "categories_slug_unique") @db.NVarChar(255)
+  created_at DateTime? @db.DateTime
+  updated_at DateTime? @db.DateTime
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model countboard_cycle_time_log {
+  ID         BigInt    @default(autoincrement())
+  MchID      String?   @db.VarChar(50)
+  hour_id    Int?
+  cycle_time Decimal?  @db.Decimal(10, 3)
+  created_at DateTime?
+
+  @@ignore
+}
+
+model CounterMST {
+  ColorID     String  @id(map: "PK_CounterMST") @db.VarChar(10)
+  CounterFlag Boolean @default(false, map: "DF_CounterMST_ColorFlag")
+  TicketFlag  Boolean @default(false, map: "DF_CounterMST_TicketFlag")
+}
+
+model EquipmentMST {
+  ID           Int       @id(map: "EquipmentMST_PK") @default(autoincrement())
+  EquipmentID  String?   @db.VarChar(50)
+  Name         String?   @db.VarChar(100)
+  Brand        String?   @db.VarChar(50)
+  EnergyBudget Decimal?  @db.Decimal(18, 3)
+  Active       Boolean?
+  created_at   DateTime? @db.DateTime
+  modified_at  DateTime? @db.DateTime
+  Category     String?   @db.VarChar(100)
+}
+
+model ESP_CONNECTION_STATUS {
+  ID        Int       @id(map: "PK__ESP_CONN__3214EC27C30866A5") @default(autoincrement())
+  Building  String    @db.NVarChar(50)
+  Machine   String    @db.NVarChar(50)
+  Timestamp DateTime? @db.DateTime
+  ip        String?   @db.VarChar(100)
+  mac       String?   @db.VarChar(100)
+
+  @@index([Building, Machine], map: "idx_building_machine")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ESP_DATA {
+  ID          Int       @default(autoincrement())
+  MAC_ADDRESS String?   @db.VarChar(50)
+  IP          String?   @db.VarChar(50)
+  TOPIC       String?   @db.VarChar(50)
+  CREATED_AT  DateTime?
+  MODIFIED_AT DateTime?
+
+  @@ignore
+}
+
+model failed_jobs {
+  id         BigInt   @id(map: "PK__failed_j__3213E83F4FB26D2B") @default(autoincrement())
+  uuid       String   @unique(map: "failed_jobs_uuid_unique") @db.NVarChar(255)
+  connection String   @db.NVarChar(Max)
+  queue      String   @db.NVarChar(Max)
+  payload    String   @db.NVarChar(Max)
+  exception  String   @db.NVarChar(Max)
+  failed_at  DateTime @default(now(), map: "DF__failed_jo__faile__7C6F7215") @db.DateTime
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model GrafanaTitle {
+  TitleA String? @default("", map: "DF__GrafanaTi__Title__41EDCAC5") @db.VarChar(255)
+  TitleB String? @default("", map: "DF__GrafanaTi__Title__44CA3770") @db.VarChar(255)
+  MchLoc String? @db.VarChar(30)
+
+  @@ignore
+}
+
+model GroupMST {
+  ProblemGroup String  @id(map: "PK_GroupMST") @db.VarChar(50)
+  Active       Boolean @default(false, map: "DF_GroupMST_Active")
+}
+
+model hourly_uv {
+  id                     BigInt    @id @default(autoincrement())
+  task_id                Int?
+  actual_qty             Int?
+  target_qty             Int?
+  hour_id                Int?
+  from_datetime          DateTime?
+  to_datetime            DateTime?
+  created_at             DateTime?
+  modified_at            DateTime?
+  modified_by            String?   @db.VarChar(50)
+  shift_id               Int?
+  machine_id             String?   @db.VarChar(50)
+  running_actual_qty     Int?
+  running_target_qty     Int?
+  cause                  String?   @db.VarChar(Max)
+  ooe                    String?   @db.VarChar(Max)
+  note                   String?   @db.VarChar(Max)
+  reject_a               Int?      @default(0, map: "DF__hourly_uv__rejec__216BEC9A")
+  reject_b               Int?      @default(0, map: "DF__hourly_uv__rejec__226010D3")
+  reject_c               Int?      @default(0, map: "DF__hourly_uv__rejec__2354350C")
+  reject_d               Int?      @default(0, map: "DF__hourly_uv__rejec__24485945")
+  reject_e               Int?      @default(0, map: "DF__hourly_uv__rejec__253C7D7E")
+  rework                 Int?
+  reject_a_id            Int?
+  reject_b_id            Int?
+  reject_c_id            Int?
+  reject_d_id            Int?
+  reject_e_id            Int?
+  last_reject_a          Int?
+  last_totalProductIn    Int?
+  last_totalProductOut   Int?
+  last_reject_b          Int?
+  last_reject_c          Int?
+  last_reject_d          Int?
+  last_reject_e          Int?
+  running_actual_out_qty Int?
+  running_actual_in_qty  Int?
+  process                String?   @db.VarChar(100)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model instancesession {
+  ID           Int       @default(autoincrement())
+  user_rfid    String?   @db.VarChar(50)
+  instance_url String?   @db.VarChar(100)
+  user_title   String?   @db.VarChar(50)
+  is_occupied  Boolean?
+  modified_at  DateTime?
+
+  @@ignore
+}
+
+model items {
+  id         BigInt    @id(map: "PK__items__3213E83F2E2A5E71") @default(autoincrement())
+  uuid       String    @db.NVarChar(255)
+  name       String    @db.NVarChar(255)
+  identity   String?   @db.NVarChar(255)
+  created_at DateTime? @db.DateTime
+  updated_at DateTime? @db.DateTime
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model JigDTL {
+  JigID     String?  @db.NVarChar(50)
+  CvtFrom   String?  @db.NVarChar(10)
+  CvtTo     String?  @db.NVarChar(10)
+  DistanceA Decimal? @db.Decimal(10, 2)
+  DistanceB Decimal? @db.Decimal(10, 2)
+  DistanceC Decimal? @db.Decimal(10, 2)
+  UoM       String?  @db.NVarChar(10)
+  Active    Boolean  @default(false, map: "DF_JigDTL_Active")
+
+  @@ignore
+}
+
+model JigHDR {
+  JigID       String   @id(map: "PK_JigHDR") @db.NVarChar(50)
+  JigDesc     String?  @db.NVarChar(200)
+  JigProduct  String?  @db.NVarChar(50)
+  JigCategory String?  @db.NVarChar(50)
+  JigType     String?  @db.NVarChar(50)
+  MoldID      String?  @db.NVarChar(50)
+  SPCavity    Int?
+  SPDiameter  Int?
+  Gripper     Int?
+  UsedFlag    Boolean?
+  JigLocID    String?  @db.NVarChar(50)
+  MchID       String?  @db.NVarChar(50)
+  JigPicture  String?  @db.NVarChar(50)
+  Active      Boolean  @default(false, map: "DF_JigHDR_Active")
+  Note        String?  @db.VarChar(255)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model JigLocMST {
+  JigLocID   String? @db.NVarChar(50)
+  LocArea    String? @db.NVarChar(50)
+  Building   String? @db.NVarChar(50)
+  RackNumber String? @db.NVarChar(50)
+  Active     Boolean @default(false, map: "DF_JigLocMST_Active")
+
+  @@ignore
+}
+
+model JigPicMST {
+  PicID     String  @id(map: "PK_JigPicMST") @db.NVarChar(50)
+  PicDesc   String? @db.NVarChar(200)
+  PicCavity Int?
+  PicJig    Bytes?  @db.Image
+  Active    Boolean @default(false, map: "DF_JigPicMST_Active")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model JigTRX {
+  JigDate DateTime? @default(now(), map: "DF_JigTRX_JigDate") @db.DateTime
+  JigID   String?   @db.NVarChar(50)
+  MovDesc String?   @db.NVarChar(50)
+  MovFrom String?   @db.NVarChar(50)
+  MovTo   String?   @db.NVarChar(50)
+  Active  Boolean   @default(false, map: "DF_JigTRX_Active")
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Machine_UV_STD {
+  ID         Int     @default(autoincrement())
+  MchID      String? @db.NVarChar(50)
+  SpindleSTD Int?
+  Active     Boolean
+
+  @@ignore
+}
+
+model MachineData {
+  MchID         String @id(map: "PK__MachineD__E2C85994DB284037") @db.NVarChar(50)
+  timea         Float?
+  pmidle        Float?
+  timeb         Float?
+  breakdown     Float?
+  timee         Float?
+  ooe           Float?
+  oee           Float?
+  breakdownperc Float?
+  green         Float?
+  red           Float?
+  yellow        Float?
+  white         Float?
+  blue          Float?
+  orange        Float?
+  purple        Float?
+  grey          Float?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model MachineEquipmentMST {
+  ID          Int       @default(autoincrement())
+  MchID       String?   @db.VarChar(50)
+  EquipmentID String?   @db.VarChar(50)
+  Active      Boolean?
+  created_at  DateTime? @db.DateTime
+  modified_at DateTime? @db.DateTime
+
+  @@ignore
+}
+
+model MachineMST {
+  Barcode      String   @id(map: "PK_MachineMST") @db.VarChar(30)
+  MchID        String?  @db.VarChar(50)
+  MchDesc      String?  @db.VarChar(100)
+  MchLoc       String?  @db.VarChar(50)
+  MchNumber    String?  @db.VarChar(10)
+  MchTon       String?  @db.VarChar(20)
+  MchStatus    String?  @db.VarChar(50)
+  MchProcess   String?  @db.VarChar(50)
+  AndonFlag    Boolean  @default(false, map: "DF_MachineMST_AndonFlag")
+  Active       Boolean  @default(false, map: "DF_MachineMST_Active")
+  UAP          String?  @db.VarChar(20)
+  is_override  Boolean?
+  rfid         String?  @db.VarChar(100)
+  WorkCenter   String?  @db.VarChar(100)
+  id           Int      @default(autoincrement())
+  position     String?  @db.VarChar(100)
+  rotation     String?  @db.VarChar(100)
+  energyBudget Decimal? @db.Decimal(38, 0)
+
+  @@index([Active, UAP, rfid, Barcode], map: "idx_machine_composite")
+  @@index([MchID, MchLoc, Active], map: "idx_machinemst_mchid_mchloc_active")
+}
+
+model machines {
+  id         BigInt    @id(map: "PK__machines__3213E83FB5EA4276") @default(autoincrement())
+  uuid       String    @db.NVarChar(255)
+  name       String    @db.NVarChar(255)
+  identity   String?   @db.NVarChar(255)
+  type       String?   @db.NVarChar(255)
+  injection  String?   @db.NVarChar(255)
+  created_at DateTime? @db.DateTime
+  updated_at DateTime? @db.DateTime
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model MatrixMST {
+  MchProcess String?   @db.VarChar(50)
+  ShiftID    String?   @db.VarChar(10)
+  SortOrder  String?   @db.VarChar(20)
+  FromTime   DateTime? @db.Time
+  UntilTime  DateTime? @db.Time
+  Active     Boolean   @default(false, map: "DF_MatrixMST_Active")
+
+  @@ignore
+}
+
+model MchCounterTRX {
+  CounterDate DateTime? @db.DateTime
+  MchID       String    @id(map: "PK_MchCounterTRX") @db.VarChar(50)
+  Active      Boolean   @default(false, map: "DF_MchCounterTRX_Actibe")
+
+  @@index([MchID, Active], map: "idx_mchcountertrx_mchid_active")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model MchRunTRX {
+  RunDate        DateTime @default(now(), map: "DF_MchRunning_RunDate") @db.DateTime
+  MchID          String   @default("", map: "DF_MchRunTRX_MchID") @db.VarChar(50)
+  ItemNo         String   @default("", map: "DF_MchRunTRX_ItemNo") @db.VarChar(50)
+  ItemDesc       String   @default("", map: "DF_MchRunTRX_ItemDesc") @db.VarChar(200)
+  Message        String   @default("", map: "DF_MchRunTRX_Message") @db.VarChar(200)
+  Problem        String   @default("", map: "DF_MchRunTRX_Problem") @db.VarChar(200)
+  ProblemGroup   String   @default("", map: "DF_MchRunTRX_ProblemGroup") @db.VarChar(50)
+  ActionPlan     String   @default("", map: "DF_MchRunTRX_ActionPlan") @db.VarChar(200)
+  Active         Boolean  @default(false, map: "DF_MchRunning_Active")
+  ChangeOverFlag Boolean?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model MechanicScheduleMST {
+  UserName     String    @db.VarChar(255)
+  UserLoc      String?   @db.VarChar(50)
+  UserShift    Int?
+  MechanicDate DateTime? @db.DateTime
+  UserDept     String?   @db.VarChar(50)
+
+  @@ignore
+}
+
+model migrations {
+  id        Int    @id(map: "PK__migratio__3213E83F301E8BBB") @default(autoincrement())
+  migration String @db.NVarChar(255)
+  batch     Int
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model MixingResult {
+  MixID     String? @db.VarChar(50)
+  BOMID     String? @db.VarChar(50)
+  ItemNo    Int?
+  ItemDesc  String? @db.VarChar(50)
+  Qty       Float?
+  ActualQty Float?
+  UoM       String? @db.VarChar(50)
+  OprName   String? @db.VarChar(50)
+
+  @@ignore
+}
+
+model molds {
+  id         BigInt    @id(map: "PK__molds__3213E83F760A008F") @default(autoincrement())
+  uuid       String    @db.NVarChar(255)
+  name       String    @db.NVarChar(255)
+  identity   String?   @db.NVarChar(255)
+  created_at DateTime? @db.DateTime
+  updated_at DateTime? @db.DateTime
+}
+
+model notifications {
+  id               BigInt    @id(map: "PK__notifica__3213E83F31109894") @default(autoincrement())
+  notif_type       Int?
+  role_id          Int?
+  task_id          Int?
+  is_notif         Boolean   @default(false, map: "DF__notificat__is_no__17236851")
+  notify_at        DateTime? @db.DateTime
+  message_time     DateTime? @db.DateTime
+  mold_name        String?   @db.NVarChar(255)
+  machine_name     String?   @db.NVarChar(255)
+  additional_time  Int?
+  recipients       String?   @db.NVarChar(Max)
+  created_at       DateTime? @db.DateTime
+  updated_at       DateTime? @db.DateTime
+  user_sub_task_id Int?
+  sub_task_name    String?   @db.NVarChar(255)
+}
+
+model pages {
+  id               Int       @id(map: "PK__pages__3213E83F5DDC14E3") @default(autoincrement())
+  author_id        Int
+  title            String    @db.NVarChar(255)
+  excerpt          String?   @db.NVarChar(Max)
+  body             String?   @db.NVarChar(Max)
+  image            String?   @db.NVarChar(255)
+  slug             String    @unique(map: "pages_slug_unique") @db.NVarChar(255)
+  meta_description String?   @db.NVarChar(Max)
+  meta_keywords    String?   @db.NVarChar(Max)
+  status           String    @default("INACTIVE", map: "DF__pages__status__71F1E3A2") @db.NVarChar(255)
+  created_at       DateTime? @db.DateTime
+  updated_at       DateTime? @db.DateTime
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model parameter_setting {
+  id    Int      @default(autoincrement())
+  name  String?  @db.VarChar(50)
+  value Decimal? @db.Decimal(8, 2)
+  uom   String?  @db.VarChar(50)
+
+  @@ignore
+}
+
+model ParaSetMST {
+  ParaID               String    @id(map: "PK_ParaSetMST") @db.VarChar(100)
+  ParaDate             DateTime? @db.DateTime
+  MchID                String?   @db.VarChar(50)
+  MoldID               String?   @db.VarChar(50)
+  Cavity               Int?
+  Active               Boolean   @default(false, map: "DF_ParaSetMST_Active")
+  CycleTime            Float?
+  Thickness            Int?
+  Tonase               Int?
+  Forward1Press        Float?
+  Forward1To           Float?
+  Forward1Velo         Float?
+  Forward2Press        Float?
+  Forward2To           Float?
+  Forward2Velo         Float?
+  Backward1Press       Float?
+  Backward1To          Float?
+  Backward1Velo        Float?
+  Backward2Press       Float?
+  Backward2To          Float?
+  Backward2Velo        Float?
+  EjectorMode          Float?
+  Close1Press          Float?
+  Close1To             Float?
+  Close1Velo           Float?
+  Close2Press          Float?
+  Close2To             Float?
+  Close2Velo           Float?
+  ProtectPress         Float?
+  ProtectTo            Float?
+  ProtectVelo          Float?
+  HiPressPress         Float?
+  HiPressVelo          Float?
+  MoldProtectionTime   Float?
+  Open1Press           Float?
+  Open1To              Float?
+  Open1Velo            Float?
+  Open2Press           Float?
+  Open2To              Float?
+  Open2Velo            Float?
+  Open3Press           Float?
+  Open3To              Float?
+  Open3Velo            Float?
+  Open4Press           Float?
+  Open4To              Float?
+  Open4Velo            Float?
+  Nozzle               Float?
+  Barrel1              Float?
+  Barrel2              Float?
+  Barrel3              Float?
+  Barrel4              Float?
+  Barrel5              Float?
+  Barrel6              Float?
+  Inject1Press         Float?
+  Inject1To            Float?
+  Inject1Velo          Float?
+  Inject2Press         Float?
+  Inject2To            Float?
+  Inject2Velo          Float?
+  Inject3Press         Float?
+  Inject3To            Float?
+  Inject3Velo          Float?
+  Inject4Press         Float?
+  Inject4Velo          Float?
+  InjectScrewPosition  Float?
+  InjectTime           Float?
+  InjectionPressure    Float?
+  Hold1Press           Float?
+  Hold1To              Float?
+  Hold1Velo            Float?
+  Hold2Press           Float?
+  Hold2To              Float?
+  Hold2Velo            Float?
+  Hold3Press           Float?
+  Hold3To              Float?
+  Hold3Velo            Float?
+  CoolingTime          Float?
+  Plasticise1Press     Float?
+  Plasticise1Velo      Float?
+  AfterPlasticisePress Float?
+  AfterPlasticiseTime  Float?
+  Plasticise1To        Float?
+  AfterPlasticiseVelo  Float?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ParaSetTRX {
+  ParaID               String?   @db.VarChar(100)
+  SettingDate          DateTime? @db.DateTime
+  Cavity               Float?
+  Active               Boolean   @default(false, map: "DF_ParaSetTRX_Active")
+  CycleTime            Float?
+  Thickness            Float?
+  Tonase               Int?
+  Forward1Press        Float?
+  Forward1To           Float?
+  Forward1Velo         Float?
+  Forward2Press        Float?
+  Forward2To           Float?
+  Forward2Velo         Float?
+  Backward1Press       Float?
+  Backward1To          Float?
+  Backward1Velo        Float?
+  Backward2Press       Float?
+  Backward2To          Float?
+  Backward2Velo        Float?
+  EjectorMode          Float?
+  Close1Press          Float?
+  Close1To             Float?
+  Close1Velo           Float?
+  Close2Press          Float?
+  Close2To             Float?
+  Close2Velo           Float?
+  ProtectPress         Float?
+  ProtectTo            Float?
+  ProtectVelo          Float?
+  HiPressPress         Float?
+  HiPressVelo          Float?
+  MoldProtectionTime   Float?
+  Open1Press           Float?
+  Open1To              Float?
+  Open1Velo            Float?
+  Open2Press           Float?
+  Open2To              Float?
+  Open2Velo            Float?
+  Open3Press           Float?
+  Open3To              Float?
+  Open3Velo            Float?
+  Open4Press           Float?
+  Open4To              Float?
+  Open4Velo            Float?
+  Nozzle               Float?
+  Barrel1              Float?
+  Barrel2              Float?
+  Barrel3              Float?
+  Barrel4              Float?
+  Barrel5              Float?
+  Barrel6              Float?
+  Inject1Press         Float?
+  Inject1To            Float?
+  Inject1Velo          Float?
+  Inject2Press         Float?
+  Inject2To            Float?
+  Inject2Velo          Float?
+  Inject3Press         Float?
+  Inject3To            Float?
+  Inject3Velo          Float?
+  Inject4Press         Float?
+  Inject4Velo          Float?
+  InjectScrewPosition  Float?
+  InjectTime           Float?
+  InjectionPressure    Float?
+  Hold1Press           Float?
+  Hold1To              Float?
+  Hold1Velo            Float?
+  Hold2Press           Float?
+  Hold2To              Float?
+  Hold2Velo            Float?
+  Hold3Press           Float?
+  Hold3To              Float?
+  Hold3Velo            Float?
+  CoolingTime          Float?
+  Plasticise1Press     Float?
+  Plasticise1Velo      Float?
+  AfterPlasticisePress Float?
+  AfterPlasticiseTime  Float?
+  Plasticise1To        Float?
+  AfterPlasticiseVelo  Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model password_resets {
+  email      String    @db.NVarChar(255)
+  token      String    @db.NVarChar(255)
+  created_at DateTime? @db.DateTime
+
+  @@index([email], map: "password_resets_email_index")
+  @@ignore
+}
+
+model personal_access_tokens {
+  id             BigInt    @id(map: "PK__personal__3213E83F637532CA") @default(autoincrement())
+  tokenable_type String    @db.NVarChar(255)
+  tokenable_id   BigInt
+  name           String    @db.NVarChar(255)
+  token          String    @unique(map: "personal_access_tokens_token_unique") @db.NVarChar(64)
+  abilities      String?   @db.NVarChar(Max)
+  last_used_at   DateTime? @db.DateTime
+  created_at     DateTime? @db.DateTime
+  updated_at     DateTime? @db.DateTime
+
+  @@index([tokenable_type, tokenable_id], map: "personal_access_tokens_tokenable_type_tokenable_id_index")
+}
+
+model posts {
+  id               Int       @id(map: "PK__posts__3213E83F0637F383") @default(autoincrement())
+  author_id        Int
+  category_id      Int?
+  title            String    @db.NVarChar(255)
+  seo_title        String?   @db.NVarChar(255)
+  excerpt          String?   @db.VarChar(Max)
+  body             String    @db.NVarChar(Max)
+  image            String?   @db.NVarChar(255)
+  slug             String    @unique(map: "posts_slug_unique") @db.NVarChar(255)
+  meta_description String?   @db.VarChar(Max)
+  meta_keywords    String?   @db.VarChar(Max)
+  status           String    @default("DRAFT", map: "DF__posts__status__75C27486") @db.NVarChar(255)
+  featured         Boolean   @default(false, map: "DF__posts__featured__76B698BF")
+  created_at       DateTime? @db.DateTime
+  updated_at       DateTime? @db.DateTime
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model problem_problem {
+  id               Int     @default(autoincrement())
+  name             String? @db.VarChar(100)
+  problem_group_id Int?
+  color            String? @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model problem_problem_group {
+  name String? @db.VarChar(100)
+  id   Int     @default(autoincrement())
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model problem_todo {
+  name         String?  @db.VarChar(100)
+  problem_id   Decimal? @db.Decimal(18, 0)
+  is_deleted   Boolean?
+  id           Int      @default(autoincrement())
+  pic          String?  @db.VarChar(50)
+  is_escalated Boolean?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProblemMST {
+  Problem       String   @db.VarChar(200)
+  ProblemGroup  String?  @db.VarChar(50)
+  SortOrder     String?  @default("0", map: "DF_ProblemMST_Eskalasi") @db.VarChar(2)
+  Active        Boolean  @default(false, map: "DF_ProblemMST_Active")
+  ProblemDetail String?  @db.VarChar(100)
+  EskalasiFlag  Boolean? @default(false, map: "DF_ProblemMST_EskalasiFlag")
+  problemActID  String?  @db.VarChar(20)
+
+  @@ignore
+}
+
+model Quality_ForceGauge {
+  ID           Int       @id(map: "PK_Quality_ForceGauge") @default(autoincrement())
+  timestamp    DateTime? @db.DateTime
+  MaximumForce Decimal?  @db.Decimal(10, 2)
+  PrO          String?   @db.VarChar(100)
+  Utility      String?   @db.VarChar(100)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Reject_Machine_Relationship {
+  MchID       String? @db.VarChar(50)
+  reject_a_id Int?
+  reject_b_id Int?
+  reject_c_id Int?
+  reject_d_id Int?
+  reject_e_id Int?
+  ID          Int     @default(autoincrement())
+  process     String? @db.VarChar(100)
+
+  @@ignore
+}
+
+model RejectMST {
+  ID     Int     @id(map: "RejectMST_PK") @default(autoincrement())
+  NAME   String? @db.VarChar(100)
+  ACTIVE Boolean @default(false, map: "DF__RejectMST__ACTIV__2A01329B")
+}
+
+model roles {
+  id           BigInt    @id @default(autoincrement())
+  name         String    @unique(map: "roles_name_unique") @db.NVarChar(255)
+  display_name String    @db.NVarChar(255)
+  created_at   DateTime? @db.DateTime
+  updated_at   DateTime? @db.DateTime
+}
+
+model routing {
+  id            BigInt    @id @default(autoincrement())
+  material_id   String?   @db.VarChar(100)
+  material_name String?   @db.VarChar(100)
+  mrpcn         String?   @db.VarChar(100)
+  net_weight    Decimal?  @db.Decimal(10, 3)
+  gross_weight  Decimal?  @db.Decimal(10, 3)
+  shoot_weight  Decimal?  @db.Decimal(10, 3)
+  cvt           Int?
+  ct            Decimal?  @db.Decimal(10, 3)
+  is_deleted    Boolean?
+  created_at    DateTime?
+  modified_at   DateTime?
+  is_sync       Boolean?
+}
+
+model RPI_CONNECTION_STATUS {
+  ID        Int       @id(map: "PK__RPI_CONN__3214EC27C30866A5") @default(autoincrement())
+  Building  String    @db.NVarChar(50)
+  Machine   String    @db.NVarChar(50)
+  Timestamp DateTime? @db.DateTime
+  ip        String?   @db.VarChar(100)
+  mac       String?   @db.VarChar(100)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SelectedBuilding {
+  Building String?   @db.VarChar(30)
+  Date     DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SettingAccess {
+  AppsName    String? @db.NVarChar(50)
+  AccessMenu  String? @db.NVarChar(50)
+  UserGranted String? @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SettingApps {
+  Reference String? @db.NChar(100)
+  Value     String? @db.NChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ShowMchRunTRX {
+  RunDate     DateTime @default(now(), map: "DF_ShowMchRunTRX_RunDate") @db.DateTime
+  MchNumber   String?  @db.VarChar(10)
+  MchID       String?  @db.VarChar(30)
+  ItemNo      String?  @db.VarChar(50)
+  ItemDesc    String?  @db.VarChar(200)
+  Message     String?  @db.VarChar(200)
+  ActionPlan  String?  @db.VarChar(200)
+  Active      Boolean  @default(false, map: "DF_ShowMchRunTRX_Active")
+  MchDesc     String?  @db.VarChar(200)
+  MchStatus   String?  @db.VarChar(200)
+  Problem     String?  @db.VarChar(200)
+  StatusLight String?  @db.VarChar(10)
+  MchLoc      String?  @db.VarChar(30)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model StatusMST {
+  MchStatus   String? @db.VarChar(30)
+  labelStatus String? @db.VarChar(30)
+
+  @@ignore
+}
+
+model sub_tasks {
+  id             BigInt    @id(map: "PK__sub_task__3213E83F7C858DC6") @default(autoincrement())
+  uuid           String    @db.NVarChar(255)
+  category_id    Int
+  index          Int?
+  name           String    @db.NVarChar(255)
+  role_id        Int?
+  standard_time  Int?
+  is_parallel    Boolean   @default(false, map: "DF__sub_tasks__is_pa__08D548FA")
+  is_preparation Boolean   @default(false, map: "DF__sub_tasks__is_pr__09C96D33")
+  created_at     DateTime? @db.DateTime
+  updated_at     DateTime? @db.DateTime
+}
+
+model task_categories {
+  id         BigInt    @id(map: "PK__task_cat__3213E83FD3FB3BD6") @default(autoincrement())
+  uuid       String    @db.NVarChar(255)
+  name       String    @db.NVarChar(255)
+  created_at DateTime? @db.DateTime
+  updated_at DateTime? @db.DateTime
+}
+
+model tasks {
+  id           BigInt    @id(map: "PK__tasks__3213E83FDFA2D712") @default(autoincrement())
+  uuid         String    @db.NVarChar(255)
+  mold_id      Int?
+  machine_id   Int?
+  item_id      Int?
+  category_id  Int?
+  mold_name    String?   @db.NVarChar(255)
+  machine_name String?   @db.NVarChar(255)
+  is_notif     Boolean   @default(false, map: "DF__tasks__is_notif__1352D76D")
+  notif_at     DateTime? @db.DateTime
+  start_at     DateTime? @db.DateTime
+  started_at   DateTime? @db.DateTime
+  ended_at     DateTime? @db.DateTime
+  status       String?   @db.NVarChar(255)
+  note         String?   @db.VarChar(500)
+  is_snoozed   Boolean   @default(false, map: "DF__tasks__is_snooze__1446FBA6")
+  created_at   DateTime? @db.DateTime
+  updated_at   DateTime? @db.DateTime
+  pro          String?   @db.VarChar(50)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model test_insert_table {
+  id        Int       @default(autoincrement())
+  datetimee DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TestTRX {
+  Name    String?   @db.NVarChar(50)
+  Value   Decimal?  @db.Decimal(18, 2)
+  tanggal DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TicketTRX {
+  TicketID        String?   @db.VarChar(50)
+  TicketDate      DateTime? @db.DateTime
+  MchID           String?   @db.VarChar(50)
+  ColorID         String?   @db.VarChar(10)
+  TicketStatus    String?   @db.VarChar(10)
+  AssignTo        String?   @db.VarChar(50)
+  AssignDate      DateTime? @db.DateTime
+  Problem         String?   @db.VarChar(200)
+  ActionPlan      String?   @db.VarChar(200)
+  EstimateFinish  DateTime? @db.DateTime
+  ActualFinish    DateTime? @db.DateTime
+  Active          Boolean   @default(false, map: "DF_TicketTRX_Active")
+  OpenDate        DateTime? @db.DateTime
+  OnProgDate      DateTime? @db.DateTime
+  CallSelesaiFlag Boolean?  @default(false, map: "DF__TicketTRX__Ekska__59904A2C")
+  AssignBy        String?   @db.VarChar(255)
+  CloseBy         String?   @db.VarChar(50)
+  Message         String?   @db.VarChar(200)
+  AssignToDept    String?   @db.VarChar(50)
+  EskalasiFlag    Boolean?
+  id              Int       @default(autoincrement())
+
+  @@index([Active, TicketDate, AssignDate], map: "idx_ticket_composite")
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TimeTrace_HistoryTasks {
+  taskID      String?   @db.VarChar(50)
+  MulaiSubA   DateTime? @db.DateTime
+  SelesaiSubA DateTime? @db.DateTime
+  MulaiSubB   DateTime? @db.DateTime
+  SelesaiSubB DateTime? @db.DateTime
+  MulaiSubC   DateTime? @db.DateTime
+  SelesaiSubC DateTime? @db.DateTime
+  MulaiSubD   DateTime? @db.DateTime
+  SelesaiSubD DateTime? @db.DateTime
+  MulaiSubE   DateTime? @db.DateTime
+  SelesaiSubE DateTime? @db.DateTime
+  MulaiSubF   DateTime? @db.DateTime
+  SelesaiSubF DateTime? @db.DateTime
+  UserSubA    String?   @db.VarChar(50)
+  UserSubB    String?   @db.VarChar(50)
+  UserSubC    String?   @db.VarChar(50)
+  UserSubD    String?   @db.VarChar(50)
+  UserSubE    String?   @db.VarChar(50)
+  UserSubF    String?   @db.VarChar(50)
+  Active      Boolean?
+  ActSubA     Int?
+  ActSubB     Int?
+  ActSubC     Int?
+  ActSubD     Int?
+  ActSubE     Int?
+  ActSubF     Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TimeTrace_SettingTRX {
+  tipe              String?   @db.VarChar(50)
+  dibuatOleh        String?   @db.VarChar(50)
+  TotalDurasiMinute Int?
+  waktuDibuat       DateTime? @db.DateTime
+  SubAmin           Int?
+  SubBmin           Int?
+  SubCmin           Int?
+  SubDmin           Int?
+  SubEmin           Int?
+  SubFmin           Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TimeTrace_SimpleSetting {
+  waktu DateTime? @db.DateTime
+  SubA  Int?
+  SubB  Int?
+  SubC  Int?
+  SubD  Int?
+  SubE  Int?
+  SubF  Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TimeTrace_Tasks {
+  taskID            String?   @db.VarChar(50)
+  SubA              DateTime? @db.DateTime
+  SubB              DateTime? @db.DateTime
+  SubC              DateTime? @db.DateTime
+  SubD              DateTime? @db.DateTime
+  SubE              DateTime? @db.DateTime
+  SubF              DateTime? @db.DateTime
+  TotalDurasiMinute Int?
+  tipe              String?   @db.VarChar(50)
+  mulai             DateTime? @db.DateTime
+  selesai           DateTime? @db.DateTime
+  mulaiUnix         BigInt?
+  selesaiUnix       BigInt?
+  Status            String?   @db.VarChar(50)
+  MchID             String?   @db.VarChar(50)
+  MoldID            String?   @db.VarChar(50)
+  ItemNo            String?   @db.VarChar(50)
+  Active            Boolean?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model token_andon {
+  ID                  Int       @default(autoincrement())
+  username            String?   @db.VarChar(Max)
+  token               String?   @db.VarChar(Max)
+  expiration_date_utc DateTime?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model user_access_history {
+  id               Int       @default(autoincrement()) @id
+  user_rfid        String?   @db.VarChar(50)
+  last_login_date  DateTime? @db.DateTime
+  last_logout_date DateTime? @db.DateTime
+
+
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model user_roles {
+  user_id BigInt @id
+  role_id BigInt
+
+  @@index([role_id], map: "user_roles_role_id_index")
+  @@index([user_id], map: "user_roles_user_id_index")
+}
+
+model user_sub_tasks {
+  id              BigInt    @id(map: "PK__user_sub__3213E83F06587439") @default(autoincrement())
+  uuid            String    @db.NVarChar(255)
+  task_id         Int?
+  sub_task_id     Int?
+  role_id         Int?
+  index           Int?
+  name            String    @db.NVarChar(255)
+  note            String?   @db.NVarChar(255)
+  is_preparation  Boolean   @default(false, map: "DF__user_sub___is_pr__0CA5D9DE")
+  is_parallel     Boolean   @default(false, map: "DF__user_sub___is_pa__0D99FE17")
+  standard_time   Int?
+  is_snoozed      Boolean   @default(false, map: "DF__user_sub___is_sn__0E8E2250")
+  is_notif        Boolean   @default(false, map: "DF__user_sub___is_no__0F824689")
+  notif_at        DateTime? @db.DateTime
+  start_at        DateTime? @db.DateTime
+  started_at      DateTime? @db.DateTime
+  ended_at        DateTime? @db.DateTime
+  created_at      DateTime? @db.DateTime
+  updated_at      DateTime? @db.DateTime
+  additional_time Int?
+  started_by      Int?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model UserAccessMST {
+  UserRFID           String  @db.VarChar(50) @id
+  UserName           String?  @db.VarChar(50)
+  UserDept           String?  @db.VarChar(50)
+  UserTitle          String?  @db.VarChar(50)
+  Active             Boolean?
+  UserGroup          String?  @db.VarChar(50)
+  UserLoc            String?  @db.VarChar(50)
+  role_id            Int?
+  UserUAP            String?  @db.VarChar(50)
+  UserHashedPassword String?  @db.VarChar(Max)
+
+
+}
+
+
+model users {
+  id                BigInt    @id(map: "PK__users__3213E83FF7EF7C2C") @default(autoincrement())
+  uuid              String    @db.NVarChar(255)
+  name              String    @db.NVarChar(255)
+  email             String    @unique(map: "users_email_unique") @db.NVarChar(255)
+  email_verified_at DateTime? @db.DateTime
+  password          String    @db.NVarChar(255)
+  remember_token    String?   @db.NVarChar(100)
+  fcm_token         String?   @db.NVarChar(255)
+  created_at        DateTime? @db.DateTime
+  updated_at        DateTime? @db.DateTime
+  avatar            String?   @default("users/default.png", map: "DF__users__avatar__740F363E") @db.NVarChar(255)
+  role_id           BigInt?
+  settings          String?   @db.VarChar(50)
+  user_group        String?   @db.VarChar(50)
+  user_loc          String?   @db.VarChar(50)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model UV_CountingData {
+  ID                                 Int     @default(autoincrement())
+  MchID                              String? @db.NVarChar(50)
+  totalCountProductIn                Int?
+  totalCountSpindleIn                Int?
+  highestCountProductIn              Int?
+  highestCountProductInCurrentCycle  Int?
+  highestCountSpindleIn              Int?
+  highestCountSpindleInCurrentCycle  Int?
+  totalCountProductOut               Int?
+  totalCountSpindleOut               Int?
+  highestCountProductOut             Int?
+  highestCountProductOutCurrentCycle Int?
+  highestCountSpindleOut             Int?
+  highestCountSpindleOutCurrentCycle Int?
+  count_in_product                   Int?
+  last_data_in_product               Int?
+  count_in_spindle                   Int?
+  last_data_in_spindle               Int?
+  count_out_product                  Int?
+  last_data_out_product              Int?
+  count_out_spindle                  Int?
+  last_data_out_spindle              Int?
+  count_start                        Int?
+  last_data_start                    Int?
+  last_data_reject_a                 Int?
+  last_data_reject_b                 Int?
+  last_data_reject_c                 Int?
+  last_data_reject_d                 Int?
+  last_data_reject_e                 Int?
+  count_reject_a                     Int?
+  count_reject_b                     Int?
+  count_reject_c                     Int?
+  count_reject_d                     Int?
+  count_reject_e                     Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model UV_CountingData_Log {
+  ID                                 Int       @default(autoincrement())
+  CREATED_AT                         DateTime? @db.DateTime
+  MchID                              String?   @db.NVarChar(50)
+  totalCountProductIn                Int?
+  totalCountSpindleIn                Int?
+  highestCountProductIn              Int?
+  highestCountProductInCurrentCycle  Int?
+  highestCountSpindleIn              Int?
+  highestCountSpindleInCurrentCycle  Int?
+  totalCountProductOut               Int?
+  totalCountSpindleOut               Int?
+  highestCountProductOut             Int?
+  highestCountProductOutCurrentCycle Int?
+  highestCountSpindleOut             Int?
+  highestCountSpindleOutCurrentCycle Int?
+  count_in_product                   Int?
+  last_data_in_product               Int?
+  count_in_spindle                   Int?
+  last_data_in_spindle               Int?
+  count_out_product                  Int?
+  last_data_out_product              Int?
+  count_out_spindle                  Int?
+  last_data_out_spindle              Int?
+  count_start                        Int?
+  last_data_start                    Int?
+  last_data_reject_a                 Int?
+  last_data_reject_b                 Int?
+  last_data_reject_c                 Int?
+  last_data_reject_d                 Int?
+  last_data_reject_e                 Int?
+  count_reject_a                     Int?
+  count_reject_b                     Int?
+  count_reject_c                     Int?
+  count_reject_d                     Int?
+  count_reject_e                     Int?
+
+  @@ignore
 }
