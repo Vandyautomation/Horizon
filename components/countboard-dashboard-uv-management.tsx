@@ -774,7 +774,19 @@ export default function CountboardDashboardUvManagement() {
   const TopRejectEName = Array.isArray(hourlyData) && hourlyData?.[0]?.reject_e_name || 'Other'
 
 
-  const targetScrap = selectedLocation == 'K' ? 0.02 : 0.09
+  let targetScrap = 0.02;
+  if (selectedLocation === 'K' || selectedLocation === 'E') {
+    targetScrap = 0.09;
+  } else if (selectedLocation === 'M') {
+    targetScrap = 0.05;
+  } else if (selectedLocation === 'SP') {
+    targetScrap = 0.02;
+  } 
+  
+  // You can add more conditions here
+  // else if (selectedLocation === 'X') {
+  //   targetScrap = 0.05;
+  // }
 
 
 
@@ -1087,21 +1099,21 @@ export default function CountboardDashboardUvManagement() {
               <div className="text-sm text-muted-foreground">%Target Scrap</div>
             </div>
 
-            <div className="col-span-2 items-center align-middle justify-center grid">
-              <div className="text-2xl font-bold">{(((totalRejectOverall )/ totalOutput ) * 100).toFixed(2)}%</div>
-              <div className="text-sm text-muted-foreground">%Scrap</div>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="col-span-2 items-center align-middle justify-center grid">
+                <div className={`text-2xl font-bold ${(totalRejectOverall/totalOutput) > targetScrap ? "text-green-500" : "text-red-500"}`}>{(((totalRejectOverall )/ totalOutput ) * 100).toFixed(2)}%</div>
+                  <div className={`text-sm text-muted-foreground `}>%Scrap</div>
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* <TooltipProvider>
-      <Card className="w-full">
+            {/* <TooltipProvider>
+            <Card className="w-full">
 
-          <CardContent>
-            <div className="w-full flex overflow-x-auto">
-            <Table>
-              <TableHeader>
-              <TableRow>
+              <CardContent>
+              <div className="w-full flex overflow-x-auto">
+              <Table>
+                <TableHeader>
+                <TableRow>
                   <TableHead className="w-[60px]"></TableHead>
                   <TableHead className="w-[60px]"></TableHead>
                   <TableHead className="w-[60px]"></TableHead>
