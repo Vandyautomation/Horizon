@@ -6,13 +6,19 @@ export async function getTasks(limit?: number, offset?: number) {
     const limitClause = limit ? `${offset ? '' : 'OFFSET 0 ROWS'} FETCH NEXT @limit ROWS ONLY` : '';
 
     const sqlQuery = `
-        SELECT t.*, i.name as item_name, tc.name as category_name, ust.name as user_sub_task_name, r.name as role_name, u.name as user_name
+        SELECT CAST(t.id AS INT) as id, t.uuid, t.item_id, t.category_id, t.status, t.started_at, t.ended_at, t.start_at,
+                t.machine_name,
+                t.is_notif,
+                t.notif_at,
+                t.note,
+                t.created_at,
+                t.updated_at,
+                t.pro,
+               i.name as item_name, tc.name as category_name
         FROM tasks t
         LEFT JOIN items i ON i.id = t.item_id
         LEFT JOIN task_categories tc ON tc.id = t.category_id
         LEFT JOIN user_sub_tasks ust ON ust.task_id = t.id
-        LEFT JOIN roles r ON r.id = ust.role_id
-        LEFT JOIN users u ON u.role_id = r.id
         ${orderByClause}
         ${offsetClause}
         ${limitClause}

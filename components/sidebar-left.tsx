@@ -99,6 +99,12 @@ export default function SidebarLeft({
         url: 'countboard/uv',
         icon: SprayCan,
         hidden: false,
+        items: [
+          {
+            title: 'Management',
+            url: 'countboard/uv/management',
+          },
+        ],
       },
       {
         title: 'EMS',
@@ -165,14 +171,6 @@ export default function SidebarLeft({
           {
             title: 'Equipments',
             url: 'machines/equipments',
-          },
-          {
-            title: 'Status',
-            url: '#',
-          },
-          {
-            title: 'Settings',
-            url: '#',
           },
         ],
       },
