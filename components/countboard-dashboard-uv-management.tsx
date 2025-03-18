@@ -776,11 +776,8 @@ export default function CountboardDashboardUvManagement() {
 
   const targetScrap = selectedLocation == 'K' ? 0.02 : 0.09
 
-  console.log(`totalRejectA : ${totalRejectA}`)
-  console.log(`totalRejectOverall : ${totalRejectOverall}`)
 
 
-  if (error) return <ErrorState message="Error loading machines. Please try again later." />;
 
   const renderNooeIndicators = (hourlyId: number) => {
     const nooeForTime = noeeData?.filter(nooe => nooe.hourlyId === hourlyId) || [];
@@ -854,6 +851,9 @@ export default function CountboardDashboardUvManagement() {
       fetchRejectList();
     }
   }, [isLoadingRejectList, fetchRejectList]);
+
+  if (error) return <ErrorState message="Error loading machines. Please try again later." />;
+
 
 
   return (
