@@ -10,7 +10,7 @@
       "build-be": "tsc && tsc-alias",
       "start-be": "bun ./dist/api/index.js",
       "build": "next build",
-      "start": "ts-node src/index.ts",
+      "start": "next start",
       "lint": "next lint",
       "export-local": "next build && rm -rf /opt/homebrew/var/www/out && mkdir -p /opt/homebrew/var/www/admin &&  mv out/* /opt/homebrew/var/www/admin/ ",
       "typeorm": "typeorm-ts-node-commonjs"

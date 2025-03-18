@@ -728,7 +728,7 @@ export default function ShopfloorDashboard() {
               size={[30, 10, 0.5]}
             />
             {Array.isArray(selectedBuilding?.machines)
-              ? selectedBuilding.machines.map((machine) => (
+              ? selectedBuilding?.machines.map((machine) => (
                   <InjectionMoldingMachine
                     key={machine?.id}
                     machine={machine}

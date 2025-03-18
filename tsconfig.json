@@ -1,13 +1,11 @@
 {
   "compilerOptions": {
-    "target": "ES6",
+    "target": "ES2017",
     "lib": [
       "dom",
       "dom.iterable",
       "esnext"
     ],
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
