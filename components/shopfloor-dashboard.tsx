@@ -453,33 +453,36 @@ export default function ShopfloorDashboard() {
         client.subscribe(`uns/andon`);
       });
       client.on("message", (topic, message) => {
-        console.log(JSON.parse(message.toString()))
-        setAndon(JSON.parse(message.toString()));
+        try {
+          const messageData = JSON.parse(message.toString());
+          // console.log(`new message:${messageData}`);
+          setAndon(messageData);
 
-        setBuildings((prevBuildings) => {
-          if (!prevBuildings) return prevBuildings;
+          setBuildings((prevBuildings) => {
+            if (!prevBuildings) return prevBuildings;
 
-          const updatedBuildings = prevBuildings.map((building) => {
-            const updatedMachines = building.machines.map((machine) => {
-              if (machine.MchID === JSON.parse(message.toString()).MchID) {
-                return {
-                  ...machine,
-                  status: JSON.parse(message.toString()).StatusLight,
-                };
-              }
-              return machine;
+            const updatedBuildings = prevBuildings.map((building) => {
+              const updatedMachines = building.machines.map((machine) => {
+                if (machine.MchID === messageData.MchID) {
+                  return {
+                    ...machine,
+                    status: messageData.StatusLight,
+                  };
+                }
+                return machine;
+              });
+
+              return {
+                ...building,
+                machines: updatedMachines,
+              };
             });
 
-            return {
-              ...building,
-              machines: updatedMachines,
-            };
+            return updatedBuildings;
           });
-
-          return updatedBuildings;
+        } catch (error) {
+          console.error("Error parsing MQTT message:", error);
         }
-        );
-
       });
         console.log(`updated building from mqtt : ${JSON.stringify(buildings)}`)
 
@@ -519,7 +522,7 @@ export default function ShopfloorDashboard() {
       return promise;
     },
     {
-      refreshInterval: 5000,
+      refreshInterval: 10000,
     }
   );
 
@@ -604,7 +607,7 @@ export default function ShopfloorDashboard() {
       if (foundBuilding) {
         setSelectedBuilding(foundBuilding);
         router.push(`${pathname}?${params.toString()}`);
-        console.log(`machine building from query : ${queryLocation}`);
+        // console.log(`machine building from query : ${queryLocation}`);
       }
     }
   }, [queryLocation, buildings]);
@@ -699,7 +702,14 @@ export default function ShopfloorDashboard() {
                     style={{ backgroundColor: color }}
                   />
                   <span className="text-sm">
-                    <strong>{count}</strong> {status}
+                    <strong>{count}</strong>  {status === 'GREEN' ? 'Running' :
+                     status === 'WHITE' ? 'PlannedStop' :
+                     status === 'BLUE' ? 'Changeover' :
+                     status === 'ORANGE' ? 'Breakdown' :
+                     status === 'RED' ? 'NonQuality' :
+                     status === 'PURPLE' ? 'OrgDisfunction' :
+                     status === 'YELLOW' ? 'Microstop' :
+                     status}
                   </span>
                 </div>
               );
