@@ -512,8 +512,7 @@ export default function ShopfloorDashboard() {
       });
       
       toast.promise(promise, {
-        loading: 'Loading...',
-        success: 'Building data refreshed',
+        loading: 'Refreshing cycle and energy...',
         error: 'Failed to load buildings'
       });
 
