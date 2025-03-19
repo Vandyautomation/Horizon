@@ -230,30 +230,6 @@ export function MachinesForm() {
       ),
     },
     {
-      accessorKey: 'position',
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          Position
-          <ChevronsUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-    },
-    {
-      accessorKey: 'rotation',
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          Rotation
-          <ChevronsUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-    },
-    {
       id: 'actions',
       header: ({ column }) => <>Action</>,
       cell: ({ row }) => {

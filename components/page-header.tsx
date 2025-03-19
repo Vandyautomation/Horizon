@@ -153,6 +153,40 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
+
+          {currentPage === 'machines' && !currentSubPage && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('machines', 'Machines', true)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('machines/equipments', 'Equipments')}
+              </BreadcrumbItem>
+            </>
+          )}
+
+
+          {currentSubPage === 'equipments' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('machines', 'Machines')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('machines/equipments', 'Equipments', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+
           {/* Continue adapting the remaining breadcrumb sections */}
         </BreadcrumbList>
       </Breadcrumb>
