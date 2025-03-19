@@ -832,7 +832,7 @@ export function MachinesForm() {
                     process: formData.get('process') as string,
                     location: editingMachine.location,
                     position: formData.get('position') as string,
-                    rotation: editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]',
+                    rotation: editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 0, 0]' : '[0, 3.14, 0]',
                     uap: formData.get('uap') as string,
                     equipment: selectedEquipments.join(','),
                     tonage: formData.get('tonage') as string,
@@ -1187,7 +1187,7 @@ export function MachinesForm() {
                             setEditingMachine({
                               ...editingMachine,
                               position: e.target.value,
-                              rotation: JSON.parse(e.target.value)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]' 
+                              rotation: JSON.parse(e.target.value)[2] === 10 ? '[0, 0, 0]' : '[0, 3.14, 0]' 
                             })
                           }
                           className="hidden"
@@ -1205,12 +1205,12 @@ export function MachinesForm() {
                         defaultValue={editingMachine.rotation}
                         className="col-span-3"
                         value={
-                           editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]' 
+                           editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 0, 0]' : '[0, 3.14, 0]' 
                         }
                           onSubmit={() =>
                             setEditingMachine({
                               ...editingMachine,
-                              rotation: editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 3.14, 0]' : '[0, 0, 0]',
+                              rotation: editingMachine.position && JSON.parse(editingMachine?.position)[2] === 10 ? '[0, 0, 0]' : '[0, 3.14, 0]',
                             })
                           }
                       />
