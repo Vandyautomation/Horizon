@@ -161,6 +161,7 @@ WHERE
     m.Active = 1
     AND m.MchLoc IS NOT NULL
     AND m.MchLoc != 'Mixing Bld T'
+    AND @type IS NULL OR m.MchProcess = @type
 GROUP BY
     m.id, m.MchID, m.MchDesc, m.MchNumber, m.MchTon,
     m.MchLoc, m.position, m.rotation, m.MchProcess, m.uap, m.energyBudget

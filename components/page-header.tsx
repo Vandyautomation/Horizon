@@ -18,6 +18,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
   const pathname = usePathname();
   const currentPage = pathname?.split('/')[1];
   const currentSubPage = pathname?.split('/')[2];
+  const currentSubSubPage = pathname?.split('/')[3];
 
   // Helper function to create proper links
   const createBreadcrumbLink = (
@@ -117,7 +118,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
-          {currentSubPage === 'uv' && (
+          {currentSubPage === 'uv' && !currentSubSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -129,6 +130,30 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('countboard/uv', 'UV', true)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('countboard/uv/management', 'Management')}
+              </BreadcrumbItem>
+            </>
+          )}
+
+          {currentSubPage === 'uv' && currentSubSubPage === 'management' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('countboard', 'Countboard')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('countboard/uv', 'UV')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('countboard/uv/management', 'Management', true)}
               </BreadcrumbItem>
             </>
           )}
