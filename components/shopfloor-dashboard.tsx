@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+import mqtt from "mqtt";
+
 import { Color, Mesh, MeshStandardMaterial, PCFSoftShadowMap } from 'three';
 import { Button } from './ui/button';
 import useSWR from 'swr';
@@ -42,13 +44,13 @@ interface Machine {
   oee: number;
   ooe: number;
   status:
-    | 'Running'
-    | 'PlannedStop'
-    | 'Changeover'
-    | 'Breakdown'
-    | 'OrgDisfunction'
-    | 'NonQuality'
-    | 'Microstop';
+    | 'GREEN'
+    | 'WHITE'
+    | 'BLUE'
+    | 'ORANGE'
+    | 'PURPLE'
+    | 'RED'
+    | 'YELLOW';
 }
 
 interface Building {
@@ -59,14 +61,21 @@ interface Building {
   machines: Machine[];
 }
 
+interface Andon {
+  MchID: string;
+  MchNumber: number;
+  MchLoc: string;
+  StatusLight: string;
+}
+
 const statusColors = {
-  Running: '#22c55e', // Green
-  PlannedStop: '#9ca3af', // Gray
-  Changeover: '#3b82f6', // Blue
-  Breakdown: '#ffa500', // Darker orange
-  NonQuality: '#ef4444', // Red
-  OrgDisfunction: '#a855f7', // Purple
-  Microstop: 'yellow', // Yellow
+  GREEN: '#22c55e', // Green
+  WHITE: '#9ca3af', // Gray
+  BLUE: '#3b82f6', // Blue
+  ORANGE: '#ffa500', // Darker orange
+  RED: '#ef4444', // Red
+  PURPLE: '#a855f7', // Purple
+  YELLOW: 'yellow', // Yellow
 };
 
 function Wall({
@@ -248,7 +257,7 @@ function InjectionMoldingMachine({
           machine.rotation[2],
         ]}
       />
-      {machine?.status === 'Breakdown' && (
+      {machine?.status === 'ORANGE' && (
         <mesh position={[0, 0, 0]}>
           <Html position={[0, 4, 0]} center>
             <div className="bg-orange-500 text-white p-1 text-sm border animate-pulse">
@@ -418,8 +427,11 @@ export default function ShopfloorDashboard() {
   const [buildings, setBuildings] = useState<Building[] | undefined>(undefined);
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
+  const [, setMqttClient] = useState<ReturnType<typeof mqtt.connect> | null>(null);
   const [refreshTime, setRefreshTime] = useState('')
   const [startHour, setStartHour] = useState(0);
+
+  const [andon, setAndon] = useState<Andon[] | null>(null);
 
     useEffect(() => {
     const now = new Date();
@@ -433,6 +445,53 @@ export default function ShopfloorDashboard() {
       setStartHour(22);
     }
   }, []);
+
+    useEffect(() => {
+      const client = mqtt.connect(`${process.env.NEXT_PUBLIC_MQTT_WS}`);
+      client.on("connect", () => {
+        console.log("Connected to MQTT broker");
+        client.subscribe(`uns/andon`);
+      });
+      client.on("message", (topic, message) => {
+        console.log(JSON.parse(message.toString()))
+        setAndon(JSON.parse(message.toString()));
+
+        setBuildings((prevBuildings) => {
+          if (!prevBuildings) return prevBuildings;
+
+          const updatedBuildings = prevBuildings.map((building) => {
+            const updatedMachines = building.machines.map((machine) => {
+              if (machine.MchID === JSON.parse(message.toString()).MchID) {
+                return {
+                  ...machine,
+                  status: JSON.parse(message.toString()).StatusLight,
+                };
+              }
+              return machine;
+            });
+
+            return {
+              ...building,
+              machines: updatedMachines,
+            };
+          });
+
+          return updatedBuildings;
+        }
+        );
+
+      });
+        console.log(`updated building from mqtt : ${JSON.stringify(buildings)}`)
+
+      setMqttClient(client);
+  
+      return () => {
+        client.end();
+        console.log("Disconnected to MQTT broker");
+  
+        setMqttClient(null);
+      };
+    }, []);
 
   // const fetcher = (url: string) => fetch(url).then((res) => res.json());
   // const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings`;
@@ -475,14 +534,37 @@ export default function ShopfloorDashboard() {
 
   // Filter out machines with null positions and update state
   useEffect(() => {
-    if (!rawBuildings || !Array.isArray(rawBuildings) ||!rawBuildings.length) return;
-    
-    const filteredBuildings = rawBuildings.map(building => ({
-      ...building,
-      machines: building.machines.filter(machine => machine.position != null)
-    }));
-    
-    setBuildings(filteredBuildings);
+      if (!rawBuildings || !Array.isArray(rawBuildings) ||!rawBuildings.length) return;
+      
+      const filteredBuildings = rawBuildings.map(building => {
+        // First filter out machines without positions
+        const updatedMachines = building.machines
+        .filter(machine => machine.position != null)
+        .map(machine => {
+          // If we have andon data for this machine, update its status
+          if (andon) {
+            const matchingAndon = andon.find(a => a.MchID === machine.MchID);
+            if (matchingAndon) {
+              // Cast the status to a valid Machine status type if it matches one of the allowed values
+              const statusLight = matchingAndon.StatusLight as Machine['status'];
+              return {
+                ...machine,
+                status: statusLight
+              };
+            }
+          }
+          return machine;
+        });
+        
+        return {
+        ...building,
+        machines: updatedMachines,
+        };
+      });
+  
+      console.log(`filtered buildings: ${JSON.stringify(filteredBuildings)}`)
+      
+      setBuildings(filteredBuildings as Building[]);
     
     // Only update selectedBuilding if it exists but don't include it in the dependency array
     if (selectedBuilding) {
@@ -526,6 +608,8 @@ export default function ShopfloorDashboard() {
       }
     }
   }, [queryLocation, buildings]);
+
+  // console.log(`data andon : ${JSON.stringify(andon)}`);
 
   // if (error) return <div>Failed to load</div>;
   // if (!buildings) return <div>Loading...</div>;

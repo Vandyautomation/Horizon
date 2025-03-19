@@ -24,19 +24,6 @@ export async function getBuildings() {
         SELECT 
         m.MchNumber AS id, 
         m.MchLoc AS building,
-        (SELECT TOP 1 
-            CASE 
-                WHEN StatusLight = 'GREEN' THEN 'Running'
-                WHEN StatusLight = 'ORANGE' THEN 'Breakdown'
-                WHEN StatusLight = 'PURPLE' THEN 'OrgDisfunction'
-                WHEN StatusLight = 'BLUE' THEN 'Changeover'
-                WHEN StatusLight = 'WHITE' THEN 'PlannedStop'
-                WHEN StatusLight = 'RED' THEN 'NonQuality'
-                WHEN StatusLight = 'YELLOW' THEN 'Microstop'
-            END
-        FROM IoT.dbo.MchStatusTRX 
-        WHERE MchID COLLATE SQL_Latin1_General_CP1_CI_AS = m.MchID COLLATE SQL_Latin1_General_CP1_CI_AS
-        ORDER BY id DESC) AS status, 
         m.[position], 
         m.rotation, 
         m.MchID,
