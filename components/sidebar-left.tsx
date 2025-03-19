@@ -394,7 +394,19 @@ export default function SidebarLeft({
   return (
     <Sidebar className="border-r-0" {...props} collapsible="icon">
       <SidebarHeader>
-        <TeamSwitcher teams={sidebarLeftData.teams} />
+        
+        {/* <TeamSwitcher teams={sidebarLeftData.teams} /> */}
+      <Link 
+        className="flex flex-nowrap gap-2 items-center justify-start rounded-md bg-sidebar-primary text-sidebar-primary-foreground ml-2 sidebar-expanded:flex sidebar-collapsed:hidden" 
+        href="/">
+        <Image
+          src="/admin/android-chrome-192x192.png"
+          alt="IoT App"
+          width={24}
+          height={24}
+        /> 
+        <span className="truncate font-semibold">IoT App</span>
+      </Link>
         <NavMain items={sidebarLeftData.navMain} />
       </SidebarHeader>
       <SidebarContent>
