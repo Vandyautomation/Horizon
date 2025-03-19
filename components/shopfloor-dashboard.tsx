@@ -567,6 +567,8 @@ export default function ShopfloorDashboard() {
       console.log(`filtered buildings: ${JSON.stringify(filteredBuildings)}`)
       
       setBuildings(filteredBuildings as Building[]);
+      setRefreshTime(new Date().toLocaleTimeString())
+
     
     // Only update selectedBuilding if it exists but don't include it in the dependency array
     if (selectedBuilding) {
