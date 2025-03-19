@@ -250,6 +250,18 @@ export default function CountboardDashboardUv() {
     setIsLoading(isValidating);
   }, [isValidating]);
 
+    useEffect(() => {
+      if(selectedMachine?.machineName){
+            Promise.all([
+        refetchHourlyData(),
+        refetchOeeData(),
+        refetchTaskData(),
+        refetchNoeeData(),
+        refetchStateData(),
+      ]);
+      }
+    }, [selectedMachine?.machineName]);
+
   // const refetchMachine = async () => {
   //   setIsLoading(true);
   //   try {
@@ -283,7 +295,20 @@ export default function CountboardDashboardUv() {
     }`
     : null;
 
-  const { data: hourlyData } = useSWR<HourlyData[]>(hourlyDataKey, fetcher, {
+  const { data: hourlyData } = useSWR<HourlyData[]>(hourlyDataKey, async (url) => {
+          const promise = fetch(url).then(res => {
+            if (!res.ok) throw new Error("Failed to fetch");
+            return res.json();
+          });
+          
+          toast.promise(promise, {
+            loading: 'Loading...',
+            success: 'Countboard data refreshed',
+            error: 'Failed to load data'
+          });
+
+          return promise;
+    }, {
     revalidateOnMount: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -379,14 +404,6 @@ export default function CountboardDashboardUv() {
     setSelectedMachineNumber(value);
     const selected = filteredMachines?.find(machine => machine.machineNumber === value) || null;
     setSelectedMachine(selected);
-    Promise.all([
-      refetchHourlyData(),
-      refetchOeeData(),
-      refetchTaskData(),
-      refetchNoeeData(),
-      refetchSpindleData(),
-      refetchStateData()
-    ]);
     const params = new URLSearchParams(searchParams);
     params.set("machineNumber", value);
     router.push(`${pathname}?${params.toString()}`);
@@ -443,6 +460,8 @@ export default function CountboardDashboardUv() {
         refetchTaskData(),
         refetchNoeeData(),
         refetchStateData(),
+        refetchSpindleData(),
+
       ]);
     } finally {
       setIsLoadingRefresh(false);

@@ -250,6 +250,19 @@ export default function CountboardDashboardUvManagement() {
     setIsLoading(isValidating);
   }, [isValidating]);
 
+    useEffect(() => {
+    if(selectedMachine?.machineName){
+          Promise.all([
+      refetchHourlyData(),
+      refetchOeeData(),
+      refetchTaskData(),
+      refetchNoeeData(),
+      refetchStateData(),
+      refetchSpindleData(),
+    ]);
+    }
+  }, [selectedMachine?.machineName]);
+
   // const refetchMachine = async () => {
   //   setIsLoading(true);
   //   try {
@@ -379,14 +392,6 @@ export default function CountboardDashboardUvManagement() {
     setSelectedMachineNumber(value);
     const selected = filteredMachines?.find(machine => machine.machineNumber === value) || null;
     setSelectedMachine(selected);
-    Promise.all([
-      refetchHourlyData(),
-      refetchOeeData(),
-      refetchTaskData(),
-      refetchNoeeData(),
-      refetchSpindleData(),
-      refetchStateData()
-    ]);
     const params = new URLSearchParams(searchParams);
     params.set("machineNumber", value);
     router.push(`${pathname}?${params.toString()}`);

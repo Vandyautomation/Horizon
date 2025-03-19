@@ -25,6 +25,7 @@ import useSWR from 'swr';
 import { Label } from './ui/label';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Calculator, Power, Zap } from 'lucide-react';
+import { toast } from "sonner";
 
 interface Machine {
   id: string;
@@ -433,11 +434,35 @@ export default function ShopfloorDashboard() {
     }
   }, []);
 
-  const fetcher = (url: string) => fetch(url).then((res) => res.json());
+  // const fetcher = (url: string) => fetch(url).then((res) => res.json());
+  // const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings`;
+  // const { data: rawBuildings, error, isLoading } = useSWR<Building[]>(key, fetcher, {
+  //   refreshInterval: 5000,
+  // });
+  
   const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings`;
-  const { data: rawBuildings, error } = useSWR<Building[]>(key, fetcher, {
-    refreshInterval: 5000,
-  });
+  const { data: rawBuildings, error } = useSWR<Building[]>(
+    key, 
+    async (url) => {
+      const promise = fetch(url).then(res => {
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.json();
+      });
+      
+      toast.promise(promise, {
+        loading: 'Loading...',
+        success: 'Building data refreshed',
+        error: 'Failed to load buildings'
+      });
+
+      setRefreshTime(new Date().toLocaleTimeString())
+      
+      return promise;
+    },
+    {
+      refreshInterval: 5000,
+    }
+  );
 
   // Log fetch results
   useEffect(() => {
@@ -462,7 +487,7 @@ export default function ShopfloorDashboard() {
     // Only update selectedBuilding if it exists but don't include it in the dependency array
     if (selectedBuilding) {
       const updatedSelectedBuilding = filteredBuildings.find(building => building.id === selectedBuilding.id) || null;
-      setRefreshTime(new Date().toLocaleTimeString())
+      
       // Only set if there's an actual change to prevent infinite loops
       if (JSON.stringify(updatedSelectedBuilding) !== JSON.stringify(selectedBuilding)) {
         setSelectedMachine(null); // Reset selected machine when building updates

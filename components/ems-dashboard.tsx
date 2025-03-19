@@ -1,5 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton" 
 import {
   Card,
   CardContent,
@@ -102,23 +103,40 @@ const fiveMinutes = Array.from({ length: 12 }, (_, i) => ({
   time: `${(i * 5).toString().padStart(2, '0')}:00`,
 }));
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+  
 
 export default function EmsDashboard() {
   const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(
     null
   );
   const [selectedLocation, setSelectedLocation] = useState<string>('');
-  const [selectedMachineNumber, setSelectedMachineNumber] =
-    useState<string>('');
+  const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoadingRefresh, setIsLoadingRefresh] = useState(false);
   const [isLiveMode, setIsLiveMode] = useState(true);
   const [tolerance, setTolerance] = useState(0);
+
+  const [isFetching, setIsFetching] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
+  
+
   const pathname = usePathname();
   const router = useRouter();
+
+  const fetcher = useCallback((url: string) => {
+    setIsFetching(true);
+    return fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.json();
+      })
+      .finally(() => {
+        setIsFetching(false);
+        if (initialLoad) setInitialLoad(false);
+      });
+  }, [initialLoad]);
 
   useEffect(() => {
     const refreshAtShiftChange = () => {
@@ -134,7 +152,7 @@ export default function EmsDashboard() {
         toast.success('Auto Refreshing every shift ...', { duration: 1000 });
         setTimeout(() => {
           window.location.reload();
-        }, 2000);
+        }, 1000);
       }
     };
 
@@ -151,11 +169,20 @@ export default function EmsDashboard() {
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
+      suspense: false,
+      refreshInterval: 0,
     }
   );
   useEffect(() => {
-    setIsLoading(isValidating);
-  }, [isValidating]);
+    if (selectedMachine?.machineName) {
+      Promise.all([
+        refetchNoeeData(),
+        refetchEnergyData(),
+        refetchEnergyStatusData(),
+        refetchTaskData(),
+      ]);
+    }
+  }, [selectedMachine?.machineName]);
 
   const noeeDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${
@@ -203,7 +230,22 @@ export default function EmsDashboard() {
       }`
     : null;
 
-  const { data: rawEnergyData } = useSWR<EnergyData[]>(energyDataKey, fetcher, {
+  const { data: rawEnergyData } = useSWR<EnergyData[]>(energyDataKey, 
+    async (url) => {
+          const promise = fetch(url).then(res => {
+            if (!res.ok) throw new Error("Failed to fetch");
+            return res.json();
+          });
+          
+          toast.promise(promise, {
+            loading: 'Loading...',
+            success: 'Energy data refreshed',
+            error: 'Failed to load energy'
+          });
+
+          return promise;
+    },
+    {
     revalidateOnMount: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -330,20 +372,21 @@ export default function EmsDashboard() {
   };
 
   const handleMachineNumberChange = (value: string) => {
+    setIsFetching(true);
     setSelectedMachineNumber(value);
     const selected =
       filteredMachines?.find((machine) => machine.machineNumber === value) ||
       null;
     setSelectedMachine(selected);
-    Promise.all([
-      refetchNoeeData(),
-      refetchEnergyData(),
-      refetchEnergyStatusData(),
-      refetchTaskData(),
-    ]);
+
     const params = new URLSearchParams(searchParams);
     params.set('machineNumber', value);
     router.push(`${pathname}?${params.toString()}`);
+
+        toast.loading("Loading machine data...", {
+      id: "machine-loading",
+      duration: 2000,
+    });
   };
 
   const handleRefreshRateChange = (value: string) => {
@@ -627,11 +670,7 @@ export default function EmsDashboard() {
           </>
         )}
       </div>
-      {selectedMachine === null && isLoading == false ? (
-        <div className="text-center">Please select machine...</div>
-      ) : (
-        <></>
-      )}
+
       {/* Energy Chart */}
       <div className="w-full grid grid-cols-1 gap-2 mb-0 pb-0">
         <div className="w-full">
@@ -641,11 +680,14 @@ export default function EmsDashboard() {
                 <div>
                   <Label className="w-20 pl-2 row-span-2 align-top">
                     Machine Status{' '}
-                    {additionalData?.[0]?.statusLight && (
+                    {isFetching && !additionalData ? (
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-8 w-28 rounded-full mt-1" />
+                  </div>
+                ) : (
                       <div
                         className={`h-8 w-28 rounded-full ${bgColorMap(
-                          additionalData?.[0]?.statusLight?.toLowerCase() ||
-                            'grey'
+                          additionalData?.[0]?.statusLight?.toLowerCase() || 'white'
                         )} mt-1`}
                       />
                     )}
@@ -659,7 +701,14 @@ export default function EmsDashboard() {
                   height={200}
                   className="rounded-lg"
                 />
-                {additionalData && additionalData.length && (
+                {!additionalData ? (
+                  <div className="flex flex-col">
+                    <Skeleton className="h-8 w-80 rounded-full mt-1" />
+                    <Skeleton className="h-8 w-80 rounded-full mt-1" />
+                    <Skeleton className="h-8 w-80 rounded-full mt-1" />
+
+                  </div>
+                ) :(
                   <Label className="flex flex-col text-3xl text-primary font-bold ">
                     <div className="flex flex-row text-center align-center items-center">
                       <p className=" text-sm p-4 flex ">Energy Budget</p>{' '}
@@ -680,12 +729,12 @@ export default function EmsDashboard() {
                     <div className="flex justify-between text-md text-center align-center items-center">
                       <div className="flex items-center">
                         <p className="inline p-2 text-sm">OEE</p>{' '}
-                        {(additionalData?.[0]?.oee * 100 || 0).toFixed(2)}{' '}
+                        {(additionalData && additionalData?.[0]?.oee * 100 || 0).toFixed(2)}{' '}
                         <p className="text-sm">%</p>
                       </div>
                       <div className="flex items-center">
                         <p className="inline p-2 text-sm">OOE</p>{' '}
-                        {(additionalData?.[0]?.ooe * 100 || 0).toFixed(2)}{' '}
+                        {(additionalData && additionalData?.[0]?.ooe * 100 || 0).toFixed(2)}{' '}
                         <p className="text-sm ">%</p>
                       </div>
                     </div>

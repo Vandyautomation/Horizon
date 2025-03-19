@@ -250,7 +250,20 @@ const refetchStateData = () => mutate(stateDataKey);
     }`
     : null;
 
-  const { data: hourlyData } = useSWR<HourlyData[]>(hourlyDataKey, fetcher, {
+  const { data: hourlyData } = useSWR<HourlyData[]>(hourlyDataKey, async (url) => {
+          const promise = fetch(url).then(res => {
+            if (!res.ok) throw new Error("Failed to fetch");
+            return res.json();
+          });
+          
+          toast.promise(promise, {
+            loading: 'Loading...',
+            success: 'Countboard data refreshed',
+            error: 'Failed to load data'
+          });
+
+          return promise;
+    }, {
     revalidateOnMount: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -314,6 +327,18 @@ const refetchStateData = () => mutate(stateDataKey);
     setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
   }, [taskData]);
 
+  useEffect(() => {
+    if(selectedMachine?.machineName){
+          Promise.all([
+      refetchHourlyData(),
+      refetchOeeData(),
+      refetchTaskData(),
+      refetchNoeeData(),
+      refetchStateData(),
+    ]);
+    }
+  }, [selectedMachine?.machineName]);
+
   const uniqueLocations = Array.from(new Set(machines?.map(machine => machine.locationName)));
   const filteredMachines = machines?.filter(machine => machine.locationName === selectedLocation);
 
@@ -330,13 +355,6 @@ const refetchStateData = () => mutate(stateDataKey);
     setSelectedMachineNumber(value);
     const selected = filteredMachines?.find(machine => machine.machineNumber === value) || null;
     setSelectedMachine(selected);
-    Promise.all([
-      refetchHourlyData(),
-      refetchOeeData(),
-      refetchTaskData(),
-      refetchNoeeData(),
-      refetchStateData(),
-    ]);
     setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0);
     const params = new URLSearchParams(searchParams);
     params.set("machineNumber", value);
