@@ -674,10 +674,10 @@ export default function ShopfloorDashboard() {
           <CardTitle className="flex justify-between items-center pb-0 mb-0">
             <div className="flex gap-x-8 ">
               <Label className="text-lg">
-                OOE <strong>{((selectedBuilding?.oee || 0)* 100).toFixed(2)}%</strong>
+                OOE <strong>{((selectedBuilding?.ooe || 0)* 100).toFixed(2)}%</strong>
               </Label>
               <Label className="text-lg">
-                OEE <strong>{((selectedBuilding?.ooe || 0)* 100).toFixed(2)}%</strong>
+                OEE <strong>{((selectedBuilding?.oee || 0)* 100).toFixed(2)}%</strong>
               </Label>
             </div>
             <div>
