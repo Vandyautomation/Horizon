@@ -238,8 +238,8 @@ export default function EmsDashboard() {
           });
           
           toast.promise(promise, {
-            loading: 'Loading...',
-            success: 'Energy data refreshed',
+            loading: 'Refreshing...',
+            // success: 'Energy data refreshed',
             error: 'Failed to load energy'
           });
 
