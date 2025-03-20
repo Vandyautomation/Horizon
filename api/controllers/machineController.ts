@@ -613,146 +613,274 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
   } else if(ems && !date){ // LIVE EMS
 
     const sqlQuery = `
+
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
+    DECLARE @current DATETIME = GETDATE();
+    DECLARE @date DATE = COALESCE(NULL, CAST(@current AS DATE));
 
-        SET @from =DATEADD(HOUR, 0,cast(CAST(GETDATE() AS date)as datetime)) ; 
-        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)));; -- Goes into the next day
 
+    SET @from = DATEADD(HOUR, 0, CAST(@date AS DATETIME));
+    SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(@date AS DATETIME)));
 
-        SELECT 
-            n.id AS NooeId, 
-            h.id AS hourlyId, 
-            n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red,
-            
-            -- Green flag logic
-            CASE 
-                WHEN 
-                    COALESCE(n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red) IS NULL 
-                    AND DATEADD(
-                        MINUTE, 
-                        CASE 
-                            WHEN five_minutes_id = 1 THEN 0
-                            WHEN five_minutes_id = 2 THEN 5
-                            WHEN five_minutes_id = 3 THEN 10  
-                            WHEN five_minutes_id = 4 THEN 15  
-                            WHEN five_minutes_id = 5 THEN 20  
-                            WHEN five_minutes_id = 6 THEN 25  
-                            WHEN five_minutes_id = 7 THEN 30  
-                            WHEN five_minutes_id = 8 THEN 35  
-                            WHEN five_minutes_id = 9 THEN 40  
-                            WHEN five_minutes_id = 10 THEN 45  
-                            WHEN five_minutes_id = 11 THEN 50  
-                            WHEN five_minutes_id = 12 THEN 55  
-                            ELSE 0  -- Default case
-                        END, 
-                        h.from_datetime
-                    ) < DATEADD(MINUTE, -5, GETDATE())  -- Ensuring fromTime is older than 5 minutes
-                THEN 1 ELSE NULL 
-            END AS green,
+    -- Creating a table with all 5 minute intervals for the day
+    WITH TimeIntervals AS (
+        SELECT
+            DATEADD(MINUTE, (rn-1)*5, @from) AS FromTime
+        FROM (
+            SELECT TOP 288 -- 288 = 24 hours * 12 intervals per hour
+                ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn
+            FROM master.dbo.spt_values t1
+            CROSS JOIN master.dbo.spt_values t2
+        ) AS Numbers
+    ),
 
-            five_minutes_id,
-            h.from_datetime,
-            
-            -- Calculate fromTime based on five_minutes_id
-            DATEADD(
-                MINUTE, 
-                CASE 
-                    WHEN five_minutes_id = 1 THEN 0
-                    WHEN five_minutes_id = 2 THEN 5
-                    WHEN five_minutes_id = 3 THEN 10  
-                    WHEN five_minutes_id = 4 THEN 15  
-                    WHEN five_minutes_id = 5 THEN 20  
-                    WHEN five_minutes_id = 6 THEN 25  
-                    WHEN five_minutes_id = 7 THEN 30  
-                    WHEN five_minutes_id = 8 THEN 35  
-                    WHEN five_minutes_id = 9 THEN 40  
-                    WHEN five_minutes_id = 10 THEN 45  
-                    WHEN five_minutes_id = 11 THEN 50  
-                    WHEN five_minutes_id = 12 THEN 55  
-                    ELSE 0  -- Default case
-                END, 
-                h.from_datetime
-            ) AS fromTime
-        FROM IoT.dbo.nooe n WITH (NOLOCK)
-        JOIN IoT.dbo.hourly h WITH (NOLOCK) 
-            ON n.hourly_id = h.id
-        WHERE h.machine_id = @machine_id
-        AND h.from_datetime >= @from 
-        AND h.from_datetime <= @to;
+    -- Get the last status before our time period (if exists)
+    FirstStatus AS (
+        SELECT TOP 1
+            StatusDate,
+            StatusLight,
+            MchID
+        FROM MchStatusTRX
+        WHERE MchID = @machine_id
+        AND Active = 1
+        AND StatusDate < @from
+        ORDER BY StatusDate DESC
+    ),
+
+    -- Combine the first status with all statuses in our period
+    AllStatusChanges AS (
+        SELECT
+            StatusDate,
+            StatusLight,
+            MchID
+        FROM FirstStatus
+
+        UNION ALL
+
+        SELECT
+            StatusDate,
+            StatusLight,
+            MchID
+        FROM MchStatusTRX
+        WHERE MchID = @machine_id
+        AND Active = 1
+        AND StatusDate BETWEEN @from AND @to
+    ),
+
+    -- Add lead/lag information to calculate durations
+    StatusChanges AS (
+        SELECT
+            StatusDate AS ChangeTime,
+            StatusLight,
+            MchID,
+            LEAD(StatusDate) OVER (ORDER BY StatusDate) AS NextStatusDate
+        FROM AllStatusChanges
+    ),
+
+    -- Calculate duration of each status light for each 5-minute interval
+    IntervalStatus AS (
+        SELECT
+            t.FromTime,
+            s.StatusLight,
+            s.MchID,
+            CASE
+                -- Status spans the entire interval
+                WHEN s.ChangeTime <= t.FromTime AND (s.NextStatusDate IS NULL OR s.NextStatusDate > DATEADD(MINUTE, 5, t.FromTime))
+                    THEN 300 -- 5 minutes in seconds
+
+                -- Status starts before interval but ends within it
+                WHEN s.ChangeTime <= t.FromTime AND s.NextStatusDate <= DATEADD(MINUTE, 5, t.FromTime)
+                    THEN DATEDIFF(SECOND, t.FromTime, s.NextStatusDate)
+
+                -- Status starts within interval and continues beyond it
+                WHEN s.ChangeTime > t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime) AND
+                    (s.NextStatusDate IS NULL OR s.NextStatusDate >= DATEADD(MINUTE, 5, t.FromTime))
+                    THEN DATEDIFF(SECOND, s.ChangeTime, DATEADD(MINUTE, 5, t.FromTime))
+
+                -- Status starts and ends within the interval
+                WHEN s.ChangeTime > t.FromTime AND s.NextStatusDate < DATEADD(MINUTE, 5, t.FromTime)
+                    THEN DATEDIFF(SECOND, s.ChangeTime, s.NextStatusDate)
+
+                ELSE 0
+            END AS DurationSeconds
+        FROM TimeIntervals t
+        CROSS APPLY (
+            SELECT * FROM StatusChanges s
+            WHERE (s.ChangeTime <= t.FromTime AND (s.NextStatusDate > t.FromTime OR s.NextStatusDate IS NULL))
+            OR (s.ChangeTime >= t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime))
+        ) s
+    ),
+
+    -- Get the status with maximum duration for each interval
+    MaxDuration AS (
+        SELECT
+            FromTime,
+            StatusLight,
+            MchID,
+            DurationSeconds,
+            ROW_NUMBER() OVER (PARTITION BY FromTime ORDER BY DurationSeconds DESC) AS rn
+        FROM IntervalStatus
+    )
+
+    -- Final output with pivoted data
+    SELECT
+        CASE WHEN StatusLight = 'BLUE' THEN 1 ELSE NULL END AS blue,
+        CASE WHEN StatusLight = 'ORANGE' THEN 1 ELSE NULL END AS orange,
+        CASE WHEN StatusLight = 'PURPLE' THEN 1 ELSE NULL END AS purple,
+        CASE WHEN StatusLight = 'GREY' THEN 1 ELSE NULL END AS grey,
+        CASE WHEN StatusLight = 'YELLOW' THEN 1 ELSE NULL END AS yellow,
+        CASE WHEN StatusLight = 'WHITE' THEN 1 ELSE NULL END AS white,
+        CASE WHEN StatusLight = 'RED' THEN 1 ELSE NULL END AS red,
+        CASE WHEN StatusLight = 'GREEN' THEN 1 ELSE NULL END AS green,
+        fromTime
+    FROM (
+        SELECT
+            t.FromTime,
+            -- Return NULL for future time periods
+            CASE
+                WHEN t.FromTime > @current THEN NULL
+                ELSE ISNULL(m.StatusLight, NULL)
+            END AS StatusLight
+        FROM TimeIntervals t
+        LEFT JOIN MaxDuration m ON t.FromTime = m.FromTime AND m.rn = 1
+    ) AS StatusData
+    ORDER BY FromTime;
     `
-    return await queryDatabase(sqlQuery, {machine_id, date, shift})
+      return await queryDatabase(sqlQuery, { machine_id, shift })
   } else if(date && ems){ // HISTORY EMS
 
     const sqlQuery = `
     DECLARE @from DATETIME;
     DECLARE @to DATETIME;
+    DECLARE @current DATETIME = GETDATE();
 
+    SET @from = DATEADD(HOUR, 0, CAST(@date AS DATETIME));
+    SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(@date AS DATETIME)));
 
-    SET @from = DATEADD(HOUR, 0, cast(CAST(@date AS date)as datetime))
-    SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(@date AS date)as datetime))); -- Goes into the next day
+    -- Creating a table with all 5 minute intervals for the day
+    WITH TimeIntervals AS (
+        SELECT
+            DATEADD(MINUTE, (rn-1)*5, @from) AS FromTime
+        FROM (
+            SELECT TOP 288 -- 288 = 24 hours * 12 intervals per hour
+                ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn
+            FROM master.dbo.spt_values t1
+            CROSS JOIN master.dbo.spt_values t2
+        ) AS Numbers
+    ),
 
+    -- Get the last status before our time period (if exists)
+    FirstStatus AS (
+        SELECT TOP 1
+            StatusDate,
+            StatusLight,
+            MchID
+        FROM MchStatusTRX
+        WHERE MchID = @machine_id
+        AND Active = 1
+        AND StatusDate < @from
+        ORDER BY StatusDate DESC
+    ),
 
-    SELECT 
-        n.id AS NooeId, 
-        h.id AS hourlyId, 
-        n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red,
-        
-        -- Green flag logic
-        CASE 
-            WHEN 
-                COALESCE(n.blue, n.orange, n.purple, n.grey, n.yellow, n.white, n.red) IS NULL 
-                AND DATEADD(
-                    MINUTE, 
-                    CASE 
-                        WHEN five_minutes_id = 1 THEN 0
-                        WHEN five_minutes_id = 2 THEN 5
-                        WHEN five_minutes_id = 3 THEN 10  
-                        WHEN five_minutes_id = 4 THEN 15  
-                        WHEN five_minutes_id = 5 THEN 20  
-                        WHEN five_minutes_id = 6 THEN 25  
-                        WHEN five_minutes_id = 7 THEN 30  
-                        WHEN five_minutes_id = 8 THEN 35  
-                        WHEN five_minutes_id = 9 THEN 40  
-                        WHEN five_minutes_id = 10 THEN 45  
-                        WHEN five_minutes_id = 11 THEN 50  
-                        WHEN five_minutes_id = 12 THEN 55  
-                        ELSE 0  -- Default case
-                    END, 
-                    h.from_datetime
-                ) < DATEADD(MINUTE, -5, GETDATE())  -- Ensuring fromTime is older than 5 minutes
-            THEN 1 ELSE NULL 
-        END AS green,
+    -- Combine the first status with all statuses in our period
+    AllStatusChanges AS (
+        SELECT
+            StatusDate,
+            StatusLight,
+            MchID
+        FROM FirstStatus
 
-        five_minutes_id,
-        h.from_datetime,
-        
-        -- Calculate fromTime based on five_minutes_id
-        DATEADD(
-            MINUTE, 
-            CASE 
-                WHEN five_minutes_id = 1 THEN 0
-                WHEN five_minutes_id = 2 THEN 5
-                WHEN five_minutes_id = 3 THEN 10  
-                WHEN five_minutes_id = 4 THEN 15  
-                WHEN five_minutes_id = 5 THEN 20  
-                WHEN five_minutes_id = 6 THEN 25  
-                WHEN five_minutes_id = 7 THEN 30  
-                WHEN five_minutes_id = 8 THEN 35  
-                WHEN five_minutes_id = 9 THEN 40  
-                WHEN five_minutes_id = 10 THEN 45  
-                WHEN five_minutes_id = 11 THEN 50  
-                WHEN five_minutes_id = 12 THEN 55  
-                ELSE 0  -- Default case
-            END, 
-            h.from_datetime
-        ) AS fromTime
-    FROM IoT.dbo.nooe n WITH (NOLOCK)
-    JOIN IoT.dbo.hourly h WITH (NOLOCK) 
-        ON n.hourly_id = h.id
-    WHERE h.machine_id = @machine_id
-    AND h.from_datetime >= @from 
-    AND h.from_datetime <= @to;
+        UNION ALL
+
+        SELECT
+            StatusDate,
+            StatusLight,
+            MchID
+        FROM MchStatusTRX
+        WHERE MchID = @machine_id
+        AND Active = 1
+        AND StatusDate BETWEEN @from AND @to
+    ),
+
+    -- Add lead/lag information to calculate durations
+    StatusChanges AS (
+        SELECT
+            StatusDate AS ChangeTime,
+            StatusLight,
+            MchID,
+            LEAD(StatusDate) OVER (ORDER BY StatusDate) AS NextStatusDate
+        FROM AllStatusChanges
+    ),
+
+    -- Calculate duration of each status light for each 5-minute interval
+    IntervalStatus AS (
+        SELECT
+            t.FromTime,
+            s.StatusLight,
+            s.MchID,
+            CASE
+                -- Status spans the entire interval
+                WHEN s.ChangeTime <= t.FromTime AND (s.NextStatusDate IS NULL OR s.NextStatusDate > DATEADD(MINUTE, 5, t.FromTime))
+                    THEN 300 -- 5 minutes in seconds
+
+                -- Status starts before interval but ends within it
+                WHEN s.ChangeTime <= t.FromTime AND s.NextStatusDate <= DATEADD(MINUTE, 5, t.FromTime)
+                    THEN DATEDIFF(SECOND, t.FromTime, s.NextStatusDate)
+
+                -- Status starts within interval and continues beyond it
+                WHEN s.ChangeTime > t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime) AND
+                    (s.NextStatusDate IS NULL OR s.NextStatusDate >= DATEADD(MINUTE, 5, t.FromTime))
+                    THEN DATEDIFF(SECOND, s.ChangeTime, DATEADD(MINUTE, 5, t.FromTime))
+
+                -- Status starts and ends within the interval
+                WHEN s.ChangeTime > t.FromTime AND s.NextStatusDate < DATEADD(MINUTE, 5, t.FromTime)
+                    THEN DATEDIFF(SECOND, s.ChangeTime, s.NextStatusDate)
+
+                ELSE 0
+            END AS DurationSeconds
+        FROM TimeIntervals t
+        CROSS APPLY (
+            SELECT * FROM StatusChanges s
+            WHERE (s.ChangeTime <= t.FromTime AND (s.NextStatusDate > t.FromTime OR s.NextStatusDate IS NULL))
+            OR (s.ChangeTime >= t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime))
+        ) s
+    ),
+
+    -- Get the status with maximum duration for each interval
+    MaxDuration AS (
+        SELECT
+            FromTime,
+            StatusLight,
+            MchID,
+            DurationSeconds,
+            ROW_NUMBER() OVER (PARTITION BY FromTime ORDER BY DurationSeconds DESC) AS rn
+        FROM IntervalStatus
+    )
+
+    -- Final output with pivoted data
+    SELECT
+        CASE WHEN StatusLight = 'BLUE' THEN 1 ELSE NULL END AS blue,
+        CASE WHEN StatusLight = 'ORANGE' THEN 1 ELSE NULL END AS orange,
+        CASE WHEN StatusLight = 'PURPLE' THEN 1 ELSE NULL END AS purple,
+        CASE WHEN StatusLight = 'GREY' THEN 1 ELSE NULL END AS grey,
+        CASE WHEN StatusLight = 'YELLOW' THEN 1 ELSE NULL END AS yellow,
+        CASE WHEN StatusLight = 'WHITE' THEN 1 ELSE NULL END AS white,
+        CASE WHEN StatusLight = 'RED' THEN 1 ELSE NULL END AS red,
+        CASE WHEN StatusLight = 'GREEN' THEN 1 ELSE NULL END AS green,
+        fromTime
+    FROM (
+        SELECT
+            t.FromTime,
+            -- Return NULL for future time periods
+            CASE
+                WHEN t.FromTime > @current THEN NULL
+                ELSE ISNULL(m.StatusLight, NULL)
+            END AS StatusLight
+        FROM TimeIntervals t
+        LEFT JOIN MaxDuration m ON t.FromTime = m.FromTime AND m.rn = 1
+    ) AS StatusData
+    ORDER BY FromTime;
 
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
@@ -801,6 +929,8 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     return await queryDatabase(sqlQuery, { machine_id });
   }
 }
+
+
 
 export async function getTaskMachine(machine_name: string, date: string | null, shift: string | null) {
   if(date && shift){

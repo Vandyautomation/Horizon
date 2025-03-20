@@ -92,6 +92,19 @@ machineRoutes.get('/noee/:machineId', async (c) => {
   }
 });
 
+// machineRoutes.get('/noee_new/:machineId', async (c) => {
+//   try {
+//     const machine_id = c.req.param('machineId');
+//     const date = c.req.query('date') || null;
+//     const shift = c.req.query('shift') || null;
+//     const ems = c.req.query('ems') === 'true' ? true : false;
+//     const data = await getNooeMachineNew(machine_id, date, shift);
+//     return c.json(data);
+//   } catch (error) {
+//     return c.json({ error: (error as Error).message }, 500);
+//   }
+// });
+
 machineRoutes.get('/tasks/:machineName', async (c) => {
   try {
     const machineName = c.req.param('machineName'); 
