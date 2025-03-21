@@ -62,6 +62,8 @@ countboardRoutes.post('/coois', async (c) => {
   }
 });
 
+
+
 countboardRoutes.post('/routing', async (c) => {
   const data  = await c.req.json();
   console.log(data)
@@ -69,6 +71,26 @@ countboardRoutes.post('/routing', async (c) => {
     const res = await addRouting(data);
 
     await fetch("http://dmksrv02:443/upload/api/routing_sync")
+
+    return c.json(res);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+
+countboardRoutes.post('/utility', async (c) => {
+  const data = await c.req.json();
+
+  try {
+
+    const res = await fetch("http://dmksrv02:443/ems/api/utility", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
 
     return c.json(res);
   } catch (error) {

@@ -82,7 +82,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
-          {currentPage === 'master-data' && (
+          {currentPage === 'master-data' && !currentSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -162,7 +162,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
           {/* I've shown the pattern - you would replace all the other breadcrumb items in the same way */}
 
           {/* Example for a nested route */}
-          {currentSubPage === 'coois' && (
+          {currentSubPage === 'coois'  && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -174,6 +174,22 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('master-data/coois', 'COOIS', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+
+          {currentSubPage === 'routing'  && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data', 'Master Data')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data/routing', 'Routing', true)}
               </BreadcrumbItem>
             </>
           )}
@@ -208,6 +224,19 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('machines/equipments', 'Equipments', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+
+
+          {currentPage === 'qco' && !currentSubPage && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('qco', 'SMED', true)}
               </BreadcrumbItem>
             </>
           )}

@@ -27,7 +27,7 @@ import Image from 'next/image'
 import {   CalendarIcon, FilePlus2, Pencil, RefreshCw, SprayCan } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { useState, useEffect, useCallback } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
 import { Label } from "./ui/label"
@@ -41,6 +41,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { cn } from "@/lib/utils"
 import { Switch } from "./ui/switch"
 import ChangeState from "./change-state"
+import { GearIcon } from "@radix-ui/react-icons"
 
 type MachineDetail = {
   machineId: number;
@@ -134,6 +135,7 @@ export default function CountboardDashboard() {
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDialogUtilityOpen, setIsDialogUtilityOpen] = useState(false);
   const [selectedComment, setSelectedComment] = useState({ index: -1, hourlyId: -1, type: '', content: '' });
   const [currentCVT, setCurrentCVT] = useState<number | 0>(0);
   const [isPODialogOpen, setIsPODialogOpen] = useState(false);
@@ -517,6 +519,42 @@ const refetchStateData = () => mutate(stateDataKey);
   );
 
 
+  const handleSetupUtility = useCallback(
+    async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/utility`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "machineNumber": selectedMachine?.machineNumber,
+            "machineLocation": selectedMachine?.locationName,
+            "machineName": selectedMachine?.machineName,
+            "state": "ON"
+           }),
+        });
+
+        if (!response.ok) {
+          // Attempt to extract the server's error message
+          const errorData = await response.json();
+          const errorMessage = errorData.error || `Failed to Update Content`;
+  
+          throw new Error(errorMessage);
+        }
+        toast.success(`Utility state updated successfully!`);
+      } catch (error) {
+        toast.error((error as Error).message);
+        console.error(`Failed to Update utility state:`, error);
+      }
+      finally {
+        setIsLoading(false);
+      }
+      setIsDialogOpen(false);
+    },
+    [selectedMachine]
+  );
+
+
   const getBarColor = (actual: number, target: number, target_tolerance: number) => {
     if (actual >= target) return 'bg-green-500';
     if (actual >= target_tolerance) return 'bg-green-500';
@@ -770,6 +808,28 @@ const refetchStateData = () => mutate(stateDataKey);
             onCheckedChange={handleLiveMode} />
         <Label htmlFor="live-mode">LIVE MODE</Label>
         </div>
+        <Dialog open={isDialogUtilityOpen} onOpenChange={setIsDialogUtilityOpen}>
+          <DialogTrigger asChild>
+            <Button variant={"default"}><GearIcon/> Setup Utility</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Warning</DialogTitle>
+              <DialogDescription>
+          Ini akan mengubah status utiltiy menjadi ON pada mesin {selectedMachine?.machineDescription}. Apakah anda yakin?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="default" onClick={() =>{ handleSetupUtility(), setIsDialogUtilityOpen(false)}}>
+          Yes
+              </Button>
+              <Button variant="outline" onClick={() => setIsDialogUtilityOpen(false)}>
+          No
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
 
         {!isLiveMode && (
           <>
@@ -816,7 +876,7 @@ const refetchStateData = () => mutate(stateDataKey);
       {selectedMachine === null && isLoading == false ? (
         <div className="text-center">Please select machine...</div>
       ) : (
-      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-24">
+      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-24 w-full">
         <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/>
         <Card className="p-0">
           <CardHeader className="py-2 text-sm font-medium">Production Status</CardHeader>
