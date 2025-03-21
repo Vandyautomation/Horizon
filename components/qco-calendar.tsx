@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ChevronLeft, ChevronRight, Filter, Plus } from "lucide-react"
-import { format, addDays, startOfDay, parseISO, isSameDay } from "date-fns"
+import { format, addDays, startOfDay, parseISO, isSameDay, addHours } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -10,7 +10,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import data from "@/app/qco/data.json"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -28,9 +27,39 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Badge } from "./ui/badge"
+import useSWR from "swr"
 
 // Manufacturing schedule data
-const manufacturingData = data
+type ManufacturingDataItem = {
+  start_at: string
+  machine_name: string
+  item_name: string
+  po_name: string
+  UAP: string
+}
+
+
+
+  const fetcher = (url: string) => fetch(url).then((res) => res.json())
+export default function CalendarView() {
+
+
+
+const [manufacturingData, setManufacturingData] = useState<ManufacturingDataItem[]>([])
+const [startDate, setStartDate] = useState(() => {
+    const today = new Date()
+    const day = today.getDay() // 0 = Sunday, 1 = Monday, ...
+    // Calculate days to subtract to get to Monday (if today is Sunday, subtract -6)
+    const daysToSubtract = day === 0 ? 6 : day - 1
+    return startOfDay(addDays(today, -daysToSubtract))
+})
+
+useSWR<ManufacturingDataItem[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/manufacturing-data?date=${format(startDate, "yyyy-MM-dd")}`, fetcher, {
+  onSuccess: (data) => setManufacturingData(data || []),
+  revalidateOnFocus: true,
+  revalidateOnReconnect: true,
+})
+
 
 // Extract unique machine types for filtering
 const getMachineTypes = () => {
@@ -70,27 +99,36 @@ const getMachineTextColor = (machineName: any) => {
 
   return "text-gray-800"
 }
-
-export default function CalendarView() {
   // Find the earliest and latest dates in the data
   const dates = manufacturingData.map((item) => parseISO(item.start_at))
   const earliestDate = dates.reduce((a, b) => (a < b ? a : b), dates[0])
   const latestDate = dates.reduce((a, b) => (a > b ? a : b), dates[0])
 
   // Set initial view to start from the earliest date in the data
-const [startDate, setStartDate] = useState(() => {
-    const today = new Date()
-    const day = today.getDay() // 0 = Sunday, 1 = Monday, ...
-    // Calculate days to subtract to get to Monday (if today is Sunday, subtract -6)
-    const daysToSubtract = day === 0 ? 6 : day - 1
-    return startOfDay(addDays(today, -daysToSubtract))
-})
+
 
   // Filters
   const [filters, setFilters] = useState({
     machineTypes: getMachineTypes().reduce<Record<string, boolean>>((acc, type) => ({ ...acc, [type as string]: true }), {}),
     machineBrands: getMachineBrands().reduce<Record<string, boolean>>((acc, brand) => ({ ...acc, [brand as string]: true }), {}),
   })
+
+  // Inside your component
+useEffect(() => {
+  if (manufacturingData.length > 0) {
+    setFilters({
+      machineTypes: getMachineTypes().reduce<Record<string, boolean>>(
+        (acc, type) => ({ ...acc, [type as string]: true }),
+        {}
+      ),
+      machineBrands: getMachineBrands().reduce<Record<string, boolean>>(
+        (acc, brand) => ({ ...acc, [brand as string]: true }),
+        {}
+      ),
+    })
+  }
+}, [manufacturingData])
+
 
   // Generate days for the calendar view (7 days)
   const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i))
@@ -104,7 +142,8 @@ const [startDate, setStartDate] = useState(() => {
     const parts = item.machine_name.split(" ")
     const machineBrand = parts.length >= 3 ? parts[2] : ""
 
-    return filters.machineTypes[machineType] && filters.machineBrands[machineBrand]
+    return filters.machineTypes[machineType] //&& filters.machineBrands[machineBrand]
+    // return manufacturingData
   })
 
   // Navigate to previous week
@@ -129,15 +168,15 @@ const [startDate, setStartDate] = useState(() => {
   }
 
   // Toggle machine brand filter
-  const toggleMachineBrand = (brand: any) => {
-    setFilters((prev) => ({
-      ...prev,
-      machineBrands: {
-        ...prev.machineBrands,
-        [brand]: !prev.machineBrands[brand],
-      },
-    }))
-  }
+  // const toggleMachineBrand = (brand: any) => {
+  //   setFilters((prev) => ({
+  //     ...prev,
+  //     machineBrands: {
+  //       ...prev.machineBrands,
+  //       [brand]: !prev.machineBrands[brand],
+  //     },
+  //   }))
+  // }
 
   return (
     <div className=" w-full p-4">
