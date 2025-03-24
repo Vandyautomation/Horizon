@@ -1447,7 +1447,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             -- If no 'Manual' records exist, return fallback values
             WITH FallbackValues AS (
                 SELECT
-                    (SELECT TOP 1 StatusLightBefore
+                    (SELECT TOP 1 StatusLight
                     FROM eEnergy.dbo.PowerMeter
                     WHERE MchID = @machine_name AND TrxType = 'Manual' AND Active = 1
                     AND PMDT > @from ORDER BY id DESC) AS StatusLightBefore,
@@ -1577,7 +1577,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             -- If no 'Manual' records exist, return fallback values
             WITH FallbackValues AS (
                 SELECT
-                    (SELECT TOP 1 StatusLightBefore
+                    (SELECT TOP 1 StatusLight
                     FROM eEnergy.dbo.PowerMeter
                     WHERE MchID = @machine_name AND TrxType = 'Manual' AND Active = 1
                     AND PMDT > @from ORDER BY id DESC) AS StatusLightBefore,
