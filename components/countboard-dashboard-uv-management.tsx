@@ -716,7 +716,7 @@ export default function CountboardDashboardUvManagement() {
 
   const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual_in || 0) - (item.actual || 0), 0) || 0
 
-  const gapPercentage = totalGap / totalOutput * 100 || 0
+  const gapPercentage = Math.abs(totalGap / totalInput * 100) || 0
 
   const rejectAByName: any = {};
   const rejectBByName: any = {};
