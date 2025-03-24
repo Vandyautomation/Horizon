@@ -303,7 +303,7 @@ export default function CountboardDashboardUv() {
           
           toast.promise(promise, {
             loading: 'Loading...',
-            success: 'Countboard data refreshed',
+            // success: 'Countboard data refreshed',
             error: 'Failed to load data'
           });
 

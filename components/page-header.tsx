@@ -113,7 +113,15 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('countboard', 'Countboard', true)}
+                {createBreadcrumbLink('countboard', 'Countboard Injection', true)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('countboard/uv', 'Countboard UV')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('countboard/uv/management', 'UV Management View')}
               </BreadcrumbItem>
             </>
           )}
@@ -125,15 +133,15 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('countboard', 'Countboard')}
+                {createBreadcrumbLink('countboard', 'Countboard Injection')}
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('countboard/uv', 'UV', true)}
+                {createBreadcrumbLink('countboard/uv', 'Countboard UV', true)}
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('countboard/uv/management', 'Management')}
+                {createBreadcrumbLink('countboard/uv/management', 'UV Management View')}
               </BreadcrumbItem>
             </>
           )}
@@ -145,15 +153,15 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('countboard', 'Countboard')}
+                {createBreadcrumbLink('countboard', 'Countboard Injection')}
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('countboard/uv', 'UV')}
+                {createBreadcrumbLink('countboard/uv', 'Countboard UV')}
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('countboard/uv/management', 'Management', true)}
+                {createBreadcrumbLink('countboard/uv/management', 'UV Management View', true)}
               </BreadcrumbItem>
             </>
           )}

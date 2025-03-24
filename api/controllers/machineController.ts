@@ -195,9 +195,9 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
         SET @to = DATEADD(HOUR, 6, CAST(@date AS DATETIME));
     END  
 
-    SELECT top 1 s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
+    SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
     from Machine_UV_STD s
-    join UV_CountingData d on d.MchID = s.MchID-- and d.CREATED_AT between @from and @to
+    join UV_CountingData_Log d on d.MchID = s.MchID and d.CREATED_AT between @from and @to
     where s.Active = 1 and s.MchID = @machine_id
     
     `
@@ -205,12 +205,36 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
     return await queryDatabase(sqlQuery, {machine_id, date, shift});
   }
   else {const sqlQuery = `
-  SELECT top 1 s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
-  from Machine_UV_STD s
-  join UV_CountingData d on d.MchID = s.MchID
-  where s.Active = 1 and s.MchID = @machine_id
+    DECLARE @from DATETIME;
+        DECLARE @to DATETIME;
+        DECLARE @shift int;
+
+        set @shift = case when DATEPART(HOUR, GETDATE()) between 5 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
+
+        -- Set @from and @to based on shift_id
+        IF @shift = 1
+        BEGIN
+            SET @from = DATEADD(HOUR, 6, cast(CAST(GETDATE() AS date)as datetime));
+            SET @to = DATEADD(HOUR, 14, cast(CAST(GETDATE() AS date)as datetime));
+        END
+        ELSE IF @shift = 2
+        BEGIN
+            SET @from = DATEADD(HOUR, 14,cast(CAST(GETDATE() AS date)as datetime))
+            SET @to = DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+        END
+        ELSE IF @shift = 3
+        BEGIN
+            SET @from = DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+            SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
+        END
+
+        SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
+        from Machine_UV_STD s
+        join UV_CountingData_Log d on d.MchID = s.MchID and d.CREATED_AT between @from and @to
+        where s.Active = 1 and s.MchID = @machine_id
+
   `;
-  return await queryDatabase(sqlQuery, {machine_id, date, shift});
+      return await queryDatabase(sqlQuery, { machine_id, date });
   }
 }
 
