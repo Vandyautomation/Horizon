@@ -36,6 +36,8 @@ type ManufacturingDataItem = {
   item_name: string
   po_name: string
   UAP: string
+  status: "default" | "secondary" | "destructive" | "finished" | "planned" | "outline" | "started" | "cancelled";
+  end_at: string
 }
 
 
@@ -180,7 +182,7 @@ useEffect(() => {
 
   return (
     <div className=" w-full p-4">
-      <div className="flex flex-col space-y-4">
+      <div className="flex flex-col space-y-2">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">SMED Schedule</h1>
 
@@ -343,15 +345,15 @@ useEffect(() => {
                     <DialogHeader>
                       <DialogTitle>Tasks for {format(day, "MMMM d, yyyy")}</DialogTitle>
                     </DialogHeader>
-                    <div className="max-h-[60vh] overflow-y-auto">
+                    <div className="max-h-[90vh] overflow-y-auto">
                       {filteredData
                         .filter(item => isSameDay(parseISO(item.start_at), day))
                         .sort((a, b) => parseISO(a.start_at).getTime() - parseISO(b.start_at).getTime())
                         .map((item, idx) => (
-                          <div key={idx} className={`p-3 mb-2 rounded-md ${getMachineColor(item.machine_name)}`}>
-                            <div className="font-medium">{item.item_name}</div>
-                            <div className="text-sm">{item.machine_name}</div>
-                            <div className="text-xs">{format(parseISO(item.start_at), "HH:mm")}</div>
+                          <div key={idx} className={`p-3 mx-auto mb-2 rounded-md ${getMachineColor(item.machine_name)}`}>
+                            <div className="font-medium py-1 flex justify-between">{item.item_name} <Badge variant={"default"}>{item.po_name}</Badge></div>
+                            <div className="text-sm py-1 flex justify-between">{item.machine_name} <Badge variant={item.status}>{item.status}</Badge></div>
+                            <div className="text-xs">{format(parseISO(item.start_at), "HH:mm")} - {format(parseISO(item.end_at), "HH:mm")} </div>
                           </div>
                         ))}
                     </div>
@@ -391,9 +393,12 @@ useEffect(() => {
                   })
                   .map((item, index) => {
                     const itemDate = parseISO(item.start_at)
+                    const itemEndDate = parseISO(item.end_at)
                     const hour = itemDate.getHours()
                     const minute = itemDate.getMinutes()
                     const top = (hour - 6) * 80 + (minute / 60) * 80
+                    const duration = (itemEndDate.getTime() - itemDate.getTime()) / (1000 * 60) // Duration in minutes
+                    const height = Math.max((duration / 60) * 80, 70) // Convert duration to height in pixels with a minimum height of 20px
 
                     return (
                       <TooltipProvider key={index}>
@@ -405,7 +410,7 @@ useEffect(() => {
                                 className={`absolute left-0 right-0 mx-1 p-1 text-xs border rounded-md cursor-pointer ${getMachineColor(item.machine_name)} ${getMachineTextColor(item.machine_name)}`}
                                 style={{
                                     top: `${top}px`,
-                                    height: "70px",
+                                    height: `${height}px`,
                                     width: (() => {
                                         // Find overlapping events (same day and time range overlap)
                                         const overlaps = filteredData.filter(other => {
@@ -452,6 +457,7 @@ useEffect(() => {
                                 }}
                             >
                                 <div className="font-medium truncate">{item.item_name.split(":")[0]}</div>
+                                <div className="font-medium truncate">{item.po_name}</div>
                                 <div className="truncate">{item.machine_name}</div>
                             </div>
                           </TooltipTrigger>
@@ -464,7 +470,7 @@ useEffect(() => {
                             <div className="space-y-1">
                               <p className="font-medium">{item.item_name}</p>
                               <p className="text-sm">{item.machine_name}</p>
-                              <p className="text-xs">{format(itemDate, "MMM d, yyyy HH:mm")}</p>
+                              <p className="text-xs">{format(itemDate, "HH:mm")} - {format(itemEndDate, "HH:mm")}</p>
                             </div>
                           </TooltipContent>
                           </ContextMenu>
