@@ -28,6 +28,9 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "./ui/badge"
 import useSWR from "swr"
+import { Input } from "./ui/input"
+import { SearchablePOSelect } from "./searchable-select-po"
+import { toast } from "sonner"
 
 // Manufacturing schedule data
 type ManufacturingDataItem = {
@@ -41,13 +44,17 @@ type ManufacturingDataItem = {
 }
 
 
-
   const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
 export default function CalendarView() {
 
-
-
 const [manufacturingData, setManufacturingData] = useState<ManufacturingDataItem[]>([])
+const [selectedPO, setSelectedPO] = useState('');
+
+
+
+const [searchPoNumber, setSearchPoNumber] = useState('');
+
 const [startDate, setStartDate] = useState(() => {
     const today = new Date()
     const day = today.getDay() // 0 = Sunday, 1 = Monday, ...
@@ -55,6 +62,8 @@ const [startDate, setStartDate] = useState(() => {
     const daysToSubtract = day === 0 ? 6 : day - 1
     return startOfDay(addDays(today, -daysToSubtract))
 })
+
+
 
 useSWR<ManufacturingDataItem[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/manufacturing-data?date=${format(startDate, "yyyy-MM-dd")}`, fetcher, {
   onSuccess: (data) => setManufacturingData(data || []),
@@ -169,6 +178,38 @@ useEffect(() => {
     }))
   }
 
+  const handleAddTask = () => {
+    const newTask = {
+      po_name: selectedPO,
+      item_name: manufacturingData.find(item => item.po_name === selectedPO)?.item_name || "",
+      machine_name: (document.getElementById("machine") as HTMLSelectElement)?.value || "",
+      start_at: (document.getElementById("date") as HTMLInputElement)?.value || "",
+      status: "planned",
+    };
+
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/add-task`, {
+      method: "POST",
+      headers: {
+      "Content-Type": "application/json",
+      },
+      body: JSON.stringify(newTask),
+    })
+      .then((response) => {
+      if (!response.ok) {
+        toast.error("Failed to add task");
+      }
+      return response.json();
+      })
+      .then((data) => {
+        toast.success("Task added successfully");
+      setManufacturingData((prevData) => [...prevData, data]);
+      })
+      .catch((error) => {
+      console.error("Error adding task:", error);
+        toast.error("Failed to add task");
+      });
+  }
+
   // Toggle machine brand filter
   // const toggleMachineBrand = (brand: any) => {
   //   setFilters((prev) => ({
@@ -196,21 +237,55 @@ useEffect(() => {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Add New Task</DialogTitle>
+                  <DialogTitle>Add New Task *COMING SOON*</DialogTitle>
                   <DialogDescription>
                     Create a new SMED task in the schedule.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
+                <div className="grid gap-4 py-4 w-full">
+                  <div className="grid grid-cols-4 items-center gap-4 w-full">
                     <Label htmlFor="task-name" className="text-right">
-                      Task Name
+                      PO Name
                     </Label>
-                    <input
-                      id="task-name"
+                    <div className="col-span-3">
+                    <SearchablePOSelect
+                                        value={selectedPO}
+                                        onValueChange={(newValue) => setSelectedPO(newValue)}
+                                    />
+                                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="item" className="text-right">
+                      Material Number
+                    </Label>
+                    <Input
+                      id="item"
+                      type="text"
+                      readOnly={true}
+                      disabled={true}
+                      // defaultValue={"MaterialNumber"}
+                      placeholder="Based on selected PO Number"
                       className="col-span-3 flex h-10 rounded-md border border-input bg-background px-3 py-2"
                     />
                   </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="item-description" className="text-right">
+                      Material Description
+                    </Label>
+                    <Input
+                      id="item-description"
+                      type="text"
+                      readOnly={true}
+                      disabled={true}
+                      // defaultValue={"MaterialDescription"}
+                      placeholder="Based on selected PO Number"
+                      className="col-span-3 flex h-10 rounded-md border border-input bg-background px-3 py-2"
+                    />
+                  </div>
+
+
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="machine" className="text-right">
                       Machine
@@ -227,18 +302,19 @@ useEffect(() => {
                     </select>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="date" className="text-right">
+                    <Label htmlFor="datetime" className="text-right">
                       Date & Time
                     </Label>
                     <input
                       id="date"
                       type="datetime-local"
+                      defaultValue={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                       className="col-span-3 flex h-10 rounded-md border border-input bg-background px-3 py-2"
                     />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit">Save task</Button>
+                  <Button type="submit" onClick={() => {handleAddTask()}}>Save task</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
