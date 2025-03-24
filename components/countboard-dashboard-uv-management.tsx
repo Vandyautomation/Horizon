@@ -716,6 +716,8 @@ export default function CountboardDashboardUvManagement() {
 
   const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual_in || 0) - (item.actual || 0), 0) || 0
 
+  const gapPercentage = totalGap / totalOutput * 100 || 0
+
   const rejectAByName: any = {};
   const rejectBByName: any = {};
   const rejectCByName: any = {};
@@ -1048,7 +1050,7 @@ export default function CountboardDashboardUvManagement() {
         
         <Card className="p-0 w-full ">
           <CardHeader className="py-2 text-lg font-medium">Production Status</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4 items-center align-middle justify-center p-0 pt-6">
+          <CardContent className="grid grid-cols-4 gap-4 items-center align-middle justify-center p-0 pt-6">
             <div>
             <div className="text-2xl font-bold text-green-500">{totalInput}</div>
               <div className="text-sm text-muted-foreground">Input Product</div>
@@ -1060,6 +1062,11 @@ export default function CountboardDashboardUvManagement() {
             <div>
               <div className={`text-2xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-500"}`}>{totalGap}</div>
               <div className="text-sm text-muted-foreground">Gap</div>
+            </div>
+
+            <div>
+              <div className={`text-2xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-500"}`}>{gapPercentage.toFixed(2)}%</div>
+              <div className="text-sm text-muted-foreground">%Gap</div>
             </div>
           </CardContent>
         </Card>

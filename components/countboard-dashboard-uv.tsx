@@ -55,6 +55,7 @@ type MachineDetail = {
 
 type HourlyData = {
   hourlyId: number;
+  from_datetime: Date;
   time: string;
   task_id: number;
   itemNo: string;
@@ -119,17 +120,15 @@ type TaskData = {
 };
 
 type NooeData = {
-  NooeId: number;
-  hourlyId: number;
-  blue: boolean | null;
-  orange: boolean | null;
-  purple: boolean | null;
-  grey: boolean | null;
-  yellow: boolean | null;
-  white: boolean | null;
-  red: boolean | null;
+  fromTime: Date;
+  blue: 1 | null;
+  orange: 1 | null;
+  purple: 1 | null;
+  grey: 1 | null;
+  yellow: 1 | null;
+  white: 1 | null;
+  red: 1 | null;
 };
-
 type Spindle = {
   SpindleSTD: number;
   SpindleACT: number;
@@ -740,8 +739,18 @@ export default function CountboardDashboardUv() {
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
 
-  const renderNooeIndicators = (hourlyId: number) => {
-    const nooeForTime = noeeData?.filter(nooe => nooe.hourlyId === hourlyId) || [];
+  const renderNooeIndicators = (from_datetime: Date) => {
+    const nooeForTime = noeeData?.filter(nooe => {
+      // Convert dates to timestamps for comparison
+      const hourlyTime = new Date(from_datetime).getTime();
+      const nooeTime = new Date(nooe.fromTime).getTime();
+      
+      // Calculate the start and end of the hourly period
+      const hourStart = hourlyTime;
+      const hourEnd = hourlyTime + 60 * 60 * 1000; // Add 1 hour in milliseconds
+      
+      return nooeTime >= hourStart && nooeTime < hourEnd;
+    }) || [];
     if (nooeForTime.length === 0) return null;
 
     const colorMap = {
@@ -755,16 +764,15 @@ export default function CountboardDashboardUv() {
     };
 
     return (
-      <div className="flex h-12 flex-col gap-0.5 mb-0">
+      <div className="flex h-12 flex-col gap-[1px] my-0 pt-0 pb-0 mx-0 px-0">
       {nooeForTime.map((nooe) => {
-        const activeColor = Object.keys(colorMap).find(color => nooe[color as keyof typeof nooe] === true);
+        const activeColor = Object.keys(colorMap).find(color => nooe[color as keyof typeof nooe] == 1);
         return activeColor ? (
           <div 
-            key={nooe.NooeId}
-            className={`w-0.5 h-0.5 ${colorMap[activeColor as keyof typeof colorMap]}`}
+            className={`w-[10px] h-[5px] ${colorMap[activeColor as keyof typeof colorMap]}`}
           />
         ) : (
-        <div className={`w-0.5 h-0.5 bg-none`} />
+        <div className={`w-[10px] h-[5px] ml-0 bg-none my-0 pt-0 pb-0`} />
       );
       })}
     </div>
@@ -1064,10 +1072,8 @@ export default function CountboardDashboardUv() {
                   <TableHead></TableHead>
                   <TableHead></TableHead>
                   <TableHead></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
+                  <TableHead className="w-[125px] truncate text-center"></TableHead>
+                  <TableHead className="w-[125px] truncate text-center"></TableHead>
                 </TableRow>
                 <TableRow>
                   <TableHead className="w-[60px]">Time</TableHead>
@@ -1082,11 +1088,11 @@ export default function CountboardDashboardUv() {
                   <TableHead className="w-[50px] text-center">C</TableHead>
                   <TableHead className="w-[50px] text-center">D</TableHead>
                   <TableHead className="w-[50px] text-center">E</TableHead>
-                  <TableHead className="w-[100px] text-center">NOOE</TableHead>
+                  <TableHead className="w-[100px] text-center border border-r-1 border-l-1 border-t-0 border-b-0">NOOE</TableHead>
                   <TableHead className="w-[200px] text-center">Actual Input vs Output</TableHead>
                   <TableHead className="w-[60px] text-center">Gap</TableHead>
-                  <TableHead className="w-[125px] text-center">Causes</TableHead>
-                  <TableHead className="w-[125px] text-center">Comments/Actions</TableHead>
+                  <TableHead className="w-[125px] truncate text-center">Causes</TableHead>
+                  <TableHead className="w-[125px] truncate text-center">Comments/Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1182,8 +1188,8 @@ export default function CountboardDashboardUv() {
                       </TableCell>
 
 
-                      <TableCell className="w-24 py-0 h-full">
-                      {renderNooeIndicators(row.hourlyId)}
+                      <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-black-250">
+                      {renderNooeIndicators(row.from_datetime)}
                       </TableCell>
 
                       <TableCell className="relative overflow-hidden h-full">
@@ -1221,23 +1227,25 @@ export default function CountboardDashboardUv() {
 
 
 
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)} className="text-center">
+                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)} className="text-center w-[125px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span>{row.causes || 'N/A'}</span>
+                            <span className="truncate w-[125px]">{row.causes || 'N/A'}</span>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{row.causes ? 'Click to edit causes' : 'Click to add causes'}</p>
+                            <p>{row.causes ? `${row.causes} 
+                            (Click to edit causes)` : 'Click to add causes'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)} className="text-center">
+                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)} className="text-center w-[125px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span>{row.comments || 'N/A'}</span>
+                            <span className="truncate w-[125px]">{row.comments || 'N/A'}</span>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{row.comments ? 'Click to edit comments' : 'Click to add comments'}</p>
+                            <p>{row.comments ? `${row.comments} 
+                            (Click to edit comments)` : 'Click to add comments'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
