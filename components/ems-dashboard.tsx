@@ -774,13 +774,24 @@ export default function EmsDashboard() {
             </div>
 
             <div className="grid grid-cols-4 gap-2 w-full">
-              <Card id="total-loss" className="col-span-2">
-                <CardHeader className="font-bold text-center text-xl py-2">
+              <Card id="total-loss" >
+                <CardHeader className="font-bold text-center text-lg py-2">
                   Total Loss
                 </CardHeader>
-                <CardContent className="text-center p-x-2 flex items-center justify-center py-0">
-                  <Label className="flex text-center align-center items-baseline text-6xl text-red-500 font-bold">
+                <CardContent className="text-center p-x-2 pb-0 pt-3">
+                  <Label className="flex text-center align-center items-baseline text-5xl text-red-500 font-bold">
                     {totalLoss.toFixed(2)} <p className="text-base p-4">kWh</p>
+                  </Label>
+                </CardContent>
+              </Card>
+              <Card id="running">
+                <CardHeader className="font-bold text-center text-lg py-2">
+                  Running
+                </CardHeader>
+                <CardContent className="text-center p-x-2 pb-0 pt-3">
+                  <Label className="flex text-center align-center items-baseline text-5xl text-green-500 font-bold">
+                    {(energyGreen?.TotalEnergyUsed || 0).toFixed(2)}{' '}
+                    <p className="text-base p-4">kWh</p>
                   </Label>
                 </CardContent>
               </Card>

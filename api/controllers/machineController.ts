@@ -199,7 +199,7 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
     from Machine_UV_STD s
     join UV_CountingData_Log d on d.MchID = s.MchID and d.CREATED_AT between @from and @to
     where s.Active = 1 and s.MchID = @machine_id
-    
+
     `
 
     return await queryDatabase(sqlQuery, {machine_id, date, shift});
@@ -231,6 +231,13 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
         SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
         from Machine_UV_STD s
         join UV_CountingData_Log d on d.MchID = s.MchID and d.CREATED_AT between @from and @to
+        where s.Active = 1 and s.MchID = @machine_id
+
+        UNION ALL
+
+        SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
+        from Machine_UV_STD s
+        join UV_CountingData d on d.MchID = s.MchID-- and d.CREATED_AT between @from and @to
         where s.Active = 1 and s.MchID = @machine_id
 
   `;
@@ -1428,29 +1435,99 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
         SET @from = DATEADD(HOUR, 0, CAST(@date AS DATETIME)); 
         SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
 
+        -- Check if any 'Manual' records exist
+    IF NOT EXISTS (
+        SELECT 1
+        FROM eEnergy.dbo.PowerMeter
+        WHERE TrxType = 'Manual'
+        AND MchID = @machine_name
+        AND Active = 1
+        AND PMDT BETWEEN @from AND @to
+    )
+    BEGIN
+        -- If no 'Manual' records exist, return fallback values
+        WITH FallbackValues AS (
+            SELECT
+                (SELECT TOP 1 StatusLightBefore
+                FROM eEnergy.dbo.PowerMeter
+                WHERE MchID = @machine_name AND TrxType = 'Manual' AND Active = 1
+                AND PMDT > @from ORDER BY id DESC) AS StatusLightBefore,
+                (SELECT TOP 1 StatusLight
+                FROM eEnergy.dbo.PowerMeter
+                WHERE MchID = @machine_name AND TrxType = 'Manual' AND Active = 1
+                AND PMDT > @from ORDER BY id DESC) AS StatusLight,
+                @from AS BeforePMDT,
+                @to AS PMDT,
+                MAX(PMValue) - MIN(PMValue) AS valueUsed,
+                MAX(PMValue) AS ManualPMValue
+            FROM eEnergy.dbo.PowerMeter WITH (NOLOCK)
+            WHERE
+                TrxType = 'Automatic'
+                AND MchID = @machine_name
+                AND Active = 1
+                AND PMDT BETWEEN @from AND @to
+        )
+        SELECT
+            f.StatusLightBefore,
+            f.valueUsed AS TotalEnergyUsed,
+            CAST(DATEDIFF(SECOND, f.BeforePMDT, f.PMDT) AS FLOAT) / 3600 AS DurationHours
+        FROM FallbackValues f;
+    END
+    ELSE
+    BEGIN
+        -- If 'Manual' records exist, proceed with the original logic
         WITH StatusWithDuration AS (
-            SELECT 
+            SELECT
+                StatusLightBefore,
                 StatusLight,
-                StatusLightBefore, 
-                PMDT,
                 LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
-                valueUsed
-            FROM eEnergy.dbo.PowerMeter with (nolock)
-            WHERE 
+                PMDT,
+                valueUsed,
+                PMValue AS ManualPMValue
+            FROM eEnergy.dbo.PowerMeter WITH (NOLOCK)
+            WHERE
                 TrxType = 'Manual'
                 AND MchID = @machine_name
                 AND Active = 1
-                AND PMDT between @from and @to
+                AND PMDT BETWEEN @from AND @to
+        ),
+        LatestEnergy AS (
+            SELECT TOP 1 PMValue AS LatestPMValue
+            FROM eEnergy.dbo.PowerMeter WITH (NOLOCK)
+            WHERE TrxType = 'Automatic'
+            AND MchID = @machine_name
+            AND Active = 1
+            AND PMDT BETWEEN @from AND @to
+            ORDER BY id DESC
+        ),
+        LastManualEnergy AS (
+            SELECT TOP 1 ManualPMValue AS LastManualPMValue, StatusLight, StatusLightBefore
+            FROM StatusWithDuration
+            ORDER BY PMDT DESC
         )
+        SELECT
+            s.StatusLightBefore,
+            SUM(s.valueUsed) +
+            CASE
+                WHEN s.StatusLightBefore = (SELECT StatusLight FROM LastManualEnergy)
+                THEN (
+                    SELECT
+                        CASE
+                            WHEN LatestPMValue IS NOT NULL AND LastManualPMValue IS NOT NULL
+                            THEN LatestPMValue - LastManualPMValue
+                            ELSE 0
+                        END
+                    FROM LatestEnergy, LastManualEnergy
+                )
+                ELSE 0
+            END AS TotalEnergyUsed,
+            SUM(CAST(DATEDIFF(SECOND, s.BeforePMDT, s.PMDT) AS FLOAT) / 3600) AS DurationHours
+        FROM StatusWithDuration s WITH (NOLOCK)
+        WHERE s.BeforePMDT IS NOT NULL
+        GROUP BY s.StatusLightBefore
+        ORDER BY MIN(s.PMDT);
+    END
 
-        SELECT 
-            StatusLightBefore,
-            SUM(valueUsed) AS TotalEnergyUsed,
-            SUM(CAST(DATEDIFF(SECOND, BeforePMDT, PMDT) AS FLOAT) / 3600) AS DurationHours
-        FROM StatusWithDuration with (nolock)
-        WHERE BeforePMDT IS NOT NULL
-        GROUP BY StatusLightBefore
-        ORDER BY MIN(PMDT);
     
       `
       return await queryDatabase(sqlQuery, { machine_name, date });
@@ -1464,29 +1541,99 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
         SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
 
     
-        WITH StatusWithDuration AS (
-            SELECT 
-                StatusLight,
-                StatusLightBefore, 
-                PMDT,
-                LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
-                valueUsed
-            FROM eEnergy.dbo.PowerMeter with (nolock)
-            WHERE 
-                TrxType = 'Manual'
+        -- Check if any 'Manual' records exist
+        IF NOT EXISTS (
+            SELECT 1
+            FROM eEnergy.dbo.PowerMeter
+            WHERE TrxType = 'Manual'
+            AND MchID = @machine_name
+            AND Active = 1
+            AND PMDT BETWEEN @from AND @to
+        )
+        BEGIN
+            -- If no 'Manual' records exist, return fallback values
+            WITH FallbackValues AS (
+                SELECT
+                    (SELECT TOP 1 StatusLightBefore
+                    FROM eEnergy.dbo.PowerMeter
+                    WHERE MchID = @machine_name AND TrxType = 'Manual' AND Active = 1
+                    AND PMDT > @from ORDER BY id DESC) AS StatusLightBefore,
+                    (SELECT TOP 1 StatusLight
+                    FROM eEnergy.dbo.PowerMeter
+                    WHERE MchID = @machine_name AND TrxType = 'Manual' AND Active = 1
+                    AND PMDT > @from ORDER BY id DESC) AS StatusLight,
+                    @from AS BeforePMDT,
+                    @to AS PMDT,
+                    MAX(PMValue) - MIN(PMValue) AS valueUsed,
+                    MAX(PMValue) AS ManualPMValue
+                FROM eEnergy.dbo.PowerMeter WITH (NOLOCK)
+                WHERE
+                    TrxType = 'Automatic'
+                    AND MchID = @machine_name
+                    AND Active = 1
+                    AND PMDT BETWEEN @from AND @to
+            )
+            SELECT
+                f.StatusLightBefore,
+                f.valueUsed AS TotalEnergyUsed,
+                CAST(DATEDIFF(SECOND, f.BeforePMDT, f.PMDT) AS FLOAT) / 3600 AS DurationHours
+            FROM FallbackValues f;
+        END
+        ELSE
+        BEGIN
+            -- If 'Manual' records exist, proceed with the original logic
+            WITH StatusWithDuration AS (
+                SELECT
+                    StatusLightBefore,
+                    StatusLight,
+                    LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
+                    PMDT,
+                    valueUsed,
+                    PMValue AS ManualPMValue
+                FROM eEnergy.dbo.PowerMeter WITH (NOLOCK)
+                WHERE
+                    TrxType = 'Manual'
+                    AND MchID = @machine_name
+                    AND Active = 1
+                    AND PMDT BETWEEN @from AND @to
+            ),
+            LatestEnergy AS (
+                SELECT TOP 1 PMValue AS LatestPMValue
+                FROM eEnergy.dbo.PowerMeter WITH (NOLOCK)
+                WHERE TrxType = 'Automatic'
                 AND MchID = @machine_name
                 AND Active = 1
-                AND PMDT between @from and @to
-        )
+                AND PMDT BETWEEN @from AND @to
+                ORDER BY id DESC
+            ),
+            LastManualEnergy AS (
+                SELECT TOP 1 ManualPMValue AS LastManualPMValue, StatusLight, StatusLightBefore
+                FROM StatusWithDuration
+                ORDER BY PMDT DESC
+            )
+            SELECT
+                s.StatusLightBefore,
+                SUM(s.valueUsed) +
+                CASE
+                    WHEN s.StatusLightBefore = (SELECT StatusLight FROM LastManualEnergy)
+                    THEN (
+                        SELECT
+                            CASE
+                                WHEN LatestPMValue IS NOT NULL AND LastManualPMValue IS NOT NULL
+                                THEN LatestPMValue - LastManualPMValue
+                                ELSE 0
+                            END
+                        FROM LatestEnergy, LastManualEnergy
+                    )
+                    ELSE 0
+                END AS TotalEnergyUsed,
+                SUM(CAST(DATEDIFF(SECOND, s.BeforePMDT, s.PMDT) AS FLOAT) / 3600) AS DurationHours
+            FROM StatusWithDuration s WITH (NOLOCK)
+            WHERE s.BeforePMDT IS NOT NULL
+            GROUP BY s.StatusLightBefore
+            ORDER BY MIN(s.PMDT);
+        END
 
-        SELECT 
-            StatusLightBefore,
-            SUM(valueUsed) AS TotalEnergyUsed,
-            SUM(CAST(DATEDIFF(SECOND, BeforePMDT, PMDT) AS FLOAT) / 3600) AS DurationHours
-        FROM StatusWithDuration with (nolock)
-        WHERE BeforePMDT IS NOT NULL
-        GROUP BY StatusLightBefore
-        ORDER BY MIN(PMDT);
       `;
       return await queryDatabase(sqlQuery, { machine_name });
     }
