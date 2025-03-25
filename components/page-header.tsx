@@ -46,7 +46,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b px-2">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <Breadcrumb>
@@ -57,7 +57,18 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </BreadcrumbItem>
           )}
 
-          {/* Conditionally show Users breadcrumb if currentPage is Users or Roles */}
+          {currentPage === 'login' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('login', 'Login', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+          
           {currentPage === 'scale' && (
             <>
               <BreadcrumbItem>

@@ -1,6 +1,6 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,  SidebarHeader, SidebarMenu,  SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import {   Bot, Calculator,  ChevronDown, ChevronRight,  CommandIcon, Database, HomeIcon,  Lightbulb,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
+import {   Bot, Calculator,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Database, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
 import {
     Collapsible,
     CollapsibleContent,
@@ -119,6 +119,12 @@ export default function SidebarLeft({
         hidden: false,
       },
       {
+        title: 'SMED',
+        url: 'qco',
+        icon: Clock,
+        hidden: !user,
+      },
+      {
         title: 'eScale',
         url: '/',
         icon: ScaleIcon,
@@ -141,27 +147,27 @@ export default function SidebarLeft({
           },
         ],
       },
-      {
-        title: 'Users',
-        url: 'users',
-        icon: User,
-        hidden: !user,
-        isActive: false,
-        items: [
-          {
-            title: 'Role',
-            url: 'users/roles',
-          },
-          {
-            title: 'Location',
-            url: 'users/locations',
-          },
-          {
-            title: 'UAP',
-            url: '#',
-          },
-        ],
-      },
+      // {
+      //   title: 'Users',
+      //   url: 'users',
+      //   icon: User,
+      //   hidden: !user,
+      //   isActive: false,
+      //   items: [
+      //     {
+      //       title: 'Role',
+      //       url: 'users/roles',
+      //     },
+      //     {
+      //       title: 'Location',
+      //       url: 'users/locations',
+      //     },
+      //     {
+      //       title: 'UAP',
+      //       url: '#',
+      //     },
+      //   ],
+      // },
       {
         title: 'Machines',
         url: 'machines',
@@ -174,46 +180,46 @@ export default function SidebarLeft({
           },
         ],
       },
-      {
-        title: 'Tickets',
-        url: '#',
-        icon: Ticket,
-        hidden: !user,
-        items: [
-          {
-            title: 'History',
-            url: '#',
-          },
-          {
-            title: 'Starred',
-            url: '#',
-          },
-          {
-            title: 'Settings',
-            url: '#',
-          },
-        ],
-      },
-      {
-        title: 'Problems',
-        url: '#',
-        icon: MessageSquareWarningIcon,
-        hidden: !user,
-        items: [
-          {
-            title: 'History',
-            url: '#',
-          },
-          {
-            title: 'Starred',
-            url: '#',
-          },
-          {
-            title: 'Settings',
-            url: '#',
-          },
-        ],
-      },
+      // {
+      //   title: 'Tickets',
+      //   url: '#',
+      //   icon: Ticket,
+      //   hidden: !user,
+      //   items: [
+      //     {
+      //       title: 'History',
+      //       url: '#',
+      //     },
+      //     {
+      //       title: 'Starred',
+      //       url: '#',
+      //     },
+      //     {
+      //       title: 'Settings',
+      //       url: '#',
+      //     },
+      //   ],
+      // },
+      // {
+      //   title: 'Problems',
+      //   url: '#',
+      //   icon: MessageSquareWarningIcon,
+      //   hidden: !user,
+      //   items: [
+      //     {
+      //       title: 'History',
+      //       url: '#',
+      //     },
+      //     {
+      //       title: 'Starred',
+      //       url: '#',
+      //     },
+      //     {
+      //       title: 'Settings',
+      //       url: '#',
+      //     },
+      //   ],
+      // },
     ],
     navSecondary: [
       // {
@@ -221,11 +227,11 @@ export default function SidebarLeft({
       //   url: "#",
       //   icon: Settings2,
       // },
-      // {
-      //   title: "Logout",
-      //   url: "login",
-      //   icon: LogOut,
-      // },
+      {
+        title: "Logout",
+        url: "login",
+        icon: LogOut,
+      },
     ],
     favorites: [
       {
@@ -397,7 +403,7 @@ export default function SidebarLeft({
         
         {/* <TeamSwitcher teams={sidebarLeftData.teams} /> */}
       <Link 
-        className="flex flex-nowrap gap-2 items-center justify-start rounded-md bg-sidebar-primary text-sidebar-primary-foreground ml-2 sidebar-expanded:flex sidebar-collapsed:hidden" 
+        className="flex flex-nowrap gap-2 items-center pt-1 justify-start rounded-md bg-sidebar-primary text-sidebar-primary-foreground ml-2 sidebar-expanded:flex sidebar-collapsed:hidden" 
         href="/">
         <Image
           src="/admin/android-chrome-192x192.png"

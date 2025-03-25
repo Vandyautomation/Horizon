@@ -109,6 +109,28 @@ export default function AdminUI() {
             </a>
           </Link>
 
+
+            <Link href="/qco" passHref legacyBehavior>
+              <a className="w-full">
+                <Card className="flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer h-full">
+                  <CardContent className="text-center pt-6">
+                    <Label
+                      style={{
+                        cursor: 'pointer',
+                        fontFamily: 'sans-serif',
+                        fontWeight: 'bold',
+                      }}
+                      className="flex items-center justify-center gap-4"
+                    >
+                      <Clock />
+                      SMED
+                    </Label>
+                  </CardContent>
+                </Card>
+              </a>
+            </Link>
+
+
           <a
             href="http://dmksrv02:3000"
             target="_blank"
@@ -174,27 +196,7 @@ export default function AdminUI() {
             </Link>
           )}
 
-          {!user ? null : (
-            <Link href="/qco" passHref legacyBehavior>
-              <a className="w-full">
-                <Card className="flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer h-full">
-                  <CardContent className="text-center pt-6">
-                    <Label
-                      style={{
-                        cursor: 'pointer',
-                        fontFamily: 'sans-serif',
-                        fontWeight: 'bold',
-                      }}
-                      className="flex items-center justify-center gap-4"
-                    >
-                      <Clock />
-                      SMED
-                    </Label>
-                  </CardContent>
-                </Card>
-              </a>
-            </Link>
-          )}
+          
         </div>
       </div>
       <a
