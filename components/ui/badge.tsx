@@ -19,7 +19,7 @@ const badgeVariants = cva(
         finished:
           "border-transparent bg-green-800 text-white shadow hover:bg-green-800/80",
         started:
-          "border-transparent bg-blue text-black shadow hover:bg-blue/80",
+          "border-transparent bg-blue-500 text-black shadow hover:bg-blue-500/80",
         planned:
           "border-transparent bg-white text-foreground shadow hover:bg-white/80",
         outline: "text-foreground",
