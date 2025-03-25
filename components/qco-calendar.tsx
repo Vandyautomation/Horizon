@@ -428,11 +428,13 @@ useEffect(() => {
                         .sort((a, b) => parseISO(a.start_at).getTime() - parseISO(b.start_at).getTime())
                         .map((item, idx) => (
                           <div key={idx} className={`p-3 mx-auto mb-2 rounded-md ${getMachineColor(item.machine_name)}`}>
-                            <div className="font-medium py-1 flex justify-between">{item.item_name} <Badge variant={"default"}>{item.po_name}</Badge></div>
-                            <div className="text-sm py-1 flex justify-between">{item.machine_name} <Badge variant={item.status}>{item.status}</Badge>
+                            <div className="font-medium py-1 flex justify-between">{item.item_name} <div>PO{item.po_name}</div></div>
+                            <div className="text-sm py-1 flex justify-between">{item.machine_name}
                             <Badge>{item.category}</Badge>
                             </div>
-                            <div className="text-xs">{format(parseISO(item.start_at), "HH:mm")} - {format(parseISO(item.end_at), "HH:mm")} </div>
+                            <div className="text-xs flex justify-between pt-1">{format(parseISO(item.start_at), "HH:mm")} - {format(parseISO(item.end_at), "HH:mm")} 
+                              <Badge variant={item.status}>{item.status}</Badge>
+                            </div>
                           </div>
                         ))}
                     </div>
