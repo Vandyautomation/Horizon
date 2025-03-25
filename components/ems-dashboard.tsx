@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table"
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { toast } from "sonner"
+import mqtt from "mqtt";
 
 
 
@@ -116,14 +117,92 @@ export default function EmsDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoadingRefresh, setIsLoadingRefresh] = useState(false);
   const [isLiveMode, setIsLiveMode] = useState(true);
+  const [, setMqttClient] = useState<ReturnType<typeof mqtt.connect> | null>(null);
+  
   const [tolerance, setTolerance] = useState(0);
 
   const [isFetching, setIsFetching] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [equipmentStatus, setEquipmentStatus] = useState({
+  mtc: false,
+  crusher: false,
+  dryHopper: false,
+  conveyor: false,
+  mbFeeder: false,
+  chiller: false,
+  corepull: false
+});
   
 
   const pathname = usePathname();
   const router = useRouter();
+
+
+  useEffect(() => {
+        const client = mqtt.connect(`${process.env.NEXT_PUBLIC_MQTT_WS}`);
+        client.on("connect", () => {
+          console.log("Connected to MQTT broker");
+          client.subscribe(`uns/utility`);
+        });
+        client.on("message", (topic, message) => {
+          try {
+            const messageData = JSON.parse(message.toString());
+            console.log(`new message:${JSON.stringify(messageData)}`);
+            
+            // Process each item in the array
+            messageData.forEach((item: any) => {
+              // Extract building and machine number from topic
+              const topicParts = item.topic.split('/');
+              const building = topicParts[1];
+              const machineNumber = topicParts[2];
+              
+              // Only update if this message is for our currently selected machine
+              if (building === selectedLocation?.slice(-1).toLowerCase() && 
+                  machineNumber === selectedMachineNumber) {
+                
+                // Update equipment status based on payload
+                const payload = item.payload;
+                const newStatus = {...equipmentStatus};
+                
+                if (payload.mtc !== undefined) {
+                  newStatus.mtc = payload.mtc === 1;
+                }
+                if (payload.crusher !== undefined) {
+                  newStatus.crusher = payload.crusher === 1;
+                }
+                if (payload.dryHopper !== undefined) {
+                  newStatus.dryHopper = payload.dryHopper === 1;
+                }
+                if (payload.conveyor !== undefined) {
+                  newStatus.conveyor = payload.conveyor === 1;
+                }
+                if (payload.mbFeeder !== undefined) {
+                  newStatus.mbFeeder = payload.mbFeeder === 1;
+                }
+                if (payload.chiller !== undefined) {
+                  newStatus.chiller = payload.chiller === 1;
+                }
+                if (payload.corepull !== undefined) {
+                  newStatus.corepull = payload.corepull === 1;
+                }
+                
+                setEquipmentStatus(newStatus);
+              }
+            });
+          } catch (error) {
+            console.error("Error parsing MQTT message:", error);
+          }
+        });
+  
+        setMqttClient(client);
+    
+        return () => {
+          client.end();
+          console.log("Disconnected to MQTT broker");
+    
+          setMqttClient(null);
+        };
+      }, [selectedLocation, selectedMachineNumber]);
 
   const fetcher = useCallback((url: string) => {
     setIsFetching(true);
@@ -744,31 +823,31 @@ export default function EmsDashboard() {
               <div className="flex flex-row text-center align-center items-center gap-4 justify-between">
                 <Label className="w-20">
                   MTC
-                  <div className="h-2 w-full rounded-full bg-green-500 mt-1"></div>
+                  <div className={`h-2 w-full rounded-full ${equipmentStatus.mtc ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
                 <Label className="w-20">
                   Crusher
-                  <div className="h-2 w-full rounded-full bg-green-500 mt-1"></div>
+                  <div className={`h-2 w-full rounded-full ${equipmentStatus.crusher ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
                 <Label className="w-20">
                   Dry Hopper
-                  <div className="h-2 w-full rounded-full bg-green-500 mt-1"></div>
+                  <div className={`h-2 w-full rounded-full ${equipmentStatus.dryHopper ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
                 <Label className="w-20">
                   Conveyor
-                  <div className="h-2 w-full rounded-full bg-green-500 mt-1"></div>
+                  <div className={`h-2 w-full rounded-full ${equipmentStatus.conveyor ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
                 <Label className="w-20">
                   MB Feeder
-                  <div className="h-2 w-full rounded-full bg-red-500 mt-1"></div>
+                  <div className={`h-2 w-full rounded-full ${equipmentStatus.mbFeeder ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
                 <Label className="w-20">
                   Chiller
-                  <div className="h-2 w-full rounded-full bg-red-500 mt-1"></div>
+                  <div className={`h-2 w-full rounded-full ${equipmentStatus.chiller ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
                 <Label className="w-20">
                   Corepull
-                  <div className="h-2 w-full rounded-full bg-red-500 mt-1"></div>
+                  <div className={`h-2 w-full rounded-full ${equipmentStatus.corepull ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
               </div>
             </div>
