@@ -1433,7 +1433,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
       DECLARE @to DATETIME;
   
         SET @from = DATEADD(HOUR, 0, CAST(@date AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
+        SET @to = DATEADD(minute, 1, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
 
         IF NOT EXISTS (
             SELECT 1
@@ -1561,7 +1561,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
       DECLARE @to DATETIME;
   
         SET @from =DATEADD(HOUR, 0,cast(CAST(GETDATE() AS date)as datetime)) ; 
-        SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
+        SET @to = DATEADD(minute, 1, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
 
     
         -- Check if any 'Manual' records exist
