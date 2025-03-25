@@ -41,6 +41,7 @@ type ManufacturingDataItem = {
   UAP: string
   status: "default" | "secondary" | "destructive" | "finished" | "planned" | "outline" | "started" | "cancelled";
   end_at: string
+  category: string
 }
 
 
@@ -428,7 +429,9 @@ useEffect(() => {
                         .map((item, idx) => (
                           <div key={idx} className={`p-3 mx-auto mb-2 rounded-md ${getMachineColor(item.machine_name)}`}>
                             <div className="font-medium py-1 flex justify-between">{item.item_name} <Badge variant={"default"}>{item.po_name}</Badge></div>
-                            <div className="text-sm py-1 flex justify-between">{item.machine_name} <Badge variant={item.status}>{item.status}</Badge></div>
+                            <div className="text-sm py-1 flex justify-between">{item.machine_name} <Badge variant={item.status}>{item.status}</Badge>
+                            <Badge>{item.category}</Badge>
+                            </div>
                             <div className="text-xs">{format(parseISO(item.start_at), "HH:mm")} - {format(parseISO(item.end_at), "HH:mm")} </div>
                           </div>
                         ))}
@@ -535,6 +538,7 @@ useEffect(() => {
                                 <div className="font-medium truncate">{item.item_name.split(":")[0]}</div>
                                 <div className="font-medium truncate">{item.po_name}</div>
                                 <div className="truncate">{item.machine_name}</div>
+
                             </div>
                           </TooltipTrigger>
                           </ContextMenuTrigger>
@@ -546,6 +550,7 @@ useEffect(() => {
                             <div className="space-y-1">
                               <p className="font-medium">{item.item_name}</p>
                               <p className="text-sm">{item.machine_name}</p>
+                              <p className="text-medium">{item.category}</p>
                               <p className="text-xs">{format(itemDate, "HH:mm")} - {format(itemEndDate, "HH:mm")}</p>
                             </div>
                           </TooltipContent>
