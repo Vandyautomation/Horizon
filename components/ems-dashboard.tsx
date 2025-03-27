@@ -55,6 +55,7 @@ type MachineDetail = {
   machineNumber: string;
   locationId: number;
   locationName: string;
+  machineType: number;
 };
 
 type NooeData = {
@@ -130,7 +131,8 @@ export default function EmsDashboard() {
   conveyor: false,
   mbFeeder: false,
   chiller: false,
-  corepull: false
+  corepull: false,
+  dehum: false,
 });
   
 
@@ -790,6 +792,9 @@ export default function EmsDashboard() {
                 ) :(
                   <Label className="flex flex-col text-3xl text-primary font-bold ">
                     <div className="flex flex-row text-center align-center items-center">
+                      <p className="text-base pl-4 flex ">{selectedMachine?.machineType} - {selectedMachine?.machineTonage}</p>
+                    </div>
+                    <div className="flex flex-row text-center align-center items-center">
                       <p className=" text-sm p-4 flex ">Energy Budget</p>{' '}
                       {budgetEnergyDaily > 1_000_000
                         ? (budgetEnergyDaily / 1_000_000).toFixed(2) + ' GWh'
@@ -829,8 +834,8 @@ export default function EmsDashboard() {
                   Crusher
                   <div className={`h-2 w-full rounded-full ${equipmentStatus.crusher ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
-                <Label className="w-20">
-                  Dry Hopper
+                <Label className="w-20 nowrap">
+                  Hop.Dryer
                   <div className={`h-2 w-full rounded-full ${equipmentStatus.dryHopper ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
                 <Label className="w-20">
@@ -838,7 +843,7 @@ export default function EmsDashboard() {
                   <div className={`h-2 w-full rounded-full ${equipmentStatus.conveyor ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
                 <Label className="w-20">
-                  MB Feeder
+                  MBFeeder
                   <div className={`h-2 w-full rounded-full ${equipmentStatus.mbFeeder ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
                 <Label className="w-20">
@@ -848,6 +853,10 @@ export default function EmsDashboard() {
                 <Label className="w-20">
                   Corepull
                   <div className={`h-2 w-full rounded-full ${equipmentStatus.corepull ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
+                </Label>
+                <Label className="w-20">
+                  Dehum
+                  <div className={`h-2 w-full rounded-full ${equipmentStatus.dehum ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
                 </Label>
               </div>
             </div>

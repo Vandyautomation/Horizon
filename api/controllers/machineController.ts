@@ -153,7 +153,8 @@ export async function getMachine(type: string | null) {
     STRING_AGG(e.Name , ', ') AS equipment,  -- Concatenates multiple EquipmentIDs
     m.MchTon as tonage,
 	sum(e.EnergyBudget) as EquipmentEnergyBudget,
-	m.energyBudget as MachineEnergyBudget
+	m.energyBudget as MachineEnergyBudget,
+    m.Type as machineType
 FROM IoT.dbo.MachineMST m
 LEFT JOIN IoT.dbo.MachineEquipmentMST em ON m.MchID = em.MchID and em.Active = 1
 LEFT JOIN IoT.dbo.EquipmentMST e on e.EquipmentID = em.EquipmentID and e.Active = 1
@@ -164,7 +165,7 @@ WHERE
     AND @type IS NULL OR m.MchProcess = @type
 GROUP BY
     m.id, m.MchID, m.MchDesc, m.MchNumber, m.MchTon,
-    m.MchLoc, m.position, m.rotation, m.MchProcess, m.uap, m.energyBudget
+    m.MchLoc, m.position, m.rotation, m.MchProcess, m.uap, m.energyBudget, m.Type
 ORDER BY
     m.MchLoc ASC, CAST(m.MchNumber AS INT) ASC;
 
