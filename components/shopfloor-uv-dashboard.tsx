@@ -94,127 +94,6 @@ function Wall({
     </mesh>
   );
 }
-// function InjectionMoldingMachine({
-//   machine,
-//   onClick,
-//   isSelected,
-// }: {
-//   machine: Machine;
-//   onClick: () => void;
-//   isSelected: boolean;
-// }) {
-//   const { scene } = useGLTF('/admin/assets/3d/inject_new2.glb');
-
-//   const clonedScene = useMemo(() => scene?.clone(), [scene]);
-
-//   useEffect(() => {
-//     if (clonedScene) {
-//       clonedScene.traverse((child) => {
-//         if ((child as any).isMesh && (child as Mesh).material) {
-//           const originalColor = new Color(statusColors[machine?.status]);
-//           // Create a new material instance rather than modifying the existing one
-//           const newMaterial = new MeshStandardMaterial({
-//             ...((child as any).material as any),
-//             color: originalColor,
-//             emissive: originalColor.clone().multiplyScalar(0.3),
-//             metalness: 0.9,
-//             roughness: 0.3,
-//             flatShading: false, // Ensure smooth shading
-//             transparent: false,
-//             opacity: 1.0,
-//             wireframe: false,
-//           });
-          
-          
-//           // Assign the new material to the mesh
-//           (child as Mesh).material = newMaterial;
-//           (child as Mesh).castShadow = true;
-//           (child as Mesh).receiveShadow = true;
-//         }
-//       });
-//     }
-//     // return clonedScene;
-//     }, [clonedScene, machine?.status, machine?.id]);
-
-// //  const clonedScene = useMemo(() => {
-//   //   const cloned = scene?.clone();
-//   //   if (cloned) {
-//   //     cloned.traverse((child) => {
-//   //       if ((child as any).isMesh && (child as Mesh).material) {
-//   //         const originalColor = new Color(statusColors[machine?.status]);
-//   //         // Create a new material instance rather than modifying the existing one
-//   //         const newMaterial = new MeshStandardMaterial({
-//   //           ...((child as any).material as any),
-//   //           color: originalColor,
-//   //           emissive: originalColor.clone().multiplyScalar(0.3),
-//   //           metalness: 0.9,
-//   //           roughness: 0.3,
-//   //           flatShading: false, // Ensure smooth shading
-//   //           transparent: false,
-//   //           opacity: 1.0,
-//   //           wireframe: false,
-//   //         });
-          
-          
-//   //         // Assign the new material to the mesh
-//   //         (child as Mesh).material = newMaterial;
-//   //         (child as Mesh).castShadow = true;
-//   //         (child as Mesh).receiveShadow = true;
-//   //       }
-//   //     });
-//   //   }
-//   //   return cloned;
-//   // }, [scene, machine?.status, machine?.id]); // Add machine.id as dependency to ensure unique instance
-
-//   return (
-//     <group position={machine.position} onClick={onClick}>
-//       <primitive
-//         object={clonedScene}
-//         scale={[0.015, 0.015, 0.015]}
-//         rotation={[
-//           machine.rotation[0],
-//           machine.rotation[1] == 0 ? (3.14 * 3) / 2 : machine.rotation[1] * 0.5,
-//           machine.rotation[2],
-//         ]}
-//       />
-//       {machine?.status === 'Breakdown' && (
-//         <mesh position={[0, 0, 0]}>
-//           <Html position={[0, 4, 0]} center>
-//             <div className="bg-orange-500 text-white p-1 text-sm rounded-full border">
-//               Breakdown!!!
-//             </div>
-//           </Html>
-//         </mesh>
-//       )}
-//       <Html position={[0, 3, 0]} center>
-//         <div
-//           style={{
-//             backgroundColor: statusColors[machine?.status],
-//             boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
-//           }}
-//           className={`bg-opacity-50 text-white p-1 rounded ${
-//             isSelected ? 'font-bold' : ''
-//           }`}
-//         >
-//           {machine.id}
-//         </div>
-//       </Html>
-//       <Html position={[0, 0, -3]} center>
-//         <div
-//           style={{
-//             backgroundColor: 'black',
-//             boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
-//           }}
-//           className={`bg-opacity-50 text-white p-1 rounded text-xs text-nowrap ${
-//             isSelected ? 'font-bold' : ''
-//           }`}
-//         >
-//           {machine.consumption} kWh
-//         </div>
-//       </Html>
-//     </group>
-//   );
-// }
 
 function InjectionMoldingMachine({
   machine,
@@ -225,7 +104,7 @@ function InjectionMoldingMachine({
   onClick: () => void;
   isSelected: boolean;
 }) {
-  const { scene } = useGLTF('/admin/assets/3d/inject_new2.glb');
+  const { scene } = useGLTF('/admin/assets/3d/spray_booth_uv.glb');
   const clonedScene = useMemo(() => scene?.clone(), [scene]);
 
   useEffect(() => {
@@ -233,7 +112,6 @@ function InjectionMoldingMachine({
       clonedScene.traverse((child) => {
         if ((child as any).isMesh && (child as Mesh).material) {
           const originalColor = new Color(statusColors[machine?.status]);
-          // Create a material with emissive properties for better visibility
           (child as any).material = new MeshStandardMaterial({
             ...((child as any).material as any),
             color: originalColor,
@@ -279,23 +157,7 @@ function InjectionMoldingMachine({
           {machine.id}
         </div>
       </Html>
-      {/* <group position={[0, 3.25, 0]} rotation={[0, Math.PI / 3, 0]}>
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[0.5, 0.6, 0.1]} />
-          <meshStandardMaterial color={statusColors[machine?.status]} />
-        </mesh>
-        <Text
-          position={[0, 0, -0.06]}
-          fontSize={0.5}
-          fontWeight={'bold'}
-          color="black"
-          anchorX="center"
-          anchorY="middle"
-          rotation={[0, Math.PI, 0]}
-        >
-          {machine.id}
-        </Text>
-      </group> */}
+      
       <Html position={[0, 0, -3]} center>
         <div
           style={{
@@ -344,7 +206,7 @@ function InjectionMoldingMachine({
 
 function YoureHere() {
   return (
-    <Html position={[-40, 1, 0]} center>
+    <Html position={[30, 1, -10]} center>
       <div className="text-center flex flex-nowrap items-center">
         <div className="bg-primary  rounded text-xs text-primary-foreground p-2 flex flex-nowrap">
           You're Here
@@ -383,9 +245,6 @@ function CameraLogger() {
         rotation x: {camera.rotation.x.toFixed(2)}, y:{' '}
         {camera.rotation.y.toFixed(2)}, z: {camera.rotation.z.toFixed(2)}
       </div>
-      {/* <div className="absolute bottom-4 right-4 z-10 bg-black/70 text-white p-2 rounded text-xs">
-        fov: {camera.fov.toFixed(2)}
-      </div> */}
       <div className="absolute bottom-4 left-4 z-10 bg-black/70 text-white p-2 rounded text-xs">
         x: {position.x}, y: {position.y}, z: {position.z}
       </div>
@@ -398,8 +257,8 @@ function CameraLogger() {
 
 function Floor() {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-      <planeGeometry args={[80, 30]} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[25, 0, 0]}>
+      <planeGeometry args={[30, 30]} />
       <meshStandardMaterial color="#e2e8f0" />
     </mesh>
   );
@@ -407,8 +266,8 @@ function Floor() {
 
 function FloorMiddle() {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.1, 0]}>
-      <planeGeometry args={[80, 10]} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[25, 0.1, 0]}>
+      <planeGeometry args={[30, 10]} />
       <meshStandardMaterial color="grey" />
     </mesh>
   );
@@ -423,7 +282,7 @@ function FloorRoad() {
   );
 }
 
-export default function ShopfloorDashboard() {
+export default function ShopfloorUvDashboard() {
   const [buildings, setBuildings] = useState<Building[] | undefined>(undefined);
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
@@ -502,7 +361,7 @@ export default function ShopfloorDashboard() {
   //   refreshInterval: 5000,
   // });
   
-  const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings/injection`;
+  const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings/uv`;
   const { data: rawBuildings, error } = useSWR<Building[]>(
     key, 
     async (url) => {
@@ -776,7 +635,7 @@ export default function ShopfloorDashboard() {
                 <Button
                   onClick={() => {
                     window.open(
-                      `/admin/countboard/?machineNumber=${selectedMachine?.MchNumber}&location=${selectedMachine?.MchLoc}`,
+                      `/admin/countboard/uv/?machineNumber=${selectedMachine?.MchNumber}&location=${selectedMachine?.MchLoc}`,
                       '_blank'
                     );
                   }}
@@ -807,7 +666,8 @@ export default function ShopfloorDashboard() {
       >
         <Canvas
           camera={{
-            position: [-72.23, 39.67, -83.28],
+            // position: [-72.23, 39.67, -83.28],
+            position: [-99.51, 54.65, -118.51],
             fov: 20,
             rotation: [-2.69, -0.6, -2.88],
           }}
@@ -841,7 +701,7 @@ export default function ShopfloorDashboard() {
             <Floor />
             <FloorMiddle />
             <FloorRoad />
-            <Wall position={[0, 5, 15]} size={[80, 10, 0.5]} />
+            <Wall position={[25, 5, 15]} size={[30, 10, 0.5]} />
             <Wall
               position={[40, 5, 0]}
               rotation={[0, Math.PI / 2, 0]}

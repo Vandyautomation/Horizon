@@ -81,7 +81,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
-          {currentPage === 'andon' && (
+          {currentPage === 'andon' && !currentSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -89,6 +89,26 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('andon', 'Andon', true)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/uv', 'Andon UV', false)}
+              </BreadcrumbItem>
+            </>
+          )}
+
+          {currentPage === 'andon' && currentSubPage === 'uv' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon', 'Andon', false)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/uv', 'Andon UV', true)}
               </BreadcrumbItem>
             </>
           )}
@@ -137,7 +157,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
-          {currentSubPage === 'uv' && !currentSubSubPage && (
+          {currentPage === 'countboard' && currentSubPage === 'uv' && !currentSubSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}

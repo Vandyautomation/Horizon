@@ -1,8 +1,10 @@
 import { Context } from 'hono';
 import { queryDatabase } from '../utils/queryDatabase';
 
-export async function getBuildings() {
-    const machines = await queryDatabase(`
+export async function getBuildings(type?: string) {
+    const listBuilding = (type == 'injection' ? `'INJ Bld G', 'INJ Bld H', 'INJ Bld J', 'INJ Bld Q', 'INJ Bld R', 'INJ Bld S'` : `'M', 'E', 'K', 'SP'`)
+    const sqlQuery =
+        `
         DECLARE @from datetime;
         DECLARE @shift int;
     
@@ -48,11 +50,12 @@ export async function getBuildings() {
         (select top 1 oee from MachineData md where md.MchID = m.MchID order by id desc) AS oee,
         (select top 1 ooe from MachineData md where md.MchID = m.MchID order by id desc) AS ooe
     FROM IoT.dbo.MachineMST m 
-    WHERE MchLoc IN ('INJ Bld G', 'INJ Bld H', 'INJ Bld J', 'INJ Bld Q', 'INJ Bld R', 'INJ Bld S') 
+    WHERE MchLoc IN (${listBuilding}) and m.Active = 1
     ORDER BY MchLoc, CAST(m.MchNumber AS INT);
+    `
+    // console.log(sqlQuery)
 
-    `, {});
-    
+    const machines = await queryDatabase(sqlQuery, {});
     // Convert position and rotation to arrays for all machines
     if (machines.position == '' || machines.rotation == '') {
         machines.position = null;
