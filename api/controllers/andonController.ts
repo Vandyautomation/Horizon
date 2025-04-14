@@ -66,26 +66,34 @@ export async function getBuildings(type?: string) {
         position: JSON.parse(machine.position),
         rotation: JSON.parse(machine.rotation)
     }));
+
     // Group machines by building
     const buildingGroups: { [key: string]: any[] } = {};
-    formattedMachines.forEach((machine: any) => {
-        const building = machine.building;
-        if (!buildingGroups[building]) {
-            buildingGroups[building] = [];
-        }
-        buildingGroups[building].push(machine);
-    });
+    if (type === 'uv') {
+        buildingGroups['All'] = [...formattedMachines];
+    }
+    // formattedMachines.forEach((machine: any) => {
+    //     const building = machine.building;
+    //     if (!buildingGroups[building]) {
+    //         buildingGroups[building] = [];
+    //     }
+    //     buildingGroups[building].push(machine);
+    // });
+
+    // If type is 'uv', create an "All" group with all machines
+
 
     
     // Create result array with one entry per building
-    const result = Object.entries(buildingGroups).map(([name, machines], index) => ({
-        id: (index + 1).toString(),
+    const result = Object.entries(buildingGroups).map(([name, machines]) => ({
+        id: Math.random().toString(36).substring(2, 10),
         name,
         machines,
         oee: machines.reduce((acc, machine) => acc + (machine.oee || 0), 0) / machines.length,
         ooe: machines.reduce((acc, machine) => acc + (machine.ooe || 0), 0) / machines.length,
     }));
-    
+    // console.log(result)
+    // console.log(machines)
     return result;
 
 

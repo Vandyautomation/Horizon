@@ -82,18 +82,32 @@ function Wall({
   position,
   rotation,
   size,
+  building
 }: {
   position: [number, number, number];
   rotation?: [number, number, number];
   size: [number, number, number];
+  building?: string;
 }) {
   return (
     <mesh position={position} rotation={rotation || [0, 0, 0]}>
+      <Text
+        position={[0, 3, -0.3]}
+        fontSize={2}
+        rotation={[0, Math.PI, 0]}
+        color="black"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {building}
+      </Text>
       <boxGeometry args={size} />
       <meshStandardMaterial color="#94a3b8" />
     </mesh>
   );
 }
+
+
 
 function InjectionMoldingMachine({
   machine,
@@ -104,7 +118,7 @@ function InjectionMoldingMachine({
   onClick: () => void;
   isSelected: boolean;
 }) {
-  const { scene } = useGLTF('/admin/assets/3d/spray_booth_uv.glb');
+  const { scene } = useGLTF('/admin/assets/3d/uv-spray.glb');
   const clonedScene = useMemo(() => scene?.clone(), [scene]);
 
   useEffect(() => {
@@ -128,10 +142,10 @@ function InjectionMoldingMachine({
     <group position={machine.position} onClick={onClick}>
       <primitive
         object={clonedScene}
-        scale={[0.015, 0.015, 0.015]}
+        scale={[0.07, 0.07, 0.07]}
         rotation={[
           machine.rotation[0],
-          machine.rotation[1] == 0 ? (3.14 * 3) / 2 : machine.rotation[1] * 0.5,
+          machine.rotation[1],
           machine.rotation[2],
         ]}
       />
@@ -154,7 +168,7 @@ function InjectionMoldingMachine({
             isSelected ? 'font-bold' : ''
           }`}
         >
-          {machine.id}
+          {machine.MchLoc}{machine.MchNumber}
         </div>
       </Html>
       
@@ -258,6 +272,24 @@ function CameraLogger() {
 function Floor() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[25, 0, 0]}>
+      <planeGeometry args={[30, 30]} />
+      <meshStandardMaterial color="#e2e8f0" />
+    </mesh>
+  );
+}
+
+function FloorM() {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-10, 0, 0]}>
+      <planeGeometry args={[30, 30]} />
+      <meshStandardMaterial color="#e2e8f0" />
+    </mesh>
+  );
+}
+
+function FloorK() {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-45, 0, 0]}>
       <planeGeometry args={[30, 30]} />
       <meshStandardMaterial color="#e2e8f0" />
     </mesh>
@@ -699,28 +731,35 @@ export default function ShopfloorUvDashboard() {
             />
   
             <Floor />
-            <FloorMiddle />
-            <FloorRoad />
-            <Wall position={[25, 5, 15]} size={[30, 10, 0.5]} />
+            {/* <FloorMiddle /> */}
+            {/* <FloorRoad /> */}
+            <Wall position={[25, 5, 15]} size={[30, 10, 0.5]} building="Building E"/>
             <Wall
+              building=""
               position={[40, 5, 0]}
               rotation={[0, Math.PI / 2, 0]}
               size={[30, 10, 0.5]}
             />
+
+            <Wall building="Building M" position={[-10, 5, 15]} size={[30, 10, 0.5]} />
+            
+            <FloorK/>
+            <Wall building="Building K" position={[-45, 5, 15]} size={[30, 10, 0.5]} />
+            <FloorM/>
             {Array.isArray(selectedBuilding?.machines)
               ? selectedBuilding?.machines.map((machine) => (
                   <InjectionMoldingMachine
-                    key={machine?.id}
+                    // key={machine?.id}
                     machine={machine}
                     onClick={() => setSelectedMachine(machine)}
-                    isSelected={selectedMachine?.id === machine?.id}
+                    isSelected={selectedMachine?.id === machine?.id && selectedMachine.MchID === machine.MchID}
                   />
                 ))
               : null}
             <YoureHere />
             {/* <CameraLogger /> */}
             <OrbitControls
-              target={[0, 0, 10]}
+              target={[0, 0, 20]}
               makeDefault
               enableDamping={true}
               enableZoom={true}
