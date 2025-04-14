@@ -341,7 +341,7 @@ export default function ShopfloorUvDashboard() {
       const client = mqtt.connect(`${process.env.NEXT_PUBLIC_MQTT_WS}`);
       client.on("connect", () => {
         console.log("Connected to MQTT broker");
-        client.subscribe(`uns/andon`);
+        client.subscribe(`uns/andon/uv`);
       });
       client.on("message", (topic, message) => {
         try {
