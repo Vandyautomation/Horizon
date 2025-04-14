@@ -193,7 +193,7 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
     ELSE
     BEGIN
         SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 6, CAST(@date AS DATETIME));
+        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
     END  
 
     SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
