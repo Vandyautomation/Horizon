@@ -69,16 +69,21 @@ export async function getBuildings(type?: string) {
 
     // Group machines by building
     const buildingGroups: { [key: string]: any[] } = {};
+
+
+    if (type === 'injection') {
+        formattedMachines.forEach((machine: any) => {
+            const building = machine.building;
+            if (!buildingGroups[building]) {
+                buildingGroups[building] = [];
+            }
+            buildingGroups[building].push(machine);
+        });
+    }
+
     if (type === 'uv') {
         buildingGroups['All'] = [...formattedMachines];
     }
-    // formattedMachines.forEach((machine: any) => {
-    //     const building = machine.building;
-    //     if (!buildingGroups[building]) {
-    //         buildingGroups[building] = [];
-    //     }
-    //     buildingGroups[building].push(machine);
-    // });
 
     // If type is 'uv', create an "All" group with all machines
 
