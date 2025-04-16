@@ -726,6 +726,8 @@ export default function CountboardDashboardUv() {
   const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.target || 0), 0) || 0
   const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target || 0), 0) || 0
 
+  const totalGapSpindle = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.gap), 0) || 0
+
   const totalRejectA = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_a || 0), 0) || 0
   const totalRejectB = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_b || 0), 0) || 0
   const totalRejectC = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_c || 0), 0) || 0
@@ -1269,6 +1271,10 @@ export default function CountboardDashboardUv() {
                     </TableCell>
                     <TableCell className={`text-center ${isNaN(totalRejectE / totalRejectOverall) ? '' : totalRejectE / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectE / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
                       {isNaN(totalRejectE / totalRejectOverall) ? 0 : ((totalRejectE / totalRejectOverall)*100).toFixed(2)}%
+                    </TableCell>
+                    <TableCell colSpan={2} className="text-center"></TableCell>
+                    <TableCell className="text-center" style={{color: totalGapSpindle >= 0 ? "green" : "red"}}>
+                      {totalGapSpindle}
                     </TableCell>
                   </TableRow>
               </TableBody>
