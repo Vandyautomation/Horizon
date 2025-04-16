@@ -992,7 +992,16 @@ export default function CountboardDashboardUv() {
           <CardHeader className="py-2 text-sm font-medium">Spindles</CardHeader>
           <CardContent className="grid grid-cols-3 gap-4">
             <div>
-              <div className={`text-2xl font-bold ${getSpindleColor(spindleData?.[spindleData.length -1 ]?.SpindleACT ?? 0, spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0)}`}>{spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0}</div>
+              <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`text-2xl font-bold ${getSpindleColor(spindleData?.[spindleData.length -1 ]?.SpindleACT ?? 0, spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0)}`}>
+                {spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Highest count cycle sebelumnya</p>
+              </TooltipContent>
+              </Tooltip>
               <div className="text-sm text-muted-foreground">Actual</div>
             </div>
             <div>

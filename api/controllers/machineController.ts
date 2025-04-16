@@ -238,7 +238,7 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
 
         SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
         from Machine_UV_STD s
-        join UV_CountingData d on d.MchID = s.MchID-- and d.CREATED_AT between @from and @to
+        join UV_CountingData d on d.MchID = s.MchID
         where s.Active = 1 and s.MchID = @machine_id
 
   `;
