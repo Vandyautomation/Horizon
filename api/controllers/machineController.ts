@@ -1848,6 +1848,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             COALESCE(totalgreen / NULLIF(timea, 0), 1) AS ooe
             , case when @machine_name = 'MT280100' then 7300 
             when @machine_name = 'JW220004' then 10300
+            when @machine_name = 'BR320109' then 5691
             else 0
             end as budgetEnergyPerJam
         FROM IoT.dbo.mchstatustrx t
