@@ -105,6 +105,12 @@ const fiveMinutes = Array.from({ length: 12 }, (_, i) => ({
   time: `${(i * 5).toString().padStart(2, '0')}:00`,
 }));
 
+  const materialTypeList = [
+    {id:1, name: "PET"},
+    {id:2, name: "PP"},
+    {id:3, name: "SAN/ABS"}
+  ]
+
   
 
 export default function EmsDashboard() {
@@ -121,6 +127,7 @@ export default function EmsDashboard() {
   const [, setMqttClient] = useState<ReturnType<typeof mqtt.connect> | null>(null);
   
   const [tolerance, setTolerance] = useState(0);
+  const [selectedMaterialType, setSelectedMaterialType] = useState(materialTypeList[0].name);
 
   const [isFetching, setIsFetching] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -134,6 +141,7 @@ export default function EmsDashboard() {
   corepull: false,
   dehum: false,
 });
+
   
 
   const pathname = usePathname();
@@ -773,6 +781,24 @@ export default function EmsDashboard() {
                       />
                     )}
                   </Label>
+                  <div className="mt-8">
+                  <Label>Material Type:</Label>
+                  <Select
+                  value={selectedMaterialType.toString()}
+                  onValueChange={(value) => setSelectedMaterialType(value)}
+                >
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Tolerance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {materialTypeList.map((material) => (
+                      <SelectItem key={material.id} value={material.name}>
+                      {material.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                </div>
                   <div className="h-24"></div>
                 </div>
                 <Image
