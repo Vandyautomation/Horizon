@@ -6,7 +6,7 @@ import { setAuthToken } from '../utils/cookieUtils';
 import bcrypt from 'bcryptjs'
 
 const authRoutes = new Hono();
-const secret = 'your_secret_key';
+const secret = process.env.JWT_SECRET;
 
 
 // authRoutes.post('/login', loginHandler);
@@ -27,11 +27,19 @@ authRoutes.post('/login', async (c) => {
       return c.json({ success: false, message: 'Login failed, wrong username or password.' }, 400);
     }
 
-    const token = await sign({ username }, secret);
+    if (!secret) {
+      throw new Error('JWT_SECRET is not defined');
+    }
+
+    delete user.password;
+    delete user.UserHashedPassword;
+
+    const token = await sign({ user }, secret);
     const tokenNew = setAuthToken(c, token);
     // console.log(tokenNew)
 
-    delete user.password;
+
+
     return c.json({ success: true, message: 'Login successful', data: { ...user, token } }, 200);
 
   } catch (error) {

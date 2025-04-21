@@ -14,6 +14,10 @@ export function setAuthToken(c: Context, token: string) {
 }
 
 export function getAuthToken(c: Context) {
+  const authHeader = c.req.header('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7); // Remove 'Bearer ' prefix
+  }
   return getCookie(c, 'authToken');
 }
 

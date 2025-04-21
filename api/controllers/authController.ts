@@ -8,7 +8,7 @@ export async function loginHandler(c: Context) {
     const { username, password } = await c.req.json();
 
     const sqlQuery = `
-    SELECT * FROM IoT.dbo.[UserAccessMST] WHERE userRfid = @username and Active = 1
+    SELECT *, UserName as name FROM IoT.dbo.[UserAccessMST] WHERE userRfid = @username and Active = 1
     `
     return await queryDatabase(sqlQuery, { username });
 

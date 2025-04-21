@@ -27,6 +27,7 @@ qcoRouter.route('/task_categories', taskCategoryRoutes);
 qcoRouter.route('/sub_tasks', subTaskRoutes);
 qcoRouter.route('/tasks', taskRoutes);
 qcoRouter.route('/user_sub_tasks', userSubTaskRoutes);
+
 qcoRouter.route('/manufacturing-data', manufacturingDataRoutes);
 
 export default qcoRouter;

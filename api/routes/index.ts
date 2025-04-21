@@ -26,7 +26,7 @@ router.route('/andon', andonRoutes);
 router.route('/equipments', equipmentRoutes);
 router.route('/locations', locationRoutes);
 router.route('/uaps', uapRoutes);
-router.route('/qco', qcoRouter);
+router.route('/qco/api', qcoRouter);
 
 
 
