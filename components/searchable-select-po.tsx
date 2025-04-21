@@ -24,15 +24,17 @@ import { Check } from "lucide-react"
 type PoNumber = {
   poNumber: string
   poId: number
+  materialId: number
+  materialName: string
 }
 
 
 export function SearchablePOSelect({
-  value = "", // Provide a default empty string to avoid undefined issues
+  value = null,
   onValueChange
 }: {
-  value: string
-  onValueChange: (value: string) => void
+  value: PoNumber | null
+  onValueChange: (value: PoNumber | null) => void
 }) {
   const [open, setOpen] = useState(false)
   const [poNumbers, setPoNumbers] = useState<PoNumber[]>([]);
@@ -44,7 +46,6 @@ export function SearchablePOSelect({
     const fetchPo = async () => {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/coois?poName=${searchPoNumber}`, {
-          credentials: "include",
         });
         const data = await response.json();
         setPoNumbers(data);
@@ -73,7 +74,7 @@ export function SearchablePOSelect({
           aria-expanded={open}
           className="w-full justify-between"
         >
-          {value || "Select PO Number"}
+          {value?.poNumber || "Select PO Number"}
           <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -97,7 +98,7 @@ export function SearchablePOSelect({
                     key={poNumberObj.poId}
                     value={poNumberObj.poNumber}
                     onSelect={(currentValue) => {
-                      onValueChange(currentValue === value ? "" : currentValue);
+                      onValueChange(currentValue === value?.poNumber ? null : poNumberObj);
                       setOpen(false);
                     }}
                   >
@@ -105,7 +106,7 @@ export function SearchablePOSelect({
                     <Check
                       className={cn(
                         "ml-auto h-4 w-4",
-                        value === poNumberObj.poNumber ? "opacity-100" : "opacity-0"
+                        value?.poNumber === poNumberObj.poNumber ? "opacity-100" : "opacity-0"
                       )}
                     />
                   </CommandItem>

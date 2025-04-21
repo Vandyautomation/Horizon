@@ -277,6 +277,25 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('qco', 'SMED', true)}
               </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('qco/config', 'Configuration')}
+              </BreadcrumbItem>
+            </>
+          )}
+          {currentPage === 'qco' && currentSubPage == 'config' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('qco', 'SMED')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('qco/config', 'Configuration', true)}
+              </BreadcrumbItem>
             </>
           )}
 
