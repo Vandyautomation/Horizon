@@ -27,11 +27,12 @@ export async function getTasks(limit?: number, page?: number, start_at?: string)
                 t.created_at,
                 t.updated_at,
                 t.pro,
-                t.mold_name,
+                c.material_name as mold_name,
                i.name as item_name, tc.name as category_name
         FROM tasks t
         LEFT JOIN items i ON i.id = t.item_id
         LEFT JOIN task_categories tc ON tc.id = t.category_id
+        LEFT JOIN coois c ON c.po_name = t.pro
         ${whereClause}
         ${orderByClause}
         ${offsetClause}
@@ -74,12 +75,13 @@ export async function getTasksByUuid(uuidString: string) {
     const isNumeric = !isNaN(parseFloat(uuidString)) && isFinite(Number(uuidString));
     const response = []
     const task = await queryDatabase(`
-        SELECT cast(t.id as int) as id, t.uuid, t.category_id, t.mold_name,  t.created_at, t.updated_at, t.started_at, t.mold_id, t.item_id, 
+        SELECT cast(t.id as int) as id, t.uuid, t.category_id, c.material_name as mold_name,  t.created_at, t.updated_at, t.started_at, c.id as mold_id, c.material_id as item_id, 
         tc.name as category_name, t.machine_id, t.is_notif, t.notif_at,
-        t.status, t.start_at, t.ended_at, t.machine_name, t.note, t.pro, i.name as item_name
+        t.status, t.start_at, t.ended_at, t.machine_name, t.note, t.pro, c.material_name as item_name
         FROM tasks t
         LEFT JOIN items i ON t.item_id = i.id
         LEFT JOIN task_categories tc ON t.category_id = tc.id
+        LEFT JOIN coois c ON c.po_name = t.pro
         WHERE t.uuid = @uuid OR ${isNumeric ? 't.id = @id' : '0=1'}
     `, { uuid: uuidString, ...(isNumeric ? { id: parseInt(uuidString, 10) } : {}) });
 
@@ -109,7 +111,7 @@ export async function getTasksByUuid(uuidString: string) {
         FROM user_sub_tasks ust
         LEFT JOIN tasks t ON ust.task_id = t.id
         LEFT JOIN roles r ON ust.role_id = r.id
-        LEFT JOIN users u ON r.id = u.role_id
+        LEFT JOIN useraccessmst u ON r.id = u.role_id
         WHERE t.uuid = @uuid OR ${isNumeric ? 't.id = @id' : '0=1'}
     `, { uuid: uuidString, ...(isNumeric ? { id: parseInt(uuidString, 10) } : {}) });
 
@@ -221,7 +223,7 @@ function calculateRealTime(started_at: any, ended_at: any) {
 
 export async function createTask(body: any) {
     // Validate required fields
-    if (!body.item_id || !body.category_id) {
+    if (!body.machine_id || !body.category_id || !body.start_at || !body.pro) {
         return {
             success: false,
             messages: ['Missing required fields'],
@@ -251,7 +253,7 @@ export async function createTask(body: any) {
         let machineName = null;
         if (body.machine_id) {
             const machine = await queryDatabase(`
-                SELECT name FROM machines WHERE id = @machine_id
+                SELECT MchDesc as name FROM machineMST WHERE id = @machine_id
             `, { machine_id: body.machine_id });
             if (machine && machine.length > 0) {
                 machineName = machine[0].name;
@@ -259,14 +261,14 @@ export async function createTask(body: any) {
         }
 
         let moldName = null;
-        if (body.mold_id) {
-            const mold = await queryDatabase(`
-                SELECT name FROM molds WHERE id = @mold_id
-            `, { mold_id: body.mold_id });
-            if (mold && mold.length > 0) {
-                moldName = mold[0].name;
-            }
-        }
+        // if (body.mold_id) {
+        //     const mold = await queryDatabase(`
+        //         SELECT name FROM molds WHERE id = @mold_id
+        //     `, { mold_id: body.mold_id });
+        //     if (mold && mold.length > 0) {
+        //         moldName = mold[0].name;
+        //     }
+        // }
 
         // Generate UUID if not provided
         const uuid = body.uuid || crypto.randomUUID();
@@ -290,14 +292,14 @@ export async function createTask(body: any) {
 
         const taskParams = {
             uuid,
-            item_id: body.item_id,
+            item_id: body.item_id || null,
             category_id: body.category_id,
             status: 'planned', // equivalent to Task::STATUS[0]
             start_at: body.start_at,
             machine_id: body.machine_id || null,
             machine_name: machineName,
             mold_id: body.mold_id || null,
-            mold_name: moldName,
+            mold_name: moldName || null,
             notif_at: notifAt.toISOString(),
             is_notif: body.is_notif || false,
             note: body.note || null,

@@ -53,8 +53,6 @@ taskRoutes.post('/', async (c) => {
   try {
     // Extract query parameters
     const body = {
-      mold_id: c.req.query('mold_id'),
-      item_id: c.req.query('item_id'),
       machine_id: c.req.query('machine_id'),
       category_id: c.req.query('category_id'),
       start_at: c.req.query('start_at'),
@@ -62,7 +60,7 @@ taskRoutes.post('/', async (c) => {
     };
 
     // Validate required fields
-    if (!body.mold_id || !body.item_id || !body.machine_id || !body.category_id) {
+    if (!body.machine_id || !body.category_id || !body.start_at || !body.pro) {
       return c.json({ success: false, message: 'Missing required parameters' }, 400);
     }
 
