@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { ChevronLeft, ChevronRight, Filter, Plus } from "lucide-react"
-import { format, addDays, startOfDay, parseISO, isSameDay, addHours } from "date-fns"
+import { format, addDays, startOfDay, parseISO, isSameDay, addHours, set } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -27,7 +27,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Badge } from "./ui/badge"
-import useSWR from "swr"
+import useSWR, { mutate } from "swr"
 import { Input } from "./ui/input"
 import { SearchablePOSelect } from "./searchable-select-po"
 import { toast } from "sonner"
@@ -80,6 +80,7 @@ const [manufacturingData, setManufacturingData] = useState<ManufacturingDataItem
 const [selectedPO, setSelectedPO] = useState<PoNumber | null>(null);
 const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
 const [selectedTaskCategory, setSelectedTaskCategory] = useState<TaskCategoryDetail | null>(null);
+const [isDialogOpen, setIsDialogOpen] = useState(false);
 
 
 
@@ -93,8 +94,32 @@ const [startDate, setStartDate] = useState(() => {
 
 
 
-useSWR<ManufacturingDataItem[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/manufacturing-data?date=${format(startDate, "yyyy-MM-dd")}`, fetcher, {
-  onSuccess: (data) => setManufacturingData(data || []),
+// useSWR<ManufacturingDataItem[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/manufacturing-data?date=${format(startDate, "yyyy-MM-dd")}`, fetcher, {
+//   onSuccess: (data) => setManufacturingData(data || []),
+//   revalidateOnFocus: true,
+//   revalidateOnReconnect: true,
+// })
+
+useSWR(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks?week_start_at=${format(startDate, "yyyy-MM-dd")}&limit=100&page=1`, fetcher, {
+  onSuccess: (data) => {
+                const timezoneOffset = new Date().getTimezoneOffset() * 60000;
+                const correctedData = data.data.map((item: ManufacturingDataItem) => {
+                  if (item.start_at) {
+                  const startAt = new Date(item.start_at);
+                  startAt.setTime(startAt.getTime() + timezoneOffset);
+                  item.start_at = startAt.toISOString();
+                  }
+                  
+                  if (item.end_at) {
+                  const endAt = new Date(item.end_at);
+                  endAt.setTime(endAt.getTime() + timezoneOffset);
+                  item.end_at = endAt.toISOString();
+                  }
+                  
+                  return item;
+                });
+    setManufacturingData(correctedData || []);
+  },
   revalidateOnFocus: true,
   revalidateOnReconnect: true,
 })
@@ -180,7 +205,7 @@ useEffect(() => {
   const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i))
 
   // Hours for the day view (6:00 to 23:00)
-  const hours = Array.from({ length: 18 }, (_, i) => i + 6)
+  const hours = Array.from({ length: 24 }, (_, i) => i)
 
   // Filter data based on selected filters
   const filteredData = manufacturingData.filter((item) => {
@@ -247,25 +272,54 @@ useEffect(() => {
       return;
     }
 
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks`, {
-      method: "POST",
-      headers: {
-      "Content-Type": "application/json",
-      },
-      body: JSON.stringify(newTask),
-    })
-      .then((response) => {
-      if (!response.ok) {
-        toast.error("Failed to add task");
-      } else {
-        toast.success("Task added successfully");
-      }
-      return response.json();
+    toast.promise(
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newTask),
       })
-      .catch((error) => {
-      console.error("Error adding task:", error);
-        toast.error("Failed to add task");
-      });
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to add task");
+          }
+          setIsDialogOpen(false);
+          mutate(() => {
+            return fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks?week_start_at=${format(startDate, "yyyy-MM-dd")}&limit=100&page=1`)
+              .then((res) => res.json())
+              .then((data) => {
+
+                const timezoneOffset = new Date().getTimezoneOffset() * 60000;
+                const correctedData = data.data.map((item: ManufacturingDataItem) => {
+                  if (item.start_at) {
+                  const startAt = new Date(item.start_at);
+                  startAt.setTime(startAt.getTime() - timezoneOffset);
+                  item.start_at = startAt.toISOString();
+                  }
+                  
+                  if (item.end_at) {
+                  const endAt = new Date(item.end_at);
+                  endAt.setTime(endAt.getTime() - timezoneOffset);
+                  item.end_at = endAt.toISOString();
+                  }
+                  
+                  return item;
+                });
+                
+                setManufacturingData(correctedData as ManufacturingDataItem[] || [])
+                setSelectedPO(null);
+                setSelectedMachine(null);
+                setSelectedTaskCategory(null);
+              })
+          });
+        }),
+      {
+        loading: "Adding task...",
+        success: "Task added successfully",
+        error: "Failed to add task",
+      }
+    );
   }
 
 
@@ -276,7 +330,7 @@ useEffect(() => {
           <h1 className="text-2xl font-bold">SMED Schedule</h1>
 
           <div className="flex items-center space-x-4">
-            <Dialog>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -532,7 +586,7 @@ useEffect(() => {
                     const itemEndDate = parseISO(item.end_at)
                     const hour = itemDate.getHours()
                     const minute = itemDate.getMinutes()
-                    const top = (hour - 6) * 80 + (minute / 60) * 80
+                    const top = (hour) * 80 + (minute / 60) * 80
                     const duration = (itemEndDate.getTime() - itemDate.getTime()) / (1000 * 60) // Duration in minutes
                     const height = Math.max((duration / 60) * 80, 70) // Convert duration to height in pixels with a minimum height of 20px
 
@@ -592,7 +646,7 @@ useEffect(() => {
                                     })(),
                                 }}
                             >
-                                <div className="font-medium truncate">{item.item_name.split(":")[0]}</div>
+                                <div className="font-medium truncate">{item.item_name?.split(":")[0]}</div>
                                 <div className="font-medium truncate">{item.po_name}</div>
                                 <div className="truncate">{item.machine_name}</div>
 
