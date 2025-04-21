@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ChevronLeft, ChevronRight, Filter, Plus } from "lucide-react"
+import { ChevronLeft, ChevronRight, Filter, Pencil, Plus, Trash2 } from "lucide-react"
 import { format, addDays, startOfDay, parseISO, isSameDay, addHours, set } from "date-fns"
 
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,7 @@ import { SearchableTaskCategorySelect } from "./searchable-select-task-category"
 
 // Manufacturing schedule data
 type ManufacturingDataItem = {
+  uuid: string
   start_at: string
   machine_name: string
   item_name: string
@@ -81,7 +82,8 @@ const [selectedPO, setSelectedPO] = useState<PoNumber | null>(null);
 const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
 const [selectedTaskCategory, setSelectedTaskCategory] = useState<TaskCategoryDetail | null>(null);
 const [isDialogOpen, setIsDialogOpen] = useState(false);
-
+const [mode, setMode] = useState("add");
+const [selectedTaskUUID, setSelectedTaskUUID] = useState<string | null>(null);
 
 
 const [startDate, setStartDate] = useState(() => {
@@ -322,6 +324,84 @@ useEffect(() => {
     );
   }
 
+  const handleEditTask = (uuid: string) => {
+    if (!uuid) {
+      toast.error("Task UUID is required");
+      return;
+    }
+    const dateValue = (document.getElementById("date") as HTMLInputElement)?.value || "";
+    // Format the date to ISO string that SQL Server can understand
+    const formattedDate = dateValue ? new Date(dateValue).toISOString() : "";
+    
+    const updatedTask = {
+      pro: selectedPO?.poNumber || "",
+      machine_id: selectedMachine?.machineId || "",
+      start_at: formattedDate,
+      category_id: selectedTaskCategory?.id || "",
+    };
+
+    if (!updatedTask.pro || !updatedTask.machine_id || !updatedTask.start_at) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+
+    if (!updatedTask.category_id) {
+      toast.error("Please select a task category");
+      return;
+    }
+
+
+    toast.promise(
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks/${uuid}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedTask),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to add task");
+          }
+          setIsDialogOpen(false);
+          mutate(() => {
+            return fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks?week_start_at=${format(startDate, "yyyy-MM-dd")}&limit=100&page=1`)
+              .then((res) => res.json())
+              .then((data) => {
+
+                const timezoneOffset = new Date().getTimezoneOffset() * 60000;
+                const correctedData = data.data.map((item: ManufacturingDataItem) => {
+                  if (item.start_at) {
+                  const startAt = new Date(item.start_at);
+                  startAt.setTime(startAt.getTime() - timezoneOffset);
+                  item.start_at = startAt.toISOString();
+                  }
+                  
+                  if (item.end_at) {
+                  const endAt = new Date(item.end_at);
+                  endAt.setTime(endAt.getTime() - timezoneOffset);
+                  item.end_at = endAt.toISOString();
+                  }
+                  
+                  return item;
+                });
+                
+                setManufacturingData(correctedData as ManufacturingDataItem[] || [])
+                setSelectedPO(null);
+                setSelectedMachine(null);
+                setSelectedTaskCategory(null);
+              })
+          });
+        }),
+      {
+        loading: "Adding task...",
+        success: "Task added successfully",
+        error: "Failed to add task",
+      }
+    );
+  }
+
 
   return (
     <div className=" w-full p-4">
@@ -330,7 +410,7 @@ useEffect(() => {
           <h1 className="text-2xl font-bold">SMED Schedule</h1>
 
           <div className="flex items-center space-x-4">
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {setIsDialogOpen(open); setMode("add");}}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -339,9 +419,9 @@ useEffect(() => {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
-                  <DialogTitle>Add New Task</DialogTitle>
+                  <DialogTitle>{mode === "add" ? "Add New "  : "Edit "} Task</DialogTitle>
                   <DialogDescription>
-                    Create a new SMED task in the schedule.
+                    {mode === "add" ? "Create new SMED task in the schedule." : "Edit SMED task in the schedule."}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4 w-full">
@@ -424,7 +504,7 @@ useEffect(() => {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" onClick={() => {handleAddTask()}}>Save task</Button>
+                  <Button type="submit" onClick={() => { mode === "add" ? handleAddTask() : handleEditTask(selectedTaskUUID || "") }}>{mode === "add" ? "Add" : "Update"} task</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -654,8 +734,54 @@ useEffect(() => {
                           </TooltipTrigger>
                           </ContextMenuTrigger>
                            <ContextMenuContent>
-                            <ContextMenuItem>Edit</ContextMenuItem>
-                            {/* <ContextMenuItem>Delete</ContextMenuItem> */}
+                            {/* <ContextMenuItem onClick={() => {
+                              setSelectedTaskUUID(item.uuid);
+                              setSelectedPO({ poNumber: item.po_name, poId: 0, materialId: 0, materialName: item.item_name });
+                              setSelectedMachine({ machineId: 0, machineName: item.machine_name, machineTonage: "", machineDescription: "", machineNumber: "", locationId: 0, locationName: "" });
+                              setSelectedTaskCategory({ id: 0, uuid: "", name: item.category });
+                              setMode("edit");
+                              setIsDialogOpen(true);
+                            }}>
+                              <Pencil className="h-4 w-4 mr-2 mb-2"/>Edit
+                            </ContextMenuItem> */}
+                            <ContextMenuItem className="bg-red-600 text-white"
+                            onClick={() => {
+                              toast.custom((t) => (
+                                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 max-w-sm mx-auto">
+                                  <h3 className="font-medium mb-2">Confirm Deletion</h3>
+                                  <p className="text-sm mb-4">Are you sure you want to delete this task?</p>
+                                  <div className="flex justify-end gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => toast.dismiss(t)}>
+                                      Cancel
+                                    </Button>
+                                    <Button 
+                                      variant="destructive" 
+                                      size="sm" 
+                                      onClick={() => {
+                                        toast.dismiss(t);
+                                        toast.promise(
+                                          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks/${item.uuid}`, {
+                                            method: "DELETE",
+                                          })
+                                            .then((response) => {
+                                              if (!response.ok) throw new Error("Failed to delete task");
+                                              mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks?week_start_at=${format(startDate, "yyyy-MM-dd")}&limit=100&page=1`);
+                                            }),
+                                          {
+                                            loading: "Deleting task...",
+                                            success: "Task deleted successfully",
+                                            error: "Failed to delete task"
+                                          }
+                                        );
+                                      }}
+                                    >
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))
+                            }}
+                            ><Trash2 className="h-4 w-4 mr-2"/>Delete</ContextMenuItem>
                         </ContextMenuContent>
                           <TooltipContent className="max-w-sm">
                             <div className="space-y-1">
