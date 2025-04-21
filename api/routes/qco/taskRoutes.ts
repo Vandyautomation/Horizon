@@ -8,9 +8,10 @@ taskRoutes.get('/', async (c) => {
     const limit = c.req.query('limit') ? parseInt(c.req.query('limit') || '10') : 10;
     const offset = c.req.query('offset') ? parseInt(c.req.query('offset') || '0') : 0;
     const start_at = c.req.query('start_at') ? c.req.query('start_at') : new Date().toISOString();
+    const week_start_at = c.req.query('week_start_at') ? c.req.query('week_start_at') : undefined;
 
 
-    const tasks = await getTasks(limit, offset, start_at);
+    const tasks = await getTasks(limit, offset, start_at, week_start_at);
     return c.json(tasks, 200);
   } catch (error) {
     return c.json({ success: false, message: (error as Error).message }, 500);

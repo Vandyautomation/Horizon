@@ -55,10 +55,10 @@ userSubTaskRoutes.post('/end', authMiddleware, async (c) => {
   }
 });
 
-userSubTaskRoutes.post('/note/:id', authMiddleware, async (c) => {
+userSubTaskRoutes.post('/note/:uuid', authMiddleware, async (c) => {
   try {
     const body = {
-      uuid: c.req.query('uuid') || '',
+      uuid: c.req.param('uuid') || '',
       note: c.req.query('note') || '',
     };
 

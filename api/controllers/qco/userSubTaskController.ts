@@ -146,8 +146,14 @@ export async function finishUserSubTask(c: Context, uuid: string) {
 // Update note for a sub task
 export async function updateUserSubTaskNote(c: Context, uuid: string, note: string) {
 
+    // validate input
+    if (!uuid || uuid.trim() === '') {
+        throw new HTTPException(400, { message: 'UUID cannot be empty' });
+    }
+
     // validate user_sub_task uuid
     const userSubTask = await getUserSubTaskById(uuid);
+
     if (!userSubTask || userSubTask.length === 0) {
         throw new HTTPException(404, { message: 'Sub task not found' });
     }

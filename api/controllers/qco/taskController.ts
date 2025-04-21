@@ -1,6 +1,6 @@
 import { queryDatabase } from '@/api/utils/queryDatabase';
 
-export async function getTasks(limit?: number, page?: number, start_at?: string) {
+export async function getTasks(limit?: number, page?: number, start_at?: string, week_start_at?: string) {
     if (start_at && typeof start_at === 'string' && isNaN(Date.parse(start_at))) {
         return {
             data: null,
@@ -9,17 +9,21 @@ export async function getTasks(limit?: number, page?: number, start_at?: string)
         };
     }
 
+
     // Convert page to offset if page is provided
     const offset = page && limit ? (page - 1) * limit : 0;
+    console.log("start_at", start_at);
+    console.log("week_start_at", week_start_at);
 
-    const whereClause = start_at ? 'WHERE CONVERT(date, start_at) = @date' : '';
+    const whereClause = week_start_at ? `WHERE t.start_at BETWEEN @week_start_at AND DATEADD(day, 6, @week_start_at)` : start_at ? 'WHERE CONVERT(date, t.start_at) = @date' : '';
     // Order by status desc and then by start_at to match Laravel's ordering
     const orderByClause = 'ORDER BY t.status DESC, t.start_at ASC';
     const offsetClause = offset !== undefined ? 'OFFSET @offset ROWS' : 'OFFSET 0 ROWS';
     const limitClause = limit ? 'FETCH NEXT @limit ROWS ONLY' : '';
 
     const sqlQuery = `
-        SELECT CAST(t.id AS INT) as id, t.uuid, t.item_id, t.category_id, t.status, t.started_at, t.ended_at, t.start_at,
+        SELECT CAST(t.id AS INT) as id, t.uuid, cast(c.material_id as int) as item_id, t.category_id, t.status, t.started_at, t.ended_at, t.start_at,
+            DATEADD(second, COALESCE(SUM(ust.standard_time), 0), t.start_at) AS end_at,
                 t.machine_name,
                 t.is_notif,
                 t.notif_at,
@@ -27,12 +31,19 @@ export async function getTasks(limit?: number, page?: number, start_at?: string)
                 t.created_at,
                 t.updated_at,
                 t.pro,
+                t.pro as po_name,
+                m.UAP as UAP,
                 c.po_name as mold_name,
-               c.material_name as item_name, tc.name as category_name
+                c.material_name as item_name, tc.name as category_name, tc.name as category
         FROM tasks t
         LEFT JOIN task_categories tc ON tc.id = t.category_id
         LEFT JOIN coois c ON c.po_name = t.pro
+        LEFT JOIN machinemst m on m.id = t.machine_id
+        LEFT JOIN user_sub_tasks ust ON ust.task_id = t.id
         ${whereClause}
+        GROUP BY t.id, t.uuid, c.material_id, t.category_id, t.status, t.started_at, t.ended_at, t.start_at, 
+            t.machine_name, t.is_notif, t.notif_at, t.note, t.created_at, t.updated_at, t.pro, 
+            m.UAP, c.po_name, c.material_name, tc.name
         ${orderByClause}
         ${offsetClause}
         ${limitClause}
@@ -44,6 +55,7 @@ export async function getTasks(limit?: number, page?: number, start_at?: string)
     if (limit !== undefined) params.limit = limit;
     params.offset = offset;
     if (start_at) params.date = new Date(start_at);
+    params.week_start_at = week_start_at ? new Date(week_start_at) : null;
 
     const tasks = await queryDatabase(sqlQuery, params);
     console.log("SQL Params:", params);
@@ -291,12 +303,14 @@ export async function createTask(body: any) {
         notifAt.setTime(notifAt.getTime() - timezoneOffset);
         notifAt.setMinutes(notifAt.getMinutes() - 60); // 1 hour before start time
 
+        startAt.setTime(startAt.getTime() - timezoneOffset);
+
         const taskParams = {
             uuid,
             item_id: body.item_id || null,
             category_id: body.category_id,
             status: 'planned', // equivalent to Task::STATUS[0]
-            start_at: body.start_at,
+            start_at: startAt.toISOString(),
             machine_id: body.machine_id || null,
             machine_name: machineName,
             mold_id: body.mold_id || null,
@@ -330,9 +344,12 @@ export async function createTask(body: any) {
                 const timezoneOffset = notifAt.getTimezoneOffset() * 60000;
                 notifAt = new Date(notifAt.getTime() - timezoneOffset);
 
+
+
                 notifAt.setMinutes(notifAt.getMinutes() - (subTask.standard_time || 0));
 
                 startAt = new Date(task_start_at);
+                startAt.setTime(startAt.getTime() - timezoneOffset);
                 startAt.setMinutes(startAt.getMinutes() - (subTask.standard_time || 0));
             } else if (subTask.is_parallel) {
                 notifAt = new Date(taskStartAt);
@@ -341,6 +358,7 @@ export async function createTask(body: any) {
                 notifAt.setMinutes(notifAt.getMinutes() - 5);
 
                 startAt = new Date(task_start_at);
+                startAt.setTime(startAt.getTime() - timezoneOffset);
 
                 if (tempStandardTime < subTask.standard_time) {
                     tempStandardTime = subTask.standard_time;
@@ -352,6 +370,7 @@ export async function createTask(body: any) {
                 notifAt.setMinutes(notifAt.getMinutes() + tempStandardTime - 5);
 
                 startAt = new Date(task_start_at);
+                startAt.setTime(startAt.getTime() - timezoneOffset);
                 startAt.setMinutes(startAt.getMinutes() + tempStandardTime);
 
                 tempStandardTime += subTask.standard_time;
