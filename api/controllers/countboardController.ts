@@ -142,7 +142,9 @@ export async function getCoois(poName: string|undefined) {
     SELECT 
     TOP 10
         MAX(Id) AS poId, 
-        po_name AS poNumber
+        po_name AS poNumber,
+        material_id AS materialId,
+        material_name AS materialName
     FROM 
         IoT.dbo.coois
     WHERE 
@@ -151,7 +153,7 @@ export async function getCoois(poName: string|undefined) {
         AND po_name != ''
         AND po_name like '%'+ @poName + '%'
     GROUP BY 
-        po_name
+        po_name, material_id, material_name
     ORDER BY 
         poId DESC;
 

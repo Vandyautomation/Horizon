@@ -122,6 +122,13 @@ type StateData = {
   Color: string
 }
 
+type PoNumber = {
+  poNumber: string
+  poId: number
+  materialId: number
+  materialName: string
+}
+
 const refreshRateList = [
   '5000','15000','30000','60000'
 ]
@@ -140,7 +147,7 @@ export default function CountboardDashboard() {
   const [currentCVT, setCurrentCVT] = useState<number | 0>(0);
   const [isPODialogOpen, setIsPODialogOpen] = useState(false);
   const [isCVTDialogOpen, setIsCVTDialogOpen] = useState(false);
-  const [selectedPO, setSelectedPO] = useState('');
+  const [selectedPO, setSelectedPO] = useState<PoNumber | null>(null);
   const [editedCVT, setEditedCVT] = useState(currentCVT);
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
   const [isLoading, setIsLoading] = useState(false);
@@ -498,7 +505,7 @@ const refetchStateData = () => mutate(stateDataKey);
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/task`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({"poNumber":selectedPO, "machineName": selectedMachine?.machineName }),
+          body: JSON.stringify({"poNumber":selectedPO?.poNumber, "machineName": selectedMachine?.machineName }),
         });
 
         if (!response.ok) {
@@ -1117,7 +1124,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <div className="flex flex-col">
               <Label htmlFor="po-number">PO Number</Label>
                 <SearchablePOSelect
-                    value={selectedPO}
+                    value={selectedPO}  
                     onValueChange={(newValue) => setSelectedPO(newValue)}
                 />
               </div>

@@ -1,10 +1,11 @@
 import CalendarView from "@/components/qco-calendar"
+import { Label } from "@/components/ui/label"
 
 
-export default function Qco() {
+export default function QcoConfig() {
   return (
     <div className="flex justify-between space-y-2">
-      <CalendarView />
+        <Label>Coming Soon</Label>
     </div>
   )
 }

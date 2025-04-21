@@ -31,6 +31,8 @@ import useSWR from "swr"
 import { Input } from "./ui/input"
 import { SearchablePOSelect } from "./searchable-select-po"
 import { toast } from "sonner"
+import { SearchableMachineSelect } from "./searchable-select-machine"
+import { SearchableTaskCategorySelect } from "./searchable-select-task-category"
 
 // Manufacturing schedule data
 type ManufacturingDataItem = {
@@ -44,17 +46,42 @@ type ManufacturingDataItem = {
   category: string
 }
 
+type MachineDetail = {
+  machineId: number;
+  machineName: string;
+  machineTonage: string;
+  machineDescription: string;
+  machineNumber: string;
+  locationId: number;
+  locationName: string;
+};
+type TaskCategoryDetail = {
+  id: number;
+  uuid: string;
+  name: string;
+};
+
+
+type PoNumber = {
+  poNumber: string
+  poId: number
+  materialId: number
+  materialName: string
+}
+
+
 
   const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export default function CalendarView() {
 
 const [manufacturingData, setManufacturingData] = useState<ManufacturingDataItem[]>([])
-const [selectedPO, setSelectedPO] = useState('');
+// const [machinelistData, setMachinelistData] = useState<MachineDetail[]>([])
+const [selectedPO, setSelectedPO] = useState<PoNumber | null>(null);
+const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
+const [selectedTaskCategory, setSelectedTaskCategory] = useState<TaskCategoryDetail | null>(null);
 
 
-
-const [searchPoNumber, setSearchPoNumber] = useState('');
 
 const [startDate, setStartDate] = useState(() => {
     const today = new Date()
@@ -66,11 +93,18 @@ const [startDate, setStartDate] = useState(() => {
 
 
 
-useSWR<ManufacturingDataItem[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/manufacturing-data?date=${format(startDate, "yyyy-MM-dd")}`, fetcher, {
+useSWR<ManufacturingDataItem[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/manufacturing-data?date=${format(startDate, "yyyy-MM-dd")}`, fetcher, {
   onSuccess: (data) => setManufacturingData(data || []),
   revalidateOnFocus: true,
   revalidateOnReconnect: true,
 })
+
+// useSWR<MachineDetail[]>(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines?type=injection`, fetcher, {
+//   onSuccess: (data) => setMachinelistData(data || []),
+//   revalidateOnFocus: false,
+//   revalidateOnReconnect: false,
+// });
+  
 
 
 // Extract unique machine types for filtering
@@ -180,15 +214,40 @@ useEffect(() => {
   }
 
   const handleAddTask = () => {
+    const dateValue = (document.getElementById("date") as HTMLInputElement)?.value || "";
+    // Format the date to ISO string that SQL Server can understand
+    const formattedDate = dateValue ? new Date(dateValue).toISOString() : "";
+    
     const newTask = {
-      po_name: selectedPO,
-      item_name: manufacturingData.find(item => item.po_name === selectedPO)?.item_name || "",
-      machine_name: (document.getElementById("machine") as HTMLSelectElement)?.value || "",
-      start_at: (document.getElementById("date") as HTMLInputElement)?.value || "",
-      status: "planned",
+      pro: selectedPO?.poNumber || "",
+      machine_id: selectedMachine?.machineId || "",
+      start_at: formattedDate,
+      category_id: selectedTaskCategory?.id || "",
     };
 
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/add-task`, {
+    if (!newTask.pro || !newTask.machine_id || !newTask.start_at) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+
+    if (!newTask.category_id) {
+      toast.error("Please select a task category");
+      return;
+    }
+    // Check if the task already exists
+    const existingTask = manufacturingData.find((task) => {
+      return (
+        task.po_name === newTask.pro
+      )
+    })
+
+    if (existingTask) {
+      toast.error("Task with the same PO already exists");
+      return;
+    }
+
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks`, {
       method: "POST",
       headers: {
       "Content-Type": "application/json",
@@ -198,12 +257,10 @@ useEffect(() => {
       .then((response) => {
       if (!response.ok) {
         toast.error("Failed to add task");
+      } else {
+        toast.success("Task added successfully");
       }
       return response.json();
-      })
-      .then((data) => {
-        toast.success("Task added successfully");
-      setManufacturingData((prevData) => [...prevData, data]);
       })
       .catch((error) => {
       console.error("Error adding task:", error);
@@ -211,16 +268,6 @@ useEffect(() => {
       });
   }
 
-  // Toggle machine brand filter
-  // const toggleMachineBrand = (brand: any) => {
-  //   setFilters((prev) => ({
-  //     ...prev,
-  //     machineBrands: {
-  //       ...prev.machineBrands,
-  //       [brand]: !prev.machineBrands[brand],
-  //     },
-  //   }))
-  // }
 
   return (
     <div className=" w-full p-4">
@@ -236,9 +283,9 @@ useEffect(() => {
                   Add Task
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
-                  <DialogTitle>Add New Task *COMING SOON*</DialogTitle>
+                  <DialogTitle>Add New Task</DialogTitle>
                   <DialogDescription>
                     Create a new SMED task in the schedule.
                   </DialogDescription>
@@ -252,8 +299,9 @@ useEffect(() => {
                     <SearchablePOSelect
                                         value={selectedPO}
                                         onValueChange={(newValue) => setSelectedPO(newValue)}
+                                        
                                     />
-                                    </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -261,11 +309,11 @@ useEffect(() => {
                       Material Number
                     </Label>
                     <Input
-                      id="item"
+                      id="item-number"
                       type="text"
                       readOnly={true}
                       disabled={true}
-                      // defaultValue={"MaterialNumber"}
+                      value={selectedPO?.materialId || ""}
                       placeholder="Based on selected PO Number"
                       className="col-span-3 flex h-10 rounded-md border border-input bg-background px-3 py-2"
                     />
@@ -280,7 +328,7 @@ useEffect(() => {
                       type="text"
                       readOnly={true}
                       disabled={true}
-                      // defaultValue={"MaterialDescription"}
+                      value={selectedPO?.materialName || ""}
                       placeholder="Based on selected PO Number"
                       className="col-span-3 flex h-10 rounded-md border border-input bg-background px-3 py-2"
                     />
@@ -291,16 +339,23 @@ useEffect(() => {
                     <Label htmlFor="machine" className="text-right">
                       Machine
                     </Label>
-                    <select
-                      id="machine"
-                      className="col-span-3 flex h-10 rounded-md border border-input bg-background px-3 py-2"
-                    >
-                      {manufacturingData.map((item, index) => (
-                        <option key={index} value={item.machine_name}>
-                          {item.machine_name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="col-span-3">
+                    <SearchableMachineSelect
+                                        value={selectedMachine}
+                                        onValueChange={(newValue) => setSelectedMachine(newValue)}
+                                    />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="task-category" className="text-right">
+                      Task Category
+                    </Label>
+                    <div className="col-span-3">
+                    <SearchableTaskCategorySelect
+                                        value={selectedTaskCategory}
+                                        onValueChange={(newValue) => setSelectedTaskCategory(newValue)}
+                                    />
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="datetime" className="text-right">

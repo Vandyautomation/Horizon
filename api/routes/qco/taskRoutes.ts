@@ -7,7 +7,7 @@ taskRoutes.get('/', async (c) => {
   try {
     const limit = c.req.query('limit') ? parseInt(c.req.query('limit') || '10') : 10;
     const offset = c.req.query('offset') ? parseInt(c.req.query('offset') || '0') : 0;
-    const start_at = c.req.query('start_at') ? c.req.query('start_at') || '' : new Date().toISOString();
+    const start_at = c.req.query('start_at') ? c.req.query('start_at') : new Date().toISOString();
 
 
     const tasks = await getTasks(limit, offset, start_at);
@@ -52,22 +52,27 @@ taskRoutes.get('/summary', async (c) => {
 taskRoutes.post('/', async (c) => {
   try {
     // Extract query parameters
-    const body = {
-      machine_id: c.req.query('machine_id'),
-      category_id: c.req.query('category_id'),
-      start_at: c.req.query('start_at'),
-      pro: c.req.query('pro')
-    };
+    // const body = {
+    //   machine_id: c.req.query('machine_id'),
+    //   category_id: c.req.query('category_id'),
+    //   start_at: c.req.query('start_at'),
+    //   pro: c.req.query('pro')
+    // };
+    const body = await c.req.json() as {
+      machine_id: string;
+      category_id: string;
+      start_at: string;
+      pro: string;
+    }
 
     // Validate required fields
     if (!body.machine_id || !body.category_id || !body.start_at || !body.pro) {
-      return c.json({ success: false, message: 'Missing required parameters' }, 400);
+      return c.json({ success: false, message: 'Missing required body' }, 400);
     }
 
-    // TODO: Implement createTask function in your controller
     const newTask = await createTask(body);
 
-    return c.json({ success: true, message: 'Task created successfully', data: body }, 201);
+    return c.json({ success: true, message: 'Task created successfully', data: newTask }, 201);
   } catch (error) {
     return c.json({ success: false, message: (error as Error).message }, 500);
   }

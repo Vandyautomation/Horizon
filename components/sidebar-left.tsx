@@ -123,6 +123,12 @@ export default function SidebarLeft({
         url: 'qco',
         icon: Clock,
         hidden: !user,
+        items: [
+          {
+            title: 'Configuration',
+            url: 'qco/config',
+          },
+        ],
       },
       {
         title: 'eScale',

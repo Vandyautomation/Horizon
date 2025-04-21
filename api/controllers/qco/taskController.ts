@@ -10,7 +10,7 @@ export async function getTasks(limit?: number, page?: number, start_at?: string)
     }
 
     // Convert page to offset if page is provided
-    const offset = page && limit ? (page - 1) * limit : 1;
+    const offset = page && limit ? (page - 1) * limit : 0;
 
     const whereClause = start_at ? 'WHERE CONVERT(date, start_at) = @date' : '';
     // Order by status desc and then by start_at to match Laravel's ordering
@@ -27,10 +27,9 @@ export async function getTasks(limit?: number, page?: number, start_at?: string)
                 t.created_at,
                 t.updated_at,
                 t.pro,
-                c.material_name as mold_name,
-               i.name as item_name, tc.name as category_name
+                c.po_name as mold_name,
+               c.material_name as item_name, tc.name as category_name
         FROM tasks t
-        LEFT JOIN items i ON i.id = t.item_id
         LEFT JOIN task_categories tc ON tc.id = t.category_id
         LEFT JOIN coois c ON c.po_name = t.pro
         ${whereClause}
@@ -38,8 +37,8 @@ export async function getTasks(limit?: number, page?: number, start_at?: string)
         ${offsetClause}
         ${limitClause}
     `;
-    // console.log("SQL Query:", sqlQuery);
-    // console.log("Params:", { limit, offset, start_at });
+    console.log("SQL Query:", sqlQuery);
+
 
     const params: any = {};
     if (limit !== undefined) params.limit = limit;
@@ -47,6 +46,8 @@ export async function getTasks(limit?: number, page?: number, start_at?: string)
     if (start_at) params.date = new Date(start_at);
 
     const tasks = await queryDatabase(sqlQuery, params);
+    console.log("SQL Params:", params);
+    console.log("Tasks:", tasks);
 
     // Format response to match Laravel's simplePaginate structure
     const currentPage = page || 1;
@@ -75,7 +76,7 @@ export async function getTasksByUuid(uuidString: string) {
     const isNumeric = !isNaN(parseFloat(uuidString)) && isFinite(Number(uuidString));
     const response = []
     const task = await queryDatabase(`
-        SELECT cast(t.id as int) as id, t.uuid, t.category_id, c.material_name as mold_name,  t.created_at, t.updated_at, t.started_at, c.id as mold_id, c.material_id as item_id, 
+        SELECT cast(t.id as int) as id, t.uuid, t.category_id, c.po_name as mold_name,  t.created_at, t.updated_at, t.started_at, cast(c.id as int) as mold_id, cast(c.material_id as int) as item_id, 
         tc.name as category_name, t.machine_id, t.is_notif, t.notif_at,
         t.status, t.start_at, t.ended_at, t.machine_name, t.note, t.pro, c.material_name as item_name
         FROM tasks t
@@ -381,19 +382,10 @@ export async function createTask(body: any) {
         // Get the created task with all its data
         const createdTask = await getTasksByUuid(uuid);
 
-        return {
-            success: true,
-            messages: ['success store data'],
-            data: createdTask.data
-        };
+        return createdTask.data
     } catch (error: any) {
         console.error('Error creating task:', error);
-        return {
-            success: false,
-            messages: [error.message || 'An error occurred while creating the task'],
-            data: null,
-            statusCode: 500
-        };
+        throw error; // Rethrow the error to be handled by the caller
     }
 }
 
