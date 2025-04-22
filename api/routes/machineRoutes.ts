@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { addMachine, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, updateMachine } from '../controllers/machineController';
 import { getTask } from '../controllers/scaleTaskController';
+import { cache } from 'hono/cache'
 
 
 const machineRoutes = new Hono();
@@ -79,7 +80,11 @@ machineRoutes.get('/oee/:machineId', async (c) => {
   }
 });
 
-machineRoutes.get('/noee/:machineId', async (c) => {
+machineRoutes.get('/noee/:machineId', cache({
+  cacheName: 'machine-noee-cache',
+  cacheControl: 'max-age=300', // Cache for 5 minutes
+  vary: ['machine_id', 'date', 'shift', 'ems']
+}), async (c) => {
   try {
     const machine_id = c.req.param('machineId'); 
     const date = c.req.query('date') || null; 
