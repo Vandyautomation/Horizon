@@ -4,11 +4,11 @@
    "private": true,
    "scripts": {
       "dev": "next dev",
-      "dev-be": "bun run api/index.ts",
+      "dev-be": "NODE_ENV=development bun run api/index.ts",
       "dev-full": "concurrently \"bun run dev\" \"bun run start\"",
       "dev:reset": "bunx prisma migrate reset --force --skip-seed",
       "build-be": "tsc && tsc-alias",
-      "start-be": "bun ./dist/api/index.js",
+      "start-be": "NODE_ENV=production bun run api/index.ts",
       "build": "next build",
       "start": "next start",
       "lint": "next lint",
