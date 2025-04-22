@@ -99,46 +99,51 @@ export async function finishUserSubTask(c: Context, uuid: string) {
         FROM IoT.dbo.[Tasks] t
         INNER JOIN IoT.dbo.[user_sub_tasks] ust ON t.Id = ust.task_id
         WHERE ust.uuid = @uuid 
-        AND NOT EXISTS (
-            SELECT 1 FROM IoT.dbo.[user_sub_tasks] 
-            WHERE task_id = t.Id AND ended_at IS NULL
-        );
+        AND ust.id = (select top 1 id from user_sub_tasks where task_id = t.id order by id desc)
+
+        -- check if this is the last sub-task and return the user sub task id
+        SELECT TOP 1 ust.id, t.pro, t.machine_name
+        FROM IoT.dbo.[user_sub_tasks] ust
+        INNER JOIN IoT.dbo.[Tasks] t ON ust.task_id = t.Id
+        WHERE ust.uuid = @uuid
+        AND ust.id = (select top 1 id from user_sub_tasks where task_id = t.id order by id desc)
     `;
 
-    await queryDatabase(sqlQuery, { uuid, userId });
+    const result = await queryDatabase(sqlQuery, { uuid, userId });
 
-    const routingParam = {
-        material_id: userSubTask[0].material_id,
-        po_name: userSubTask[0].po_name,
+
+    if (result && result.length > 0) {
+        const routingParam = {
+            po_name: result[0].pro,
+        }
+        // get routing and coois data
+        const routingQuery = `
+            SELECT TOP 1 c.required_qty, c.produced_qty, r.cvt, r.ct
+            FROM IoT.dbo.coois c
+            INNER JOIN IoT.dbo.routing r ON c.material_id = r.material_id
+            WHERE c.po_name = @po_name
+            order by id desc
+        `;
+        const routingData = await queryDatabase(routingQuery, routingParam);
+
+        const countboardTaskParam = {
+            po_name: result[0].pro,
+            machine_name: result[0].machine_name,
+            required_qty: routingData[0].required_qty,
+            produced_qty: routingData[0].produced_qty,
+            cvt: routingData[0].cvt,
+            ct: routingData[0].ct,
+        }
+
+        // Create countboard tasks
+        const countBoardTaskSql = `
+            INSERT INTO IoT.dbo.countboard_tasks 
+            (po_name, machine_name, required_qty, produced_qty, cvt, ct, actual_cvt, actual_ct, created_at, updated_at)
+            values
+            (@po_name, @machine_name, @required_qty, @produced_qty, @cvt, @ct, @cvt, @ct, GETDATE(), GETDATE())
+        `;
+        await queryDatabase(countBoardTaskSql, countboardTaskParam);
     }
-
-    // get routing and coois data
-    const routingQuery = `
-        SELECT TOP 1 c.required_qty, c.produced_qty, r.cvt, r.ct FROM IoT.dbo.coois c
-        INNER JOIN IoT.dbo.routing r on c.material_id = r.material_id
-        INNER JOIN IoT.dbo.user_sub_tasks ust on ust.pro = c.po_name
-        WHERE r.material_id = @material_id
-        and c.po_name = @po_name
-    `;
-    const routingData = await queryDatabase(routingQuery, routingParam);
-
-    const countboardTaskParam = {
-        po_name: userSubTask[0].po_name,
-        machine_name: userSubTask[0].machine_name,
-        required_qty: routingData[0].required_qty,
-        produced_qty: routingData[0].produced_qty,
-        cvt: routingData[0].cvt,
-        ct: routingData[0].ct,
-    }
-
-    // Create countboard tasks
-    const countBoardTaskSql = `
-        INSERT INTO IoT.dbo.countboard_tasks 
-        (po_name, machine_name, required_qty, produced_qty, cvt, ct, actual_cvt, actual_ct, created_at, updated_at)
-        values
-        (@po_name, @machine_name, @required_qty, @produced_qty, @cvt, @ct, @cvt, @ct, GETDATE(), GETDATE())
-    `;
-    await queryDatabase(countBoardTaskSql, countboardTaskParam);
 
     return;
 }
