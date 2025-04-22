@@ -38,42 +38,114 @@ import {
     TableHeader,
     TableRow,
   } from "@/components/ui/table"
+import { useEffect } from "react"
+import { toast } from "react-hot-toast"
 
   type Roles = {
     id: string
     name: string
-    type: string
+    display_name: string
   }
   
-  const initialUsers: Roles[] = [
-    { id: "1", name: "SPV Production", type: "Supervisor" },
-    { id: "2", name: "Mechanic", type: "Staff" },
-    { id: "3", name: "Material", type: "Staff" },
-  ]
+  // const initialUsers: Roles[] = [
+  //   { id: "1", name: "SPV Production", type: "Supervisor" },
+  //   { id: "2", name: "Mechanic", type: "Staff" },
+  //   { id: "3", name: "Material", type: "Staff" },
+  // ]
 
 export function RolesForm() {
-  const [roles, setRoles] = React.useState<Roles[]>(initialUsers)
+  const [roles, setRoles] = React.useState<Roles[]>([])
   const [searchTerm, setSearchTerm] = React.useState("")
   const [editingRole, setEditingRole] = React.useState<Roles | null>(null)
   const [deletingRole, setDeletingRole] = React.useState<Roles| null>(null)
 
-  const filteredRoles = roles.filter(
-    (role) =>
-      role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      role.type.toLowerCase().includes(searchTerm.toLowerCase()) 
-  )
+    useEffect(() => {
+        const fetchData = async () => {
+          try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/roles`, {
+              // credentials: 'include',
+            });
+            const data = await response.json();
+            if (data.success) {
+              setRoles(data.data); // Assuming `data.data` is an array of roles
+            } else {
+              console.error("Failed to fetch roles:", data.message);  
+            }
+          } catch (error) {
+            console.error("Error fetching roles:", error);
+          }
+        };
+    
+        fetchData();
+      }, []);
 
-  const addRole = (newRole: Omit<Roles, "id">) => {
-    const id = (roles.length + 1).toString()
-    setRoles([...roles, { ...newRole, id }])
+    const filteredRoles = roles.filter(
+        (role) =>
+        role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        role.display_name.toLowerCase().includes(searchTerm.toLowerCase())
+
+    )
+
+  const addRole = async (newRole: Omit<Roles, "id">) => {
+    await toast.promise(
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/roles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newRole),
+      }).then(async (response) => {
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Failed to add role');
+        setRoles([...roles, data.data]);
+        return data;
+      }),
+      {
+        loading: 'Adding role...',
+        success: 'Role added successfully!',
+        error: (err) => `Failed: ${err.message}`,
+      }
+    );
   }
 
-  const updateRole = (updatedRole: Roles) => {
-    setRoles(roles.map((role) => (role.id === updatedRole.id ? updatedRole : role)))
+  const updateRole = async (updatedRole: Roles) => {
+    await toast.promise(
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/roles/${updatedRole.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedRole),
+      }).then(async (response) => {
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Failed to update role');
+        setRoles(roles.map((role) => (role.id === updatedRole.id ? data.data : role)));
+        return data;
+      }),
+      {
+        loading: 'Updating role...',
+        success: 'Role updated successfully!',
+        error: (err) => `Failed: ${err.message}`,
+      }
+    );
   }
 
-  const deleteRole = (id: string) => {
-    setRoles(roles.filter((role) => role.id !== id))
+  const deleteRole = async (id: string) => {
+    await toast.promise(
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/roles/${id}`, {
+        method: 'DELETE',
+      }).then(async (response) => {
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Failed to delete role');
+        setRoles(roles.filter((role) => role.id !== id));
+        return data;
+      }),
+      {
+        loading: 'Deleting role...',
+        success: 'Role deleted successfully!',
+        error: (err) => `Failed: ${err.message}`,
+      }
+    );
   }
   return (    
   <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
@@ -103,7 +175,7 @@ export function RolesForm() {
                       const formData = new FormData(e.currentTarget)
                       const newRole = {
                         name: formData.get('name') as string,
-                        type: formData.get('type') as string,
+                        display_name: formData.get('display_name') as string,
                       }
                       addRole(newRole)
                       e.currentTarget.reset()
@@ -121,13 +193,12 @@ export function RolesForm() {
                           />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="type" className="text-right">
-                            Type
+                          <Label htmlFor="display_name" className="text-right">
+                            Display Name
                           </Label>
                           <Input
-                            id="type"
-                            name="type"
-                            type="type"
+                            id="display_name"
+                            name="display_name"
                             className="col-span-3"
                             required
                           />
@@ -149,24 +220,6 @@ export function RolesForm() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="h-8 w-[150px] lg:w-[250px]"
                   />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="ml-auto h-8 lg:flex">
-                        <ArrowUpDown className="mr-2 h-4 w-4" />
-                        View
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-[150px]">
-                      <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuCheckboxItem checked>
-                        Name
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem checked>
-                        Type
-                      </DropdownMenuCheckboxItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
               </div>
               <div className="rounded-md border">
@@ -174,7 +227,7 @@ export function RolesForm() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-center w-[300px]">Name</TableHead>
-                      <TableHead className="text-center">Type</TableHead>
+                      <TableHead className="text-center">Display Name</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -182,7 +235,7 @@ export function RolesForm() {
                     {filteredRoles.map((role) => (
                       <TableRow key={role.id}>
                         <TableCell className="text-center font-medium">{role.name}</TableCell>
-                        <TableCell className="text-center">{role.type}</TableCell>
+                        <TableCell className="text-center">{role.display_name}</TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -265,7 +318,7 @@ export function RolesForm() {
               const updatedRole = {
                 id: editingRole.id,
                 name: formData.get('name') as string,
-                type: formData.get('type') as string,
+                display_name: formData.get('display_name') as string,
               }
               updateRole(updatedRole)
               setEditingRole(null)
@@ -283,14 +336,14 @@ export function RolesForm() {
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-type" className="text-right">
-                    Type
+                  <Label htmlFor="edit-display_name" className="text-right">
+                    Display Name
                   </Label>
                   <Input
-                    id="edit-type"
-                    name="type"
-                    type="type"
-                    defaultValue={editingRole.type}
+                    id="edit-display_name"
+                    name="display_name"
+                    type="text"
+                    defaultValue={editingRole.display_name}
                     className="col-span-3"
                   />
                 </div>

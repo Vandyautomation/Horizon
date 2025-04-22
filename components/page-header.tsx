@@ -299,6 +299,38 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
+          {currentPage === 'users' && !currentSubPage && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('users', 'Users', true)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('users/roles', 'Roles')}
+              </BreadcrumbItem>
+            </>
+          )}
+
+          {currentPage === 'users' && currentSubPage === 'roles' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('users', 'Users')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('users/roles', 'Roles', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+
           {/* Continue adapting the remaining breadcrumb sections */}
         </BreadcrumbList>
       </Breadcrumb>

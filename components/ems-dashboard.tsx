@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 import mqtt from "mqtt";
 
 

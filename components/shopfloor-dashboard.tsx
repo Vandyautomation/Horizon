@@ -27,7 +27,7 @@ import useSWR from 'swr';
 import { Label } from './ui/label';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Calculator, Power, Zap } from 'lucide-react';
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 
 interface Machine {
   id: string;

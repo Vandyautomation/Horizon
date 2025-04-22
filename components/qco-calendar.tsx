@@ -30,7 +30,7 @@ import { Badge } from "./ui/badge"
 import useSWR, { mutate } from "swr"
 import { Input } from "./ui/input"
 import { SearchablePOSelect } from "./searchable-select-po"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 import { SearchableMachineSelect } from "./searchable-select-machine"
 import { SearchableTaskCategorySelect } from "./searchable-select-task-category"
 
@@ -729,6 +729,7 @@ useEffect(() => {
                                 <div className="font-medium truncate">{item.item_name?.split(":")[0]}</div>
                                 <div className="font-medium truncate">{item.po_name}</div>
                                 <div className="truncate">{item.machine_name}</div>
+                                <div className="truncate font-medium">{item.status}</div>
 
                             </div>
                           </TooltipTrigger>
@@ -751,14 +752,14 @@ useEffect(() => {
                                   <h3 className="font-medium mb-2">Confirm Deletion</h3>
                                   <p className="text-sm mb-4">Are you sure you want to delete this task?</p>
                                   <div className="flex justify-end gap-2">
-                                    <Button variant="outline" size="sm" onClick={() => toast.dismiss(t)}>
+                                    <Button variant="outline" size="sm" onClick={() => toast.dismiss()}>
                                       Cancel
                                     </Button>
                                     <Button 
                                       variant="destructive" 
                                       size="sm" 
                                       onClick={() => {
-                                        toast.dismiss(t);
+                                        toast.dismiss();
                                         toast.promise(
                                           fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks/${item.uuid}`, {
                                             method: "DELETE",
@@ -789,6 +790,7 @@ useEffect(() => {
                               <p className="text-sm">{item.machine_name}</p>
                               <p className="text-medium">{item.category}</p>
                               <p className="text-xs">{format(itemDate, "HH:mm")} - {format(itemEndDate, "HH:mm")}</p>
+                              <p className="text-xs">{item.status}</p>
                             </div>
                           </TooltipContent>
                           </ContextMenu>
@@ -823,6 +825,7 @@ useEffect(() => {
                         <div key={index} className={`p-3 ${getMachineColor(item.machine_name)}`}>
                           <div className="font-medium">{item.item_name}</div>
                           <div className="text-sm">{item.machine_name}</div>
+                          <div className="text-sm">{item.status}</div>
                           <div className="text-xs">{format(parseISO(item.start_at), "HH:mm")}</div>
                         </div>
                       ))}

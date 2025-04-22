@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter } from "@/components/ui/
 import { Label } from "./ui/label";
 import { Decimal } from "decimal.js";
 import useSWR, { mutate } from "swr";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 import mqtt from "mqtt";
 import LoadingState from "./ui/loading-state";
 import ErrorState from "./ui/error-state";
