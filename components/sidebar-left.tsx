@@ -153,27 +153,27 @@ export default function SidebarLeft({
           },
         ],
       },
-      // {
-      //   title: 'Users',
-      //   url: 'users',
-      //   icon: User,
-      //   hidden: !user,
-      //   isActive: false,
-      //   items: [
-      //     {
-      //       title: 'Role',
-      //       url: 'users/roles',
-      //     },
-      //     {
-      //       title: 'Location',
-      //       url: 'users/locations',
-      //     },
-      //     {
-      //       title: 'UAP',
-      //       url: '#',
-      //     },
-      //   ],
-      // },
+      {
+        title: 'Users',
+        url: 'users',
+        icon: User,
+        hidden: !user,
+        isActive: false,
+        items: [
+          {
+            title: 'Role',
+            url: 'users/roles',
+          },
+          // {
+          //   title: 'Location',
+          //   url: 'users/locations',
+          // },
+          // {
+          //   title: 'UAP',
+          //   url: '#',
+          // },
+        ],
+      },
       {
         title: 'Machines',
         url: 'machines',

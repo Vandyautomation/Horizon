@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { createTask, getTasks, getTasksByUuid, notifyTask, summary, updateTask } from '@/api/controllers/qco/taskController';
+import { createTask, deleteTask, getTasks, getTasksByUuid, notifyTask, summary, updateTask } from '@/api/controllers/qco/taskController';
 
 const taskRoutes = new Hono();
 
@@ -81,16 +81,14 @@ taskRoutes.post('/', async (c) => {
 
 taskRoutes.put('/:id', async (c) => {
   try {
-    const id = c.req.param('id');
+    const uuid = c.req.param('uuid');
 
-    if (!id) {
-      return c.json({ success: false, message: 'Task ID is required' }, 400);
+    if (!uuid) {
+      return c.json({ success: false, message: 'Task UUID is required' }, 400);
     }
 
     // Extract query parameters for update
     const updateData = {
-      mold_id: c.req.query('mold_id'),
-      item_id: c.req.query('item_id'),
       machine_id: c.req.query('machine_id'),
       category_id: c.req.query('category_id'),
       start_at: c.req.query('start_at'),
@@ -107,18 +105,37 @@ taskRoutes.put('/:id', async (c) => {
     }
 
     // TODO: Implement updateTask function in your controller
-    const updatedTask = await updateTask(id, filteredData);
+    const updatedTask = await updateTask(uuid, filteredData);
 
     return c.json({
       success: true,
       message: 'Task updated successfully',
-      data: { id, ...filteredData }
+      data: { uuid, ...filteredData }
     }, 200);
   } catch (error) {
     return c.json({ success: false, message: (error as Error).message }, 500);
   }
 });
 
+taskRoutes.delete('/:uuid', async (c) => {
+  try {
+    const id = c.req.param('uuid');
+    if (!id) {
+      return c.json({ success: false, message: 'Task ID is required' }, 400);
+    }
+
+
+    const deletedTask = await deleteTask(id);
+
+    if (!deletedTask) {
+      return c.json({ success: false, message: 'Task not found' }, 404);
+    }
+
+    return c.json({ success: true, message: 'Task deleted successfully' }, 200);
+  } catch (error) {
+    return c.json({ success: false, message: (error as Error).message }, 500);
+  }
+});
 
 taskRoutes.post('/notify', async (c) => {
   try {

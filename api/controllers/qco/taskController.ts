@@ -489,39 +489,33 @@ export async function updateTask(uuid: string, body: any) {
     try {
         // First check if the task exists
         const existingTask = await queryDatabase(`
-            SELECT id FROM tasks WHERE uuid = @uuid
+            SELECT id, status FROM tasks WHERE uuid = @uuid
         `, { uuid });
 
         if (!existingTask || existingTask.length === 0) {
-            return {
-                success: false,
-                messages: ['Task not found'],
-                data: null,
-                statusCode: 404
-            };
+            throw new Error('Task not found');
         }
 
         const taskId = existingTask[0].id;
+        const taskStatus = existingTask[0].status;
+        if (taskStatus !== 'planned') {
+            throw new Error('Task cannot be updated because it is not in the planned status');
+        }
+
+        const existingSubTasks = await queryDatabase(`
+            SELECT id, start_at FROM user_sub_tasks WHERE task_id = @taskId
+        `, { taskId });
 
         // Build update field list
         const updateFields = [];
         const params: any = { uuid };
 
         // Check each field that could be updated
-        if (body.item_id !== undefined) {
-            updateFields.push('item_id = @item_id');
-            params.item_id = body.item_id;
-        }
-
         if (body.category_id !== undefined) {
             updateFields.push('category_id = @category_id');
             params.category_id = body.category_id;
         }
 
-        if (body.status !== undefined) {
-            updateFields.push('status = @status');
-            params.status = body.status;
-        }
 
         if (body.start_at !== undefined) {
             if (isNaN(Date.parse(body.start_at))) {
@@ -536,15 +530,7 @@ export async function updateTask(uuid: string, body: any) {
             params.start_at = body.start_at;
         }
 
-        if (body.started_at !== undefined) {
-            updateFields.push('started_at = @started_at');
-            params.started_at = body.started_at || null;
-        }
 
-        if (body.ended_at !== undefined) {
-            updateFields.push('ended_at = @ended_at');
-            params.ended_at = body.ended_at || null;
-        }
 
         if (body.machine_id !== undefined) {
             updateFields.push('machine_id = @machine_id');
@@ -563,40 +549,6 @@ export async function updateTask(uuid: string, body: any) {
             } else {
                 updateFields.push('machine_name = NULL');
             }
-        }
-
-        if (body.mold_id !== undefined) {
-            updateFields.push('mold_id = @mold_id');
-            params.mold_id = body.mold_id || null;
-
-            // Update mold_name if mold_id is provided
-            if (body.mold_id) {
-                const mold = await queryDatabase(`
-                    SELECT name FROM molds WHERE id = @mold_id
-                `, { mold_id: body.mold_id });
-
-                if (mold && mold.length > 0) {
-                    updateFields.push('mold_name = @mold_name');
-                    params.mold_name = mold[0].name;
-                }
-            } else {
-                updateFields.push('mold_name = NULL');
-            }
-        }
-
-        if (body.is_notif !== undefined) {
-            updateFields.push('is_notif = @is_notif');
-            params.is_notif = body.is_notif;
-        }
-
-        if (body.notif_at !== undefined) {
-            updateFields.push('notif_at = @notif_at');
-            params.notif_at = body.notif_at || null;
-        }
-
-        if (body.note !== undefined) {
-            updateFields.push('note = @note');
-            params.note = body.note || null;
         }
 
         if (body.pro !== undefined) {
@@ -679,6 +631,49 @@ export async function updateTask(uuid: string, body: any) {
         return {
             success: false,
             messages: [error.message || 'An error occurred while updating the task'],
+            data: null,
+            statusCode: 500
+        };
+    }
+}
+
+export async function deleteTask(uuid: string) {
+    try {
+        // First check if the task exists
+        const existingTask = await queryDatabase(`
+            SELECT id, status FROM tasks WHERE uuid = @uuid
+        `, { uuid });
+
+        if (!existingTask || existingTask.length === 0) {
+            throw new Error('Task not found');
+        }
+
+        const taskId = existingTask[0].id;
+        const taskStatus = existingTask[0].status;
+        if (taskStatus !== 'planned') {
+            throw new Error('Task cannot be deleted because it is not in the planned status');
+        }
+
+        // Delete user_sub_tasks associated with the task
+        await queryDatabase(`
+            DELETE FROM user_sub_tasks WHERE task_id = @taskId
+        `, { taskId });
+
+        // Delete the task itself
+        await queryDatabase(`
+            DELETE FROM tasks WHERE uuid = @uuid
+        `, { uuid });
+
+        return {
+            success: true,
+            messages: ['Task deleted successfully'],
+            data: null
+        };
+    } catch (error: any) {
+        console.error('Error deleting task:', error);
+        return {
+            success: false,
+            messages: [error.message || 'An error occurred while deleting the task'],
             data: null,
             statusCode: 500
         };

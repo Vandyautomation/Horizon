@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 import { Progress } from "@/components/ui/progress"
 
 export default function RoutingUpload() {
@@ -92,15 +92,11 @@ export default function RoutingUpload() {
             toast.success('Data sukses disinkronisasi')
             setLoading(false)
           } else {
-            toast.error('Gagal sinkronisasi', {
-              description: response.statusText
-            })
+            toast.error(`Gagal sinkronisasi: ${response.statusText}`)
             setLoading(false)
           }
         } catch (error: any) {
-          toast.error('Terjadi kesalahan', {
-            description: error.message
-          })
+          toast.error(`Terjadi kesalahan : ${error.message}`)
           setLoading(false)
         }
     }

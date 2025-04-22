@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { createUser, deleteUser, fetchUserById, fetchUserByUsername, fetchUsers, updateUser } from '../controllers/userController';
+import { createUser, deleteUser, fetchUserById, fetchUserByNik, fetchUserByUsername, fetchUsers, updateUser } from '../controllers/userController';
 
 const userRoutes = new Hono();
 
@@ -29,20 +29,32 @@ userRoutes.get('/:id', async (c) => {
 });
 userRoutes.post('/', async (c) => {
   try {
-    const body = {
-      username: c.req.query('username'),
-      password: c.req.query('password'),
-      email: c.req.query('email'),
-      role: c.req.query('role'),
-    };
-    if (!body.username || !body.password || !body.email || !body.role) {
-      return c.json({ success: false, message: 'Username, password, email, and role are required' }, 400);
+    const body = await c.req.json() as {
+      UserGroup: string;
+      UserLoc: string;
+      UserRFID: string;
+      role_id: number;
+      UserName: string;
+      password: string;
+      UserUAP: string;
+      UserDept: string;
     }
-    const existingUser = await fetchUserByUsername(body.username);
-    if (existingUser) {
+
+    if (!body.UserName || !body.password || !body.UserRFID || !body.role_id) {
+      return c.json({ success: false, message: 'UserName, password, UserRFID, and role_id are required' }, 400);
+    }
+    const existingUser = await fetchUserByUsername(body.UserName);
+
+    if (existingUser.length > 0) {
       return c.json({ success: false, message: 'User already exists' }, 400);
     }
-    const result = await createUser(body.username, body.password, body.email, body.role);
+
+    const existingUser2 = await fetchUserByNik(body.UserRFID);
+
+    if (existingUser2.length > 0) {
+      return c.json({ success: false, message: 'User already exists with this NIK' }, 400);
+    }
+    const result = await createUser(body.UserName, body.password, body.UserRFID, body.role_id, body.UserGroup, body.UserLoc, body.UserUAP, body.UserDept);
     return c.json({
       success: true,
       message: 'User created successfully',
@@ -61,16 +73,17 @@ userRoutes.put('/:id', async (c) => {
     if (!id) {
       return c.json({ success: false, message: 'User ID is required' }, 400);
     }
-    const body = {
-      username: c.req.query('username'),
-      password: c.req.query('password'),
-      email: c.req.query('email'),
-      role: c.req.query('role'),
+    const body = await c.req.json() as {
+      UserRFID: string;
+      role_id: number;
+      UserName: string;
+      UserGroup: string;
+      UserLoc: string;
+      UserDept: string;
+      UserUAP: string;
     };
-    if (!body.username || !body.password || !body.email || !body.role) {
-      return c.json({ success: false, message: 'Username, password, email, and role are required' }, 400);
-    }
-    const result = await updateUser(id, body.username, body.password, body.email, body.role);
+
+    const result = await updateUser(id, body.UserName, body.UserRFID, body.role_id, body.UserGroup, body.UserLoc, body.UserDept, body.UserUAP);
     return c.json({
       success: true,
       message: 'User updated successfully',

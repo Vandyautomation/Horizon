@@ -18,7 +18,7 @@ import { ScaleRun } from "./scale-run"
 import { Decimal } from "decimal.js"
 import ErrorState from "./ui/error-state"
 import LoadingState from "./ui/loading-state"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 // API fetcher function for SWR
 const fetcher = (url: string) => fetch(url).then((res) => res.json())

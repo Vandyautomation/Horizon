@@ -1,4 +1,5 @@
 import { queryDatabase } from "../utils/queryDatabase";
+import bcrypt from 'bcryptjs';
 
 export async function fetchUsers() {
 
@@ -16,10 +17,12 @@ export async function fetchUsers() {
   //   WHERE u.deletedAt IS NULL;
   // `;
   const query = `
-    select * from useraccessmst where active = 1
+    select u.*, r.name as role_name, r.display_name as role_display_name from useraccessmst u
+    left join roles r on r.id = u.role_id
+    where u.active = 1
   `;
-
   const result = await queryDatabase(query);
+  delete result[0].UserHashedPassword;
   return result
 }
 
@@ -31,21 +34,24 @@ export async function fetchUserById(id: string) {
   return result;
 }
 
-export async function createUser(username: string, password: string, email: string, role: string) {
+export async function createUser(UserName: string, password: string, UserRFID: string, role_id: number, UserGroup: string, UserLoc: string, UserUAP: string, UserDept: string) {
+
+  const passwordHash = bcrypt.hashSync(password, 10);
+
   const query = `
-    INSERT INTO useraccessmst (username, password, email, role)
-    VALUES (@username, @password, @email, @role)
+    INSERT INTO useraccessmst (username, UserHashedPassword, UserRFID, role_id, UserGroup, UserLoc, UserUAP, UserDept, UserTitle, active)
+    VALUES (@UserName, @passwordHash, @UserRFID, @role_id, @UserGroup, @UserLoc, @UserUAP, @UserDept, @UserDept, 1)
   `;
-  const result = await queryDatabase(query, { username, password, email, role });
+  const result = await queryDatabase(query, { UserName, passwordHash, UserRFID, role_id, UserGroup, UserLoc, UserUAP, UserDept });
   return result;
 }
-export async function updateUser(id: string, username: string, password: string, email: string, role: string) {
+export async function updateUser(id: string, UserName: string, UserRFID: string, role_id: number, UserGroup: string, UserLoc: string, UserDept: string, UserUAP: string) {
   const query = `
     UPDATE useraccessmst
-    SET username = @username, password = @password, email = @email, role = @role
+    SET UserName = @UserName, UserRFID = @UserRFID, role_id = @role_id, UserGroup = @UserGroup, UserLoc = @UserLoc, UserDept = @UserDept, UserUAP = @UserUAP
     WHERE id = @id
   `;
-  const result = await queryDatabase(query, { id, username, password, email, role });
+  const result = await queryDatabase(query, { id, UserName, UserRFID, role_id, UserGroup, UserLoc, UserDept, UserUAP });
   return result;
 }
 export async function deleteUser(id: string) {
@@ -63,5 +69,13 @@ export async function fetchUserByUsername(username: string) {
     SELECT * FROM useraccessmst WHERE username = @username AND active = 1
   `;
   const result = await queryDatabase(query, { username });
+  return result;
+}
+
+export async function fetchUserByNik(nik: string) {
+  const query = `
+    SELECT * FROM useraccessmst WHERE UserRFID = @nik AND active = 1
+  `;
+  const result = await queryDatabase(query, { nik });
   return result;
 }

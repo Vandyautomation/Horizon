@@ -35,7 +35,7 @@ import { Input } from "./ui/input"
 import { SearchablePOSelect } from "./searchable-select-po"
 import useSWR, { mutate } from "swr"
 import ErrorState from "./ui/error-state"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 import { format } from "date-fns/format"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { cn } from "@/lib/utils"
@@ -152,6 +152,13 @@ const shiftList = ['1','2','3']
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+type PoNumber = {
+  poNumber: string
+  poId: number
+  materialId: number
+  materialName: string
+}
+
 export default function CountboardDashboardUv() {
   const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
@@ -170,7 +177,7 @@ export default function CountboardDashboardUv() {
 
   const [selectedProcess, setSelectedProcess] = useState('');
 
-  const [selectedPO, setSelectedPO] = useState('');
+  const [selectedPO, setSelectedPO] = useState<PoNumber | null>(null);
   const [selectedRefreshRate, setRefreshRate] = useState('5000');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());

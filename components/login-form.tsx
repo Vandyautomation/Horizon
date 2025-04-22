@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 export function LoginForm() {

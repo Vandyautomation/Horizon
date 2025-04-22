@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ui/theme-provider";
-import { Toaster } from "@/components/ui/sonner"
+import { Toaster } from "react-hot-toast"
 import LayoutContent from "@/components/layout-component";
 
 const geistSans = localFont({
@@ -46,7 +46,7 @@ export default function RootLayout({
         {children}
         </LayoutContent>
         </ThemeProvider>
-        <Toaster richColors position="top-center"/>
+        <Toaster position="top-center"/>
       </body>
     </html>
   );
