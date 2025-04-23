@@ -279,7 +279,7 @@ function InjectionMoldingMachine({
           {machine.id}
         </div>
       </Html>
-      <group position={[0, 3.25, 0]} rotation={[0, Math.PI / 3, 0]}>
+      {/* <group position={[0, 3.25, 0]} rotation={[0, Math.PI / 3, 0]}>
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[0.5, 0.6, 0.1]} />
           <meshStandardMaterial color={statusColors[machine?.status]} />
@@ -295,7 +295,7 @@ function InjectionMoldingMachine({
         >
           {machine.id}
         </Text>
-      </group>
+      </group> */}
       <Html position={[0, 0, -3]} center>
         <div
           style={{
