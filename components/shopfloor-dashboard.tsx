@@ -225,7 +225,7 @@ function InjectionMoldingMachine({
   onClick: () => void;
   isSelected: boolean;
 }) {
-  const { scene } = useGLTF('/admin/assets/3d/inject_new2.glb');
+  const { scene } = useGLTF('/admin/assets/3d/inject-color.glb');
   const clonedScene = useMemo(() => scene?.clone(), [scene]);
 
   useEffect(() => {
@@ -236,8 +236,8 @@ function InjectionMoldingMachine({
           // Create a material with emissive properties for better visibility
           (child as any).material = new MeshStandardMaterial({
             ...((child as any).material as any),
-            color: originalColor,
-            emissive: originalColor.clone().multiplyScalar(0.3),
+            // color: originalColor,
+            // emissive: originalColor.clone().multiplyScalar(0.3),
             metalness: 0.9,
             roughness: 0.3,
           });
@@ -250,7 +250,7 @@ function InjectionMoldingMachine({
     <group position={machine.position} onClick={onClick}>
       <primitive
         object={clonedScene}
-        scale={[0.015, 0.015, 0.015]}
+        scale={[2, 2, 2]}
         rotation={[
           machine.rotation[0],
           machine.rotation[1] == 0 ? (3.14 * 3) / 2 : machine.rotation[1] * 0.5,
@@ -279,7 +279,7 @@ function InjectionMoldingMachine({
           {machine.id}
         </div>
       </Html>
-      {/* <group position={[0, 3.25, 0]} rotation={[0, Math.PI / 3, 0]}>
+      <group position={[0, 3.25, 0]} rotation={[0, Math.PI / 3, 0]}>
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[0.5, 0.6, 0.1]} />
           <meshStandardMaterial color={statusColors[machine?.status]} />
@@ -295,7 +295,7 @@ function InjectionMoldingMachine({
         >
           {machine.id}
         </Text>
-      </group> */}
+      </group>
       <Html position={[0, 0, -3]} center>
         <div
           style={{
