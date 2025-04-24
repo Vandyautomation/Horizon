@@ -429,6 +429,7 @@ export default function ShopfloorDashboard() {
   const [, setMqttClient] = useState<ReturnType<typeof mqtt.connect> | null>(null);
   const [refreshTime, setRefreshTime] = useState('')
   const [startHour, setStartHour] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const [andon, setAndon] = useState<Andon[] | null>(null);
 
@@ -596,14 +597,16 @@ export default function ShopfloorDashboard() {
   }
 
   useEffect(() => {
-    if (queryLocation && buildings && Array.isArray(buildings)) {
+    if (queryLocation && buildings && Array.isArray(buildings) && queryLocation !== selectedBuilding?.name) {
+      setLoading(true);
       const foundBuilding = buildings.find(building => building.name === queryLocation);
       if (foundBuilding) {
         router.push(`${pathname}?${params.toString()}`);
         setSelectedBuilding(foundBuilding);
-        // console.log(`machine building from query : ${queryLocation}`);
+        
       }
     }
+    setLoading(false);
   }, [queryLocation, buildings]);
 
   // console.log(`data andon : ${JSON.stringify(andon)}`);
@@ -620,31 +623,33 @@ export default function ShopfloorDashboard() {
             <Select
               value={selectedBuilding?.id.toString() || ''}
               onValueChange={(value) => {
-                const building = buildings?.find(
-                  (b) => b.id.toString() === value
-                );
-                const buildingName = building?.name || '';
-                // setSelectedBuilding(building || null);
-                params.set('building', buildingName);
-                router.push(`${pathname}?${params.toString()}`);
-                setSelectedMachine(null);
+              const building = buildings?.find(
+                (b) => b.id.toString() === value
+              );
+              const buildingName = building?.name || '';
+              params.set('building', buildingName);
+              setLoading(true);
+              router.push(`${pathname}?${params.toString()}`);
+              setSelectedMachine(null);
               }}
+              disabled={loading}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a building" />
+              <SelectValue placeholder={loading ? "Loading..." : "Select a building"} />
               </SelectTrigger>
               <SelectContent>
-                {Array.isArray(buildings) &&
-                  buildings?.map((building) => (
-                    <SelectItem
-                      key={building.id}
-                      value={building.id.toString()}
-                    >
-                      {building.name}
-                    </SelectItem>
-                  ))}
+              {Array.isArray(buildings) &&
+                buildings?.map((building) => (
+                <SelectItem
+                  key={building.id}
+                  value={building.id.toString()}
+                >
+                  {building.name}
+                </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {loading && <div className="text-sm text-muted-foreground mt-2">Loading building data...</div>}
 
             {selectedBuilding?.machines.length == 0 && <Label>Please define the machine position in this <a href="/admin/machines" className="text-blue-500">link</a></Label>}
           </CardContent>
