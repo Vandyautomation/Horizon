@@ -1376,31 +1376,6 @@ export default function CountboardDashboardUvManagement() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isPODialogOpen} onOpenChange={setIsPODialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Attach PO</DialogTitle>
-            </DialogHeader>
-            <DialogDescription className="p-0 m-0">Select PO to attach to this machine</DialogDescription>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="machine">Machine</Label>
-                <Input id="machine" value={selectedMachine?.machineName} disabled />
-              </div>
-              <div className="flex flex-col">
-              <Label htmlFor="po-number">PO Number</Label>
-                <SearchablePOSelect
-                    value={selectedPO}
-                    onValueChange={(newValue) => setSelectedPO(newValue)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handlePOAttach}>Attach PO</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
 
         <Dialog open={IsProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
           <DialogContent>

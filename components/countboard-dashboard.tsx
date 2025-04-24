@@ -591,8 +591,8 @@ const refetchStateData = () => mutate(stateDataKey);
 
 
   if (queryMachineNumber == '') {
-    queryMachineNumber = '5';
-    params.set('machineNumber', '5');
+    queryMachineNumber = '10';
+    params.set('machineNumber', '10');
     router.push(`${pathname}?${params.toString()}`);
   }
 
