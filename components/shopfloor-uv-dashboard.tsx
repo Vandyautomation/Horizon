@@ -218,23 +218,22 @@ function InjectionMoldingMachine({
   );
 }
 
-function YoureHere() {
+function YoureHere({
+  position,
+  rotation,
+}: {
+  position: [number, number, number];
+  rotation?: [number, number, number];
+}) {
+  const { scene } = useGLTF('/admin/assets/3d/human.glb');
+  const clonedScene = useMemo(() => scene?.clone(), [scene]);
   return (
-    <Html position={[30, 1, -10]} center>
-      <div className="text-center flex flex-nowrap items-center">
-        <div className="bg-primary  rounded text-xs text-primary-foreground p-2 flex flex-nowrap">
-          You're Here
-        </div>
-        <div
-          className="w-0 h-0 mt-1 "
-          style={{
-            borderLeft: '10px solid transparent',
-            borderRight: '10px solid transparent',
-            borderTop: '10px solid primary',
-          }}
-        />
-      </div>
-    </Html>
+    <primitive
+        object={clonedScene}
+        position={position}
+        rotation={rotation || [0, 0, 0]}
+        scale={[1.5, 1.5, 1.5]}
+      />
   );
 }
 
@@ -271,9 +270,9 @@ function CameraLogger() {
 
 function Floor() {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[25, 0, 0]}>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[45, 0, 50]}>
       <planeGeometry args={[30, 30]} />
-      <meshStandardMaterial color="#e2e8f0" />
+      <meshStandardMaterial color="#c7d2e1" /> 
     </mesh>
   );
 }
@@ -282,7 +281,7 @@ function FloorM() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-10, 0, 0]}>
       <planeGeometry args={[30, 30]} />
-      <meshStandardMaterial color="#e2e8f0" />
+      <meshStandardMaterial color="#c7d2e1" /> 
     </mesh>
   );
 }
@@ -291,7 +290,7 @@ function FloorK() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-45, 0, 0]}>
       <planeGeometry args={[30, 30]} />
-      <meshStandardMaterial color="#e2e8f0" />
+      <meshStandardMaterial color="#c7d2e1" /> 
     </mesh>
   );
 }
@@ -733,10 +732,10 @@ export default function ShopfloorUvDashboard() {
             <Floor />
             {/* <FloorMiddle /> */}
             {/* <FloorRoad /> */}
-            <Wall position={[25, 5, 15]} size={[30, 10, 0.5]} building="Building E"/>
+            <Wall position={[45, 5, 65]} size={[30, 10, 0.5]} building="Building E"/>
             <Wall
               building=""
-              position={[40, 5, 0]}
+              position={[60, 5, 50]}
               rotation={[0, Math.PI / 2, 0]}
               size={[30, 10, 0.5]}
             />
@@ -756,7 +755,9 @@ export default function ShopfloorUvDashboard() {
                   />
                 ))
               : null}
-            <YoureHere />
+            <YoureHere position={[50, 0, 40]}/>
+            <YoureHere position={[-22, 0, 0]} rotation={[0, 3.14, 0]}/>
+            <YoureHere position={[-40, 0, -10]} rotation={[0, 0, 0]}/>
             {/* <CameraLogger /> */}
             <OrbitControls
               target={[0, 0, 20]}

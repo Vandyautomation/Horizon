@@ -342,23 +342,22 @@ function InjectionMoldingMachine({
   );
 }
 
-function YoureHere() {
+function YoureHere({
+  position,
+  rotation,
+}: {
+  position: [number, number, number];
+  rotation?: [number, number, number];
+}) {
+  const { scene } = useGLTF('/admin/assets/3d/human.glb');
+  const clonedScene = useMemo(() => scene?.clone(), [scene]);
   return (
-    <Html position={[-40, 1, 0]} center>
-      <div className="text-center flex flex-nowrap items-center">
-        <div className="bg-primary  rounded text-xs text-primary-foreground p-2 flex flex-nowrap">
-          You're Here
-        </div>
-        <div
-          className="w-0 h-0 mt-1 "
-          style={{
-            borderLeft: '10px solid transparent',
-            borderRight: '10px solid transparent',
-            borderTop: '10px solid primary',
-          }}
-        />
-      </div>
-    </Html>
+    <primitive
+        object={clonedScene}
+        position={position}
+        rotation={rotation || [0, 0, 0]}
+        scale={[2, 2, 2]}
+      />
   );
 }
 
@@ -857,7 +856,7 @@ export default function ShopfloorDashboard() {
                   />
                 ))
               : null}
-            <YoureHere />
+            <YoureHere position={[-40,0,0]} rotation={[0, Math.PI/2, 0]}/>
             {/* <CameraLogger /> */}
             <OrbitControls
               target={[0, 0, 10]}
