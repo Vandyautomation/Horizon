@@ -521,7 +521,7 @@ export default function ShopfloorUvDashboard() {
                   (b) => b.id.toString() === value
                 );
                 const buildingName = building?.name || '';
-                setSelectedBuilding(building || null);
+                // setSelectedBuilding(building || null);
                 params.set('building', buildingName);
                 router.push(`${pathname}?${params.toString()}`);
                 setSelectedMachine(null);
