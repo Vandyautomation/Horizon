@@ -52,9 +52,9 @@ export function SearchableRoleSelect({
   useEffect(() => {
     const fetchRole = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user/roles`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/roles`);
         const data = await response.json();
-        setAllRoles(data);
+        setAllRoles(data.data);
       } catch (error) {
         console.error("Error fetching role:", error);
       } finally {
@@ -67,7 +67,7 @@ export function SearchableRoleSelect({
 
   // Rest of the component remains the same, but use filteredRoles instead of machineList
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} >
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -88,7 +88,6 @@ export function SearchableRoleSelect({
             onValueChange={setSearchRole} 
           />
           <CommandEmpty>No Role found.</CommandEmpty>
-          <CommandGroup>
             <ScrollArea className="h-72">
               <p className="px-4 py-2 text-center text-sm">
                 Showing {filteredRoles.length} machines
@@ -122,7 +121,6 @@ export function SearchableRoleSelect({
                 ))
               )}
             </ScrollArea>
-          </CommandGroup>
         </Command>
       </PopoverContent>
     </Popover>

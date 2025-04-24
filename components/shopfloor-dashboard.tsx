@@ -279,7 +279,7 @@ function InjectionMoldingMachine({
           {machine.id}
         </div>
       </Html>
-      <group position={[0, 3.25, 0]} rotation={[0, Math.PI / 3, 0]}>
+      {/* <group position={[0, 3.25, 0]} rotation={[0, Math.PI / 3, 0]}>
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[0.5, 0.6, 0.1]} />
           <meshStandardMaterial color={statusColors[machine?.status]} />
@@ -295,7 +295,7 @@ function InjectionMoldingMachine({
         >
           {machine.id}
         </Text>
-      </group>
+      </group> */}
       <Html position={[0, 0, -3]} center>
         <div
           style={{
@@ -521,18 +521,18 @@ export default function ShopfloorDashboard() {
       return promise;
     },
     {
-      refreshInterval: 10000,
+      refreshInterval: 30000,
     }
   );
 
-  // Log fetch results
-  useEffect(() => {
-    if (error) {
-      console.error("Error fetching buildings data:", error);
-    } else if (rawBuildings) {
-      console.log("Buildings data fetched:", rawBuildings);
-    }
-  }, [rawBuildings, error]);
+  // // Log fetch results
+  // useEffect(() => {
+  //   if (error) {
+  //     console.error("Error fetching buildings data:", error);
+  //   } else if (rawBuildings) {
+  //     console.log("Buildings data fetched:", rawBuildings);
+  //   }
+  // }, [rawBuildings, error]);
 
   // Filter out machines with null positions and update state
   useEffect(() => {
@@ -578,7 +578,7 @@ export default function ShopfloorDashboard() {
       if (JSON.stringify(updatedSelectedBuilding) !== JSON.stringify(selectedBuilding)) {
         setSelectedMachine(null); // Reset selected machine when building updates
         setSelectedBuilding(updatedSelectedBuilding);
-        console.log("Selected building updated:", updatedSelectedBuilding);
+        // console.log("Selected building updated:", updatedSelectedBuilding);
       }
     }
   }, [rawBuildings]); // Remove selectedBuilding from dependencies
@@ -589,12 +589,12 @@ export default function ShopfloorDashboard() {
   useEffect(() => {
     if (buildings && buildings.length > 0 && !selectedBuilding) {
       setSelectedBuilding(buildings[0]);
-      console.log(buildings[0]);
+      // console.log(buildings[0]);
     }
   }, [buildings, selectedBuilding]);
 
-   const searchParams = useSearchParams()
-    const params = new URLSearchParams(searchParams);
+  const searchParams = useSearchParams();
+  const params = new URLSearchParams(searchParams);
 
   let queryLocation = searchParams.get('building') || '';
     if (queryLocation == '') {
@@ -606,8 +606,8 @@ export default function ShopfloorDashboard() {
     if (queryLocation && buildings && Array.isArray(buildings)) {
       const foundBuilding = buildings.find(building => building.name === queryLocation);
       if (foundBuilding) {
-        setSelectedBuilding(foundBuilding);
         router.push(`${pathname}?${params.toString()}`);
+        setSelectedBuilding(foundBuilding);
         // console.log(`machine building from query : ${queryLocation}`);
       }
     }

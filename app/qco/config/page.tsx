@@ -24,15 +24,20 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Edit, MoreHorizontal, Plus, Trash, ArrowLeft } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import Link from "next/link"
+import { SearchableRoleSelect } from "@/components/searchable-select-role"
+import { is } from "drizzle-orm"
+
 
 // Define types for the category and subtask
 type SubTask = {
   id: number
   name: string
   role: string
-  preparationTime: string // "h-2", "45 min" format
+  role_id: number
+  preparationTime: number
   isPreparation: boolean
+  isParallel: boolean
+  index?: number
 }
 
 type Category = {
@@ -40,6 +45,12 @@ type Category = {
   name: string
   subtasks: SubTask[]
 }
+
+type RoleDetail = {
+  id: number;
+  name: string;
+  display_name: string;
+};
 
 export default function TaskCategories() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -49,7 +60,9 @@ export default function TaskCategories() {
   const [editingSubTask, setEditingSubTask] = useState<{categoryId: number, subtask: SubTask} | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   const [isPreparationTask, setIsPreparationTask] = useState(false)
+  const [isParallelTask, setIsParallelTask] = useState(false)
   const [editIsPreparationTask, setEditIsPreparationTask] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<RoleDetail | null>(null)
 
   // Roles for dropdown selection
   const roles = [
@@ -61,9 +74,14 @@ export default function TaskCategories() {
 
   // Hours for preparation tasks
   const preparationHours = [
-    { value: "h-1", label: "1 hour" },
-    { value: "h-2", label: "2 hours" },
-    { value: "h-3", label: "3 hours" },
+    { value: 1440, label: "h-1" },
+    { value: 2880, label: "h-2" },
+  ]
+
+  const index = [
+    {id: 1, value: 1, color: "bg-yellow-500"},
+    {id: 2, value: 2, color: "bg-green-500"},
+    {id: 3, value: 3, color: "bg-blue-500"},
   ]
 
   // Fetch categories and subtasks from API
@@ -84,14 +102,14 @@ export default function TaskCategories() {
           id: 1,
           name: "Change Over BP",
           subtasks: [
-            { id: 1, name: "Mold Check", role: "Mold Checker", preparationTime: "h-2", isPreparation: true },
-            { id: 2, name: "Persiapan Jig Robot", role: "Robot Operator", preparationTime: "h-1", isPreparation: true },
-            { id: 3, name: "Cleaning Hopper & Crusher", role: "Maintenance", preparationTime: "45 min", isPreparation: false },
-            { id: 4, name: "Set Up Mold", role: "Maintenance", preparationTime: "45 min", isPreparation: false },
-            { id: 5, name: "Purging", role: "Maintenance", preparationTime: "30 min", isPreparation: false },
-            { id: 6, name: "Setting Parameter Mesin", role: "Maintenance", preparationTime: "35 min", isPreparation: false },
-            { id: 7, name: "Setting Robot", role: "Robot Operator", preparationTime: "15 min", isPreparation: false },
-            { id: 8, name: "Validasi SUBO", role: "Quality", preparationTime: "30 min", isPreparation: false }
+            { id: 1, name: "Mold Check", role: "Mold Checker", preparationTime: 2880, isPreparation: true, role_id: 1, isParallel: false },
+            { id: 2, name: "Persiapan Jig Robot", role: "Robot Operator", preparationTime: 1440, isPreparation: true, role_id: 2, isParallel: false },
+            { id: 3, name: "Cleaning Hopper & Crusher", role: "Maintenance", preparationTime: 45, isPreparation: false, role_id: 3, isParallel: true, index: 1 },
+            { id: 4, name: "Set Up Mold", role: "Maintenance", preparationTime: 45, isPreparation: false, role_id: 4, isParallel: true, index: 1},
+            { id: 5, name: "Purging", role: "Maintenance", preparationTime: 30, isPreparation: false, role_id: 5, isParallel: true, index: 2 },
+            { id: 6, name: "Setting Parameter Mesin", role: "Maintenance", preparationTime: 35, isPreparation: false, role_id: 6, isParallel: true, index: 2 },
+            { id: 7, name: "Setting Robot", role: "Robot Operator", preparationTime: 15, isPreparation: false, role_id: 7, isParallel: false },
+            { id: 8, name: "Validasi SUBO", role: "Quality", preparationTime: 30, isPreparation: false, role_id: 8, isParallel: false }
           ]
         }
       ])
@@ -245,18 +263,22 @@ export default function TaskCategories() {
     const formData = new FormData(e.currentTarget)
     
     // Get the preparation time based on whether it's a preparation task or not
-    let preparationTime: string
+    let preparationTime: number
     if (isPreparationTask) {
-      preparationTime = formData.get('preparationHour') as string
+      preparationTime = formData.get('preparationHour') as unknown as number
     } else {
-      preparationTime = `${formData.get('preparationMinutes')} min`
+      preparationTime = formData.get('preparationMinutes') as unknown as number
     }
     
     const newSubTask = {
       name: formData.get('name') as string,
-      role: formData.get('role') as string,
+      role: "",
+      role_id: selectedRole?.id || -1,
       preparationTime,
       isPreparation: isPreparationTask,
+      isParallel: isParallelTask,
+      index: formData.get('index') as unknown as number,
+      
     }
     
     addSubTask(categoryId, newSubTask)
@@ -270,19 +292,22 @@ export default function TaskCategories() {
     const formData = new FormData(e.currentTarget)
     
     // Get the preparation time based on whether it's a preparation task or not
-    let preparationTime: string
+    let preparationTime= 0
     if (editIsPreparationTask) {
-      preparationTime = formData.get('preparationHour') as string
+      preparationTime = formData.get('preparationHour') as unknown as number
     } else {
-      preparationTime = `${formData.get('preparationMinutes')} min`
+      preparationTime = formData.get('preparationMinutes') as unknown as number
     }
     
     const updatedSubTask = {
       id: subtaskId,
       name: formData.get('name') as string,
-      role: formData.get('role') as string,
+      role: '',
+      role_id: selectedRole?.id || -1,
       preparationTime,
       isPreparation: editIsPreparationTask,
+      isParallel: isParallelTask,
+      index: formData.get('index') as unknown as number,
     }
     
     updateSubTask(categoryId, updatedSubTask)
@@ -407,8 +432,7 @@ export default function TaskCategories() {
                 size="sm" 
                 onClick={() => setSelectedCategory(null)}
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
+                <ArrowLeft className="h-8 w-8 mr-2" />
               </Button>
               <h2 className="text-2xl font-bold tracking-tight">{selectedCategory.name}</h2>
             </div>
@@ -440,22 +464,13 @@ export default function TaskCategories() {
                           required
                         />
                       </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
+                      <div className="grid grid-cols-4 items-center gap-4 w-full">
                         <Label htmlFor="role" className="text-right">
                           Role
                         </Label>
-                        <Select name="role" defaultValue={roles[0].id}>
-                          <SelectTrigger className="col-span-3">
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {roles.map(role => (
-                              <SelectItem key={role.id} value={role.id}>
-                                {role.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="col-span-3">
+                        <SearchableRoleSelect value={selectedRole} onValueChange={setSelectedRole}/>
+                        </div>
                       </div>
                       
                       <div className="grid grid-cols-4 items-center gap-4">
@@ -476,7 +491,7 @@ export default function TaskCategories() {
                       
                       <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="preparationTime" className="text-right">
-                          Waktu persiapan
+                          {isPreparationTask ? "Waktu persiapan" : "Durasi"}
                         </Label>
                         <div className="col-span-3">
                           {isPreparationTask ? (
@@ -486,8 +501,8 @@ export default function TaskCategories() {
                               </SelectTrigger>
                               <SelectContent>
                                 {preparationHours.map(hour => (
-                                  <SelectItem key={hour.value} value={hour.value}>
-                                    {hour.label} (h-{hour.value.split('-')[1]})
+                                  <SelectItem key={hour.value} value={String(hour.value)}>
+                                    {hour.label}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -508,6 +523,48 @@ export default function TaskCategories() {
                           )}
                         </div>
                       </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="isParallel" className="text-right">
+                          Sub task Parallel
+                        </Label>
+                        <div className="col-span-3 flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="isParallel"
+                            name="isParallel"
+                            checked={isParallelTask}
+                            onChange={(e) => setIsParallelTask(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                        </div>
+                      </div>
+
+                      { isParallelTask ? (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="index" className="text-right">
+                          Index
+                        </Label>
+                        <div className="col-span-3">
+                          
+                            <Select name="index" defaultValue="h-2">
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select Index" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {index.map(i => (
+                                  <SelectItem key={i.value} value={String(i.value)}>
+                                    {i.value}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Label className="text-xs text-muted-foreground">
+                            (Subtask yang Parallel harus memiliki index yang sama)
+                          </Label>
+                        </div>
+                      </div>) : <></>}
+
                     </div>
                     <DialogFooter>
                       <Button type="submit">Add Subtask</Button>
@@ -527,7 +584,7 @@ export default function TaskCategories() {
                       <p className="font-medium">{subtask.name}</p>
                       <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                         <span>{subtask.role}</span>
-                        <span>{subtask.preparationTime}</span>
+                        <span>{subtask.preparationTime} min</span>
                         {subtask.isPreparation && (
                           <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">Preparation</span>
                         )}
@@ -673,18 +730,9 @@ export default function TaskCategories() {
                   <Label htmlFor="edit-subtask-role" className="text-right">
                     Role
                   </Label>
-                  <Select name="role" defaultValue={editingSubTask.subtask.role}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map(role => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="col-span-3">
+                  <SearchableRoleSelect value={selectedRole} onValueChange={setSelectedRole}/>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -705,7 +753,7 @@ export default function TaskCategories() {
                 
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-subtask-time" className="text-right">
-                    Waktu persiapan
+                    {editIsPreparationTask ? "Waktu persiapan" : "Durasi"}
                   </Label>
                   <div className="col-span-3">
                     {editIsPreparationTask ? (
@@ -713,8 +761,8 @@ export default function TaskCategories() {
                         name="preparationHour" 
                         defaultValue={
                           editingSubTask.subtask.isPreparation 
-                            ? editingSubTask.subtask.preparationTime 
-                            : "h-2"
+                            ? String(editingSubTask.subtask.preparationTime)
+                            : "2880"
                         }
                       >
                         <SelectTrigger className="w-full">
@@ -722,8 +770,8 @@ export default function TaskCategories() {
                         </SelectTrigger>
                         <SelectContent>
                           {preparationHours.map(hour => (
-                            <SelectItem key={hour.value} value={hour.value}>
-                              {hour.label} (h-{hour.value.split('-')[1]})
+                            <SelectItem key={String(hour.value)} value={String(hour.value)}>
+                              {hour.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -734,11 +782,12 @@ export default function TaskCategories() {
                           id="preparationMinutes"
                           name="preparationMinutes"
                           type="number"
+
                           min="1"
                           placeholder="Duration"
                           defaultValue={
                             !editingSubTask.subtask.isPreparation 
-                              ? editingSubTask.subtask.preparationTime.split(' ')[0] 
+                              ? editingSubTask.subtask.preparationTime 
                               : "30"
                           }
                           className="flex-1"
@@ -749,6 +798,46 @@ export default function TaskCategories() {
                     )}
                   </div>
                 </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="isParallel" className="text-right">
+                          Sub task Parallel
+                        </Label>
+                        <div className="col-span-3 flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="isParallel"
+                            name="isParallel"
+                            checked={isParallelTask}
+                            onChange={(e) => setIsParallelTask(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                        </div>
+                      </div>
+
+                      { isParallelTask ? (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="index" className="text-right">
+                          Index
+                        </Label>
+                        <div className="col-span-3">
+                          
+                            <Select name="index" defaultValue="h-2">
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select Index" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {index.map(i => (
+                                  <SelectItem key={i.value} value={String(i.value)}>
+                                    {i.value}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Label className="text-xs text-muted-foreground">
+                            (Subtask yang Parallel harus memiliki index yang sama)
+                          </Label>
+                        </div>
+                      </div>) : <></>}
               </div>
               <DialogFooter>
                 <Button type="submit">Save changes</Button>

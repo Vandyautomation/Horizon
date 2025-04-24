@@ -118,18 +118,18 @@ function InjectionMoldingMachine({
   onClick: () => void;
   isSelected: boolean;
 }) {
-  const { scene } = useGLTF('/admin/assets/3d/uv-spray.glb');
+  const { scene } = useGLTF('/admin/assets/3d/spray-booth-color.glb');
   const clonedScene = useMemo(() => scene?.clone(), [scene]);
 
   useEffect(() => {
     if (clonedScene) {
       clonedScene.traverse((child) => {
         if ((child as any).isMesh && (child as Mesh).material) {
-          const originalColor = new Color(statusColors[machine?.status]);
+          // const originalColor = new Color(statusColors[machine?.status]);
           (child as any).material = new MeshStandardMaterial({
             ...((child as any).material as any),
-            color: originalColor,
-            emissive: originalColor.clone().multiplyScalar(0.3),
+            // color: originalColor,
+            // emissive: originalColor.clone().multiplyScalar(0.3),
             metalness: 0.9,
             roughness: 0.3,
           });
@@ -142,7 +142,7 @@ function InjectionMoldingMachine({
     <group position={machine.position} onClick={onClick}>
       <primitive
         object={clonedScene}
-        scale={[0.07, 0.07, 0.07]}
+        scale={[1, 1, 1]}
         rotation={[
           machine.rotation[0],
           machine.rotation[1],
@@ -412,18 +412,18 @@ export default function ShopfloorUvDashboard() {
       return promise;
     },
     {
-      refreshInterval: 10000,
+      refreshInterval: 30000,
     }
   );
 
   // Log fetch results
-  useEffect(() => {
-    if (error) {
-      console.error("Error fetching buildings data:", error);
-    } else if (rawBuildings) {
-      console.log("Buildings data fetched:", rawBuildings);
-    }
-  }, [rawBuildings, error]);
+  // useEffect(() => {
+  //   if (error) {
+  //     console.error("Error fetching buildings data:", error);
+  //   } else if (rawBuildings) {
+  //     console.log("Buildings data fetched:", rawBuildings);
+  //   }
+  // }, [rawBuildings, error]);
 
   // Filter out machines with null positions and update state
   useEffect(() => {
@@ -455,7 +455,7 @@ export default function ShopfloorUvDashboard() {
         };
       });
   
-      console.log(`filtered buildings: ${JSON.stringify(filteredBuildings)}`)
+      // console.log(`filtered buildings: ${JSON.stringify(filteredBuildings)}`)
       
       setBuildings(filteredBuildings as Building[]);
       setRefreshTime(new Date().toLocaleTimeString())
@@ -497,8 +497,8 @@ export default function ShopfloorUvDashboard() {
     if (queryLocation && buildings && Array.isArray(buildings)) {
       const foundBuilding = buildings.find(building => building.name === queryLocation);
       if (foundBuilding) {
-        setSelectedBuilding(foundBuilding);
         router.push(`${pathname}?${params.toString()}`);
+        setSelectedBuilding(foundBuilding);
         // console.log(`machine building from query : ${queryLocation}`);
       }
     }
