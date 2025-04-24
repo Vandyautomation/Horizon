@@ -591,7 +591,7 @@ export default function CountboardDashboardUv() {
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/task`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({"poNumber":selectedPO, "machineName": selectedMachine?.machineName }),
+          body: JSON.stringify({"poNumber":selectedPO?.poNumber, "machineName": selectedMachine?.machineName }),
         });
 
         if (!response.ok) {

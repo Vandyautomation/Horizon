@@ -118,18 +118,18 @@ function InjectionMoldingMachine({
   onClick: () => void;
   isSelected: boolean;
 }) {
-  const { scene } = useGLTF('/admin/assets/3d/uv-spray.glb');
+  const { scene } = useGLTF('/admin/assets/3d/spray-booth-color.glb');
   const clonedScene = useMemo(() => scene?.clone(), [scene]);
 
   useEffect(() => {
     if (clonedScene) {
       clonedScene.traverse((child) => {
         if ((child as any).isMesh && (child as Mesh).material) {
-          const originalColor = new Color(statusColors[machine?.status]);
+          // const originalColor = new Color(statusColors[machine?.status]);
           (child as any).material = new MeshStandardMaterial({
             ...((child as any).material as any),
-            color: originalColor,
-            emissive: originalColor.clone().multiplyScalar(0.3),
+            // color: originalColor,
+            // emissive: originalColor.clone().multiplyScalar(0.3),
             metalness: 0.9,
             roughness: 0.3,
           });
@@ -142,7 +142,7 @@ function InjectionMoldingMachine({
     <group position={machine.position} onClick={onClick}>
       <primitive
         object={clonedScene}
-        scale={[0.07, 0.07, 0.07]}
+        scale={[1, 1, 1]}
         rotation={[
           machine.rotation[0],
           machine.rotation[1],
