@@ -412,18 +412,18 @@ export default function ShopfloorUvDashboard() {
       return promise;
     },
     {
-      refreshInterval: 10000,
+      refreshInterval: 30000,
     }
   );
 
   // Log fetch results
-  useEffect(() => {
-    if (error) {
-      console.error("Error fetching buildings data:", error);
-    } else if (rawBuildings) {
-      console.log("Buildings data fetched:", rawBuildings);
-    }
-  }, [rawBuildings, error]);
+  // useEffect(() => {
+  //   if (error) {
+  //     console.error("Error fetching buildings data:", error);
+  //   } else if (rawBuildings) {
+  //     console.log("Buildings data fetched:", rawBuildings);
+  //   }
+  // }, [rawBuildings, error]);
 
   // Filter out machines with null positions and update state
   useEffect(() => {
@@ -455,7 +455,7 @@ export default function ShopfloorUvDashboard() {
         };
       });
   
-      console.log(`filtered buildings: ${JSON.stringify(filteredBuildings)}`)
+      // console.log(`filtered buildings: ${JSON.stringify(filteredBuildings)}`)
       
       setBuildings(filteredBuildings as Building[]);
       setRefreshTime(new Date().toLocaleTimeString())
@@ -497,8 +497,8 @@ export default function ShopfloorUvDashboard() {
     if (queryLocation && buildings && Array.isArray(buildings)) {
       const foundBuilding = buildings.find(building => building.name === queryLocation);
       if (foundBuilding) {
-        setSelectedBuilding(foundBuilding);
         router.push(`${pathname}?${params.toString()}`);
+        setSelectedBuilding(foundBuilding);
         // console.log(`machine building from query : ${queryLocation}`);
       }
     }
