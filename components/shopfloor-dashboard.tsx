@@ -563,7 +563,7 @@ export default function ShopfloorDashboard() {
         };
       });
   
-      console.log(`filtered buildings: ${JSON.stringify(filteredBuildings)}`)
+      // console.log(`filtered buildings: ${JSON.stringify(filteredBuildings)}`)
       
       setBuildings(filteredBuildings as Building[]);
       setRefreshTime(new Date().toLocaleTimeString())
@@ -585,12 +585,6 @@ export default function ShopfloorDashboard() {
 
   const router = useRouter();
   const pathname = usePathname();
-  useEffect(() => {
-    if (buildings && buildings.length > 0 && !selectedBuilding) {
-      setSelectedBuilding(buildings[0]);
-      // console.log(buildings[0]);
-    }
-  }, [buildings, selectedBuilding]);
 
   const searchParams = useSearchParams();
   const params = new URLSearchParams(searchParams);
