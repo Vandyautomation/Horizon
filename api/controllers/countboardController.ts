@@ -34,8 +34,8 @@ export async function addRouting(data: any[][]) {
       INSERT INTO IoT.dbo.routing (
         material_id, 
         material_name, 
-        cvt,
         ct,
+        cvt,
         created_at,
         modified_at,
         is_sync
