@@ -306,10 +306,10 @@ function InjectionMoldingMachine({
             isSelected ? 'font-bold' : ''
           }`}
         >
-          {machine.consumption} { machine.consumption != null ? 'kWh': '-'}
+          ⚡️{machine.consumption} { machine.consumption != null ? 'kWh': '-'}
         </div>
       </Html>
-      <Html position={[0, 0, 3]} center>
+      <Html position={[0, 4.5, 0]} center>
         <div
           style={{
             backgroundColor: 'black',
@@ -319,7 +319,7 @@ function InjectionMoldingMachine({
             isSelected ? 'font-bold' : ''
           }`}
         >
-          {machine.cycletime} { machine.cycletime != null ? 's': '-'}
+          🕑{machine.cycletime} { machine.cycletime != null ? 's': '-'}
         </div>
       </Html>
       {/* <group position={[0, 3, -3]} rotation={[0, Math.PI / 2, 0]}>
