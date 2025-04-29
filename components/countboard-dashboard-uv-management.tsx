@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import {
   Select,
@@ -22,6 +23,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { ResponsiveContainer, XAxis, YAxis, BarChart, Bar, ReferenceLine, Cell, PolarRadiusAxis, RadialBar, RadialBarChart, CartesianGrid, Line } from "recharts"
+import { Label as RechartsLabel }  from "recharts"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart"
 
 import Image from 'next/image'
 import {   Box, CalendarIcon, FilePlus2, Pencil, RefreshCw } from "lucide-react"
@@ -40,7 +44,7 @@ import { format } from "date-fns/format"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { cn } from "@/lib/utils"
 import { Switch } from "./ui/switch"
-import ChangeState from "./change-state"
+
 
 
 type MachineDetail = {
@@ -133,6 +137,39 @@ type NooeData = {
 type Spindle = {
   SpindleSTD: number;
   SpindleACT: number;
+  created_at: Date;
+  totalCountProductIn: number;
+  totalCountSpindleIn: number;
+  highestCountProductIn: number;
+  highestCountProductInCurrentCycle: number;
+  highestCountSpindleIn: number;
+  highestCountSpindleInCurrentCycle: number;
+  totalCountProductOut: number;
+  totalCountSpindleOut: number;
+  highestCountProductOut: number;
+  highestCountProductOutCurrentCycle: number;
+  highestCountSpindleOut: number;
+  highestCountSpindleOutCurrentCycle: number;
+  count_in_product: number;
+  last_data_in_product: number;
+  count_in_spindle: number;
+  last_data_in_spindle: number;
+  count_out_product: number;
+  last_data_out_product: number;
+  count_out_spindle: number;
+  last_data_out_spindle: number;
+  count_start: number;
+  last_data_start: number;
+  last_data_reject_a: number;
+  last_data_reject_b: number;
+  last_data_reject_c: number;
+  last_data_reject_d: number;
+  last_data_reject_e: number;
+  count_reject_a: number;
+  count_reject_b: number;
+  count_reject_c: number;
+  count_reject_d: number;
+  count_reject_e: number;
 }
 
 type StateData = {
@@ -146,7 +183,7 @@ type RejectList = {
   name: string
 }
 const refreshRateList = [
-  '5000','15000','30000','60000'
+  '15000','30000','60000'
 ]
 
 const shiftList = ['1','2','3']
@@ -172,7 +209,7 @@ export default function CountboardDashboardUvManagement() {
   const [selectedProcess, setSelectedProcess] = useState('');
 
   const [selectedPO, setSelectedPO] = useState('');
-  const [selectedRefreshRate, setRefreshRate] = useState('5000');
+  const [selectedRefreshRate, setRefreshRate] = useState('15000');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedShift, setSelectedShift] = useState('');
@@ -409,8 +446,8 @@ export default function CountboardDashboardUvManagement() {
 
 
     if (isLiveMode == false) {
-      setRefreshRate('5000')
-      params.set("refresh", '5000');
+      setRefreshRate('15000')
+      params.set("refresh", '15000');
       params.delete("date");
       params.delete("shift");
     } else if (isLiveMode == true){
@@ -631,8 +668,8 @@ export default function CountboardDashboardUvManagement() {
 
   }
   if (queryRefreshRate == '') {
-    queryRefreshRate = '5000';
-    params.set('refresh', '5000');
+    queryRefreshRate = '15000';
+    params.set('refresh', '15000');
     router.push(`${pathname}?${params.toString()}`);
   }
   if (queryLiveMode == '' ) {
@@ -771,7 +808,11 @@ export default function CountboardDashboardUvManagement() {
   const totalRejectC = topRejectC.value
   const totalRejectD = topRejectD.value
   const totalRejectE = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_e || 0), 0) || 0
+
   const totalRejectOverall = totalRejectA + totalRejectB + totalRejectC + totalRejectD + totalRejectE
+
+  const rejectDataGauge = [{ target: 9, actual: 14, full: 100 }]
+  // (totalRejectOverall / totalOutput) * 100
 
   // Get top reject names
   const TopRejectAName = topRejectA.name
@@ -1019,38 +1060,11 @@ export default function CountboardDashboardUvManagement() {
       {selectedMachine === null && isLoading == false ? (
         <div className="text-center">Please select machine...</div>
       ) : (
-      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-1/2">
-        {/* <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/> */}
-        <Card className="w-full ">
-          <CardHeader className="py-2 text-lg font-medium">Spindles</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4 items-center align-middle justify-center p-0 pt-6">
-            <div>
-                <div className={`text-2xl font-bold ${getSpindleColor(
-                Array.isArray(spindleData) && spindleData.length > 0 
-                  ? spindleData.reduce((sum, spindle) => sum + (spindle.SpindleACT || 0), 0) / spindleData.length 
-                  : 0,
-                spindleData?.[0]?.SpindleSTD ?? 0
-                )}`}>
-                {Array.isArray(spindleData) && spindleData.length > 0 
-                  ? Math.round(spindleData.reduce((sum, spindle) => sum + (spindle.SpindleACT || 0), 0) / spindleData.length) 
-                  : 0}
-                </div>
-              <div className="text-sm text-muted-foreground">Average</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{spindleData?.[0]?.SpindleSTD ?? 0}</div>
-              <div className="text-sm text-muted-foreground">Target</div>
-            </div>
-            <div>
-              <div className={`text-2xl font-bold ${getSpindleColor(spindleData?.[0]?.SpindleACT ?? 0, spindleData?.[0]?.SpindleSTD ?? 0)}`}>{(((spindleData?.[0]?.SpindleACT ?? 0) / (spindleData?.[0]?.SpindleSTD ?? 1)) * 100).toFixed(2)}%</div>
-              <div className="text-sm text-muted-foreground">Achieve</div>
-            </div>
-          </CardContent>
-        </Card>
-        
+      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center">
+        {/* <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/> */}        
         <Card className="p-0 w-full ">
           <CardHeader className="py-2 text-lg font-medium">Production Status</CardHeader>
-          <CardContent className="grid grid-cols-4 gap-4 items-center align-middle justify-center p-0 pt-6">
+          <CardContent className="grid grid-cols-4 gap-4 items-center align-middle justify-center p-0">
             <div>
             <div className="text-2xl font-bold text-green-500">{totalInput}</div>
               <div className="text-sm text-muted-foreground">Input Product</div>
@@ -1071,95 +1085,363 @@ export default function CountboardDashboardUvManagement() {
           </CardContent>
         </Card>
 
+        <Card className="w-full ">
+          <CardHeader className="py-2 text-lg font-medium">Spindles</CardHeader>
+          <CardContent className="grid grid-cols-3 gap-4 items-center align-middle justify-center p-0 ">
+            <div>
+                {/* <div className={`text-2xl font-bold ${getSpindleColor(
+                Array.isArray(spindleData) && spindleData.length > 0 
+                  ? spindleData.reduce((sum, spindle) => sum + (spindle.SpindleACT || 0), 0) / spindleData.length 
+                  : 0,
+                spindleData?.[0]?.SpindleSTD ?? 0
+                )}`}>
+                {Array.isArray(spindleData) && spindleData.length > 0 
+                  ? Math.round(spindleData.reduce((sum, spindle) => sum + (spindle.SpindleACT || 0), 0) / spindleData.length) 
+                  : 0}
+                </div> */}
+                 <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className={`text-2xl font-bold ${getSpindleColor(spindleData?.[spindleData.length -1 ]?.SpindleACT ?? 0, spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0)}`}>
+                    {spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Highest count cycle sebelumnya</p>
+                  </TooltipContent>
+                  </Tooltip>
+              <div className="text-sm text-muted-foreground">Actual</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{spindleData?.[0]?.SpindleSTD ?? 0}</div>
+              <div className="text-sm text-muted-foreground">Target</div>
+            </div>
+            <div>
+              <div className={`text-2xl font-bold ${getSpindleColor(spindleData?.[0]?.SpindleACT ?? 0, spindleData?.[0]?.SpindleSTD ?? 0)}`}>{(((spindleData?.[0]?.SpindleACT ?? 0) / (spindleData?.[0]?.SpindleSTD ?? 1)) * 100).toFixed(2)}%</div>
+              <div className="text-sm text-muted-foreground">Achieve</div>
+            </div>
+          </CardContent>
+        </Card>
+
       </div> 
       )} 
       {selectedMachine === null ? (
         null
       ) : (
       <div className="p-0 w-full space-y-4 justify-between flex flex-col">
-        <Card>
-          <CardHeader className="py-2 text-lg font-medium items-center">Scrap Status</CardHeader>
-          <CardContent className="grid grid-cols-5 gap-8 items-center align-middle justify-center pb-8 pt-8 text-center">
-            <div>
-              <div className={`text-2xl font-bold `}>{totalRejectA}</div>
-              <div className="text-sm text-muted-foreground">{TopRejectAName}</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{totalRejectB}</div>
-              <div className="text-sm text-muted-foreground">{TopRejectBName}</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{totalRejectC}</div>
-              <div className="text-sm text-muted-foreground">{TopRejectCName}</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{totalRejectD}</div>
-              <div className="text-sm text-muted-foreground">{TopRejectDName}</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{totalRejectE}</div>
-              <div className="text-sm text-muted-foreground">{TopRejectEName}</div>
-            </div>
+        
+            
+        <div className="flex gap-2"> 
+      <Card className="flex flex-col w-1/2">
+      <CardHeader className="items-center pb-0">
+      </CardHeader>
+      <CardContent className="flex flex-1 items-center pb-0">
+        <div className="h-full w-1/2">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart
+              data={spindleData?.map((item, index, array) => {
+          // Calculate cycle time based on count_start incremental differences
+          const prevItem = index > 0 ? array[index - 1] : null;
+          const countDiff = prevItem ? item.count_start - prevItem.count_start : 0;
+          // Avoid division by zero and handle first item
+          const cycleTime = countDiff > 0 ? 3600 / countDiff : 0; // seconds per cycle (3600 sec = 1 hour)
+          
+          return {
+            time: item.created_at ? new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : 'N/A',
+            cycleTime: cycleTime > 0 && cycleTime < 100 ? cycleTime : null, // Filter out extreme values
+            countDiff
+          };
+              }).filter(item => item.cycleTime !== null)}
+              margin={{ top: 5, right: 30, left: 20, bottom: 35 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+          dataKey="time" 
+          angle={-45} 
+          textAnchor="end" 
+          tick={{ fontSize: 10 }}
+          height={60} 
+              />
+              <YAxis 
+          label={{ value: 'Cycle Time (sec)', angle: -90, position: 'insideLeft' }}
+          domain={['auto', 'auto']}
+              />
+              <ChartTooltip 
+          formatter={(value, name) => [
+            `${typeof value === 'number' ? value.toFixed(2) : value} seconds`, 
+            "Cycle Time"
+          ]} 
+              />
+              <Bar 
+          dataKey="cycleTime" 
+          fill="hsl(var(--chart-4))" 
+          radius={[4, 4, 0, 0]}
+          name="Cycle Time"
+              >
+          {spindleData?.map((entry, index, array) => {
+            const prevItem = index > 0 ? array[index - 1] : null;
+            const countDiff = prevItem ? entry.count_start - prevItem.count_start : 0;
+            const cycleTime = countDiff > 0 ? 3600 / countDiff : 0;
+            // Color bars based on cycle time performance
+            const targetCycleTime = entry.SpindleSTD > 0 ? 3600 / entry.SpindleSTD : 0;
+            return (
+              <Cell 
+                key={`cell-${index}`} 
+                fill={cycleTime <= targetCycleTime ? "hsl(var(--success))" : "hsl(var(--destructive))"}
+              />
+            );
+          })}
+              </Bar>
+              <ReferenceLine 
+          y={spindleData?.[0]?.SpindleSTD || 0 > 0 ? 3600 / (spindleData?.[0]?.SpindleSTD || 1) : 0}
+          stroke="hsl(var(--chart-1))" 
+          strokeDasharray="3 3"
+          label={{ value: 'Target Cycle', position: 'top', fill: 'hsl(var(--chart-1))' }} 
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <ChartContainer
+          config={{
+        target: {
+          label: 'Target',
+          color: 'hsl(var(--chart-1))'
+        },
+        actual: {
+          label: 'Actual',
+          color: 'hsl(var(--chart-2))'
+        }
+          }}
+          className="mx-auto aspect-square w-full max-w-[250px]"
+        >
+          <RadialBarChart
+          data={[{ 
+            value: ((totalRejectOverall / totalOutput) * 100) || 0, 
+            fill: (totalRejectOverall/totalOutput) > targetScrap ? "hsl(var(--destructive))" : "hsl(var(--success))",
+            target: targetScrap * 100
+          }]}
+        startAngle={180}
+        endAngle={0}
+        innerRadius={100}
+        outerRadius={140}
+        barSize={20}
+          >
+        <PolarRadiusAxis
+          angle={90}
+          domain={[0, 20]}
+          tick={false}
+          tickLine={false}
+          axisLine={false}
+        />
+        <RadialBar
+          background
+          dataKey="value"
+          fill="fill"
+          cornerRadius={10}
+          className="stroke-transparent"
+        />
+        <RechartsLabel
+          content={({ viewBox }) => {
+            if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+          return (
+            <g>
+              <text 
+            x={viewBox.cx} 
+            y={(viewBox.cy || 0) - 15} 
+            textAnchor="middle"
+            className="fill-foreground text-3xl font-bold"
+              >
+            {((totalRejectOverall / totalOutput) * 100).toFixed(2)}%
+              </text>
+              <text 
+            x={viewBox.cx} 
+            y={(viewBox.cy || 0) + 15} 
+            textAnchor="middle"
+            className="fill-muted-foreground text-sm"
+              >
+            Scrap Rate
+              </text>
+              <text 
+            x={viewBox.cx} 
+            y={(viewBox.cy || 0) + 40} 
+            textAnchor="middle"
+            className="fill-muted-foreground text-xs"
+              >
+            Target: {(targetScrap * 100).toFixed(2)}%
+              </text>
+            </g>
+          );
+            }
+            return null;
+          }}
+        />
+          </RadialBarChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+    <Card className="flex flex-col w-1/2">
+      <CardHeader className="items-center pb-0">
+      </CardHeader>
+      <CardContent className="flex flex-1 items-center pb-0">
+        <div className="h-full w-1/2">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart
+              data={[
+                { name: TopRejectAName || 'N/A', value: totalRejectA, percent: (totalRejectA / totalRejectOverall) * 100 || 0 },
+                { name: TopRejectBName || 'N/A', value: totalRejectB, percent: (totalRejectB / totalRejectOverall) * 100 || 0 },
+                { name: TopRejectCName || 'N/A', value: totalRejectC, percent: (totalRejectC / totalRejectOverall) * 100 || 0 },
+                { name: TopRejectDName || 'N/A', value: totalRejectD, percent: (totalRejectD / totalRejectOverall) * 100 || 0 },
+                { name: TopRejectEName || 'N/A', value: totalRejectE, percent: (totalRejectE / totalRejectOverall) * 100 || 0 }
+              ].sort((a, b) => b.value - a.value)}
+              margin={{ top: 5, right: 30, left: 20, bottom: 35 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="name" 
+                angle={-45} 
+                textAnchor="end" 
+                tick={{ fontSize: 10 }}
+                height={60} 
+              />
+              <YAxis yAxisId="left" orientation="left" />
+              <YAxis 
+                yAxisId="right" 
+                orientation="right" 
+                tickFormatter={(value) => `${value}%`}
+                domain={[0, 100]}
+              />
+              <ChartTooltip 
+                formatter={(value, name, props) => [
+                  `${value} (${props.payload.percent.toFixed(2)}%)`, 
+                  "Quantity"
+                ]} 
+              />
+              <Bar 
+                yAxisId="left" 
+                dataKey="value" 
+                fill="hsl(var(--chart-2))" 
+                radius={[4, 4, 0, 0]}
+              />
+              <Line 
+                yAxisId="right" 
+                type="monotone" 
+                dataKey="percent" 
+                stroke="hsl(var(--chart-1))" 
+                strokeWidth={2} 
+                dot={{ fill: "hsl(var(--chart-1))", r: 4 }}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <ChartContainer
+          config={{
+        target: {
+          label: 'Target',
+          color: 'hsl(var(--chart-1))'
+        },
+        actual: {
+          label: 'Actual',
+          color: 'hsl(var(--chart-2))'
+        }
+          }}
+          className="mx-auto aspect-square w-full max-w-[250px]"
+        >
+          <RadialBarChart
+          data={[{ 
+            value: ((totalRejectOverall / totalOutput) * 100) || 0, 
+            fill: (totalRejectOverall/totalOutput) > targetScrap ? "hsl(var(--destructive))" : "hsl(var(--success))",
+            target: targetScrap * 100
+          }]}
+        startAngle={180}
+        endAngle={0}
+        innerRadius={100}
+        outerRadius={140}
+        barSize={20}
+          >
+        <PolarRadiusAxis
+          angle={90}
+          domain={[0, 20]}
+          tick={false}
+          tickLine={false}
+          axisLine={false}
+        />
+        <RadialBar
+          background
+          dataKey="value"
+          fill="fill"
+          cornerRadius={10}
+          className="stroke-transparent"
+        />
+        <RechartsLabel
+          content={({ viewBox }) => {
+            if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+          return (
+            <g>
+              <text 
+            x={viewBox.cx} 
+            y={(viewBox.cy || 0) - 15} 
+            textAnchor="middle"
+            className="fill-foreground text-3xl font-bold"
+              >
+            {((totalRejectOverall / totalOutput) * 100).toFixed(2)}%
+              </text>
+              <text 
+            x={viewBox.cx} 
+            y={(viewBox.cy || 0) + 15} 
+            textAnchor="middle"
+            className="fill-muted-foreground text-sm"
+              >
+            Scrap Rate
+              </text>
+              <text 
+            x={viewBox.cx} 
+            y={(viewBox.cy || 0) + 40} 
+            textAnchor="middle"
+            className="fill-muted-foreground text-xs"
+              >
+            Target: {(targetScrap * 100).toFixed(2)}%
+              </text>
+            </g>
+          );
+            }
+            return null;
+          }}
+        />
+          </RadialBarChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
 
-            <div className="col-span-2 items-center align-middle justify-center grid">
-              <div className="text-2xl font-bold">{totalRejectOverall}</div>
-              <div className="text-sm text-muted-foreground">Cummulative Scrap</div>
-            </div>
+    </div>
 
-            <div>
-              <div className="text-2xl font-bold">{(targetScrap * 100).toFixed(2)}%</div>
-              <div className="text-sm text-muted-foreground">%Target Scrap</div>
-            </div>
-
-              <div className="col-span-2 items-center align-middle justify-center grid">
-                <div className={`text-2xl font-bold ${(totalRejectOverall/totalOutput) > targetScrap ? "text-green-500" : "text-red-500"}`}>{(((totalRejectOverall )/ totalOutput ) * 100).toFixed(2)}%</div>
-                  <div className={`text-sm text-muted-foreground `}>%Scrap</div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* <TooltipProvider>
-            <Card className="w-full">
-
-              <CardContent>
-              <div className="w-full flex overflow-x-auto">
-              <Table>
-                <TableHeader>
-                <TableRow>
+<div className="flex gap-2"> 
+        <TooltipProvider>
+        <Card className="w-1/2">
+          <CardContent>
+            <div className="w-full flex overflow-x-auto">
+            <Table>
+              <TableHeader>
+              <TableRow>
                   <TableHead className="w-[60px]"></TableHead>
                   <TableHead className="w-[60px]"></TableHead>
                   <TableHead className="w-[60px]"></TableHead>
-                  <TableHead className="w-[250px] text-center"></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
                   <TableHead colSpan={5} className="text-center">Scrap Actual</TableHead>
                   <TableHead></TableHead>
                   <TableHead></TableHead>
                   <TableHead></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
+                  <TableHead className="w-[125px] truncate text-center"></TableHead>
+                  <TableHead className="w-[125px] truncate text-center"></TableHead>
                 </TableRow>
                 <TableRow>
                   <TableHead className="w-[60px]">Time</TableHead>
                   <TableHead className="w-[60px]">ItemNo</TableHead>
                   <TableHead className="w-[60px]">Target</TableHead>
-                  <TableHead className="w-[250px] text-center">Actual Qty</TableHead>
-                  <TableHead className="w-[60px] text-center">Delta</TableHead>
                   <TableHead className="w-[50px] text-center">SCRAP TOTAL</TableHead>
-                  <TableHead className="w-[50px] text-center">%SCRAP</TableHead>
+                  <TableHead className="w-[50px] text-center">% SCRAP</TableHead>
                   <TableHead className="w-[50px] text-center">A</TableHead>
                   <TableHead className="w-[50px] text-center">B</TableHead>
                   <TableHead className="w-[50px] text-center">C</TableHead>
                   <TableHead className="w-[50px] text-center">D</TableHead>
                   <TableHead className="w-[50px] text-center">E</TableHead>
-                  <TableHead className="w-[100px] text-center">NOOE</TableHead>
-                  <TableHead className="w-[200px] text-center">Actual Input vs Output</TableHead>
-                  <TableHead className="w-[60px] text-center">Gap</TableHead>
-                  <TableHead className="w-[125px] text-center">Causes</TableHead>
-                  <TableHead className="w-[125px] text-center">Comments/Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1173,40 +1455,6 @@ export default function CountboardDashboardUvManagement() {
                       <TableCell className="h-full">{row.time}</TableCell>
                       <TableCell className="h-full">{row.itemNo}</TableCell>
                       <TableCell className="text-center h-full">{row.target}</TableCell>
-                      <TableCell className="relative overflow-hidden h-full">
-                      <div className="flex items-center h-full w-full">
-                        {(() => {
-                          const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.target), 0) || 100;
-                          return (
-                            <>
-                              <div
-                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
-                                style={{
-                                  width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
-                                  maxWidth: "250px",
-                                }}
-                              />
-                              <div
-                                className="absolute inset-0 h-full w-px bg-green-600"
-                                style={{
-                                  left: `${Math.min((row.target / maxValue) * 100, 100)}%`, // Accurate target position
-                                }}
-                              />
-                              <div
-                                className="absolute inset-0 h-full w-px bg-yellow-500"
-                                style={{
-                                  left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`, // Accurate tolerance position
-                                }}
-                              />
-                            </>
-                          );
-                        })()}
-                        <span className="relative z-10 ml-2">{row.actual} ({row.process || "N/A"})</span>
-                      </div>
-                    </TableCell>
-
-
-                      <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.delta}</TableCell>
                       <TableCell className="text-center">{row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e || 0}</TableCell>
                       <TableCell className="text-center">{isNaN(((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual || 0)*100) ? 0 : (((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual || 0)*100).toFixed(2)}</TableCell>
                       <TableCell className="text-center">
@@ -1255,71 +1503,12 @@ export default function CountboardDashboardUvManagement() {
                       </TableCell>
 
 
-                      <TableCell className="w-24 py-0 h-full">
-                      {renderNooeIndicators(row.hourlyId)}
-                      </TableCell>
-
-                      <TableCell className="relative overflow-hidden h-full">
-                      <div className="flex items-center h-full w-full">
-                      {(() => {
-                          const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.actual_in), 0) || 100;
-                          return (
-                            <>
-                              <div
-                                className={`absolute inset-0 h-full rounded z-10 ${getBarColor(row.actual, row.actual_in, row.actual_in)}`}
-                                style={{
-                                  width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
-                                  maxWidth: "200px",
-                                }}
-                              />
-                              <div
-                                className="absolute inset-0 h-full w-px z-20 bg-blue-300"
-                                style={{
-                                  left: `${Math.min((row.actual_in / maxValue) * 100, 100)}%`, // Accurate target position
-                                }}
-                              />
-                              <div
-                                className="absolute inset-0 h-full rounded z-5 bg-blue-300"
-                                style={{
-                                  width: `${Math.min((row.actual_in / maxValue) * 100, 100)}%`, // Accurate target position
-                                  maxWidth: "200px",
-                                }} />
-                            </>
-                          );
-                        })()}
-                          <span className="relative z-30 ml-2">{row.actual}</span>
-                      </div>
-                      </TableCell>
-                      <TableCell className="text-center" style={{color: row.actual >= row.actual_in ? "green" : "red"}} >{row.gap}</TableCell>
-
-
-
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)} className="text-center">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>{row.causes || 'N/A'}</span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{row.causes ? 'Click to edit causes' : 'Click to add causes'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)} className="text-center">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>{row.comments || 'N/A'}</span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{row.comments ? 'Click to edit comments' : 'Click to add comments'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TableCell>
                     </TableRow>
                   ))
                 )}
 
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center"></TableCell>
+                    <TableCell colSpan={5} className="text-center"></TableCell>
                     <TableCell className={`text-center ${isNaN(totalRejectA / totalRejectOverall) ? '' : totalRejectA / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectA / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
                       {isNaN(totalRejectA / totalRejectOverall) ? 0 : ((totalRejectA / totalRejectOverall)*100).toFixed(2)}%
                     </TableCell>
@@ -1341,183 +1530,79 @@ export default function CountboardDashboardUvManagement() {
             </div>
           </CardContent>
         </Card>
-        </TooltipProvider> */}
+        </TooltipProvider>
 
-        {/* <div className="flex gap-2">
-          
-        </div> */}
-        {/* <div className="w-full border border-gray-250 rounded-md">
-        {selectedMachine?.machineName ? (
-          // <ChangeState data={stateData} />
-        <iframe
-          src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
-          width="100%" 
-          height="150"
-        ></iframe>
-        ) : (
-          <></>
-        )}
-        </div> */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{selectedComment.type === 'causes' ? 'Edit Causes' : 'Edit Comments/Actions'}</DialogTitle>
-            </DialogHeader>
-            <DialogDescription className="p-0 m-0">Provide your message here</DialogDescription>
-            <Textarea
-              value={selectedComment.content}
-              onChange={(e) => setSelectedComment({ ...selectedComment, content: e.target.value })}
-              placeholder={`Enter ${selectedComment.type}...`}
-              className="min-h-[100px]"
-            />
-            <DialogFooter>
-              <Button onClick={handleCommentSave}>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Card className="w-1/2">
+        <CardHeader className="py-2 text-md font-medium">Spindle</CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 items-center align-middle justify-center p-0 ">
+                     <ChartContainer
+                        config={{
+                          consumption: {
+                            label: 'Spindle',
+                            color: 'hsl(var(--chart-3))',
+                          },
+                        }}
+                        className="h-full w-full"
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={spindleData}
+                            layout="horizontal"
+                            barSize={Math.max(100 / 24, 40)} // Dynamic bar sizing
+                            barGap={0}
+                            barCategoryGap={0}
+                            margin={{ top: 10, right: 5, bottom: -22, left: -5 }}
+                          >
+                            <XAxis
+                              dataKey="created_at"
+                              tickLine={true}
+                              axisLine={true}
+                              tick={{ fontSize: 14 }}
+                              interval={0} // Ensures all 24 hours show
+                            />
+                            <YAxis
+                              tickLine={true}
+                              axisLine={true}
+                              tick={{ fontSize: 14 }}
+                              tickFormatter={(value) => `${value}`}
+                              domain={[
+                                0,
+                                Number(spindleData && spindleData[0].SpindleSTD || 0),
+                              ]}
+                            />
+                            <ReferenceLine
+                              y={spindleData && spindleData[0].SpindleSTD}
+                              stroke="red"
+                              strokeDasharray="5 5"
+                              label={{
+                                value: `${spindleData && spindleData[0].SpindleSTD}`,
+                                position: 'left',
+                                fill: 'red',
+                                fontSize: 12,
+                              }}
+                            />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Bar dataKey="SpindleACT" radius={[4, 4, 0, 0]}>
+                              {spindleData && spindleData.map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={
+                                    entry.SpindleACT < entry.SpindleSTD
+                                      ? 'red' // 🔴 Change to red if exceeding threshold
+                                      : 'var(--color-consumption)' // Default color
+                                  }
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                      </CardContent>
+                      </Card>
+                      </div>
 
-
-        <Dialog open={IsProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Change Process</DialogTitle>
-            </DialogHeader>
-            <DialogDescription className="p-0 m-0">Select Current Process for this machine</DialogDescription>
-            <div className="space-y-4">
-            <Select value={selectedProcess} 
-                    defaultValue={selectedProcess}  
-                    onValueChange={(value) => setSelectedProcess(value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Process" />
-                  </SelectTrigger>
-                  <SelectContent>
-                      <SelectItem value="Top Coat" >
-                        Top Coat
-                      </SelectItem>
-                      <SelectItem value="Base Coat" >
-                        Base Coat
-                      </SelectItem>
-                  </SelectContent>
-                </Select>
-              
-            </div>
-            <DialogFooter>
-              <Button onClick={handleProcessChange}>Update Process</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={IsTopScrapDialogOpen} onOpenChange={setIsTopScrapDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Update Top 4 Scrap</DialogTitle>
-            </DialogHeader>
-            <DialogDescription className="p-0 m-0">Update top 4 scrap for machine {selectedMachine?.machineName}</DialogDescription>
-
-            <div className="gap-2 grid grid-cols-2">
-              <div>
-                <Label htmlFor="current-reject-a">Current Reject A</Label>
-                <Input id="current-reject-a" value={Array.isArray(hourlyData) && hourlyData.slice().reverse().find(h => h.task_id !== null)?.reject_a_name || 'N/A'} disabled />
-              </div>
-              <div>
-                <Label htmlFor="new-reject-a">New Reject A</Label>
-                <Select value={selectedRejectA} defaultValue={selectedRejectA}  onValueChange={(value) => setSelectedRejectA(value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Reject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.isArray(rejectList) && rejectList.filter(reject => ![selectedRejectB, selectedRejectC, selectedRejectD, selectedRejectE].includes(reject.id.toString()))
-                    .map((reject) => (
-                      <SelectItem key={reject.id} value={reject.id.toString()}>
-                        {reject.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
             
-            <div className="gap-2 grid grid-cols-2">
-              <div>
-                <Label htmlFor="current-reject-b">Current Reject B</Label>
-                <Input id="current-reject-b" value={Array.isArray(hourlyData) && hourlyData.slice().reverse().find(h => h.task_id !== null)?.reject_b_name || 'N/A'} disabled />
-              </div>
-              <div>
-                <Label htmlFor="new-reject-b">New Reject B</Label>
-                <Select value={selectedRejectB} defaultValue={selectedRejectB} onValueChange={(value) => setSelectedRejectB(value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Reject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.isArray(rejectList) 
-                    && rejectList.filter(reject => ![selectedRejectA, selectedRejectC, selectedRejectD, selectedRejectE].includes(reject.id.toString()))
-                    .map((reject) => (
-                      <SelectItem key={reject.id} value={reject.id.toString()}>
-                        {reject.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="gap-2 grid grid-cols-2">
-              <div>
-                <Label htmlFor="current-reject-c">Current Reject C</Label>
-                <Input id="current-reject-c" value={Array.isArray(hourlyData) && hourlyData.slice().reverse().find(h => h.task_id !== null)?.reject_c_name || 'N/A'} disabled />
-              </div>
-              <div>
-                <Label htmlFor="new-reject-c">New Reject C</Label>
-                <Select value={selectedRejectC} defaultValue={selectedRejectC} onValueChange={(value) => setSelectedRejectC(value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Reject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.isArray(rejectList) 
-                    && rejectList.filter(reject => ![selectedRejectA, selectedRejectB, selectedRejectD, selectedRejectE].includes(reject.id.toString()))
-                    .map((reject) => (
-                      <SelectItem key={reject.id} value={reject.id.toString()}>
-                        {reject.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              </div>
-
-              <div className="gap-2 grid grid-cols-2">
-              <div>
-                <Label htmlFor="current-reject-d">Current Reject D</Label>
-                <Input id="current-reject-d" value={Array.isArray(hourlyData) && hourlyData.slice().reverse().find(h => h.task_id !== null)?.reject_d_name || 'N/A'} disabled />
-              </div>
-                <div>
-                  <Label htmlFor="new-reject-d">New Reject D</Label>
-                  <Select value={selectedRejectD} defaultValue={selectedRejectD} onValueChange={(value) => setSelectedRejectD(value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Reject" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.isArray(rejectList) 
-                      && rejectList.filter(reject => ![selectedRejectA, selectedRejectB, selectedRejectC, selectedRejectE].includes(reject.id.toString()))
-                      .map((reject) => (
-                        <SelectItem key={reject.id} value={reject.id.toString()}>
-                          {reject.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>              
-            <DialogFooter>
-              <Button
-                onClick={handleTopScrapUpdate}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Loading...' : 'Update Top Scrap'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        
       </div>)}
  
   </div>
