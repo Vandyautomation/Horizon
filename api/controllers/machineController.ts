@@ -196,7 +196,40 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
         SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(@date AS date)as datetime))); -- Goes into the next day
     END  
 
-    SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
+    SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT, d.created_at
+    ,[totalCountProductIn]
+      ,[totalCountSpindleIn]
+      ,[highestCountProductIn]
+      ,[highestCountProductInCurrentCycle]
+      ,[highestCountSpindleIn]
+      ,[highestCountSpindleInCurrentCycle]
+      ,[totalCountProductOut]
+      ,[totalCountSpindleOut]
+      ,[highestCountProductOut]
+      ,[highestCountProductOutCurrentCycle]
+      ,[highestCountSpindleOut]
+      ,[highestCountSpindleOutCurrentCycle]
+      ,[count_in_product]
+      ,[last_data_in_product]
+      ,[count_in_spindle]
+      ,[last_data_in_spindle]
+      ,[count_out_product]
+      ,[last_data_out_product]
+      ,[count_out_spindle]
+      ,[last_data_out_spindle]
+      ,[count_start]
+      ,[last_data_start]
+      ,[last_data_reject_a]
+      ,[last_data_reject_b]
+      ,[last_data_reject_c]
+      ,[last_data_reject_d]
+      ,[last_data_reject_e]
+      ,[count_reject_a]
+      ,[count_reject_b]
+      ,[count_reject_c]
+      ,[count_reject_d]
+      ,[count_reject_e]
+
     from Machine_UV_STD s
     join UV_CountingData_Log d on d.MchID = s.MchID and d.CREATED_AT between @from and @to
     where s.Active = 1 and s.MchID = @machine_id
@@ -229,14 +262,78 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
             SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
         END
 
-        SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
+        SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT, d.created_at
+         ,[totalCountProductIn]
+      ,[totalCountSpindleIn]
+      ,[highestCountProductIn]
+      ,[highestCountProductInCurrentCycle]
+      ,[highestCountSpindleIn]
+      ,[highestCountSpindleInCurrentCycle]
+      ,[totalCountProductOut]
+      ,[totalCountSpindleOut]
+      ,[highestCountProductOut]
+      ,[highestCountProductOutCurrentCycle]
+      ,[highestCountSpindleOut]
+      ,[highestCountSpindleOutCurrentCycle]
+      ,[count_in_product]
+      ,[last_data_in_product]
+      ,[count_in_spindle]
+      ,[last_data_in_spindle]
+      ,[count_out_product]
+      ,[last_data_out_product]
+      ,[count_out_spindle]
+      ,[last_data_out_spindle]
+      ,[count_start]
+      ,[last_data_start]
+      ,[last_data_reject_a]
+      ,[last_data_reject_b]
+      ,[last_data_reject_c]
+      ,[last_data_reject_d]
+      ,[last_data_reject_e]
+      ,[count_reject_a]
+      ,[count_reject_b]
+      ,[count_reject_c]
+      ,[count_reject_d]
+      ,[count_reject_e]
         from Machine_UV_STD s
         join UV_CountingData_Log d on d.MchID = s.MchID and d.CREATED_AT between @from and @to
         where s.Active = 1 and s.MchID = @machine_id
 
         UNION ALL
 
-        SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT
+        SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT, getdate() as created_at
+         ,[totalCountProductIn]
+      ,[totalCountSpindleIn]
+      ,[highestCountProductIn]
+      ,[highestCountProductInCurrentCycle]
+      ,[highestCountSpindleIn]
+      ,[highestCountSpindleInCurrentCycle]
+      ,[totalCountProductOut]
+      ,[totalCountSpindleOut]
+      ,[highestCountProductOut]
+      ,[highestCountProductOutCurrentCycle]
+      ,[highestCountSpindleOut]
+      ,[highestCountSpindleOutCurrentCycle]
+      ,[count_in_product]
+      ,[last_data_in_product]
+      ,[count_in_spindle]
+      ,[last_data_in_spindle]
+      ,[count_out_product]
+      ,[last_data_out_product]
+      ,[count_out_spindle]
+      ,[last_data_out_spindle]
+      ,[count_start]
+      ,[last_data_start]
+      ,[last_data_reject_a]
+      ,[last_data_reject_b]
+      ,[last_data_reject_c]
+      ,[last_data_reject_d]
+      ,[last_data_reject_e]
+      ,[count_reject_a]
+      ,[count_reject_b]
+      ,[count_reject_c]
+      ,[count_reject_d]
+      ,[count_reject_e]
         from Machine_UV_STD s
         join UV_CountingData d on d.MchID = s.MchID
         where s.Active = 1 and s.MchID = @machine_id
