@@ -659,7 +659,7 @@ export default function TaskCategories() {
             .sort((a, b) => a.id - b.id)
             .map(task => (
               <div key={`prep-${task.id}`} className="flex items-center h-8">
-                <div className="w-48 text-sm truncate">{task.name}</div>
+                <div className="w-48 text-sm truncate pt-4">{task.name}</div>
                 <div className="flex-1 relative">
               <div 
                 className="absolute h-6 bg-blue-100 border border-blue-300 rounded-md px-2 flex items-center text-xs"
@@ -731,12 +731,12 @@ export default function TaskCategories() {
               // Render parallel group
               taskElements.push(
                 <div key={`group-${task.index}`} className="flex flex-col space-y-1 mt-2 mb-2">
-                  <div className="text-xs font-medium text-muted-foreground ml-48 mb-1">
+                  {/* <div className="text-xs font-medium text-muted-foreground ml-48 mb-1">
                 Parallel Group {task.index}
-                  </div>
+                  </div> */}
                   {parallelGroup.map((parallelTask) => (
                 <div key={`parallel-${parallelTask.id}`} className="flex items-center h-8">
-                  <div className="w-48 text-sm truncate">{parallelTask.name}</div>
+                  <div className="w-48 text-sm truncate pt-4">{parallelTask.name}</div>
                   <div className="flex-1 relative">
                     <div 
                   className={`absolute h-6 ${
@@ -764,7 +764,7 @@ export default function TaskCategories() {
                 
                 taskElements.push(
               <div key={`task-${task.id}`} className="flex items-center h-8">
-                <div className="w-48 text-sm truncate">{task.name}</div>
+                <div className="w-48 text-sm truncate pt-4">{task.name}</div>
                 <div className="flex-1 relative">
                   <div 
                 className="absolute h-6 bg-gray-100 border border-gray-300 rounded-md px-2 flex items-center text-xs"
