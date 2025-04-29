@@ -1184,14 +1184,14 @@ export default function CountboardDashboardUv() {
                         {(() => {
                           const maxValue = hourlyData?.reduce((max, item) => {
                             // Only consider items with process 'Base Coat' for this view
-                            if (item.process === 'Base Coat') {
+                            if (item.process === null || item.process === 'Base Coat') {
                               return Math.max(max, item.actual, item.target);
                             }
                             return max;
                           }, 0) || 100;
                           
                           // Only render the visualization if this row is Base Coat
-                          if (row.process !== 'Base Coat') {
+                          if (row.process === 'Top Coat') {
                             return null; // Don't show visualization for non-Base Coat rows
                           }
                           
@@ -1239,7 +1239,7 @@ export default function CountboardDashboardUv() {
                           }, 0) || 100;
                           
                           // Only render the visualization if this row is Top Coat
-                          if (row.process !== 'Top Coat') {
+                          if (row.process === 'Base Coat') {
                             return null; // Don't show visualization for non-Top Coat rows
                           }
                           return (

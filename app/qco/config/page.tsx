@@ -32,11 +32,11 @@ import { is } from "drizzle-orm"
 type SubTask = {
   id: number
   name: string
-  role: string
+  roles: RoleDetail
   role_id: number
-  preparationTime: number
-  isPreparation: boolean
-  isParallel: boolean
+  standard_time: number
+  is_preparation: boolean
+  is_parallel: boolean
   index?: number
 }
 
@@ -59,8 +59,8 @@ export default function TaskCategories() {
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null)
   const [editingSubTask, setEditingSubTask] = useState<{categoryId: number, subtask: SubTask} | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
-  const [isPreparationTask, setIsPreparationTask] = useState(false)
-  const [isParallelTask, setIsParallelTask] = useState(false)
+  const [is_preparationTask, setIsPreparationTask] = useState(false)
+  const [is_parallelTask, setIsParallelTask] = useState(false)
   const [editIsPreparationTask, setEditIsPreparationTask] = useState(false)
   const [selectedRole, setSelectedRole] = useState<RoleDetail | null>(null)
 
@@ -79,15 +79,15 @@ export default function TaskCategories() {
   ]
 
   const index = [
-    {id: 1, value: 1, color: "bg-yellow-500"},
-    {id: 2, value: 2, color: "bg-green-500"},
-    {id: 3, value: 3, color: "bg-blue-500"},
+    {id: 1, value: 1, color: "bg-yellow-200"},
+    {id: 2, value: 2, color: "bg-green-200"},
+    {id: 3, value: 3, color: "bg-blue-200"},
   ]
 
   // Fetch categories and subtasks from API
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories`)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/task_categories`)
       const data = await response.json()
       if (data.success) {
         setCategories(data.data)
@@ -97,22 +97,22 @@ export default function TaskCategories() {
     } catch (error) {
       console.error("Error fetching categories:", error)
       // For demo purposes, populate with sample data if the API fails
-      setCategories([
-        {
-          id: 1,
-          name: "Change Over BP",
-          subtasks: [
-            { id: 1, name: "Mold Check", role: "Mold Checker", preparationTime: 2880, isPreparation: true, role_id: 1, isParallel: false },
-            { id: 2, name: "Persiapan Jig Robot", role: "Robot Operator", preparationTime: 1440, isPreparation: true, role_id: 2, isParallel: false },
-            { id: 3, name: "Cleaning Hopper & Crusher", role: "Maintenance", preparationTime: 45, isPreparation: false, role_id: 3, isParallel: true, index: 1 },
-            { id: 4, name: "Set Up Mold", role: "Maintenance", preparationTime: 45, isPreparation: false, role_id: 4, isParallel: true, index: 1},
-            { id: 5, name: "Purging", role: "Maintenance", preparationTime: 30, isPreparation: false, role_id: 5, isParallel: true, index: 2 },
-            { id: 6, name: "Setting Parameter Mesin", role: "Maintenance", preparationTime: 35, isPreparation: false, role_id: 6, isParallel: true, index: 2 },
-            { id: 7, name: "Setting Robot", role: "Robot Operator", preparationTime: 15, isPreparation: false, role_id: 7, isParallel: false },
-            { id: 8, name: "Validasi SUBO", role: "Quality", preparationTime: 30, isPreparation: false, role_id: 8, isParallel: false }
-          ]
-        }
-      ])
+      // setCategories([
+      //   {
+      //     id: 1,
+      //     name: "Change Over BP",
+      //     subtasks: [
+      //       { id: 1, name: "Mold Check", role: "Mold Checker", standard_time: 2880, is_preparation: true, role_id: 1, is_parallel: false },
+      //       { id: 2, name: "Persiapan Jig Robot", role: "Robot Operator", standard_time: 1440, is_preparation: true, role_id: 2, is_parallel: false },
+      //       { id: 3, name: "Cleaning Hopper & Crusher", role: "Maintenance", standard_time: 45, is_preparation: false, role_id: 3, is_parallel: true, index: 1 },
+      //       { id: 4, name: "Set Up Mold", role: "Maintenance", standard_time: 45, is_preparation: false, role_id: 4, is_parallel: true, index: 1},
+      //       { id: 5, name: "Purging", role: "Maintenance", standard_time: 30, is_preparation: false, role_id: 5, is_parallel: true, index: 2 },
+      //       { id: 6, name: "Setting Parameter Mesin", role: "Maintenance", standard_time: 35, is_preparation: false, role_id: 6, is_parallel: true, index: 2 },
+      //       { id: 7, name: "Setting Robot", role: "Robot Operator", standard_time: 15, is_preparation: false, role_id: 7, is_parallel: false },
+      //       { id: 8, name: "Validasi SUBO", role: "Quality", standard_time: 30, is_preparation: false, role_id: 8, is_parallel: false }
+      //     ]
+      //   }
+      // ])
     }
   }
 
@@ -123,7 +123,7 @@ export default function TaskCategories() {
   // Set edit preparation state when an existing subtask is being edited
   useEffect(() => {
     if (editingSubTask) {
-      setEditIsPreparationTask(editingSubTask.subtask.isPreparation)
+      setEditIsPreparationTask(editingSubTask.subtask.is_preparation)
     }
   }, [editingSubTask])
 
@@ -194,7 +194,7 @@ export default function TaskCategories() {
   }
 
   // Add a subtask to a category
-  const addSubTask = async (categoryId: number, newSubTask: Omit<SubTask, "id">) => {
+  const addSubTask = async (categoryId: number, newSubTask: Omit<SubTask, "id" | "roles">) => {
     const category = categories.find(c => c.id === categoryId)
     if (!category) return
 
@@ -202,7 +202,7 @@ export default function TaskCategories() {
       fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories/${categoryId}/subtasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSubTask)
+        body: JSON.stringify({ ...newSubTask, roles: [] })
       })
       .then(async (response) => {
         const result = await response.json()
@@ -218,7 +218,7 @@ export default function TaskCategories() {
   }
 
   // Update a subtask
-  const updateSubTask = async (categoryId: number, updatedSubTask: SubTask) => {
+  const updateSubTask = async (categoryId: number, updatedSubTask: Omit<SubTask, "roles">) => {
     return await toast.promise(
       fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories/${categoryId}/subtasks/${updatedSubTask.id}`, {
         method: 'PUT',
@@ -263,20 +263,20 @@ export default function TaskCategories() {
     const formData = new FormData(e.currentTarget)
     
     // Get the preparation time based on whether it's a preparation task or not
-    let preparationTime: number
-    if (isPreparationTask) {
-      preparationTime = formData.get('preparationHour') as unknown as number
+    let standard_time: number
+    if (is_preparationTask) {
+      standard_time = formData.get('preparationHour') as unknown as number
     } else {
-      preparationTime = formData.get('preparationMinutes') as unknown as number
+      standard_time = formData.get('preparationMinutes') as unknown as number
     }
     
     const newSubTask = {
       name: formData.get('name') as string,
       role: "",
       role_id: selectedRole?.id || -1,
-      preparationTime,
-      isPreparation: isPreparationTask,
-      isParallel: isParallelTask,
+      standard_time,
+      is_preparation: is_preparationTask,
+      is_parallel: is_parallelTask,
       index: formData.get('index') as unknown as number,
       
     }
@@ -292,11 +292,11 @@ export default function TaskCategories() {
     const formData = new FormData(e.currentTarget)
     
     // Get the preparation time based on whether it's a preparation task or not
-    let preparationTime= 0
+    let standard_time= 0
     if (editIsPreparationTask) {
-      preparationTime = formData.get('preparationHour') as unknown as number
+      standard_time = formData.get('preparationHour') as unknown as number
     } else {
-      preparationTime = formData.get('preparationMinutes') as unknown as number
+      standard_time = formData.get('preparationMinutes') as unknown as number
     }
     
     const updatedSubTask = {
@@ -304,9 +304,9 @@ export default function TaskCategories() {
       name: formData.get('name') as string,
       role: '',
       role_id: selectedRole?.id || -1,
-      preparationTime,
-      isPreparation: editIsPreparationTask,
-      isParallel: isParallelTask,
+      standard_time,
+      is_preparation: editIsPreparationTask,
+      is_parallel: is_parallelTask,
       index: formData.get('index') as unknown as number,
     }
     
@@ -474,15 +474,15 @@ export default function TaskCategories() {
                       </div>
                       
                       <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="isPreparation" className="text-right">
+                        <Label htmlFor="is_preparation" className="text-right">
                           Sub task persiapan
                         </Label>
                         <div className="col-span-3 flex items-center space-x-2">
                           <input
                             type="checkbox"
-                            id="isPreparation"
-                            name="isPreparation"
-                            checked={isPreparationTask}
+                            id="is_preparation"
+                            name="is_preparation"
+                            checked={is_preparationTask}
                             onChange={(e) => setIsPreparationTask(e.target.checked)}
                             className="h-4 w-4 rounded border-gray-300"
                           />
@@ -490,11 +490,11 @@ export default function TaskCategories() {
                       </div>
                       
                       <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="preparationTime" className="text-right">
-                          {isPreparationTask ? "Waktu persiapan" : "Durasi"}
+                        <Label htmlFor="standard_time" className="text-right">
+                          {is_preparationTask ? "Waktu persiapan" : "Durasi"}
                         </Label>
                         <div className="col-span-3">
-                          {isPreparationTask ? (
+                          {is_preparationTask ? (
                             <Select name="preparationHour" defaultValue="h-2">
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Select hours" />
@@ -525,22 +525,22 @@ export default function TaskCategories() {
                       </div>
                       
                       <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="isParallel" className="text-right">
+                        <Label htmlFor="is_parallel" className="text-right">
                           Sub task Parallel
                         </Label>
                         <div className="col-span-3 flex items-center space-x-2">
                           <input
                             type="checkbox"
-                            id="isParallel"
-                            name="isParallel"
-                            checked={isParallelTask}
+                            id="is_parallel"
+                            name="is_parallel"
+                            checked={is_parallelTask}
                             onChange={(e) => setIsParallelTask(e.target.checked)}
                             className="h-4 w-4 rounded border-gray-300"
                           />
                         </div>
                       </div>
 
-                      { isParallelTask ? (
+                      { is_parallelTask ? (
                         <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="index" className="text-right">
                           Index
@@ -578,45 +578,48 @@ export default function TaskCategories() {
           <div className="space-y-4">
             <div className="rounded-md border">
               {selectedCategory.subtasks.map(subtask => (
-                <div key={subtask.id} className="border-b p-4 last:border-b-0">
+                <div key={subtask.id} className={`border-b p-4 last:border-b-0 ${subtask.is_parallel && subtask.index ? index.find(i => i.value === subtask.index)?.color : ""}`}>
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{subtask.name}</p>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                        <span>{subtask.role}</span>
-                        <span>{subtask.preparationTime} min</span>
-                        {subtask.isPreparation && (
-                          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">Preparation</span>
-                        )}
-                      </div>
+                  <div>
+                    <p className="font-medium">{subtask.name}</p>
+                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                    <span>{subtask.roles.display_name}</span>
+                    <span>{subtask.standard_time} min</span>
+                    {subtask.is_preparation && (
+                      <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">Preparation</span>
+                    )}
+                    {subtask.is_parallel && (
+                      <span className={`${index.find(i => i.value === subtask.index)?.color}  px-2 py-0.5 rounded-full text-xs`}>Parallel {subtask.index}</span>
+                    )}
                     </div>
-                    <div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setEditingSubTask({ categoryId: selectedCategory.id, subtask })}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            className="text-red-600"
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this subtask?')) {
-                                deleteSubTask(selectedCategory.id, subtask.id)
-                              }
-                            }}
-                          >
-                            <Trash className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                  </div>
+                  <div>
+                    <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                      <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setEditingSubTask({ categoryId: selectedCategory.id, subtask })}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                      className="text-red-600"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this subtask?')) {
+                        deleteSubTask(selectedCategory.id, subtask.id)
+                        }
+                      }}
+                      >
+                      <Trash className="h-4 w-4 mr-2" />
+                      Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                   </div>
                 </div>
               ))}
@@ -624,8 +627,188 @@ export default function TaskCategories() {
           </div>
         </>
       )}
+      
+      {/* Timeline View when a category is selected */}
+        {selectedCategory && (
+          <div className="space-y-2 h-full">
+            <div className="border rounded-md p-4">
+          <h3 className="text-lg font-semibold mb-4">Timeline View</h3>
+          
+          <div className="relative overflow-x-auto">
+            {/* Timeline header */}
+            <div className="flex border-b pb-2 mb-2">
+              <div className="w-48 font-medium">Task</div>
+              <div className="flex-1 relative">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div 
+                key={i} 
+                className="absolute top-0 bottom-0 border-l text-xs text-muted-foreground"
+                style={{ left: `${i * 10}%` }}
+              >
+                {i * 15} min
+              </div>
+            ))}
+              </div>
+            </div>
+            
+            {/* Timeline content */}
+            <div className="space-y-2 min-h-[340px]">
+              {/* Preparation tasks */}
+              {selectedCategory.subtasks
+            .filter(task => task.is_preparation)
+            .sort((a, b) => a.id - b.id)
+            .map(task => (
+              <div key={`prep-${task.id}`} className="flex items-center h-8">
+                <div className="w-48 text-sm truncate">{task.name}</div>
+                <div className="flex-1 relative">
+              <div 
+                className="absolute h-6 bg-blue-100 border border-blue-300 rounded-md px-2 flex items-center text-xs"
+                style={{ width: '100%' }}
+              >
+                <span className="truncate">{task.roles.display_name} (Preparation)</span>
+              </div>
+                </div>
+              </div>
+            ))}
+              
+              {(() => {
+            // Group tasks by parallel index
+            const parallelGroups: {[key: number]: SubTask[]} = {};
+            const regularTasks = selectedCategory.subtasks
+              .filter(task => !task.is_preparation)
+              .sort((a, b) => a.id - b.id); // Sort by ID ascending
+            
+            // Collect parallel tasks
+            regularTasks
+              .filter(task => task.is_parallel && task.index)
+              .forEach(task => {
+                if (!parallelGroups[task.index as number]) {
+              parallelGroups[task.index as number] = [];
+                }
+                parallelGroups[task.index as number].push(task);
+              });
+            
+            // Sort parallel tasks by ID within each group
+            Object.keys(parallelGroups).forEach(key => {
+              parallelGroups[Number(key)].sort((a, b) => a.id - b.id);
+            });
+            
+            // Calculate total task time for scale
+            let totalTime = regularTasks.reduce((acc, task) => {
+              if (!task.is_parallel) {
+                return acc + task.standard_time;
+              }
+              return acc;
+            }, 0);
+            
+            // Add the max time from each parallel group
+            Object.values(parallelGroups).forEach(group => {
+              const maxTime = Math.max(...group.map(t => t.standard_time));
+              totalTime += maxTime;
+            });
+            
+            const scale = 100 / Math.max(totalTime, 150); // Use at least 150 min for scale
+            
+            // Render tasks in sequence according to their IDs
+            let currentPosition = 0;
+            const taskElements: JSX.Element[] = [];
+            const processedIds = new Set<number>();
+            
+            regularTasks.forEach(task => {
+              // Skip if we've already processed this task
+              if (processedIds.has(task.id)) return;
+              
+              if (task.is_parallel && task.index) {
+                const parallelGroup = parallelGroups[task.index];
+                
+                // Only process if this is the first task of its group we encounter
+                if (parallelGroup && !parallelGroup.some(t => processedIds.has(t.id))) {
+              const maxTime = Math.max(...parallelGroup.map(t => t.standard_time));
+              
+              // Mark all tasks in this group as processed
+              parallelGroup.forEach(t => processedIds.add(t.id));
+              
+              // Render parallel group
+              taskElements.push(
+                <div key={`group-${task.index}`} className="flex flex-col space-y-1 mt-2 mb-2">
+                  <div className="text-xs font-medium text-muted-foreground ml-48 mb-1">
+                Parallel Group {task.index}
+                  </div>
+                  {parallelGroup.map((parallelTask) => (
+                <div key={`parallel-${parallelTask.id}`} className="flex items-center h-8">
+                  <div className="w-48 text-sm truncate">{parallelTask.name}</div>
+                  <div className="flex-1 relative">
+                    <div 
+                  className={`absolute h-6 ${
+                    index.find(i => i.value === task.index)?.color || 'bg-green-100'
+                  } border border-green-300 rounded-md px-2 flex items-center text-xs`}
+                  style={{ 
+                    width: `${parallelTask.standard_time * scale}%`,
+                    left: `${currentPosition * scale}%`
+                  }}
+                    >
+                  <span className="truncate">{parallelTask.roles.display_name} ({parallelTask.standard_time} min)</span>
+                    </div>
+                  </div>
+                </div>
+                  ))}
+                </div>
+              );
+              
+              // Update position after this parallel group
+              currentPosition += maxTime;
+                }
+              } else {
+                // Regular sequential task
+                processedIds.add(task.id);
+                
+                taskElements.push(
+              <div key={`task-${task.id}`} className="flex items-center h-8">
+                <div className="w-48 text-sm truncate">{task.name}</div>
+                <div className="flex-1 relative">
+                  <div 
+                className="absolute h-6 bg-gray-100 border border-gray-300 rounded-md px-2 flex items-center text-xs"
+                style={{ 
+                  width: `${task.standard_time * scale}%`, 
+                  left: `${currentPosition * scale}%`
+                }}
+                  >
+                <span className="truncate">{task.roles.display_name} ({task.standard_time} min)</span>
+                  </div>
+                </div>
+              </div>
+                );
+                
+                currentPosition += task.standard_time;
+              }
+            });
+            
+            return taskElements;
+              })()}
+            </div>
+          </div>
+          
+          <div className="mt-4 text-sm text-muted-foreground flex items-center gap-4">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded-sm"></div>
+              <span>Preparation</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-gray-100 border border-gray-300 rounded-sm"></div>
+              <span>Sequential</span>
+            </div>
+            {index.map(i => (
+              <div key={i.id} className="flex items-center gap-1">
+            <div className={`w-3 h-3 ${i.color} border rounded-sm`}></div>
+            <span>Parallel Group {i.value}</span>
+              </div>
+            ))}
+          </div>
+            </div>
+          </div>
+        )}
 
-      {/* Edit Category Dialog */}
+        {/* Edit Category Dialog */}
       <Dialog open={!!editingCategory} onOpenChange={() => setEditingCategory(null)}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -731,7 +914,7 @@ export default function TaskCategories() {
                     Role
                   </Label>
                   <div className="col-span-3">
-                  <SearchableRoleSelect value={selectedRole} onValueChange={setSelectedRole}/>
+                  <SearchableRoleSelect value={selectedRole || editingSubTask.subtask.roles} onValueChange={setSelectedRole}/>
                   </div>
                 </div>
                 
@@ -743,7 +926,7 @@ export default function TaskCategories() {
                     <input
                       type="checkbox"
                       id="edit-subtask-prep"
-                      name="isPreparation"
+                      name="is_preparation"
                       checked={editIsPreparationTask}
                       onChange={(e) => setEditIsPreparationTask(e.target.checked)}
                       className="h-4 w-4 rounded border-gray-300"
@@ -760,8 +943,8 @@ export default function TaskCategories() {
                       <Select 
                         name="preparationHour" 
                         defaultValue={
-                          editingSubTask.subtask.isPreparation 
-                            ? String(editingSubTask.subtask.preparationTime)
+                          editingSubTask.subtask.is_preparation 
+                            ? String(editingSubTask.subtask.standard_time)
                             : "2880"
                         }
                       >
@@ -786,8 +969,8 @@ export default function TaskCategories() {
                           min="1"
                           placeholder="Duration"
                           defaultValue={
-                            !editingSubTask.subtask.isPreparation 
-                              ? editingSubTask.subtask.preparationTime 
+                            !editingSubTask.subtask.is_preparation 
+                              ? editingSubTask.subtask.standard_time 
                               : "30"
                           }
                           className="flex-1"
@@ -799,29 +982,29 @@ export default function TaskCategories() {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="isParallel" className="text-right">
+                        <Label htmlFor="is_parallel" className="text-right">
                           Sub task Parallel
                         </Label>
                         <div className="col-span-3 flex items-center space-x-2">
                           <input
                             type="checkbox"
-                            id="isParallel"
-                            name="isParallel"
-                            checked={isParallelTask}
+                            id="is_parallel"
+                            name="is_parallel"
+                            checked={is_parallelTask || editingSubTask.subtask.is_parallel}
                             onChange={(e) => setIsParallelTask(e.target.checked)}
                             className="h-4 w-4 rounded border-gray-300"
                           />
                         </div>
                       </div>
 
-                      { isParallelTask ? (
+                      { is_parallelTask || editingSubTask.subtask.is_parallel ? (
                         <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="index" className="text-right">
                           Index
                         </Label>
                         <div className="col-span-3">
                           
-                            <Select name="index" defaultValue="h-2">
+                            <Select name="index" defaultValue={editingSubTask.subtask.is_parallel ? String(editingSubTask.subtask.index) : "1"}>
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Select Index" />
                               </SelectTrigger>
