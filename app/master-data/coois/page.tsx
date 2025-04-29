@@ -95,7 +95,7 @@ export default function CooisUpload() {
             setLoading(false)
           }
         } catch (error: any) {
-          toast.error('Gagal sinkronisasi data', {description: error.message})
+          toast.error(`Gagal sinkronisasi data ${error.message}`)
           setLoading(false)
         }
     }

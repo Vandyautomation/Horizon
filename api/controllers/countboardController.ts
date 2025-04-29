@@ -34,8 +34,8 @@ export async function addRouting(data: any[][]) {
       INSERT INTO IoT.dbo.routing (
         material_id, 
         material_name, 
-        cvt,
         ct,
+        cvt,
         created_at,
         modified_at,
         is_sync
@@ -65,7 +65,7 @@ export async function addCoois(data: any[][]) {
 
     // Check for null or undefined values and ensure the data types are correct
     if (
-      !po_number || !so_item || !type || !pn || !produk ||
+      !po_number || !pn || !produk ||
       typeof order_qty !== 'number' || typeof hasil_qty !== 'number' || typeof minus_qty !== 'number'
     ) {
       return false;

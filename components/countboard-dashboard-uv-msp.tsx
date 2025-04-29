@@ -730,7 +730,6 @@ export default function CountboardDashboardUv() {
   }, [queryShift]);
 
   const totalActual = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0), 0) || 0
-  const totalActualIn = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual_in || 0), 0) || 0
   const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.target || 0), 0) || 0
   const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target || 0), 0) || 0
 
@@ -742,13 +741,6 @@ export default function CountboardDashboardUv() {
   const totalRejectD = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_d || 0), 0) || 0
   const totalRejectE = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_e || 0), 0) || 0
   const totalRejectOverall = totalRejectA + totalRejectB + totalRejectC + totalRejectD + totalRejectE
-
-  let rejectPercentage = 0.02
-  if(selectedMachine?.locationName == 'K' || selectedMachine?.locationName == 'E'){
-    rejectPercentage = 0.09
-  } else if(selectedMachine?.locationName == 'M') {
-    rejectPercentage = 0.025
-  }
 
   console.log(`totalRejectA : ${totalRejectA}`)
   console.log(`totalRejectOverall : ${totalRejectOverall}`)
@@ -984,10 +976,10 @@ export default function CountboardDashboardUv() {
         <div className="text-center">Please select machine...</div>
       ) : (
       <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-24">
-        {/* <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/> */}
-        <Card>
+        <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/>
+        <Card className="p-0">
           <CardHeader className="py-2 text-sm font-medium">Production Status</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-6 px-2">
+          <CardContent className="grid grid-cols-3 gap-4">
             <div>
             <div className="text-2xl font-bold text-green-600">{totalActual}</div>
               <div className="text-sm text-muted-foreground">Actual</div>
@@ -1004,52 +996,8 @@ export default function CountboardDashboardUv() {
         </Card>
 
         <Card>
-          <CardHeader className="py-2 text-sm font-medium">Sensor Product Status</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-6 px-2">
-            <div>
-                <div className={`text-2xl font-bold`}>
-                {totalActualIn}
-                </div>
-              <div className="text-sm text-muted-foreground">Input</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{totalActual}</div>
-              <div className="text-sm text-muted-foreground">Output</div>
-            </div>
-            <div>
-              <div className={`text-2xl font-bold ${totalActualIn - totalActual > 0 ? 'text-red-500': 'text-green-500'}`}>
-                {Math.abs(totalActualIn - totalActual)}
-                </div>
-              <div className="text-sm text-muted-foreground">Gap</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="py-2 text-sm font-medium">Scrap Status</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4 px-2">
-            <div>
-                <div className={`text-2xl font-bold`}>
-                {totalRejectOverall}
-                </div>
-              <div className="text-sm text-muted-foreground">Total</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{(rejectPercentage * 100).toFixed(0)}%</div>
-              <div className="text-sm text-muted-foreground">%Target</div>
-            </div>
-            <div>
-              <div className={`text-2xl font-bold ${totalRejectOverall / totalActual > rejectPercentage ? 'text-red-500': 'text-green-500'}`}>
-                {((totalRejectOverall / totalActual)*100).toFixed(2)}%
-                </div>
-              <div className="text-sm text-muted-foreground">%Actual</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
           <CardHeader className="py-2 text-sm font-medium">Spindles</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-6 px-2">
+          <CardContent className="grid grid-cols-3 gap-4">
             <div>
               <Tooltip>
               <TooltipTrigger asChild>
@@ -1076,10 +1024,10 @@ export default function CountboardDashboardUv() {
 
 
         <Card>
-         <CardHeader className="py-2 text-xs font-medium text-red-500">Non O.O.E</CardHeader>
+         <CardHeader className="py-2 text-sm font-medium text-red-500">Non O.O.E</CardHeader>
           <CardContent className="grid grid-cols-1 gap-4">
             <div>
-              <div className="text-xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(1)}%</div>
+              <div className="text-2xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(2)}%</div>
             </div>
           </CardContent>
         </Card>
@@ -1088,31 +1036,31 @@ export default function CountboardDashboardUv() {
           <CardHeader className="py-2 text-sm font-medium">Performance Metrics</CardHeader>
           <CardContent className="grid grid-cols-7 gap-4">
             <div>
-              <div className="text-xl font-bold text-green-600">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(1)}%</div>
+              <div className="text-2xl font-bold text-green-600">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(2)}%</div>
               <div className="text-sm text-muted-foreground">OK</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-red-600">{oeeData?.[0]?.red.toFixed(1) || 0}</div>
+              <div className="text-2xl font-bold text-red-600">{oeeData?.[0]?.red.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">NQ</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-yellow-600">{oeeData?.[0]?.yellow.toFixed(1) || 0}</div>
+              <div className="text-2xl font-bold text-yellow-600">{oeeData?.[0]?.yellow.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">SD</div>
             </div>
             <div>
-              <div className="text-xl font-bold">{oeeData?.[0]?.white.toFixed(1) || 0}</div>
+              <div className="text-2xl font-bold">{oeeData?.[0]?.white.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">PS</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(1) || 0}</div>
+              <div className="text-2xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">C/O</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(1) || 0}</div>
+              <div className="text-2xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">BD</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(1) || 0}</div>
+              <div className="text-2xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(2) || 0}</div>
               <div className="text-sm text-muted-foreground">OP</div>
             </div>
           </CardContent>
@@ -1149,13 +1097,8 @@ export default function CountboardDashboardUv() {
                   <TableHead className="w-[60px]">Time</TableHead>
                   <TableHead className="w-[60px]">ItemNo</TableHead>
                   <TableHead className="w-[60px]">Target</TableHead>
-                  <TableHead className="w-[250px] text-center">Actual Qty Base Coat</TableHead>
-                  <TableHead className="w-[60px] text-center">Gap</TableHead>
-                  { selectedMachine.locationName == "E" || selectedMachine.locationName == "K"  &&   
-                  (<>
-                    <TableHead className="w-[250px] text-center">Actual Qty Top Coat</TableHead>
-                    <TableHead className="w-[60px] text-center">Gap</TableHead>
-                  </>) }
+                  <TableHead className="w-[250px] text-center">Actual Qty</TableHead>
+                  <TableHead className="w-[60px] text-center">Delta</TableHead>
                   <TableHead className="w-[50px] text-center">SCRAP TOTAL</TableHead>
                   <TableHead className="w-[50px] text-center">% SCRAP</TableHead>
                   <TableHead className="w-[50px] text-center">A</TableHead>
@@ -1164,6 +1107,8 @@ export default function CountboardDashboardUv() {
                   <TableHead className="w-[50px] text-center">D</TableHead>
                   <TableHead className="w-[50px] text-center">E</TableHead>
                   <TableHead className="w-[100px] text-center border border-r-1 border-l-1 border-t-0 border-b-0">NOOE</TableHead>
+                  <TableHead className="w-[200px] text-center">Actual Input vs Output</TableHead>
+                  <TableHead className="w-[60px] text-center">Gap</TableHead>
                   <TableHead className="w-[125px] truncate text-center">Causes</TableHead>
                   <TableHead className="w-[125px] truncate text-center">Comments/Actions</TableHead>
                 </TableRow>
@@ -1182,66 +1127,7 @@ export default function CountboardDashboardUv() {
                       <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
                         {(() => {
-                          const maxValue = hourlyData?.reduce((max, item) => {
-                            // Only consider items with process 'Base Coat' for this view
-                            if (item.process === 'Base Coat') {
-                              return Math.max(max, item.actual, item.target);
-                            }
-                            return max;
-                          }, 0) || 100;
-                          
-                          // Only render the visualization if this row is Base Coat
-                          if (row.process !== 'Base Coat') {
-                            return null; // Don't show visualization for non-Base Coat rows
-                          }
-                          
-                          return (
-                            <>
-                              <div
-                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
-                                style={{
-                                  width: `${Math.min((row.actual / maxValue) * 100, 100)}%`,
-                                  maxWidth: "250px",
-                                }}
-                              />
-                              <div
-                                className="absolute inset-0 h-full w-px bg-green-600"
-                                style={{
-                                  left: `${Math.min((row.target / maxValue) * 100, 100)}%`,
-                                }}
-                              />
-                              <div
-                                className="absolute inset-0 h-full w-px bg-yellow-500"
-                                style={{
-                                  left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`,
-                                }}
-                              />
-                            </>
-                          );
-                        })()}
-                        <span className="relative z-10 ml-2">{row.process === 'Base Coat' ? row.actual : "N/A"} </span>
-                      </div>
-                    </TableCell>
-
-                      <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.process === 'Base Coat' ? row.delta : 0}</TableCell>
-                     
-                     { selectedMachine.locationName == "E" || selectedMachine.locationName == "K"  &&   
-                     <>
-                     <TableCell className="relative overflow-hidden h-full">
-                      <div className="flex items-center h-full w-full">
-                        {(() => {
-                          const maxValue = hourlyData?.reduce((max, item) => {
-                            // Only consider items with process 'Base Coat' for this view
-                            if (item.process === 'Top Coat') {
-                              return Math.max(max, item.actual, item.target);
-                            }
-                            return max;
-                          }, 0) || 100;
-                          
-                          // Only render the visualization if this row is Top Coat
-                          if (row.process !== 'Top Coat') {
-                            return null; // Don't show visualization for non-Top Coat rows
-                          }
+                          const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.target), 0) || 100;
                           return (
                             <>
                               <div
@@ -1266,13 +1152,12 @@ export default function CountboardDashboardUv() {
                             </>
                           );
                         })()}
-                        <span className="relative z-10 ml-2">{row.process === 'Top Coat' ? row.actual : "N/A"} </span>
+                        <span className="relative z-10 ml-2">{row.actual} ({row.process || "N/A"})</span>
                       </div>
                     </TableCell>
-                    
-                      <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.process === 'Top Coat' ? row.delta : 0}</TableCell>
-</>}
 
+
+                      <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.delta}</TableCell>
                       <TableCell className="text-center">{row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e || 0}</TableCell>
                       <TableCell className="text-center">{isNaN(((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual || 0)*100) ? 0 : (((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual || 0)*100).toFixed(2)}</TableCell>
                       <TableCell className="text-center">
@@ -1325,6 +1210,41 @@ export default function CountboardDashboardUv() {
                       {renderNooeIndicators(row.from_datetime)}
                       </TableCell>
 
+                      <TableCell className="relative overflow-hidden h-full">
+                      <div className="flex items-center h-full w-full">
+                      {(() => {
+                          const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.actual_in), 0) || 100;
+                          return (
+                            <>
+                              <div
+                                className={`absolute inset-0 h-full rounded z-10 ${getBarColor(row.actual, row.actual_in, row.actual_in)}`}
+                                style={{
+                                  width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
+                                  maxWidth: "200px",
+                                }}
+                              />
+                              <div
+                                className="absolute inset-0 h-full w-px z-20 bg-blue-300"
+                                style={{
+                                  left: `${Math.min((row.actual_in / maxValue) * 100, 100)}%`, // Accurate target position
+                                }}
+                              />
+                              <div
+                                className="absolute inset-0 h-full rounded z-5 bg-blue-300"
+                                style={{
+                                  width: `${Math.min((row.actual_in / maxValue) * 100, 100)}%`, // Accurate target position
+                                  maxWidth: "200px",
+                                }} />
+                            </>
+                          );
+                        })()}
+                          <span className="relative z-30 ml-2">{row.actual}</span>
+                      </div>
+                      </TableCell>
+                      <TableCell className="text-center" style={{color: row.actual >= row.actual_in ? "green" : "red"}} >{row.gap}</TableCell>
+
+
+
                       <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)} className="text-center w-[125px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1352,7 +1272,7 @@ export default function CountboardDashboardUv() {
                 )}
 
                   <TableRow>
-                    <TableCell colSpan={selectedMachine.locationName == "K" || selectedMachine.locationName == "E" ? 9 : 7} className="text-center"></TableCell>
+                    <TableCell colSpan={7} className="text-center"></TableCell>
                     <TableCell className={`text-center ${isNaN(totalRejectA / totalRejectOverall) ? '' : totalRejectA / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectA / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
                       {isNaN(totalRejectA / totalRejectOverall) ? 0 : ((totalRejectA / totalRejectOverall)*100).toFixed(2)}%
                     </TableCell>
@@ -1368,10 +1288,10 @@ export default function CountboardDashboardUv() {
                     <TableCell className={`text-center ${isNaN(totalRejectE / totalRejectOverall) ? '' : totalRejectE / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectE / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
                       {isNaN(totalRejectE / totalRejectOverall) ? 0 : ((totalRejectE / totalRejectOverall)*100).toFixed(2)}%
                     </TableCell>
-                    {/* <TableCell colSpan={2} className="text-center"></TableCell>
+                    <TableCell colSpan={2} className="text-center"></TableCell>
                     <TableCell className="text-center" style={{color: totalGapSpindle >= 0 ? "green" : "red"}}>
                       {totalGapSpindle}
-                    </TableCell> */}
+                    </TableCell>
                   </TableRow>
               </TableBody>
             </Table>
