@@ -1,4 +1,5 @@
 import { queryDatabase } from '@/api/utils/queryDatabase';
+import { getTask } from '../scaleTaskController';
 
 export async function getTaskCategories() {
     const taskCategories = `
@@ -41,22 +42,34 @@ export async function getTaskCategoryById(uuid: string) {
     return await queryDatabase(sqlQuery, { uuid });
 }
 
-export async function createTaskCategory(name: string, description: string) {
+export async function createTaskCategory(name: string) {
+    const uuid = crypto.randomUUID();
     const sqlQuery = `
-        INSERT INTO IoT.dbo.[task_categories] (name, description, created_at, updated_at)
-        VALUES (@name, @description, GETDATE(), GETDATE())
+        INSERT INTO IoT.dbo.[task_categories] (uuid, name, created_at, updated_at)
+        VALUES (@uuid, @name, GETDATE(), GETDATE())
     `;
-    return await queryDatabase(sqlQuery, { name, description });
+    return await queryDatabase(sqlQuery, { name, uuid });
 }
-export async function updateTaskCategory(uuid: string, name: string, description: string) {
+export async function updateTaskCategory(uuid: string, name: string) {
+    const taskCategory = await getTaskCategoryById(uuid);
+
+    if (!taskCategory) {
+        throw new Error('Task category not found');
+    }
+
     const sqlQuery = `
         UPDATE IoT.dbo.[task_categories]
-        SET name = @name, description = @description, updated_at = GETDATE()
+        SET name = @name,  updated_at = GETDATE()
         WHERE uuid = @uuid
     `;
-    return await queryDatabase(sqlQuery, { uuid, name, description });
+    return await queryDatabase(sqlQuery, { uuid, name });
 }
 export async function deleteTaskCategory(uuid: string) {
+    const taskCategory = await getTaskCategoryById(uuid);
+
+    if (!taskCategory) {
+        throw new Error('Task category not found');
+    }
     const sqlQuery = `
         DELETE FROM IoT.dbo.[task_categories]
         WHERE uuid = @uuid

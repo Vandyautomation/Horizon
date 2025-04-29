@@ -1,5 +1,4 @@
-import { deleteTaskCategory, getTaskCategories, getTaskCategoryById, updateTaskCategory } from '@/api/controllers/qco/taskCategoryController';
-import { createTask } from '@/api/controllers/qco/taskController';
+import { createTaskCategory, deleteTaskCategory, getTaskCategories, getTaskCategoryById, updateTaskCategory } from '@/api/controllers/qco/taskCategoryController';
 import { Hono } from 'hono';
 
 
@@ -33,17 +32,13 @@ taskCategoryRoutes.get('/:id', async (c) => {
     return c.json({ success: false, message: (error as Error).message }, 500);
   }
 });
+
 taskCategoryRoutes.post('/', async (c) => {
   try {
-    // Extract query parameters
-    const body = {
-      machine_id: c.req.query('machine_id'),
-      category_id: c.req.query('category_id'),
-      start_at: c.req.query('start_at'),
-      pro: c.req.query('pro')
-    };
+    const body = await c.req.json() as { name: string };
+
     // Call the createTask function with the extracted parameters
-    const result = await createTask(body);
+    const result = await createTaskCategory(body.name);
     // For now returning a simple success response
     return c.json({
       success: true,
@@ -63,18 +58,13 @@ taskCategoryRoutes.put('/:id', async (c) => {
     const id = c.req.param('id');
 
     if (!id) {
-      return c.json({ success: false, message: 'Task ID is required' }, 400);
+      return c.json({ success: false, message: 'Task category UUID is required' }, 400);
     }
 
     const body = await c.req.json();
-    const description = body.description;
 
     // This function needs to be implemented in your controller
-    const updatedTask = await updateTaskCategory(id, body.name, description);
-
-    if (!updatedTask) {
-      return c.json({ success: false, message: 'Task not found' }, 404);
-    }
+    const updatedTask = await updateTaskCategory(id, body.name);
 
     return c.json({
       success: true,
@@ -91,15 +81,11 @@ taskCategoryRoutes.delete('/:id', async (c) => {
     const id = c.req.param('id');
 
     if (!id) {
-      return c.json({ success: false, message: 'Task ID is required' }, 400);
+      return c.json({ success: false, message: 'Task Category ID is required' }, 400);
     }
 
     // This function needs to be implemented in your controller
     const result = await deleteTaskCategory(id);
-
-    if (!result) {
-      return c.json({ success: false, message: 'Task not found' }, 404);
-    }
 
     return c.json({
       success: true,

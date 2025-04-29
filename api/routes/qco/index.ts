@@ -24,7 +24,7 @@ qcoRouter.route('/machines', machineRoutes);
 qcoRouter.route('/molds', moldRoutes);
 qcoRouter.route('/items', itemRoutes);
 qcoRouter.route('/task_categories', taskCategoryRoutes);
-qcoRouter.route('/sub_tasks', subTaskRoutes);
+qcoRouter.route('/subtasks', subTaskRoutes);
 qcoRouter.route('/tasks', taskRoutes);
 qcoRouter.route('/user_sub_tasks', userSubTaskRoutes);
 
