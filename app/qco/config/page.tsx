@@ -25,7 +25,7 @@ import {
 import { Edit, MoreHorizontal, Plus, Trash, ArrowLeft } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SearchableRoleSelect } from "@/components/searchable-select-role"
-import { is } from "drizzle-orm"
+
 
 
 // Define types for the category and subtask
@@ -41,6 +41,7 @@ type SubTask = {
 }
 
 type Category = {
+  uuid: string
   id: number
   name: string
   subtasks: SubTask[]
@@ -63,14 +64,19 @@ export default function TaskCategories() {
   const [is_parallelTask, setIsParallelTask] = useState(false)
   const [editIsPreparationTask, setEditIsPreparationTask] = useState(false)
   const [selectedRole, setSelectedRole] = useState<RoleDetail | null>(null)
+  
+  const [AddCategoryDialog, setAddCategoryDialog] = useState(false)
+  const [EditCategoryDialog, setEditCategoryDialog] = useState(false)
+  const [AddSubTaskDialog, setAddSubTaskDialog] = useState(false)
+  const [EditSubTaskDialog, setEditSubTaskDialog] = useState(false)
 
   // Roles for dropdown selection
-  const roles = [
-    { id: "Mold Checker", name: "Mold Checker" },
-    { id: "Robot Operator", name: "Robot Operator" },
-    { id: "Maintenance", name: "Maintenance" },
-    { id: "Quality", name: "Quality" },
-  ]
+  // const roles = [
+  //   { id: "Mold Checker", name: "Mold Checker" },
+  //   { id: "Robot Operator", name: "Robot Operator" },
+  //   { id: "Maintenance", name: "Maintenance" },
+  //   { id: "Quality", name: "Quality" },
+  // ]
 
   // Hours for preparation tasks
   const preparationHours = [
@@ -82,19 +88,28 @@ export default function TaskCategories() {
     {id: 1, value: 1, color: "bg-yellow-200"},
     {id: 2, value: 2, color: "bg-green-200"},
     {id: 3, value: 3, color: "bg-blue-200"},
+    {id: 4, value: 4, color: "bg-slate-200"},
   ]
 
   // Fetch categories and subtasks from API
-  const fetchCategories = async () => {
+  const fetchCategories = async (categoryId?: number) => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/task_categories`)
       const data = await response.json()
       if (data.success) {
         setCategories(data.data)
+        setFilteredCategories(data.data)
+        if(categoryId){
+          setSelectedCategory(data.data.find((category: Category) => category.id === categoryId))
+        }
+
+        return
       } else {
+        toast.error(`Failed to fetch categories: ${data.message}`)
         console.error("Failed to fetch categories:", data.message)
       }
     } catch (error) {
+      toast.error(`Error fetching categories ${error}`)
       console.error("Error fetching categories:", error)
       // For demo purposes, populate with sample data if the API fails
       // setCategories([
@@ -128,14 +143,20 @@ export default function TaskCategories() {
   }, [editingSubTask])
 
   // Filter categories based on search term
-  const filteredCategories = categories.filter(category => 
-    category.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const [filteredCategories, setFilteredCategories] = useState<Category[]>([])
+  
+  // Filter categories based on search term
+  useEffect(() => {
+    const filtered = categories.filter(category => 
+      category.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    setFilteredCategories(filtered)
+  }, [categories, searchTerm])
 
   // Add a new category
-  const addCategory = async (newCategory: Omit<Category, "id" | "subtasks">) => {
+  const addCategory = async (newCategory: Omit<Category, "id" | "subtasks" | "uuid">) => {
     return await toast.promise(
-      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories`, {
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/task_categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...newCategory, subtasks: [] })
@@ -143,7 +164,9 @@ export default function TaskCategories() {
       .then(async (response) => {
         const result = await response.json()
         if (!response.ok) throw new Error(result.message || 'Failed to add category')
-        fetchCategories()
+        await fetchCategories()
+        setAddCategoryDialog(false)
+        return result
       }),
       {
         loading: 'Creating new category...',
@@ -156,7 +179,7 @@ export default function TaskCategories() {
   // Update a category
   const updateCategory = async (updatedCategory: Category) => {
     return await toast.promise(
-      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories/${updatedCategory.id}`, {
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/task_categories/${updatedCategory.uuid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedCategory)
@@ -164,7 +187,9 @@ export default function TaskCategories() {
       .then(async (response) => {
         const result = await response.json()
         if (!response.ok) throw new Error(result.message || 'Failed to update category')
-        fetchCategories()
+        await fetchCategories()
+        setEditCategoryDialog(false)
+        return result
       }),
       {
         loading: 'Updating category...',
@@ -175,15 +200,16 @@ export default function TaskCategories() {
   }
 
   // Delete a category
-  const deleteCategory = async (id: number) => {
+  const deleteCategory = async (uuid: string) => {
     return await toast.promise(
-      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories/${id}`, {
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/task_categories/${uuid}`, {
         method: 'DELETE'
       })
       .then(async (response) => {
         const result = await response.json()
         if (!response.ok) throw new Error(result.message || 'Failed to delete category')
-        fetchCategories()
+        await fetchCategories()
+        return result
       }),
       {
         loading: 'Deleting category...',
@@ -199,7 +225,7 @@ export default function TaskCategories() {
     if (!category) return
 
     return await toast.promise(
-      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories/${categoryId}/subtasks`, {
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/subtasks/${categoryId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...newSubTask, roles: [] })
@@ -207,7 +233,8 @@ export default function TaskCategories() {
       .then(async (response) => {
         const result = await response.json()
         if (!response.ok) throw new Error(result.message || 'Failed to add subtask')
-        fetchCategories()
+        await fetchCategories(categoryId)
+        return result
       }),
       {
         loading: 'Adding subtask...',
@@ -220,7 +247,7 @@ export default function TaskCategories() {
   // Update a subtask
   const updateSubTask = async (categoryId: number, updatedSubTask: Omit<SubTask, "roles">) => {
     return await toast.promise(
-      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories/${categoryId}/subtasks/${updatedSubTask.id}`, {
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/subtasks/${updatedSubTask.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedSubTask)
@@ -228,7 +255,8 @@ export default function TaskCategories() {
       .then(async (response) => {
         const result = await response.json()
         if (!response.ok) throw new Error(result.message || 'Failed to update subtask')
-        fetchCategories()
+        await fetchCategories(categoryId)
+        
       }),
       {
         loading: 'Updating subtask...',
@@ -241,19 +269,21 @@ export default function TaskCategories() {
   // Delete a subtask
   const deleteSubTask = async (categoryId: number, subtaskId: number) => {
     return await toast.promise(
-      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories/${categoryId}/subtasks/${subtaskId}`, {
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/subtasks/${subtaskId}`, {
         method: 'DELETE'
       })
       .then(async (response) => {
         const result = await response.json()
         if (!response.ok) throw new Error(result.message || 'Failed to delete subtask')
-        fetchCategories()
+        await fetchCategories(categoryId)
+        return result
       }),
       {
         loading: 'Deleting subtask...',
         success: 'Subtask deleted successfully',
         error: (err) => `Error: ${err.message}`
       }
+      
     )
   }
 
@@ -284,6 +314,8 @@ export default function TaskCategories() {
     addSubTask(categoryId, newSubTask)
     e.currentTarget.reset()
     setIsPreparationTask(false) // Reset the checkbox state
+    setAddSubTaskDialog(false)
+
   }
 
   // Handle submission for editing an existing subtask
@@ -313,6 +345,7 @@ export default function TaskCategories() {
     updateSubTask(categoryId, updatedSubTask)
     setEditingSubTask(null)
     setEditIsPreparationTask(false) // Reset the checkbox state
+    setEditSubTaskDialog(false)
   }
 
   // Render the category management UI
@@ -329,7 +362,7 @@ export default function TaskCategories() {
               </p>
             </div>
             <div className="ml-auto px-3 space-x-3">
-              <Dialog>
+              <Dialog open={AddCategoryDialog} onOpenChange={setAddCategoryDialog}>
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
@@ -437,7 +470,7 @@ export default function TaskCategories() {
               <h2 className="text-2xl font-bold tracking-tight">{selectedCategory.name}</h2>
             </div>
             <div className="ml-auto px-3 space-x-3">
-              <Dialog>
+              <Dialog open={AddSubTaskDialog} onOpenChange={setAddSubTaskDialog}>
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
@@ -583,7 +616,7 @@ export default function TaskCategories() {
                   <div>
                     <p className="font-medium">{subtask.name}</p>
                     <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                    <span>{subtask.roles.display_name}</span>
+                    <span>{subtask.roles?.display_name || "NA"}</span>
                     <span>{subtask.standard_time} min</span>
                     {subtask.is_preparation && (
                       <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">Preparation</span>
@@ -665,7 +698,7 @@ export default function TaskCategories() {
                 className="absolute h-6 bg-blue-100 border border-blue-300 rounded-md px-2 flex items-center text-xs"
                 style={{ width: '100%' }}
               >
-                <span className="truncate">{task.roles.display_name} (Preparation)</span>
+                <span className="truncate">{task.roles?.display_name || "NA"} (Preparation)</span>
               </div>
                 </div>
               </div>
@@ -747,7 +780,7 @@ export default function TaskCategories() {
                     left: `${currentPosition * scale}%`
                   }}
                     >
-                  <span className="truncate">{parallelTask.roles.display_name} ({parallelTask.standard_time} min)</span>
+                  <span className="truncate">{parallelTask.roles?.display_name || "NA"} ({parallelTask.standard_time} min)</span>
                     </div>
                   </div>
                 </div>
@@ -773,7 +806,7 @@ export default function TaskCategories() {
                   left: `${currentPosition * scale}%`
                 }}
                   >
-                <span className="truncate">{task.roles.display_name} ({task.standard_time} min)</span>
+                <span className="truncate">{task.roles?.display_name || "NA"} ({task.standard_time} min)</span>
                   </div>
                 </div>
               </div>
@@ -862,7 +895,7 @@ export default function TaskCategories() {
           {deletingCategory && (
             <form onSubmit={(e) => {
               e.preventDefault()
-              deleteCategory(deletingCategory.id)
+              deleteCategory(deletingCategory.uuid)
               setDeletingCategory(null)
             }}>
               <div className="py-4">
@@ -886,6 +919,7 @@ export default function TaskCategories() {
       <Dialog open={!!editingSubTask} onOpenChange={() => {
         setEditingSubTask(null);
         setEditIsPreparationTask(false);
+        setEditSubTaskDialog(false);
       }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
