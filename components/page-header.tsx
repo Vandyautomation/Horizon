@@ -137,6 +137,18 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
+          {currentPage === 'uv-scrap' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('uv-scrap', 'UV Scrap', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+
           {currentPage === 'countboard' && currentSubPage != 'uv' && (
             <>
               <BreadcrumbItem>

@@ -1,6 +1,6 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,  SidebarHeader, SidebarMenu,  SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import {   Bot, Calculator,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Database, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
+import {   Bot, Calculator,  Camera,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Database, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
 import {
     Collapsible,
     CollapsibleContent,
@@ -130,12 +130,12 @@ export default function SidebarLeft({
           },
         ],
       },
-      {
-        title: 'eScale',
-        url: '/',
-        icon: ScaleIcon,
-        hidden: !user,
-      },
+      // {
+      //   title: 'eScale',
+      //   url: '/',
+      //   icon: ScaleIcon,
+      //   hidden: !user,
+      // },
       {
         title: 'Master Data',
         url: 'master-data',
@@ -185,6 +185,12 @@ export default function SidebarLeft({
             url: 'machines/equipments',
           },
         ],
+      },
+      {
+        title: 'UV Scrap',
+        url: 'uv-scrap',
+        icon: Camera,
+        hidden: !user,
       },
       // {
       //   title: 'Tickets',
