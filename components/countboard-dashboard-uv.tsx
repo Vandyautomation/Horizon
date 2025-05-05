@@ -1151,7 +1151,7 @@ export default function CountboardDashboardUv() {
                   <TableHead className="w-[60px]">Target</TableHead>
                   <TableHead className="w-[250px] text-center">Actual Qty Base Coat</TableHead>
                   <TableHead className="w-[60px] text-center">Gap</TableHead>
-                  { selectedMachine.locationName == "E" || selectedMachine.locationName == "K"  &&   
+                  { (selectedMachine.locationName == "E" || selectedMachine.locationName == "K")  &&   
                   (<>
                     <TableHead className="w-[250px] text-center">Actual Qty Top Coat</TableHead>
                     <TableHead className="w-[60px] text-center">Gap</TableHead>
@@ -1223,9 +1223,9 @@ export default function CountboardDashboardUv() {
                       </div>
                     </TableCell>
 
-                      <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.process === 'Base Coat' ? row.delta : 0}</TableCell>
+                      <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.process === 'Base Coat' ? row.delta : 0} {selectedMachine.locationName}</TableCell>
                      
-                     { selectedMachine.locationName == "E" || selectedMachine.locationName == "K"  &&   
+                     { (selectedMachine.locationName == "E" || selectedMachine.locationName == "K")  &&   
                      <>
                      <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
