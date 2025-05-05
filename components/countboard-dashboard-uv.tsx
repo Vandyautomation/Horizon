@@ -1223,7 +1223,7 @@ export default function CountboardDashboardUv() {
                       </div>
                     </TableCell>
 
-                      <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.process === 'Base Coat' ? row.delta : 0} {selectedMachine.locationName}</TableCell>
+                      <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.process === 'Base Coat' ? row.delta : 0}</TableCell>
                      
                      { (selectedMachine.locationName == "E" || selectedMachine.locationName == "K")  &&   
                      <>
