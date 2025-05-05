@@ -23,45 +23,31 @@ export async function getRoles() {
     return result
 }
 
-export async function fetchUserById(id: string) {
+export async function createRole(role: { name: string, display_name: string }) {
     const query = `
-    select * from useraccessmst where id = @id and active = 1
-  `;
+      INSERT INTO roles (name, display_name)
+      VALUES (@name, @display_name)
+    `;
+    const result = await queryDatabase(query, { name: role.name, display_name: role.display_name });
+    return result;
+}
+
+export async function updateRole(id: string, role: { name: string, display_name: string }) { 
+    const query = `
+      UPDATE roles
+      SET name = @name, display_name = @display_name
+      WHERE id = @id
+    `;
+    const result = await queryDatabase(query, { id, name: role.name, display_name: role.display_name });
+    return result;
+}
+
+export async function deleteRole(id: string) {
+    const query = `
+      DELETE FROM roles WHERE id = @id
+    `;
     const result = await queryDatabase(query, { id });
     return result;
 }
 
-export async function createUser(username: string, password: string, email: string, role: string) {
-    const query = `
-    INSERT INTO useraccessmst (username, password, email, role)
-    VALUES (@username, @password, @email, @role)
-  `;
-    const result = await queryDatabase(query, { username, password, email, role });
-    return result;
-}
-export async function updateUser(id: string, username: string, password: string, email: string, role: string) {
-    const query = `
-    UPDATE useraccessmst
-    SET username = @username, password = @password, email = @email, role = @role
-    WHERE id = @id
-  `;
-    const result = await queryDatabase(query, { id, username, password, email, role });
-    return result;
-}
-export async function deleteUser(id: string) {
-    const query = `
-    UPDATE useraccessmst
-    SET active = 0
-    WHERE id = @id
-  `;
-    const result = await queryDatabase(query, { id });
-    return result;
-}
 
-export async function fetchUserByUsername(username: string) {
-    const query = `
-    SELECT * FROM useraccessmst WHERE username = @username AND active = 1
-  `;
-    const result = await queryDatabase(query, { username });
-    return result;
-}

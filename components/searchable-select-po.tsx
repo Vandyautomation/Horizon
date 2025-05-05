@@ -72,21 +72,26 @@ export function SearchablePOSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full justify-between flex"
         >
-          {value?.poNumber || "Select PO Number"}
+          {value?.poNumber || 'Select PO Number'}
           <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0">
-        <Command className="">
-          <CommandInput placeholder="Search PO number..." className="h-9" value={searchPoNumber} onChangeCapture={handleSearchPoNumberChange} />
+      <PopoverContent className="p-0 h-60 flex">
+        <Command className="flex">
+          <CommandInput
+            placeholder="Search PO number..."
+            className="h-9"
+            value={searchPoNumber}
+            onChangeCapture={handleSearchPoNumberChange}
+          />
           <CommandEmpty>No PO number found.</CommandEmpty>
-          <CommandGroup>
-            <ScrollArea className="h-60" type="always">
+          <ScrollArea className="h-60 flex" type="always">
+            <CommandGroup>
               {loading ? (
                 <p className="px-4 py-2 text-center text-sm text-muted-foreground">
-                  Loading PO numbers...
+                  Please input PO number...
                 </p>
               ) : poNumbers.length === 0 ? (
                 <p className="px-4 py-2 text-center text-sm text-muted-foreground">
@@ -98,25 +103,29 @@ export function SearchablePOSelect({
                     key={poNumberObj.poId}
                     value={poNumberObj.poNumber}
                     onSelect={(currentValue) => {
-                      onValueChange(currentValue === value?.poNumber ? null : poNumberObj);
-                      setOpen(false);
+                      onValueChange(
+                        currentValue === value?.poNumber ? null : poNumberObj
+                      )
+                      setOpen(false)
                     }}
                   >
                     {poNumberObj.poNumber}
                     <Check
                       className={cn(
-                        "ml-auto h-4 w-4",
-                        value?.poNumber === poNumberObj.poNumber ? "opacity-100" : "opacity-0"
+                        'ml-auto h-4 w-4',
+                        value?.poNumber === poNumberObj.poNumber
+                          ? 'opacity-100'
+                          : 'opacity-0'
                       )}
                     />
                   </CommandItem>
                 ))
               )}
-            </ScrollArea>
-          </CommandGroup>
+            </CommandGroup>
+          </ScrollArea>
         </Command>
       </PopoverContent>
     </Popover>
-  );  
+  )  
 }
 
