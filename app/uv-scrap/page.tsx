@@ -12,7 +12,7 @@ import { CameraFeed } from "@/components/uv-scrap/camera-feed"
 import { UvScrapModal } from "@/components/uv-scrap/modals"
 import { CameraDetailModal } from "@/components/uv-scrap/camera-detail-modal"
 import { toast} from "react-hot-toast"
-import { io, Socket } from "socket.io-client"
+
 
 interface Camera {
   id: string
@@ -73,54 +73,56 @@ export default function UvScrap() {
 
   useEffect(() => {
     // Connect to Socket.IO
-    const socket: Socket = io(pythonUrl, {
-      withCredentials: true,
-      transports: ['websocket', 'polling']
-    })
+    // const socket: Socket = io(pythonUrl, {
+    //   withCredentials: true,
+    //   transports: ['websocket', 'polling']
+    // })
 
-    socket.on('stats', (stats: Stats) => {
-      setCameras((prevCameras) =>
-        prevCameras.map((camera) => ({
-          ...camera,
-          is_active: stats[camera.id]?.total_count > 0,
-        }))
-      )
-    })
+    // socket.on('stats', (stats: Stats) => {
+    //   setCameras((prevCameras) =>
+    //     prevCameras.map((camera) => ({
+    //       ...camera,
+    //       is_active: stats[camera.id]?.total_count > 0,
+    //     }))
+    //   )
+    // })
 
     // Load initial data
     loadInitialData()
-
-    return () => {
-      socket.disconnect()
-    }
+    // return () => {
+    //   socket.disconnect()
+    // }
   }, [])
 
-  const pythonUrl = process.env.NEXT_PUBLIC_BACKEND_PYTHON
+//   const pythonUrl = process.env.NEXT_PUBLIC_BACKEND_PYTHON
+  const pythonUrl = process.env.NEXT_PUBLIC_BACKEND_URL + "/api/detection"
+  const beUrl = process.env.NEXT_PUBLIC_BACKEND_URL + "/api/detection"
 
   const loadInitialData = async () => {
     try {
       const [camerasRes, sourcesRes, devicesRes, yamlRes] = await toast.promise(
         Promise.all([
-          fetch(`${pythonUrl}/api/cameras`, {
-            credentials: 'include',
+          fetch(`${beUrl}/api/cameras`, {
+            // credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+
+            }
+          }),
+          fetch(`${beUrl}/api/video_sources`, {
+            // credentials: 'include',
             headers: {
               'Content-Type': 'application/json'
             }
           }),
-          fetch(`${pythonUrl}/api/video_sources`, {
-            credentials: 'include',
+          fetch(`${beUrl}/api/device_names`, {
+            // credentials: 'include',
             headers: {
               'Content-Type': 'application/json'
             }
           }),
-          fetch(`${pythonUrl}/api/device_names`, {
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }),
-          fetch(`${pythonUrl}/api/yaml`, {
-            credentials: 'include',
+          fetch(`${beUrl}/api/yaml`, {
+            // credentials: 'include',
             headers: {
               'Content-Type': 'application/json'
             }
@@ -138,13 +140,13 @@ export default function UvScrap() {
       const devicesData = await devicesRes.json()
       const yamlData = await yamlRes.json()
 
-      setCameras(Object.entries(camerasData).map(([id, data]: [string, any]) => ({
+      setCameras(Object.entries(camerasData.data).map(([id, data]: [string, any]) => ({
         id,
         ...data,
       })))
-      setVideoSources(sourcesData.sources)
-      setDeviceNames(devicesData.devices)
-      setYamlFiles(yamlData.files)
+      setVideoSources(sourcesData.data)
+      setDeviceNames(devicesData.data)
+      setYamlFiles(yamlData.data)
     } catch (error) {
       toast.error("Failed to load initial data")
     }
@@ -164,7 +166,7 @@ export default function UvScrap() {
           method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
-          credentials: 'include'
+        //   credentials: 'include'
         })
 
         const result = await response.json()
@@ -193,7 +195,7 @@ export default function UvScrap() {
     try {
       const response = await fetch(endpoint, { 
         method: 'DELETE',
-        credentials: 'include',
+        // credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
       })
       const result = await response.json()
@@ -221,7 +223,7 @@ export default function UvScrap() {
           camera_id: id,
           action: camera.is_paused ? 'resume' : 'pause',
         }),
-        credentials: 'include'
+        // credentials: 'include'
       })
 
       const result = await response.json()
@@ -278,6 +280,7 @@ export default function UvScrap() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {cameras.map((camera) => (
                     <CameraFeed
+                      camerasVisible={camerasVisible}
                       key={camera.id}
                       id={camera.id}
                       name={camera.name}

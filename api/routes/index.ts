@@ -10,6 +10,7 @@ import equipmentRoutes from './equipmentRoutes';
 import locationRoutes from './locationRoutes';
 import uapRoutes from './uapRoutes';
 import qcoRouter from './qco';
+import detectionRouter from './detection';
 
 
 
@@ -26,7 +27,9 @@ router.route('/andon', andonRoutes);
 router.route('/equipments', equipmentRoutes);
 router.route('/locations', locationRoutes);
 router.route('/uaps', uapRoutes);
+
 router.route('/qco/api', qcoRouter);
+router.route('/detection/api', detectionRouter);
 
 
 

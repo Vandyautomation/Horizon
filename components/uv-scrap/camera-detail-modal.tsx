@@ -297,14 +297,14 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
             {!isCreatingNew ? "Create New YAML" : "Cancel"}
           </Button>
         </div>
-        <div className="relative w-[640px] aspect-video bg-black select-none">
+        <div className="relative w-[640px] aspect-[640/360] h-[360px] bg-black select-none">
           <img
             ref={imgRef}
             src={`${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/video_feed/${camera.id}`}
             alt={camera.name}
             height={360}
             width={640}
-            className="object-cover"
+            className="object-cover w-[640px] h-[360px]"
             draggable={false}
           />
           <div
