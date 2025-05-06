@@ -110,6 +110,9 @@ import { StringHeaderIdentifier } from "@tanstack/react-table"
         { id: "INJ Bld Q", name: "INJ Bld Q" },
         { id: "INJ Bld R", name: "INJ Bld R" },
         { id: "INJ Bld S", name: "INJ Bld S" },
+        { id: "INJ Bld R, INJ Bld S", name: "INJ Bld R, INJ Bld S" },
+        { id: "INJ Bld J, INJ Bld Q", name: "INJ Bld J, INJ Bld Q" },
+        { id: "INJ Bld G, INJ Bld H", name: "INJ Bld G, INJ Bld H" },
       ]
 
       const uap = [
