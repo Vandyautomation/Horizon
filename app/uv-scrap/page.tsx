@@ -506,7 +506,7 @@ export default function UvScrap() {
       <CameraDetailModal
         open={!!selectedCamera}
         camera={selectedCamera}
-        onClose={() => setSelectedCamera(null)}
+        onClose={() => {setSelectedCamera(null); loadInitialData();}}
         yamlFiles={yamlFiles}
         defaultYamlFile={selectedCamera?.yaml_file}
         defaultYamlFileContent={selectedCamera?.yaml_file_content}

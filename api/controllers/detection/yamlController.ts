@@ -9,19 +9,20 @@ export async function getYaml() {
     return result;
 }
 
-export async function createYaml(name: string, yaml_file: string, yaml_file_content: string) {
+export async function createYaml(name: string, content: string) {
     const query = `
-        INSERT INTO yaml_files (name, yaml_file, yaml_file_content) VALUES (@name, @yaml_file, @yaml_file_content)
+        INSERT INTO yaml_files (name, content) VALUES (@name, @content)
     `;
-    const result = await queryDatabase(query, { name, yaml_file, yaml_file_content });
+    const result = await queryDatabase(query, { name, content });
     return result;
 }
 
-export async function updateYaml(id: string, name: string, yaml_file: string, yaml_file_content: string) {
+export async function updateYaml(name: string, content: string) {
     const query = `
-        UPDATE yaml_files SET name = @name, yaml_file = @yaml_file, yaml_file_content = @yaml_file_content WHERE id = @id
+        UPDATE yaml_files SET  content = @content WHERE name = @name
+
     `;
-    const result = await queryDatabase(query, { name, yaml_file, yaml_file_content, id });
+    const result = await queryDatabase(query, { name, content });
     return result;
 }
 
@@ -31,4 +32,12 @@ export async function deleteYaml(id: string) {
     `;
     const result = await queryDatabase(query, { id });
     return result;
+}
+
+export async function handleYaml(action: string, name: string, content: string) {
+    if (action === "create") {
+        return await createYaml(name, content);
+    } else if (action === "update") {
+        return await updateYaml(name, content);
+    }
 }
