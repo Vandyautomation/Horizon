@@ -12,8 +12,8 @@ export async function getTasks(limit?: number, page?: number, start_at?: string,
 
     // Convert page to offset if page is provided
     const offset = page && limit ? (page - 1) * limit : 0;
-    console.log("start_at", start_at);
-    console.log("week_start_at", week_start_at);
+    // console.log("start_at", start_at);
+    // console.log("week_start_at", week_start_at);
 
     const whereClause = week_start_at ? `WHERE t.start_at BETWEEN @week_start_at AND DATEADD(day, 6, @week_start_at)` : start_at ? 'WHERE CONVERT(date, t.start_at) = @date' : '';
     // Order by status desc and then by start_at to match Laravel's ordering
@@ -48,7 +48,7 @@ export async function getTasks(limit?: number, page?: number, start_at?: string,
         ${offsetClause}
         ${limitClause}
     `;
-    console.log("SQL Query:", sqlQuery);
+    // console.log("SQL Query:", sqlQuery);
 
 
     const params: any = {};
@@ -58,8 +58,8 @@ export async function getTasks(limit?: number, page?: number, start_at?: string,
     params.week_start_at = week_start_at ? new Date(week_start_at) : null;
 
     const tasks = await queryDatabase(sqlQuery, params);
-    console.log("SQL Params:", params);
-    console.log("Tasks:", tasks);
+    // console.log("SQL Params:", params);
+    // console.log("Tasks:", tasks);
 
     // Format response to match Laravel's simplePaginate structure
     const currentPage = page || 1;
@@ -251,7 +251,9 @@ export async function createTask(body: any) {
             SELECT * FROM sub_tasks 
             WHERE category_id = @category_id 
             ORDER BY id
-        `, { category_id: body.category_id });
+        `, { category_id: Number(body.category_id) });
+
+        console.log("subTasks", subTasks);
 
         if (!subTasks || subTasks.length === 0) {
             return {

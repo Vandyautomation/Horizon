@@ -258,13 +258,11 @@ function InjectionMoldingMachine({
         ]}
       />
       {machine?.status === 'ORANGE' && (
-        <mesh position={[0, 0, 0]}>
           <Html position={[0, 4, 0]} center>
             <div className="bg-orange-500 text-white p-1 text-sm border animate-pulse">
               Breakdown!!!
             </div>
           </Html>
-        </mesh>
       )}
       <Html position={[0, 3, 0]} center>
         <div
@@ -279,23 +277,6 @@ function InjectionMoldingMachine({
           {machine.id}
         </div>
       </Html>
-      {/* <group position={[0, 3.25, 0]} rotation={[0, Math.PI / 3, 0]}>
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[0.5, 0.6, 0.1]} />
-          <meshStandardMaterial color={statusColors[machine?.status]} />
-        </mesh>
-        <Text
-          position={[0, 0, -0.06]}
-          fontSize={0.5}
-          fontWeight={'bold'}
-          color="black"
-          anchorX="center"
-          anchorY="middle"
-          rotation={[0, Math.PI, 0]}
-        >
-          {machine.id}
-        </Text>
-      </group> */}
       <Html position={[0, 0, -3]} center>
         <div
           style={{
