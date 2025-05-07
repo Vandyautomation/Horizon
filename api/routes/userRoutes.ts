@@ -43,11 +43,6 @@ userRoutes.post('/', async (c) => {
     if (!body.UserName || !body.password || !body.UserRFID || !body.role_id) {
       return c.json({ success: false, message: 'UserName, password, UserRFID, and role_id are required' }, 400);
     }
-    const existingUser = await fetchUserByUsername(body.UserName);
-
-    if (existingUser.length > 0) {
-      return c.json({ success: false, message: 'User already exists' }, 400);
-    }
 
     const existingUser2 = await fetchUserByNik(body.UserRFID);
 

@@ -346,7 +346,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
           {/* Continue adapting the remaining breadcrumb sections */}
         </BreadcrumbList>
       </Breadcrumb>
-      <div className="ml-auto px-3 space-x-3">
+      <div className="ml-auto px-3 space-x-3 items-center justify-center">
         <ModeToggle />
         <UserSetting />
       </div>

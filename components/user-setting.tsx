@@ -31,15 +31,19 @@ export function UserSetting() {
   const handleLogout = () => {
     document.cookie = "authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;";
     localStorage.clear();
+
     window.dispatchEvent(new CustomEvent("storage"))
+    router.refresh();
     router.push('/login')
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant={user ? "default" : "outline"} size="icon">
-       <User/>
+        <Button variant={user  ? "default" : "outline"} size="icon" className="items-center justify-center align-middle mb-2">
+        {
+          user  ? <p className="text-xs items-center justify-center align-middle">{user.charAt(0).toUpperCase()}</p> :  <User/> 
+        }
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
