@@ -747,7 +747,7 @@ export default function CountboardDashboardUv() {
   if(selectedMachine?.locationName == 'K' || selectedMachine?.locationName == 'E'){
     rejectPercentage = 0.09
   } else if(selectedMachine?.locationName == 'M') {
-    rejectPercentage = 0.025
+    rejectPercentage = 0.05
   }
 
   console.log(`totalRejectA : ${totalRejectA}`)
