@@ -26,7 +26,11 @@ export default function AdminUI() {
         <h2 className="text-2xl font-bold tracking-tight">Welcome {user}!</h2>
         <h3>
           Which menu do you want to go?{' '}
-          <em>{user ? null : '(login to get more access)'}</em>
+          <Link href="/login" passHref legacyBehavior>
+            <a className="text-blue-500 hover:text-blue-700">
+              <em>{user ? null : '(login to get more access)'}</em>
+            </a>
+          </Link>
         </h3>
         <div className="grid grid-cols-7 py-4 gap-4">
           <Link href="/countboard" passHref legacyBehavior>

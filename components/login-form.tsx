@@ -56,7 +56,7 @@ export function LoginForm() {
 
       // Redirect to the next page
       toast.success('Login successful!');
-
+      router.refresh();
       router.push('/')
     } catch (err) {
       setError((err as Error).message);
