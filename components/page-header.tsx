@@ -94,6 +94,10 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('andon/uv', 'Andon UV', false)}
               </BreadcrumbItem>
+               <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/overall', 'Overall', false)}
+              </BreadcrumbItem>
             </>
           )}
 
@@ -109,6 +113,30 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('andon/uv', 'Andon UV', true)}
+              </BreadcrumbItem>
+               <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/overall', 'Overall', false)}
+              </BreadcrumbItem>
+            </>
+          )}
+
+          {currentPage === 'andon' && currentSubPage === 'overall' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon', 'Andon', false)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/uv', 'Andon UV', false)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/overall', 'Overall', true)}
               </BreadcrumbItem>
             </>
           )}
