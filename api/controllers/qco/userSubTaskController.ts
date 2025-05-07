@@ -58,12 +58,27 @@ export async function startUserSubTask(c: Context, uuid: string) {
         SET started_by = @userId, started_at = GETDATE()
         WHERE uuid = @uuid;
         
-        -- Update related task if this is the first sub-task
+        -- Update related task if this is the first sub-task and the subtask is not preparation and handle parallel tasks
         UPDATE t
         SET t.status = 'started', t.started_at = GETDATE()
         FROM IoT.dbo.[Tasks] t
         INNER JOIN IoT.dbo.[user_sub_tasks] ust ON t.Id = ust.task_id
-        WHERE ust.uuid = @uuid AND t.started_at IS NULL;
+        INNER JOIN (
+            -- Get the first non-preparation sub task for comparison
+            SELECT TOP 1 task_id, is_parallel, id
+            FROM IoT.dbo.[user_sub_tasks]
+            WHERE task_id = (SELECT task_id FROM IoT.dbo.[user_sub_tasks] WHERE uuid = @uuid)
+            AND is_preparation = 0
+            ORDER BY id
+        ) first_sub ON first_sub.task_id = t.Id
+        WHERE ust.uuid = @uuid
+        AND t.started_at IS NULL
+        AND ust.is_preparation = 0
+        AND (
+            -- Match either if it's the first sub task or if parallel status matches
+            first_sub.id = ust.id
+            OR first_sub.is_parallel = ust.is_parallel
+        );
     `;
 
     return await queryDatabase(sqlQuery, { uuid, userId });

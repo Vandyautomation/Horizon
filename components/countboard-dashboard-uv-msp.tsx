@@ -677,7 +677,7 @@ export default function CountboardDashboardUv() {
   useEffect(() => {
     if (queryLocation) {
       setSelectedLocation(queryLocation);
-      console.log(`machine location from query : ${queryLocation}`);
+      // console.log(`machine location from query : ${queryLocation}`);
     }
   }, [queryLocation]);
 
@@ -688,19 +688,19 @@ export default function CountboardDashboardUv() {
       //   machine => machine.machineNumber === queryMachineNumber
       // );
       const selected = filteredMachines?.find(machine => machine.machineNumber == queryMachineNumber);
-      console.log(`filteredMachines from query: ${JSON.stringify(filteredMachines)}`);
-      console.log(`selected from query: ${JSON.stringify(selected)}`);
+      // console.log(`filteredMachines from query: ${JSON.stringify(filteredMachines)}`);
+      // console.log(`selected from query: ${JSON.stringify(selected)}`);
 
       setSelectedMachine(selected || null);
-      console.log(`machine number from query : ${queryMachineNumber}`);
-      console.log(`selected machine from query :`, selected);
+      // console.log(`machine number from query : ${queryMachineNumber}`);
+      // console.log(`selected machine from query :`, selected);
     }
   }, [queryMachineNumber, machines, filteredMachines]);
 
   useEffect(() => {
     if (queryRefreshRate) {
       setRefreshRate(queryRefreshRate);
-      console.log(`refreshRate : ${queryRefreshRate}`);
+      // console.log(`refreshRate : ${queryRefreshRate}`);
     }
   }, [queryRefreshRate]);
 

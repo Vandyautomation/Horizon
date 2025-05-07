@@ -253,7 +253,7 @@ export async function createTask(body: any) {
             ORDER BY id
         `, { category_id: Number(body.category_id) });
 
-        console.log("subTasks", subTasks);
+        // console.log("subTasks", subTasks);
 
         if (!subTasks || subTasks.length === 0) {
             return {

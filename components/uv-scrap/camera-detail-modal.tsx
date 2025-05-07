@@ -37,7 +37,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
   const [editingPoints, setEditingPoints] = useState<[number, number][]>([])
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null)
 
-  const pythonUrl = process.env.NEXT_PUBLIC_BACKEND_PYTHON
+  const pythonUrl = process.env.NEXT_PUBLIC_BACKEND_URL + "/api/detection"
 
   // Load areas from default YAML file
   useEffect(() => {
@@ -54,33 +54,40 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
 
   // Load areas from selected YAML file
   useEffect(() => {
+    if(selectedYaml == defaultYamlFile) {
+        return
+    }
+
     if (!selectedYaml) {
       setAreas([])
       return
     }
     
     // Find the file object
-    const file = yamlFiles.find(f => f.name === selectedYaml)
+    const file = yamlFiles.find(f => f.name == selectedYaml)
+    console.log("yamlFiles", yamlFiles)
+    console.log("selectedYaml", selectedYaml)
     if (file && file.content) {
-      setAreas(file.content)
-    } else if (file && !file.content) {
-      setSaving(true)
-      // Fetch and parse YAML content if not already loaded
-      fetch(`${pythonUrl}/api/yaml/${selectedYaml}`, {
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      })
-        .then(res => res.json())
-        .then(data => {
-          try {
-            const parsed = yaml.load(data.content)
-            setAreas(Array.isArray(parsed) ? parsed : [])
-          } catch {
-            setAreas([])
-          }
-        })
-        .finally(() => setSaving(false))
-        .catch(() => setAreas([]))
+      const parsed = yaml.load(String(file.content))
+      setAreas(Array.isArray(parsed) ? parsed : [])
+    // } else if (file && !file.content) {
+    //   setSaving(true)
+    //   // Fetch and parse YAML content if not already loaded
+    //   fetch(`${pythonUrl}/api/yaml/${selectedYaml}`, {
+    //     credentials: 'include',
+    //     headers: { 'Content-Type': 'application/json' }
+    //   })
+    //     .then(res => res.json())
+    //     .then(data => {
+    //       try {
+    //         const parsed = yaml.load(data.content)
+    //         setAreas(Array.isArray(parsed) ? parsed : [])
+    //       } catch {
+    //         setAreas([])
+    //       }
+    //     })
+    //     .finally(() => setSaving(false))
+    //     .catch(() => setAreas([]))
     } else {
       setAreas([])
     }
@@ -184,7 +191,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
       const yamlRes = await fetch(`${pythonUrl}/api/yaml`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        // credentials: "include",
         body: JSON.stringify({
           action,
           name: yamlName,
@@ -197,7 +204,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
       const camRes = await fetch(`${pythonUrl}/api/cameras/${camera.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        // credentials: "include",
         body: JSON.stringify({
           ...camera,
           yaml_file: yamlName
@@ -205,6 +212,8 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
       })
       const camResult = await camRes.json()
       if (!camResult.success) throw new Error(camResult.error || "Failed to update camera")
+
+      // 3. refetch all data
     }
 
     toast.promise(
@@ -297,14 +306,14 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
             {!isCreatingNew ? "Create New YAML" : "Cancel"}
           </Button>
         </div>
-        <div className="relative w-[640px] aspect-video bg-black select-none">
+        <div className="relative w-[640px] aspect-[640/360] h-[360px] bg-black select-none">
           <img
             ref={imgRef}
             src={`${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/video_feed/${camera.id}`}
             alt={camera.name}
             height={360}
             width={640}
-            className="object-cover"
+            className="object-cover w-[640px] h-[360px]"
             draggable={false}
           />
           <div

@@ -677,7 +677,7 @@ export default function CountboardDashboardUv() {
   useEffect(() => {
     if (queryLocation) {
       setSelectedLocation(queryLocation);
-      console.log(`machine location from query : ${queryLocation}`);
+      // console.log(`machine location from query : ${queryLocation}`);
     }
   }, [queryLocation]);
 
@@ -688,19 +688,19 @@ export default function CountboardDashboardUv() {
       //   machine => machine.machineNumber === queryMachineNumber
       // );
       const selected = filteredMachines?.find(machine => machine.machineNumber == queryMachineNumber);
-      console.log(`filteredMachines from query: ${JSON.stringify(filteredMachines)}`);
-      console.log(`selected from query: ${JSON.stringify(selected)}`);
+      // console.log(`filteredMachines from query: ${JSON.stringify(filteredMachines)}`);
+      // console.log(`selected from query: ${JSON.stringify(selected)}`);
 
       setSelectedMachine(selected || null);
-      console.log(`machine number from query : ${queryMachineNumber}`);
-      console.log(`selected machine from query :`, selected);
+      // console.log(`machine number from query : ${queryMachineNumber}`);
+      // console.log(`selected machine from query :`, selected);
     }
   }, [queryMachineNumber, machines, filteredMachines]);
 
   useEffect(() => {
     if (queryRefreshRate) {
       setRefreshRate(queryRefreshRate);
-      console.log(`refreshRate : ${queryRefreshRate}`);
+      // console.log(`refreshRate : ${queryRefreshRate}`);
     }
   }, [queryRefreshRate]);
 
@@ -711,21 +711,21 @@ export default function CountboardDashboardUv() {
       } else if (queryLiveMode == 'false'){
         setIsLiveMode(false);
       }
-      console.log(`liveMode : ${queryLiveMode}`);
+      // console.log(`liveMode : ${queryLiveMode}`);
     }
   }, [queryLiveMode]);
 
   useEffect(() => {
     if (queryDate) {
       setSelectedDate(new Date(new Date(queryDate).getTime() + 1000 * 60 * 60 * 24));
-      console.log(`selectedDate : ${queryDate}`);
+      // console.log(`selectedDate : ${queryDate}`);
     }
   }, [queryDate]);
 
   useEffect(() => {
     if (queryShift) {
       setSelectedShift(queryShift);
-      console.log(`selectedShift : ${queryShift}`);
+      // console.log(`selectedShift : ${queryShift}`);
     }
   }, [queryShift]);
 
@@ -747,11 +747,11 @@ export default function CountboardDashboardUv() {
   if(selectedMachine?.locationName == 'K' || selectedMachine?.locationName == 'E'){
     rejectPercentage = 0.09
   } else if(selectedMachine?.locationName == 'M') {
-    rejectPercentage = 0.025
+    rejectPercentage = 0.05
   }
 
-  console.log(`totalRejectA : ${totalRejectA}`)
-  console.log(`totalRejectOverall : ${totalRejectOverall}`)
+  // console.log(`totalRejectA : ${totalRejectA}`)
+  // console.log(`totalRejectOverall : ${totalRejectOverall}`)
 
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
