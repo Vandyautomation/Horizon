@@ -60,7 +60,7 @@ export function LoginForm() {
       router.push('/')
     } catch (err) {
       setError((err as Error).message);
-      console.log((err as Error).message)
+      // console.log((err as Error).message)
     } finally {
       setLoading(false);
     }

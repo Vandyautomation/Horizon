@@ -52,8 +52,8 @@ export default function RoutingUpload() {
             const worksheet = workbook.Sheets[workbook.SheetNames[workbook.SheetNames.length-1]]
             const data = XLSX.utils.sheet_to_json(worksheet, { range: "G5:W10000", header: 1, raw: true })
             setData(data)
-            console.log(JSON.stringify(data[0]))
-            console.log(data.slice(0,10))
+            // console.log(JSON.stringify(data[0]))
+            // console.log(data.slice(0,10))
 
           } catch (error) {
             setError(`Error processing the file. Please make sure it's a valid Excel file., ${error}`,  )

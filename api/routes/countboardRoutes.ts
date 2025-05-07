@@ -50,7 +50,7 @@ countboardRoutes.put('/process', async (c) => {
 
 countboardRoutes.post('/coois', async (c) => {
   const data  = await c.req.json();
-  console.log(data)
+  // console.log(data)
   try {
     const res = await addCoois(data);
 
@@ -66,7 +66,7 @@ countboardRoutes.post('/coois', async (c) => {
 
 countboardRoutes.post('/routing', async (c) => {
   const data  = await c.req.json();
-  console.log(data)
+  // console.log(data)
   try {
     const res = await addRouting(data);
 

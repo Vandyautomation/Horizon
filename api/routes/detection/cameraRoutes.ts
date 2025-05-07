@@ -66,12 +66,12 @@ cameraRoutes.put('/:id', async (c) => {
         })
         if (sync.ok) {
             console.log("Success updating camera by calling sync api")
-            console.log(sync)
+            // console.log(sync)
             return c.json({ success: true, message: 'Success update camera', data: camera }, 200);
 
         } else {
             console.log("Failed to update camera by calling sync api")
-            console.log(sync)
+            // console.log(sync)
             return c.json({ success: false, message: 'Failed to update camera by calling sync api', error: sync.statusText }, 500);
         }
     } catch (error) {

@@ -157,7 +157,7 @@ export default function EmsDashboard() {
         client.on("message", (topic, message) => {
           try {
             const messageData = JSON.parse(message.toString());
-            console.log(`new message:${JSON.stringify(messageData)}`);
+            // console.log(`new message:${JSON.stringify(messageData)}`);
             
             // Process each item in the array
             messageData.forEach((item: any) => {
