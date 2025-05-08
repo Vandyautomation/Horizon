@@ -23,17 +23,99 @@ interface CameraDetailModalProps {
   defaultYamlFileContent: string | undefined
 }
 
+const areaType = [
+  {
+    id: 1,
+    name: "Input",
+    value: "input",
+    type: [
+      {
+        id: 1,
+        name: "Product",
+        value: "product"
+      },
+      {
+        id: 2,
+        name: "Spindle",
+        value: "spindle"
+      },
+      {
+        id: 3,
+        name: "Start",
+        value: "start"
+      }
+    ]
+  },
+  {
+    id: 2,
+    name: "Output",
+    value: "output",
+    type: [
+      {
+        id: 1,
+        name: "Product",
+        value: "product"
+      },
+      {
+        id: 2,
+        name: "Spindle",
+        value: "spindle"
+      },
+      {
+        id: 3,
+        name: "Start",
+        value: "start"
+      }
+    ]
+  },
+  {
+    id: 3,
+    name: "Scrap",
+    value: "scrap",
+    type: [
+      {
+        id: 1,
+        name: "Scrap A",
+        value: "a"
+      },
+      {
+        id: 2,
+        name: "Scrap B",
+        value: "b"
+      },  
+      {
+        id: 3,
+        name: "Scrap C",
+        value: "c"
+      },
+      {
+        id: 4,
+        name: "Scrap D",
+        value: "d"
+      },
+      {
+        id: 5,
+        name: "Scrap E",
+        value: "e"
+      },
+    ]
+  }
+]
 export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYamlFile, defaultYamlFileContent }: CameraDetailModalProps) {
   const [selectedYaml, setSelectedYaml] = useState<string | null | undefined>(defaultYamlFile || null)
   const [areas, setAreas] = useState<Area[]>([])
   const [drawing, setDrawing] = useState(false)
   const [currentPoints, setCurrentPoints] = useState<[number, number][]>([])
   const [newAreaId, setNewAreaId] = useState("")
+  const [newAreaType, setNewAreaType] = useState("")
+  const [newAreaValue, setNewAreaValue] = useState("")
   const [isCreatingNew, setIsCreatingNew] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
   const [saving, setSaving] = useState(false)
   const [editingAreaIdx, setEditingAreaIdx] = useState<number | null>(null)
   const [editingAreaId, setEditingAreaId] = useState("")
+  const [editingAreaType, setEditingAreaType] = useState("")
+  const [editingAreaValue, setEditingAreaValue] = useState("")
   const [editingPoints, setEditingPoints] = useState<[number, number][]>([])
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null)
 
@@ -344,26 +426,49 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
             ))}
           </div>
         </div>
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-0 flex flex-col gap-2">
           {drawing ? (
-            <>
-              <Input
-                placeholder="Area Name (e.g. Area 1)"
-                value={newAreaId}
-                onChange={e => setNewAreaId(e.target.value)}
-                className="w-64"
-              />
+            <div className="pb-0">
+            <div className="flex items-center gap-2">
+              <Select
+                value={newAreaType}
+                onValueChange={val => setNewAreaType(val)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select Area Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areaType.map(t => (
+                    <SelectItem key={t.id} value={t.value}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={newAreaValue}
+                onValueChange={val => {setNewAreaValue(val); setNewAreaId(`${newAreaType}_${val}`)}}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select Area Value" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areaType.find(t => t.value === newAreaType)?.type.map(t => (
+                    <SelectItem key={t.id} value={t.value}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleFinishPolygon} disabled={currentPoints.length < 3 || !newAreaId}>
                   Finish Area
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => { setDrawing(false); setCurrentPoints([]); setNewAreaId("") }}>Cancel</Button>
               </div>
-              <div className="text-xs text-muted-foreground">Click to add points. Minimum 3 points. Double click or use Finish to complete.</div>
-            </>
+              
+            </div>
+            <div className="text-xs text-muted-foreground">Click to add points. Minimum 3 points. Double click or use Finish to complete.</div>
+            </div>
           ) : (
             
-            <Button size="sm" onClick={handleStartDrawing} disabled={saving}>
+            <Button size="sm" onClick={() => { handleStartDrawing(); setNewAreaType(""); setNewAreaValue("") }} disabled={saving}>
               Draw New Area
             </Button>
             
@@ -376,11 +481,37 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
             <div key={area.id} className="flex items-center gap-2">
               {editingAreaIdx === idx ? (
                 <>
-                  <Input
+                  {/* <Input
                     className="w-32"
                     value={editingAreaId}
                     onChange={e => setEditingAreaId(e.target.value)}
-                  />
+                  /> */}
+                  <Select
+                    value={editingAreaType}
+                    onValueChange={val => setEditingAreaType(val)}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select Area Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areaType.map(t => (
+                    <SelectItem key={t.id} value={t.value}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={editingAreaValue}
+                onValueChange={val => {setEditingAreaValue(val); setEditingAreaId(`${editingAreaType}_${val}`)}}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select Area Value" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areaType.find(t => t.value === editingAreaType)?.type.map(t => (
+                    <SelectItem key={t.id} value={t.value}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
                   <Button size="sm" onClick={() => {
                     setAreas(prev => prev.map((a, i) => i === editingAreaIdx ? { ...a, id: editingAreaId, points: editingPoints } : a))
                     setEditingAreaIdx(null)
