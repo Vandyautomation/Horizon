@@ -356,7 +356,7 @@ export default function UvScrap() {
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
-                          <Button
+                          {/* <Button
                             variant={camera.is_paused ? "default" : "secondary"}
                             size="sm"
                             onClick={() => {handleTogglePause(camera.id); }}
@@ -366,7 +366,7 @@ export default function UvScrap() {
                             ) : (
                               <Pause className="w-4 h-4" />
                             )}
-                          </Button>
+                          </Button> */}
                         </TableCell>
                       </TableRow>
 
@@ -507,6 +507,8 @@ export default function UvScrap() {
         open={!!selectedCamera}
         camera={selectedCamera}
         onClose={() => {setSelectedCamera(null); loadInitialData();}}
+        camerasVisible={!!selectedCamera}
+        id={selectedCamera?.id || ''}
         yamlFiles={yamlFiles}
         defaultYamlFile={selectedCamera?.yaml_file}
         defaultYamlFileContent={selectedCamera?.yaml_file_content}

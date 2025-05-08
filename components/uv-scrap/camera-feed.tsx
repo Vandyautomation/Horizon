@@ -23,6 +23,7 @@ export function CameraFeed({ id, name, status, onClick, camerasVisible }: Camera
   const abortControllerRef = useRef<AbortController | null>(null);
   const fetchingRef = useRef<boolean>(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const prevObjectUrlRef = useRef<string | null>(null);
 
   // Function to fetch a new frame
   const fetchNewFrame = async () => {
@@ -47,7 +48,14 @@ export function CameraFeed({ id, name, status, onClick, camerasVisible }: Camera
       if (!response.ok) throw new Error('Failed to fetch camera frame');
       
       const blob = await response.blob();
+      
+      // Revoke previous object URL before creating a new one
+      if (prevObjectUrlRef.current) {
+        URL.revokeObjectURL(prevObjectUrlRef.current);
+      }
+      
       const objectUrl = URL.createObjectURL(blob);
+      prevObjectUrlRef.current = objectUrl;
       setImageData(objectUrl);
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
@@ -75,14 +83,20 @@ export function CameraFeed({ id, name, status, onClick, camerasVisible }: Camera
     // Clear the image when not visible
     if (!camerasVisible) {
       setImageData(null);
+      
+      // Also revoke any existing object URL
+      if (prevObjectUrlRef.current) {
+        URL.revokeObjectURL(prevObjectUrlRef.current);
+        prevObjectUrlRef.current = null;
+      }
       return;
     }
     
     // Initially fetch a frame
     fetchNewFrame();
     
-    // Set up interval for subsequent fetches for 30fps
-    intervalRef.current = setInterval(fetchNewFrame, 33);
+    // Set up interval for subsequent fetches - consider 100ms (10fps) for better performance
+    intervalRef.current = setInterval(fetchNewFrame, 100);
     
     // Cleanup on unmount or when camerasVisible changes
     return () => {
@@ -94,8 +108,9 @@ export function CameraFeed({ id, name, status, onClick, camerasVisible }: Camera
       }
       
       // Clean up any object URLs to prevent memory leaks
-      if (imageData) {
-        URL.revokeObjectURL(imageData);
+      if (prevObjectUrlRef.current) {
+        URL.revokeObjectURL(prevObjectUrlRef.current);
+        prevObjectUrlRef.current = null;
       }
     };
   }, [camerasVisible, id]);

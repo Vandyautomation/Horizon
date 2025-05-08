@@ -172,7 +172,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('uv-scrap', 'UV Scrap', true)}
+                {createBreadcrumbLink('detection', 'Detection', true)}
               </BreadcrumbItem>
             </>
           )}
