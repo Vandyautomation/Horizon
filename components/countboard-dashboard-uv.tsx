@@ -1219,7 +1219,7 @@ export default function CountboardDashboardUv() {
                             </>
                           );
                         })()}
-                        <span className="relative z-10 ml-2">{row.process === 'Base Coat' ? row.actual : "N/A"} </span>
+                        <span className="relative z-10 ml-2">{row.process === 'Base Coat' || row.process !== 'Top Coat' ? row.actual : "N/A"} </span>
                       </div>
                     </TableCell>
 
