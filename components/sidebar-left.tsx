@@ -187,8 +187,8 @@ export default function SidebarLeft({
         ],
       },
       {
-        title: 'UV Scrap',
-        url: 'uv-scrap',
+        title: 'Detection',
+        url: 'detection',
         icon: Camera,
         hidden: !user,
       },

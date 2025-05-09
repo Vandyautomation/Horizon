@@ -24,7 +24,7 @@ cameraRoutes.post('/', async (c) => {
             body: JSON.stringify({
                 action: 'add',
                 camera: {
-                    id: camera.id,
+                    id: Number(camera.id),
                     name: name,
                     video_source: video_source,
                     yaml_file: yaml_file,
@@ -54,7 +54,7 @@ cameraRoutes.put('/:id', async (c) => {
             body: JSON.stringify({
                 action: 'update',
                 camera: {
-                    id: id,
+                    id: Number(id),
                     name: name,
                     video_source: video_source,
                     yaml_file: yaml_file,
@@ -91,7 +91,7 @@ cameraRoutes.delete('/:id', async (c) => {
             body: JSON.stringify({
                 action: 'delete',
                 camera: {
-                    id: id
+                    id: Number(id)
                 }
             })
         })  

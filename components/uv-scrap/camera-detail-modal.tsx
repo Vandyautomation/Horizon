@@ -21,24 +21,200 @@ interface CameraDetailModalProps {
   yamlFiles: { name: string; content?: Area[] }[]
   defaultYamlFile: string | undefined
   defaultYamlFileContent: string | undefined
+  camerasVisible: boolean
+  id: string
 }
 
-export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYamlFile, defaultYamlFileContent }: CameraDetailModalProps) {
+const areaType = [
+  {
+    id: 1,
+    name: "Input",
+    value: "input",
+    type: [
+      {
+        id: 1,
+        name: "Product",
+        value: "product"
+      },
+      {
+        id: 2,
+        name: "Spindle",
+        value: "spindle"
+      },
+      {
+        id: 3,
+        name: "Start",
+        value: "start"
+      }
+    ]
+  },
+  {
+    id: 2,
+    name: "Output",
+    value: "output",
+    type: [
+      {
+        id: 1,
+        name: "Product",
+        value: "product"
+      },
+      {
+        id: 2,
+        name: "Spindle",
+        value: "spindle"
+      },
+      {
+        id: 3,
+        name: "Start",
+        value: "start"
+      }
+    ]
+  },
+  {
+    id: 3,
+    name: "Scrap",
+    value: "scrap",
+    type: [
+      {
+        id: 1,
+        name: "Scrap A",
+        value: "a"
+      },
+      {
+        id: 2,
+        name: "Scrap B",
+        value: "b"
+      },  
+      {
+        id: 3,
+        name: "Scrap C",
+        value: "c"
+      },
+      {
+        id: 4,
+        name: "Scrap D",
+        value: "d"
+      },
+      {
+        id: 5,
+        name: "Scrap E",
+        value: "e"
+      },
+    ]
+  }
+]
+export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYamlFile, defaultYamlFileContent, camerasVisible, id }: CameraDetailModalProps) {
   const [selectedYaml, setSelectedYaml] = useState<string | null | undefined>(defaultYamlFile || null)
   const [areas, setAreas] = useState<Area[]>([])
   const [drawing, setDrawing] = useState(false)
   const [currentPoints, setCurrentPoints] = useState<[number, number][]>([])
   const [newAreaId, setNewAreaId] = useState("")
+  const [newAreaType, setNewAreaType] = useState("")
+  const [newAreaValue, setNewAreaValue] = useState("")
   const [isCreatingNew, setIsCreatingNew] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
   const [saving, setSaving] = useState(false)
   const [editingAreaIdx, setEditingAreaIdx] = useState<number | null>(null)
   const [editingAreaId, setEditingAreaId] = useState("")
+  const [editingAreaType, setEditingAreaType] = useState("")
+  const [editingAreaValue, setEditingAreaValue] = useState("")
   const [editingPoints, setEditingPoints] = useState<[number, number][]>([])
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null)
 
+  const [imageData, setImageData] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const fetchingRef = useRef<boolean>(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const prevObjectUrlRef = useRef<string | null>(null);
+
   const pythonUrl = process.env.NEXT_PUBLIC_BACKEND_URL + "/api/detection"
 
+  const fetchNewFrame = async () => {
+    if (fetchingRef.current || !camerasVisible) return;
+    
+    // If there's an ongoing fetch, abort it
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create a new abort controller for this fetch
+    abortControllerRef.current = new AbortController();
+    fetchingRef.current = true;
+    
+    try {
+      const timestamp = Date.now();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/frame/${id}?timestamp=${timestamp}`, 
+        { signal: abortControllerRef.current.signal }
+        );
+      
+      if (!response.ok) throw new Error('Failed to fetch camera frame');
+      
+      const blob = await response.blob();
+      
+      // Revoke previous object URL before creating a new one
+      if (prevObjectUrlRef.current) {
+        URL.revokeObjectURL(prevObjectUrlRef.current);
+      }
+      
+      const objectUrl = URL.createObjectURL(blob);
+      prevObjectUrlRef.current = objectUrl;
+      setImageData(objectUrl);
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Error fetching camera frame:', error);
+      }
+    } finally {
+      fetchingRef.current = false;
+    }
+  };
+  useEffect(() => {
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
+    // Abort any ongoing fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Clear the image when not visible
+    if (!camerasVisible) {
+      setImageData(null);
+      
+      // Also revoke any existing object URL
+      if (prevObjectUrlRef.current) {
+        URL.revokeObjectURL(prevObjectUrlRef.current);
+        prevObjectUrlRef.current = null;
+      }
+      return;
+    }
+    
+    // Initially fetch a frame
+    fetchNewFrame();
+    
+    // Set up interval for subsequent fetches - consider 100ms (10fps) for better performance
+    intervalRef.current = setInterval(fetchNewFrame, 100);
+    
+    // Cleanup on unmount or when camerasVisible changes
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Clean up any object URLs to prevent memory leaks
+      if (prevObjectUrlRef.current) {
+        URL.revokeObjectURL(prevObjectUrlRef.current);
+        prevObjectUrlRef.current = null;
+      }
+    };
+  }, [camerasVisible, id]);
   // Load areas from default YAML file
   useEffect(() => {
     if (defaultYamlFile) {
@@ -70,24 +246,6 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
     if (file && file.content) {
       const parsed = yaml.load(String(file.content))
       setAreas(Array.isArray(parsed) ? parsed : [])
-    // } else if (file && !file.content) {
-    //   setSaving(true)
-    //   // Fetch and parse YAML content if not already loaded
-    //   fetch(`${pythonUrl}/api/yaml/${selectedYaml}`, {
-    //     credentials: 'include',
-    //     headers: { 'Content-Type': 'application/json' }
-    //   })
-    //     .then(res => res.json())
-    //     .then(data => {
-    //       try {
-    //         const parsed = yaml.load(data.content)
-    //         setAreas(Array.isArray(parsed) ? parsed : [])
-    //       } catch {
-    //         setAreas([])
-    //       }
-    //     })
-    //     .finally(() => setSaving(false))
-    //     .catch(() => setAreas([]))
     } else {
       setAreas([])
     }
@@ -254,6 +412,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
     </svg>
   )
 
+
   // Edit area name
   const handleEditArea = (idx: number) => {
     setEditingAreaIdx(idx)
@@ -272,6 +431,9 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
       setEditingAreaId("")
     }
   }
+
+
+  
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -309,7 +471,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
         <div className="relative w-[640px] aspect-[640/360] h-[360px] bg-black select-none">
           <img
             ref={imgRef}
-            src={`${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/video_feed/${camera.id}`}
+            src={imageData || ''}
             alt={camera.name}
             height={360}
             width={640}
@@ -344,26 +506,49 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
             ))}
           </div>
         </div>
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-0 flex flex-col gap-2">
           {drawing ? (
-            <>
-              <Input
-                placeholder="Area Name (e.g. Area 1)"
-                value={newAreaId}
-                onChange={e => setNewAreaId(e.target.value)}
-                className="w-64"
-              />
+            <div className="pb-0">
+            <div className="flex items-center gap-2">
+              <Select
+                value={newAreaType}
+                onValueChange={val => setNewAreaType(val)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select Area Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areaType.map(t => (
+                    <SelectItem key={t.id} value={t.value}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={newAreaValue}
+                onValueChange={val => {setNewAreaValue(val); setNewAreaId(`${newAreaType}_${val}`)}}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select Area Value" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areaType.find(t => t.value === newAreaType)?.type.map(t => (
+                    <SelectItem key={t.id} value={t.value}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleFinishPolygon} disabled={currentPoints.length < 3 || !newAreaId}>
                   Finish Area
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => { setDrawing(false); setCurrentPoints([]); setNewAreaId("") }}>Cancel</Button>
               </div>
-              <div className="text-xs text-muted-foreground">Click to add points. Minimum 3 points. Double click or use Finish to complete.</div>
-            </>
+              
+            </div>
+            <div className="text-xs text-muted-foreground">Click to add points. Minimum 3 points. Double click or use Finish to complete.</div>
+            </div>
           ) : (
             
-            <Button size="sm" onClick={handleStartDrawing} disabled={saving}>
+            <Button size="sm" onClick={() => { handleStartDrawing(); setNewAreaType(""); setNewAreaValue("") }} disabled={saving}>
               Draw New Area
             </Button>
             
@@ -376,11 +561,37 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
             <div key={area.id} className="flex items-center gap-2">
               {editingAreaIdx === idx ? (
                 <>
-                  <Input
+                  {/* <Input
                     className="w-32"
                     value={editingAreaId}
                     onChange={e => setEditingAreaId(e.target.value)}
-                  />
+                  /> */}
+                  <Select
+                    value={editingAreaType}
+                    onValueChange={val => setEditingAreaType(val)}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select Area Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areaType.map(t => (
+                    <SelectItem key={t.id} value={t.value}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={editingAreaValue}
+                onValueChange={val => {setEditingAreaValue(val); setEditingAreaId(`${editingAreaType}_${val}`)}}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select Area Value" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areaType.find(t => t.value === editingAreaType)?.type.map(t => (
+                    <SelectItem key={t.id} value={t.value}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
                   <Button size="sm" onClick={() => {
                     setAreas(prev => prev.map((a, i) => i === editingAreaIdx ? { ...a, id: editingAreaId, points: editingPoints } : a))
                     setEditingAreaIdx(null)
