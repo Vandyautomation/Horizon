@@ -23,7 +23,10 @@ export async function getTasks(limit?: number, page?: number, start_at?: string,
 
     const sqlQuery = `
         SELECT CAST(t.id AS INT) as id, t.uuid, cast(c.material_id as int) as item_id, t.category_id, t.status, t.started_at, t.ended_at, t.start_at,
-            DATEADD(second, COALESCE(SUM(ust.standard_time), 0), t.start_at) AS end_at,
+            DATEADD(minute, COALESCE(SUM(
+			case when ust.is_preparation = 0 then ust.standard_time
+			else 0 end
+			), 0), t.start_at) AS end_at,
                 t.machine_name,
                 t.is_notif,
                 t.notif_at,
@@ -48,7 +51,7 @@ export async function getTasks(limit?: number, page?: number, start_at?: string,
         ${offsetClause}
         ${limitClause}
     `;
-    // console.log("SQL Query:", sqlQuery);
+    console.log("SQL Query:", sqlQuery);
 
 
     const params: any = {};
