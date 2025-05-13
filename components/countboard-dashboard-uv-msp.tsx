@@ -711,21 +711,21 @@ export default function CountboardDashboardUv() {
       } else if (queryLiveMode == 'false'){
         setIsLiveMode(false);
       }
-      console.log(`liveMode : ${queryLiveMode}`);
+      // console.log(`liveMode : ${queryLiveMode}`);
     }
   }, [queryLiveMode]);
 
   useEffect(() => {
     if (queryDate) {
       setSelectedDate(new Date(new Date(queryDate).getTime() + 1000 * 60 * 60 * 24));
-      console.log(`selectedDate : ${queryDate}`);
+      // console.log(`selectedDate : ${queryDate}`);
     }
   }, [queryDate]);
 
   useEffect(() => {
     if (queryShift) {
       setSelectedShift(queryShift);
-      console.log(`selectedShift : ${queryShift}`);
+      // console.log(`selectedShift : ${queryShift}`);
     }
   }, [queryShift]);
 
@@ -742,8 +742,8 @@ export default function CountboardDashboardUv() {
   const totalRejectE = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_e || 0), 0) || 0
   const totalRejectOverall = totalRejectA + totalRejectB + totalRejectC + totalRejectD + totalRejectE
 
-  console.log(`totalRejectA : ${totalRejectA}`)
-  console.log(`totalRejectOverall : ${totalRejectOverall}`)
+  // console.log(`totalRejectA : ${totalRejectA}`)
+  // console.log(`totalRejectOverall : ${totalRejectOverall}`)
 
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;

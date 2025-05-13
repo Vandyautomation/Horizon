@@ -163,7 +163,7 @@ export default function AndonOverallDashboard() {
           console.error("Error parsing MQTT message:", error);
         }
       });
-        console.log(`updated building from mqtt : ${JSON.stringify(buildings)}`)
+        // console.log(`updated building from mqtt : ${JSON.stringify(buildings)}`)
 
       setMqttClient(client);
   

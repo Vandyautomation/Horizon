@@ -51,7 +51,7 @@ export async function getTasks(limit?: number, page?: number, start_at?: string,
         ${offsetClause}
         ${limitClause}
     `;
-    console.log("SQL Query:", sqlQuery);
+    // console.log("SQL Query:", sqlQuery);
 
 
     const params: any = {};
