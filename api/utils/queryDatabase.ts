@@ -4,7 +4,7 @@ export async function queryDatabase(sqlQuery: string, params: { [key: string]: a
   const connection = await pool;
   const request = connection.request();
 
-  // Add input parameters to prevent SQL injection
+  // Add input parameters
   Object.entries(params).forEach(([key, value]) => {
     request.input(key, value);
   });
@@ -13,7 +13,10 @@ export async function queryDatabase(sqlQuery: string, params: { [key: string]: a
     const result = await request.query(sqlQuery);
     return result.recordset;
   } catch (error) {
-    console.error('Database query error:', error);
+    console.error('❌ Database query error:');
+    console.error('➡️ Query:', sqlQuery);
+    console.error('➡️ Params:', params);
+    console.error('➡️ Error:', error);
     throw error;
   }
 }
