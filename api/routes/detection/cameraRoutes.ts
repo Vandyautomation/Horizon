@@ -45,7 +45,7 @@ cameraRoutes.put('/:id', async (c) => {
         const { id } = c.req.param();
         const { name, video_source, yaml_file, udp_ip, udp_port, device_name } = await c.req.json();
         const camera = await updateCamera(id, name, video_source, yaml_file, udp_ip, udp_port, device_name);
-        console.log("Updating camera by calling sync api")
+        // console.log("Updating camera by calling sync api")
         const sync = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/camera/sync`, {
             method: 'POST',
             headers: {
@@ -65,12 +65,12 @@ cameraRoutes.put('/:id', async (c) => {
             })
         })
         if (sync.ok) {
-            console.log("Success updating camera by calling sync api")
+            // console.log("Success updating camera by calling sync api")
             // console.log(sync)
             return c.json({ success: true, message: 'Success update camera', data: camera }, 200);
 
         } else {
-            console.log("Failed to update camera by calling sync api")
+            // console.log("Failed to update camera by calling sync api")
             // console.log(sync)
             return c.json({ success: false, message: 'Failed to update camera by calling sync api', error: sync.statusText }, 500);
         }
