@@ -137,7 +137,7 @@ export async function finishUserSubTask(c: Context, uuid: string) {
             FROM IoT.dbo.coois c
             INNER JOIN IoT.dbo.routing r ON c.material_id = r.material_id
             WHERE c.po_name = @po_name
-            order by id desc
+            order by c.id desc
         `;
         const routingData = await queryDatabase(routingQuery, routingParam);
 

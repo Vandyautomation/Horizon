@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Check } from "lucide-react"
+import { Label } from "./ui/label"
 
 type PoNumber = {
   poNumber: string

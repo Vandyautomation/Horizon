@@ -102,6 +102,11 @@ countboardRoutes.post('/task', async (c) => {
   const { poNumber, machineName } = await c.req.json();
   try {
     await attachPo(poNumber, machineName);
+    if (process.env.NODE_ENV === "development") {
+      await fetch("http://localhost:1880/api/task_sync?sync=true")
+    } else if (process.env.NODE_ENV === "production") {
+      await fetch("http://dmksrv02:443/upload/api/task_sync?sync=true")
+    }
     return c.json({ message: 'PO attached successfully' });
   } catch (error) {
     console.error("Error attaching PO:", error);

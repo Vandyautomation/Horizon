@@ -1431,6 +1431,10 @@ export default function CountboardDashboardUv() {
                     onValueChange={(newValue) => setSelectedPO(newValue)}
                 />
               </div>
+               <div className="flex flex-col">
+              <Label htmlFor="po-number">Material</Label>
+                <Input id="po-number" placeholder="Please Select PO First" value={selectedPO?.materialId + " - " + selectedPO?.materialName} disabled />
+              </div>
             </div>
             <DialogFooter>
               <Button onClick={handlePOAttach}>Attach PO</Button>
