@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Camera, Video, Cpu, Play, Square, Trash2, Edit, Pause, Play as PlayIcon } from "lucide-react"
+import { Camera, Video, Cpu, Play, Square, Trash2, Edit, Pause, Play as PlayIcon, RotateCcw, Settings, RotateCw } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -25,6 +25,7 @@ interface Camera {
   device_name: string
   is_active: boolean
   is_paused: boolean
+  status: 'running' | 'paused' | 'error' | 'stopped'
 }
 
 interface VideoSource {
@@ -33,10 +34,24 @@ interface VideoSource {
   url: string
 }
 
+interface Machine {
+  machineId: string
+  machineName: string
+  machineDescription: string
+}
+
 interface DeviceName {
   id: string
   name: string
   value: string
+  machine_id: string
+}
+
+interface UdpSetting {
+  id: string
+  name: string
+  udp_ip: string
+  udp_port: number
 }
 
 interface Stats {
@@ -62,6 +77,8 @@ export default function UvScrap() {
   const [videoSources, setVideoSources] = useState<VideoSource[]>([])
   const [deviceNames, setDeviceNames] = useState<DeviceName[]>([])
   const [yamlFiles, setYamlFiles] = useState<{ name: string }[]>([])
+  const [machines, setMachines] = useState<Machine[]>([])
+  const [udpSettings, setUdpSettings] = useState<UdpSetting[]>([])
   const [modalState, setModalState] = useState<ModalState>({
     open: false,
     type: 'camera',
@@ -70,37 +87,57 @@ export default function UvScrap() {
     id: undefined,
   })
   const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null)
-
-  useEffect(() => {
-    // Connect to Socket.IO
-    // const socket: Socket = io(pythonUrl, {
-    //   withCredentials: true,
-    //   transports: ['websocket', 'polling']
-    // })
-
-    // socket.on('stats', (stats: Stats) => {
-    //   setCameras((prevCameras) =>
-    //     prevCameras.map((camera) => ({
-    //       ...camera,
-    //       is_active: stats[camera.id]?.total_count > 0,
-    //     }))
-    //   )
-    // })
-
-    // Load initial data
-    loadInitialData()
-    // return () => {
-    //   socket.disconnect()
-    // }
-  }, [])
-
 //   const pythonUrl = process.env.NEXT_PUBLIC_BACKEND_PYTHON
   const pythonUrl = process.env.NEXT_PUBLIC_BACKEND_URL + "/api/detection"
   const beUrl = process.env.NEXT_PUBLIC_BACKEND_URL + "/api/detection"
 
+  useEffect(() => {
+    loadInitialData()
+  }, [])
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      const response = await fetch(`${beUrl}/api/cameras/status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      const data = await response.json()
+      if (!data) {
+        console.error('No status data received');
+        return;
+      }
+      
+      const statusMap = data;
+      console.log("statusMap", statusMap)
+      setCameras(prevCameras => {
+        if (!prevCameras) return [];
+        return prevCameras.map(camera => ({
+          ...camera,
+          is_active: statusMap[camera.id] === 'running',
+          is_paused: statusMap[camera.id] === 'paused',
+          is_error: !statusMap[camera.id],
+          status: statusMap[camera.id]
+        }));
+      });
+    }
+
+    // Initial fetch
+    fetchStatus()
+
+    // Set up interval to fetch every second
+    const intervalId = setInterval(fetchStatus, 1000)
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId)
+  }, [beUrl])
+
+  
+
   const loadInitialData = async () => {
     try {
-      const [camerasRes, sourcesRes, devicesRes, yamlRes] = await toast.promise(
+      const [camerasRes, sourcesRes, devicesRes, yamlRes, machineRes] = await toast.promise(
         Promise.all([
           fetch(`${beUrl}/api/cameras`, {
             // credentials: 'include',
@@ -127,6 +164,18 @@ export default function UvScrap() {
               'Content-Type': 'application/json'
             }
           }),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`, {
+            // credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }),
+          // fetch(`${beUrl}/api/udp_settings`, {
+          //   // credentials: 'include',
+          //   headers: {
+          //     'Content-Type': 'application/json'
+          //   }
+          // }),
         ]),
         {
           loading: 'Loading data...',
@@ -139,7 +188,8 @@ export default function UvScrap() {
       const sourcesData = await sourcesRes.json()
       const devicesData = await devicesRes.json()
       const yamlData = await yamlRes.json()
-
+      const machineData = await machineRes.json()
+      // const udpSettingsData = await udpSettingsRes.json()
       setCameras(Object.entries(camerasData.data).map(([id, data]: [string, any]) => ({
         id,
         ...data,
@@ -147,6 +197,8 @@ export default function UvScrap() {
       setVideoSources(sourcesData.data)
       setDeviceNames(devicesData.data)
       setYamlFiles(yamlData.data)
+      setMachines(machineData)
+      // setUdpSettings(udpSettingsData.data)
     } catch (error) {
       toast.error("Failed to load initial data")
     }
@@ -239,6 +291,52 @@ export default function UvScrap() {
     }
   }
 
+  const handleRestartCamera = async (id: string) => {
+    const camera = cameras.find((c) => c.id === id)
+    if (!camera) return
+
+    try {
+      const response = await fetch(`${pythonUrl}/api/cameras/restart`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({  
+          camera_id: id,
+          action: 'restart',
+          yaml_file: camera.yaml_file,
+          video_source: camera.video_source,
+          udp_ip: camera.udp_ip,
+          udp_port: camera.udp_port,
+          device_name: camera.device_name,
+          name: camera.name,
+        }),
+      })
+      
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success(`Camera restarted successfully`)
+        loadInitialData()
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      toast.error(`Failed to restart camera: ${error}`)
+    }
+  }
+
+  const [isRestarting, setIsRestarting] = useState(false);
+  
+  useEffect(() => {
+
+    const timer = setTimeout(() => {
+      if (isRestarting) {
+        setIsRestarting(false)
+      }
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [isRestarting])
+
   return (
     <div className="container w-full p-4 space-y-4">
       <Tabs defaultValue="cameras" className="w-full">
@@ -255,6 +353,10 @@ export default function UvScrap() {
             <Cpu className="w-4 h-4 mr-2" />
             Device Names
           </TabsTrigger>
+          {/* <TabsTrigger value="udp-settings">
+            <Settings className="w-4 h-4 mr-2" />
+            UDP Settings
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="cameras">
@@ -284,8 +386,9 @@ export default function UvScrap() {
                       key={camera.id}
                       id={camera.id}
                       name={camera.name}
-                      status={camera.is_paused ? 'paused' : camera.is_active ? 'online' : 'offline'}
+                      status={camera.status}
                       onClick={() => setSelectedCamera(camera)}
+                      onRestart={() => handleRestartCamera(camera.id)}
                     />
                   ))}
                 </div>
@@ -356,17 +459,15 @@ export default function UvScrap() {
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
-                          {/* <Button
-                            variant={camera.is_paused ? "default" : "secondary"}
+                          {/* Button to restart camera */}
+                          <Button
+                            variant="outline"
                             size="sm"
-                            onClick={() => {handleTogglePause(camera.id); }}
+                            onClick={() => {handleRestartCamera(camera.id);  }}
+                            disabled={isRestarting}
                           >
-                            {camera.is_paused ? (
-                              <PlayIcon className="w-4 h-4" />
-                            ) : (
-                              <Pause className="w-4 h-4" />
-                            )}
-                          </Button> */}
+                            <RotateCw className={`w-4 h-4 ${isRestarting ? 'animate-spin' : ''}`} />
+                          </Button>
                         </TableCell>
                       </TableRow>
 
@@ -449,7 +550,8 @@ export default function UvScrap() {
                     <TableRow>
                       <TableHead>ID</TableHead>
                       <TableHead>Name</TableHead>
-                      <TableHead>Value</TableHead>
+                      <TableHead>Topic</TableHead>
+                      <TableHead>Machine</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -459,6 +561,7 @@ export default function UvScrap() {
                         <TableCell>{device.id}</TableCell>
                         <TableCell>{device.name}</TableCell>
                         <TableCell>{device.value}</TableCell>
+                        <TableCell>{device.machine_id}</TableCell>
                         <TableCell className="space-x-2">
                           <Button
                             variant="outline"
@@ -489,6 +592,40 @@ export default function UvScrap() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="udp-settings">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>UDP Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px] w-full rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>UDP IP</TableHead>
+                      <TableHead>UDP Port</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {udpSettings.map((setting) => (
+                      <TableRow key={setting.id}>
+                        <TableCell>{setting.id}</TableCell>
+                        <TableCell>{setting.name}</TableCell>
+                        <TableCell>{setting.udp_ip}</TableCell>
+                        <TableCell>{setting.udp_port}</TableCell>
+                        <TableCell>Actions</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <UvScrapModal
@@ -501,6 +638,7 @@ export default function UvScrap() {
         videoSources={videoSources}
         deviceNames={deviceNames}
         yamlFiles={yamlFiles}
+        machines={machines}
       />
 
       <CameraDetailModal
@@ -512,6 +650,14 @@ export default function UvScrap() {
         yamlFiles={yamlFiles}
         defaultYamlFile={selectedCamera?.yaml_file}
         defaultYamlFileContent={selectedCamera?.yaml_file_content}
+        onSettings={() => {setModalState({
+                              open: true,
+                              type: 'camera',
+                              mode: 'edit',
+          initialData: selectedCamera,
+          id: selectedCamera?.id || '',
+        }); }}
+        
       />
     </div>
   )

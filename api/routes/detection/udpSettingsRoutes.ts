@@ -14,8 +14,8 @@ deviceNamesRoutes.get('/', async (c) => {
 
 deviceNamesRoutes.post('/', async (c) => {
     try {
-        const { name, value, machine_id } = await c.req.json();
-        const deviceName = await createDeviceName(name, value, machine_id);
+        const { name, value } = await c.req.json();
+        const deviceName = await createDeviceName(name, value);
         return c.json({ success: true, message: 'Success create device name', data: deviceName }, 200);
     } catch (error) {
         return c.json({ success: false, message: (error as Error).message }, 500);
@@ -25,8 +25,8 @@ deviceNamesRoutes.post('/', async (c) => {
 deviceNamesRoutes.put('/:id', async (c) => {
     try {
         const { id } = c.req.param();
-        const { name, value, machine_id } = await c.req.json();
-        const deviceName = await updateDeviceName(id, name, value, machine_id);
+        const { name, value } = await c.req.json();
+        const deviceName = await updateDeviceName(id, name, value);
         return c.json({ success: true, message: 'Success update device name', data: deviceName }, 200);
     } catch (error) {
         return c.json({ success: false, message: (error as Error).message }, 500);

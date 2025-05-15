@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import {
   Select,
@@ -22,9 +23,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-
+import { CameraDetailModal } from "@/components/uv-scrap/camera-detail-modal"
 import Image from 'next/image'
-import {   Box, CalendarIcon, FilePlus2, Pencil, RefreshCw } from "lucide-react"
+import {   Box, CalendarIcon, Camera, FilePlus2, Pencil, RefreshCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { useState, useEffect, useCallback, use } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -41,6 +42,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { cn } from "@/lib/utils"
 import { Switch } from "./ui/switch"
 import ChangeState from "./change-state"
+import { CameraFeed } from "./uv-scrap/camera-feed"
+import Link from "next/link"
 
 
 type MachineDetail = {
@@ -144,6 +147,20 @@ type RejectList = {
   id: number;
   name: string
 }
+interface Camera {
+  id: string
+  name: string
+  video_source: string
+  yaml_file: string
+  yaml_file_content: string
+  udp_ip: string
+  udp_port: number
+  device_name: string
+  is_active: boolean
+  is_paused: boolean
+  status: 'running' | 'paused' | 'error' | 'stopped'
+}
+
 const refreshRateList = [
   '5000','15000','30000','60000'
 ]
@@ -174,7 +191,7 @@ export default function CountboardDashboardUv() {
   const [isPODialogOpen, setIsPODialogOpen] = useState(false);
   const [IsTopScrapDialogOpen, setIsTopScrapDialogOpen] = useState(false);
   const [IsProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
-
+  const [IsCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState('');
 
   const [selectedPO, setSelectedPO] = useState<PoNumber | null>(null);
@@ -186,6 +203,8 @@ export default function CountboardDashboardUv() {
   const [isLiveMode, setIsLiveMode] = useState(true); 
   const [loading, setLoading] = useState(true);
   const [rejectList, setRejectList] = useState<RejectList[]>([]);
+  const [cameras, setCameras] = useState<Camera[]>([])
+  const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null)
 
   const pathname = usePathname()
   const router = useRouter()
@@ -264,6 +283,7 @@ export default function CountboardDashboardUv() {
         refetchTaskData(),
         refetchNoeeData(),
         refetchStateData(),
+        refetchCameraData()
       ]);
       }
     }, [selectedMachine?.machineName]);
@@ -292,6 +312,24 @@ export default function CountboardDashboardUv() {
     refreshInterval: Number(selectedRefreshRate),
   });
   const refetchSpindleData = useCallback(() => mutate(spindleDataKey), [spindleDataKey]);
+
+
+  const cameraDataKey = selectedMachine?.machineName
+  ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/detection/api/cameras/${selectedMachine.machineName}`
+  : null;
+
+  const { data: cameraData } = useSWR<Camera[]>(cameraDataKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: Number(selectedRefreshRate),
+  });
+  useEffect(() => {
+    setCameras(cameraData || [])
+  }, [cameraData])
+  const refetchCameraData = useCallback(() => mutate(cameraDataKey), [cameraDataKey]);
+  
+
 
   const hourlyDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}?type=uv${
@@ -467,6 +505,7 @@ export default function CountboardDashboardUv() {
         refetchNoeeData(),
         refetchStateData(),
         refetchSpindleData(),
+        refetchCameraData()
 
       ]);
     } finally {
@@ -839,6 +878,80 @@ export default function CountboardDashboardUv() {
   }, [isLoadingRejectList, fetchRejectList]);
 
 
+  const beUrl = process.env.NEXT_PUBLIC_BACKEND_URL + "/api/detection"
+
+  const handleRestartCamera = async (id: string) => {
+    const camera = cameras.find((c) => c.id === id)
+    if (!camera) return
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/detection/api/cameras/restart`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({  
+          camera_id: id,
+          action: 'restart',
+          yaml_file: camera.yaml_file,
+          video_source: camera.video_source,
+          udp_ip: camera.udp_ip,
+          udp_port: camera.udp_port,
+          device_name: camera.device_name,
+          name: camera.name,
+        }),
+      })
+      
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success(`Camera restarted successfully`)
+        refetchCameraData()
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      toast.error(`Failed to restart camera: ${error}`)
+    }
+  }
+
+    useEffect(() => {
+    const fetchStatus = async () => {
+      const response = await fetch(`${beUrl}/api/cameras/status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      const data = await response.json()
+      if (!data) {
+        console.error('No status data received');
+        return;
+      }
+      
+      const statusMap = data;
+      console.log("statusMap", statusMap)
+      setCameras(prevCameras => {
+        if (!prevCameras) return [];
+        return prevCameras.map(camera => ({
+          ...camera,
+          is_active: statusMap[camera.id] === 'running',
+          is_paused: statusMap[camera.id] === 'paused',
+          is_error: !statusMap[camera.id],
+          status: statusMap[camera.id]
+        }));
+      });
+    }
+
+    // Initial fetch
+    fetchStatus()
+
+    // Set up interval to fetch every second
+    const intervalId = setInterval(fetchStatus, 1000)
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId)
+  }, [beUrl])
+
+
   return (
     <div className="p-2 space-y-2 w-full">
       <div className="flex flex-wrap gap-2">
@@ -975,9 +1088,35 @@ export default function CountboardDashboardUv() {
           </>
         )}
 
-        <Button onClick={() => router.push("/countboard")}><Box/>Go to Injection</Button>
+        <Button onClick={() => setIsCameraDialogOpen(true)}>
+          <Camera/>Camera Status</Button>
 
-
+        <Dialog open={IsCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
+          <DialogContent className="w-[1100px]">
+            <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Camera Live View</CardTitle>
+            </CardHeader>
+            <CardContent className="w-full h-full">
+                <div className="grid grid-cols-2 gap-4">
+                  {cameras.length > 0 ? cameras.map((camera) => (
+                    <CameraFeed
+                      camerasVisible={IsCameraDialogOpen}
+                      key={camera.id}
+                      id={camera.id}
+                      name={camera.name}
+                      status={camera.status}
+                      onClick={() => setSelectedCamera(camera)}
+                      onRestart={() => handleRestartCamera(camera.id)}
+                    />
+                  )) : (
+                    <div className="text-center">No cameras found, add camera in <Link href="/detection" className="text-blue-500">Detection</Link></div>
+                  )}
+                </div>
+            </CardContent>
+          </Card>
+          </DialogContent>
+        </Dialog>
 
       </div>
       {selectedMachine === null && isLoading == false ? (
@@ -1271,7 +1410,7 @@ export default function CountboardDashboardUv() {
                     </TableCell>
                     
                       <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.process === 'Top Coat' ? row.delta : 0}</TableCell>
-</>}
+                  </>}
 
                       <TableCell className="text-center">{row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e || 0}</TableCell>
                       <TableCell className="text-center">{isNaN(((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual || 0)*100) ? 0 : (((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / row.actual || 0)*100).toFixed(2)}</TableCell>

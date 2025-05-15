@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { deleteCamera, getCameras, createCamera, updateCamera } from '@/api/controllers/detection/cameraController';
+import { deleteCamera, getCameras, createCamera, updateCamera, getCamerasByMachineId } from '@/api/controllers/detection/cameraController';
 
 const cameraRoutes = new Hono();
 
@@ -7,6 +7,27 @@ cameraRoutes.get('/', async (c) => {
     try {
         const cameras = await getCameras();
         return c.json({ success: true, message: 'Success fetch camera data', data: cameras }, 200);
+    } catch (error) {
+        return c.json({ success: false, message: (error as Error).message }, 500);
+    }
+});
+
+cameraRoutes.get('/status', async (c) => {
+    try {
+        const cameras = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/cameras/status?status=all`, {
+            method: 'GET',
+        })
+        const data = await cameras.json()
+        return c.json(data, 200);
+    } catch (error) {
+        return c.json({ success: false, message: (error as Error).message }, 500);
+    }
+});
+cameraRoutes.get('/:machine_id', async (c) => {
+    try {
+        const { machine_id } = c.req.param();
+        const cameras = await getCamerasByMachineId(machine_id);
+        return c.json(cameras, 200);
     } catch (error) {
         return c.json({ success: false, message: (error as Error).message }, 500);
     }
@@ -39,6 +60,49 @@ cameraRoutes.post('/', async (c) => {
         return c.json({ success: false, message: (error as Error).message }, 500);
     }
 });
+
+cameraRoutes.post('/restart', async (c) => {
+    try {
+        let { camera_id, yaml_file, video_source, udp_ip, udp_port, device_name, machine_id, name } = await c.req.json();
+
+        if (machine_id) {
+            const cameras = await getCameras();
+            const camera = cameras.find((c: any) => c.machine_id === machine_id);
+            if (!camera) {
+                return c.json({ success: false, message: 'Camera not found' }, 404);
+            }
+            camera_id = camera.id;
+            yaml_file = camera.yaml_file;
+            video_source = camera.video_source;
+            udp_ip = camera.udp_ip;
+            name = camera.name;
+            udp_port = camera.udp_port;
+            device_name = camera.device_name;
+        }
+
+        await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/camera/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'restart',
+                camera: {
+                    id: Number(camera_id),
+                    yaml_file: yaml_file,
+                    name: name,
+                    video_source: video_source,
+                    udp_ip: udp_ip,
+                    udp_port: Number(udp_port),
+                    device_name: device_name
+                }
+            })
+        })
+        return c.json({ success: true, message: 'Success restart camera' }, 200);
+    } catch (error) {
+        return c.json({ success: false, message: (error as Error).message }, 500);
+    }
+})
 
 cameraRoutes.put('/:id', async (c) => {
     try {
