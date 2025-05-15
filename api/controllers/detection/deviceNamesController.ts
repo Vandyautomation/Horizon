@@ -8,19 +8,19 @@ export async function getDeviceNames() {
     return result;
 }
 
-export async function createDeviceName(name: string, value: string) {
+export async function createDeviceName(name: string, value: string, machine_id: string) {
     const query = `
-        INSERT INTO device_names (name, value) VALUES (@name, @value)
+        INSERT INTO device_names (name, value, machine_id) VALUES (@name, @value, @machine_id)
     `;
-    const result = await queryDatabase(query, { name, value });
+    const result = await queryDatabase(query, { name, value, machine_id });
     return result;
 }
 
-export async function updateDeviceName(id: string, name: string, value: string) {
+export async function updateDeviceName(id: string, name: string, value: string, machine_id: string) {
     const query = `
-        UPDATE device_names SET name = @name, value = @value WHERE id = @id
+        UPDATE device_names SET name = @name, value = @value, machine_id = @machine_id WHERE id = @id
     `;
-    const result = await queryDatabase(query, { name, value, id });
+    const result = await queryDatabase(query, { name, value, machine_id, id });
     return result;
 }
 

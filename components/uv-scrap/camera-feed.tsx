@@ -2,21 +2,25 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, use } from "react"
+import { Button } from "../ui/button"
+import { RotateCcw, RotateCw } from "lucide-react"
 
 interface CameraFeedProps {
   id: string
   name: string
-  status: 'online' | 'offline' | 'paused',
+  status: 'running' | 'paused' | 'error' | 'stopped',
   onClick: () => void,
-  camerasVisible: boolean
+  camerasVisible: boolean,
+  onRestart: () => void
 }
 
-export function CameraFeed({ id, name, status, onClick, camerasVisible }: CameraFeedProps) {
+export function CameraFeed({ id, name, status, onClick, camerasVisible, onRestart }: CameraFeedProps) {
   const statusColors = {
-    online: 'bg-green-500',
-    offline: 'bg-red-500',
-    paused: 'bg-yellow-500'
+    running: 'bg-green-500',
+    paused: 'bg-yellow-500',
+    error: 'bg-red-300',
+    stopped: 'bg-gray-500'
   }
 
   const [imageData, setImageData] = useState<string | null>(null);
@@ -115,17 +119,42 @@ export function CameraFeed({ id, name, status, onClick, camerasVisible }: Camera
     };
   }, [camerasVisible, id]);
 
+  const [isRestarting, setIsRestarting] = useState(false);
+  
+  useEffect(() => {
+
+    const timer = setTimeout(() => {
+      if (isRestarting) {
+        setIsRestarting(false)
+      }
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [isRestarting])
+
   if (!camerasVisible) return null;
 
   return (
-    <Card className="relative overflow-hidden" onClick={onClick}>
+    <Card className="relative overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">{name}</CardTitle>
-        <Badge className={statusColors[status]}>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
+        <div className="flex flex-row items-center gap-2">
+        <Badge className={statusColors[status as keyof typeof statusColors]}>
+          {status}
         </Badge>
+        <Button 
+          variant="ghost" 
+          onClick={() => {
+            onRestart()
+            setIsRestarting(true)
+          }} 
+          disabled={isRestarting}
+        >
+          <RotateCw className={`w-4 h-4 ${isRestarting ? 'animate-spin' : ''}`} />
+        </Button>
+        </div>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-0" onClick={onClick}>
         <div className="relative aspect-video">
           {imageData ? (
             <img
@@ -135,7 +164,7 @@ export function CameraFeed({ id, name, status, onClick, camerasVisible }: Camera
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">
-              Loading...
+              {status !== 'stopped' ? 'Loading...' : 'No Camera'}
             </div>
           )}
         </div>

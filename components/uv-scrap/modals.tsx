@@ -14,8 +14,9 @@ interface ModalProps {
   mode: 'add' | 'edit'
   initialData?: any
   videoSources?: { id: string; name: string; url: string }[]
-  deviceNames?: { id: string; name: string; value: string }[]
+  deviceNames?: { id: string; name: string; value: string; machine_id: string }[]
   yamlFiles?: { name: string }[]
+  machines?: { machineId: string; machineName: string, machineDescription: string }[]
 }
 
 export function UvScrapModal({
@@ -28,6 +29,7 @@ export function UvScrapModal({
   videoSources,
   deviceNames,
   yamlFiles,
+  machines,
 }: ModalProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,7 +100,7 @@ export function UvScrapModal({
                 <Input
                   id="udp_ip"
                   name="udp_ip"
-                  defaultValue={initialData?.udp_ip}
+                  defaultValue={initialData?.udp_ip || '10.160.50.14'}
                   required
                 />
               </div>
@@ -108,7 +110,7 @@ export function UvScrapModal({
                   id="udp_port"
                   name="udp_port"
                   type="number"
-                  defaultValue={initialData?.udp_port}
+                  defaultValue={initialData?.udp_port || 1433}
                   required
                 />
               </div>
@@ -165,13 +167,28 @@ export function UvScrapModal({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="value">Value</Label>
+                <Label htmlFor="value">Topic</Label>
                 <Input
                   id="value"
                   name="value"
                   defaultValue={initialData?.value}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="machine_id">Machine</Label>
+                <Select name="machine_id" defaultValue={initialData?.machine_id}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select machine" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {machines?.map((machine) => (
+                      <SelectItem key={machine.machineName} value={machine.machineName}>
+                        {machine.machineDescription}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}

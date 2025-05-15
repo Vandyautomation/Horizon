@@ -9,6 +9,19 @@ export async function getCameras() {
     return result;
 }
 
+export async function getCamerasByMachineId(machine_id: string) {
+    const query = `
+        SELECT c.*, y.content as yaml_file_content 
+        FROM cameras c
+        left join yaml_files y on y.name = c.yaml_file 
+        left join device_names dn on dn.value = c.device_name
+        WHERE c.is_active = 1
+        AND dn.machine_id = @machine_id
+    `;
+    const result = await queryDatabase(query, { machine_id });
+    return result;
+}
+
 export async function createCamera(name: string, video_source: string, yaml_file: string, udp_ip: string, udp_port: number, device_name: string) {
     const query = `
         INSERT INTO cameras (name, video_source, yaml_file, udp_ip, udp_port, device_name, is_active) VALUES (@name, @video_source, @yaml_file, @udp_ip, @udp_port, @device_name, 1)

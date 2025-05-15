@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { useRef, useState, useEffect } from "react"
 import yaml from "js-yaml"
 import { toast } from "react-hot-toast"
-import { Pencil, Trash } from "lucide-react"
+import { Pencil, Settings, Trash } from "lucide-react"
 
 interface Area {
   id: string
@@ -23,6 +23,7 @@ interface CameraDetailModalProps {
   defaultYamlFileContent: string | undefined
   camerasVisible: boolean
   id: string
+  onSettings: () => void
 }
 
 const areaType = [
@@ -103,7 +104,7 @@ const areaType = [
     ]
   }
 ]
-export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYamlFile, defaultYamlFileContent, camerasVisible, id }: CameraDetailModalProps) {
+export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYamlFile, defaultYamlFileContent, camerasVisible, id, onSettings }: CameraDetailModalProps) {
   const [selectedYaml, setSelectedYaml] = useState<string | null | undefined>(defaultYamlFile || null)
   const [areas, setAreas] = useState<Area[]>([])
   const [drawing, setDrawing] = useState(false)
@@ -439,7 +440,13 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[700px] max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>{camera.name} - Area Management</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <div className="mr-auto">{camera.name} - Area Management</div>
+            <Button  variant="ghost" onClick={onSettings}>
+              <Settings className="w-4 h-4" />
+              Camera Settings
+            </Button>
+          </DialogTitle>
         </DialogHeader>
         <div className="mb-4 flex items-center gap-2">
           { isCreatingNew ? <Input

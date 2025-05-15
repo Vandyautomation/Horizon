@@ -165,7 +165,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
-          {currentPage === 'uv-scrap' && (
+          {currentPage === 'detection' && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
