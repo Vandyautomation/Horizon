@@ -592,7 +592,7 @@ useEffect(() => {
         {/* Calendar Grid */}
         <div className="border rounded-lg overflow-hidden">
           {/* Calendar Header */}
-          <div className="grid grid-cols-[60px_repeat(7,1fr)] bg-gray-50 dark:bg-slate-600 border-b">
+          <div className="grid grid-cols-[60px_repeat(7,1fr)] bg-gray-50 dark:bg-slate-600 border-b sticky top-0 z-10">
             <div className="p-2 border-r"></div>
             {days.map((day, index) => (
               <div
@@ -635,9 +635,9 @@ useEffect(() => {
           </div>
 
           {/* Calendar Body */}
-          <div className="grid grid-cols-[60px_repeat(7,1fr)]">
+          <div className="grid grid-cols-[60px_repeat(7,1fr)] max-h-[calc(100vh-300px)] overflow-y-auto">
             {/* Time Labels */}
-            <div className="col-span-1">
+            <div className="col-span-1 sticky left-0 bg-white dark:bg-slate-800 z-10">
               {hours.map((hour) => (
                 <div key={hour} className="h-20 border-b border-r p-1 text-xs text-right pr-2">
                   {hour}:00
