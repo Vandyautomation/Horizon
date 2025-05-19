@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, Suspense, useMemo } from "react"
-
+import albeaLogo from "@/public/albea-white.png"
+import Image from "next/image";
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
   OrbitControls,
@@ -513,10 +514,11 @@ export default function ShopfloorUvDashboard() {
   // if (!selectedBuilding) return <div>No Selected Building...</div>;
 
   return (
-    <div className="w-full h-[850px] ">
-      <div className="grid grid-cols-3 gap-4 mb-2">
-        <Card className="absolute top-24 left-6 z-10">
+    <div className="w-full h-[875px] p-0 m-0">
+      <div className="grid grid-cols-3 gap-2 m-0">
+        <Card className="absolute top-[70px] left-6 z-10">
           <CardContent className="pb-2 pt-2 px-2">
+            <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/>
             <Select
               value={selectedBuilding?.id.toString() || ''}
               onValueChange={(value) => {
@@ -564,7 +566,7 @@ export default function ShopfloorUvDashboard() {
           </CardContent>
         </Card> */}
       </div>
-      <Card className="absolute top-24 right-6 w-[500px] z-10 p-0">
+      <Card className="absolute top-[70px] right-6 w-[500px] z-10 p-0">
         <CardHeader className="flex pb-2 pt-2">
           <CardTitle className="flex justify-between items-center pb-0 mb-0">
             <div className="flex gap-x-8 ">
