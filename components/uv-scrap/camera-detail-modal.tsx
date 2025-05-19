@@ -438,7 +438,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[700px] max-h-[90vh]">
+      <DialogContent className="max-w-[744px] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <div className="mr-auto">{camera.name} - Area Management</div>
@@ -475,14 +475,14 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
             {!isCreatingNew ? "Create New YAML" : "Cancel"}
           </Button>
         </div>
-        <div className="relative w-[640px] aspect-[640/360] h-[360px] bg-black select-none">
+        <div className="relative w-[704px] aspect-[16/9] h-[396px] bg-black select-none">
           <img
             ref={imgRef}
             src={imageData || ''}
             alt={camera.name}
-            height={360}
-            width={640}
-            className="object-cover w-[640px] h-[360px]"
+            height={704}
+            width={396}
+            className="object-cover w-[704px] h-[396px]"
             draggable={false}
           />
           <div

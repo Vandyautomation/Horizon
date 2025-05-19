@@ -26,11 +26,13 @@ export async function getBuildings(type?: string) {
         SELECT 
         m.MchNumber AS id, 
         m.MchLoc AS building,
-        m.[position], 
-        m.rotation, 
+        m.[position],
+        m.rotation,
         m.MchID,
+        m.MchDesc,
         m.MchLoc,
         m.MchNumber,
+        m.MchTon as Tonage,
         (SELECT SUM(Diff) AS consumption
         FROM (
             SELECT 
@@ -99,6 +101,18 @@ export async function getBuildings(type?: string) {
     }));
     // console.log(result)
     // console.log(machines)
+    // for (const machine of formattedMachines) {
+    //     delete machine.position
+    //     delete machine.rotation
+    //     delete machine.oee
+    //     delete machine.ooe
+    //     delete machine.cycletime
+    //     delete machine.target_cycletime
+    //     delete machine.cavity
+    //     delete machine.target_cavity
+    //     delete machine.consumption
+    //     delete machine.building
+    // }
     return result;
 
 
