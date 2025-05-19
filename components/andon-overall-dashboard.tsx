@@ -20,14 +20,17 @@ import { Label } from './ui/label';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Calculator, Power, Zap } from 'lucide-react';
 import { toast } from "react-hot-toast";
+import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from "./ui/table";
 
 interface Machine {
   id: string;
   position: any;
   rotation: any;
   MchID: string;
+  MchDesc: string;
   MchLoc: string;
   MchNumber: string;
+  Tonage: string;
   consumption: number;
   cycletime: number;
   target_cycletime: number;
@@ -109,6 +112,8 @@ export default function AndonOverallDashboard() {
   const [refreshTime, setRefreshTime] = useState('')
   const [startHour, setStartHour] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  const [selectedCard, setSelectedCard] = useState<Building | undefined>(undefined);
 
   const [andon, setAndon] = useState<Andon[] | null>(null);
 
@@ -266,7 +271,19 @@ export default function AndonOverallDashboard() {
                 </div>
               </CardContent>
             </Card>
-              <Card className="bg-orange-500 text-white">
+              <Card className="bg-orange-500 text-white cursor-pointer" onClick={() => {
+                const buildingsWithOrangeMachines = buildings?.filter(building => 
+                  building.machines.some(m => m.status === 'ORANGE')
+                );
+                if (buildingsWithOrangeMachines?.length) {
+                  setSelectedCard({
+                    ...buildingsWithOrangeMachines[0],
+                    machines: buildingsWithOrangeMachines.flatMap(building => 
+                      building.machines.filter(m => m.status === 'ORANGE')
+                    )
+                  });
+                }
+              }}>
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Breakdown</div>
                   <div className="text-3xl font-bold">
@@ -276,7 +293,19 @@ export default function AndonOverallDashboard() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-green-600 text-white">
+              <Card className="bg-green-600 text-white cursor-pointer" onClick={() => {
+                const buildingsWithGreenMachines = buildings?.filter(building => 
+                  building.machines.some(m => m.status === 'GREEN')
+                );
+                if (buildingsWithGreenMachines?.length) {
+                  setSelectedCard({
+                    ...buildingsWithGreenMachines[0],
+                    machines: buildingsWithGreenMachines.flatMap(building => 
+                      building.machines.filter(m => m.status === 'GREEN')
+                    )
+                  });
+                }
+              }}>
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Running</div>
                   <div className="text-3xl font-bold">
@@ -286,7 +315,19 @@ export default function AndonOverallDashboard() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-gray-100">
+              <Card className="bg-gray-100 cursor-pointer" onClick={() => {
+                const buildingsWithWhiteMachines = buildings?.filter(building => 
+                  building.machines.some(m => m.status === 'WHITE')
+                );
+                if (buildingsWithWhiteMachines?.length) {
+                  setSelectedCard({
+                    ...buildingsWithWhiteMachines[0],
+                    machines: buildingsWithWhiteMachines.flatMap(building => 
+                      building.machines.filter(m => m.status === 'WHITE')
+                    )
+                  });
+                }
+              }}>
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Planned Stop</div>
                   <div className="text-3xl font-bold">
@@ -296,7 +337,19 @@ export default function AndonOverallDashboard() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-purple-500 text-white">
+              <Card className="bg-purple-500 text-white cursor-pointer" onClick={() => {
+                const buildingsWithPurpleMachines = buildings?.filter(building => 
+                  building.machines.some(m => m.status === 'PURPLE')
+                );
+                if (buildingsWithPurpleMachines?.length) {
+                  setSelectedCard({
+                    ...buildingsWithPurpleMachines[0],
+                    machines: buildingsWithPurpleMachines.flatMap(building => 
+                      building.machines.filter(m => m.status === 'PURPLE')
+                    )
+                  });
+                }
+              }}>
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Org Dysfuncti...</div>
                   <div className="text-3xl font-bold">
@@ -306,7 +359,19 @@ export default function AndonOverallDashboard() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-blue-500 text-white">
+              <Card className="bg-blue-500 text-white cursor-pointer" onClick={() => {
+                const buildingsWithBlueMachines = buildings?.filter(building => 
+                  building.machines.some(m => m.status === 'BLUE')
+                );
+                if (buildingsWithBlueMachines?.length) {
+                  setSelectedCard({
+                    ...buildingsWithBlueMachines[0],
+                    machines: buildingsWithBlueMachines.flatMap(building => 
+                      building.machines.filter(m => m.status === 'BLUE')
+                    )
+                  });
+                }
+              }}>
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">SMED</div>
                   <div className="text-3xl font-bold">
@@ -316,7 +381,19 @@ export default function AndonOverallDashboard() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-yellow-400 text-black">
+              <Card className="bg-yellow-400 text-black cursor-pointer" onClick={() => {
+                const buildingsWithYellowMachines = buildings?.filter(building => 
+                  building.machines.some(m => m.status === 'YELLOW')
+                );
+                if (buildingsWithYellowMachines?.length) {
+                  setSelectedCard({
+                    ...buildingsWithYellowMachines[0],
+                    machines: buildingsWithYellowMachines.flatMap(building => 
+                      building.machines.filter(m => m.status === 'YELLOW')
+                    )
+                  });
+                }
+              }}>
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Micro Stop</div>
                   <div className="text-3xl font-bold">
@@ -326,7 +403,19 @@ export default function AndonOverallDashboard() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-red-500 text-white">
+              <Card className="bg-red-500 text-white cursor-pointer" onClick={() => {
+                const buildingsWithRedMachines = buildings?.filter(building => 
+                  building.machines.some(m => m.status === 'RED')
+                );
+                if (buildingsWithRedMachines?.length) {
+                  setSelectedCard({
+                    ...buildingsWithRedMachines[0],
+                    machines: buildingsWithRedMachines.flatMap(building => 
+                      building.machines.filter(m => m.status === 'RED')
+                    )
+                  });
+                }
+              }}>
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Non Scrap</div>
                   <div className="text-3xl font-bold">
@@ -336,7 +425,12 @@ export default function AndonOverallDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-cyan-500 text-white">
+              <Card className="bg-cyan-500 text-white cursor-pointer" onClick={() => {
+                const buildingsWithGreenMachines = buildings?.filter(building => 
+                  building.machines.some(m => m.status === 'GREEN')
+                );
+                setSelectedCard(buildingsWithGreenMachines?.[0]);
+              }}>
                         <CardContent className="p-4 text-center">
                           <div className="text-sm">OEE</div>
                           <div className="text-3xl font-bold">{buildings?.length ? ((buildings.reduce((acc, building) => acc + building.oee, 0) || 0) / buildings.length * 100).toFixed(2) : '0'}%</div>
@@ -363,7 +457,7 @@ export default function AndonOverallDashboard() {
               return (
                 <div className="mb-2" key={`${building.id}-${location}`}>
                   <div className="grid grid-cols-10 gap-2 mt-2">
-                    <Card className="bg-gray-800 text-white">
+                    <Card className="bg-gray-800 text-white " >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <span className="text-l font-bold">{location}</span>
@@ -371,49 +465,133 @@ export default function AndonOverallDashboard() {
                       </div>
                     </CardContent>
                   </Card>
-                    <Card className="bg-orange-500 text-white">
+                    <Card className="bg-orange-500 text-white cursor-pointer" onClick={() => {
+                      const buildingWithLocationOrangeMachines = buildings?.find(building => 
+                        building.machines.some(m => m.MchLoc === location && m.status === 'ORANGE')
+                      );
+                      if (buildingWithLocationOrangeMachines) {
+                        setSelectedCard({
+                          ...buildingWithLocationOrangeMachines,
+                          machines: buildingWithLocationOrangeMachines.machines.filter(m => 
+                            m.MchLoc === location && m.status === 'ORANGE'
+                          )
+                        });
+                      }
+                    }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Breakdown</div>
                         <div className="text-3xl font-bold">{counts['ORANGE'] || 0}</div>
                       </CardContent>
                     </Card>
                     
-                    <Card className="bg-green-600 text-white">
+                    <Card className="bg-green-600 text-white cursor-pointer" onClick={() => {
+                      const buildingWithLocationGreenMachines = buildings?.find(building => 
+                        building.machines.some(m => m.MchLoc === location && m.status === 'GREEN')
+                      );
+                      if (buildingWithLocationGreenMachines) {
+                        setSelectedCard({
+                          ...buildingWithLocationGreenMachines,
+                          machines: buildingWithLocationGreenMachines.machines.filter(m => 
+                            m.MchLoc === location && m.status === 'GREEN'
+                          )
+                        });
+                      }
+                    }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Running</div>
                         <div className="text-3xl font-bold">{counts['GREEN'] || 0}</div>
                       </CardContent>
                     </Card>
                     
-                    <Card className="bg-gray-100">
+                    <Card className="bg-gray-100 cursor-pointer" onClick={() => {
+                      const buildingWithLocationWhiteMachines = buildings?.find(building => 
+                        building.machines.some(m => m.MchLoc === location && m.status === 'WHITE')
+                      );
+                      if (buildingWithLocationWhiteMachines) {
+                        setSelectedCard({
+                          ...buildingWithLocationWhiteMachines,
+                          machines: buildingWithLocationWhiteMachines.machines.filter(m => 
+                            m.MchLoc === location && m.status === 'WHITE'
+                          )
+                        });
+                      }
+                    }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Planned Stop</div>
                         <div className="text-3xl font-bold">{counts['WHITE'] || 0}</div>
                       </CardContent>
                     </Card>
                     
-                    <Card className="bg-purple-500 text-white">
+                    <Card className="bg-purple-500 text-white cursor-pointer" onClick={() => {
+                      const buildingWithLocationPurpleMachines = buildings?.find(building => 
+                        building.machines.some(m => m.MchLoc === location && m.status === 'PURPLE')
+                      );
+                      if (buildingWithLocationPurpleMachines) {
+                        setSelectedCard({
+                          ...buildingWithLocationPurpleMachines,
+                          machines: buildingWithLocationPurpleMachines.machines.filter(m => 
+                            m.MchLoc === location && m.status === 'PURPLE'
+                          )
+                        });
+                      }
+                    }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Org Dysfuncti...</div>
                         <div className="text-3xl font-bold">{counts['PURPLE'] || 0}</div>
                       </CardContent>
                     </Card>
                     
-                    <Card className="bg-blue-500 text-white">
+                    <Card className="bg-blue-500 text-white cursor-pointer" onClick={() => {
+                      const buildingWithLocationBlueMachines = buildings?.find(building => 
+                        building.machines.some(m => m.MchLoc === location && m.status === 'BLUE')
+                      );
+                      if (buildingWithLocationBlueMachines) {
+                        setSelectedCard({
+                          ...buildingWithLocationBlueMachines,
+                          machines: buildingWithLocationBlueMachines.machines.filter(m => 
+                            m.MchLoc === location && m.status === 'BLUE'
+                          )
+                        });
+                      }
+                    }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">SMED</div>
                         <div className="text-3xl font-bold">{counts['BLUE'] || 0}</div>
                       </CardContent>
                     </Card>
                     
-                    <Card className="bg-yellow-400 text-black">
+                    <Card className="bg-yellow-400 text-black cursor-pointer" onClick={() => {
+                      const buildingWithLocationYellowMachines = buildings?.find(building => 
+                        building.machines.some(m => m.MchLoc === location && m.status === 'YELLOW')
+                      );
+                      if (buildingWithLocationYellowMachines) {
+                        setSelectedCard({
+                          ...buildingWithLocationYellowMachines,
+                          machines: buildingWithLocationYellowMachines.machines.filter(m => 
+                            m.MchLoc === location && m.status === 'YELLOW'
+                          )
+                        });
+                      }
+                    }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Micro Stop</div>
                         <div className="text-3xl font-bold">{counts['YELLOW'] || 0}</div>
                       </CardContent>
                     </Card>
                     
-                    <Card className="bg-red-500 text-white">
+                    <Card className="bg-red-500 text-white cursor-pointer" onClick={() => {
+                      const buildingWithLocationRedMachines = buildings?.find(building => 
+                        building.machines.some(m => m.MchLoc === location && m.status === 'RED')
+                      );
+                      if (buildingWithLocationRedMachines) {
+                        setSelectedCard({
+                          ...buildingWithLocationRedMachines,
+                          machines: buildingWithLocationRedMachines.machines.filter(m => 
+                            m.MchLoc === location && m.status === 'RED'
+                          )
+                        });
+                      }
+                    }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Non Scrap</div>
                         <div className="text-3xl font-bold">{counts['RED'] || 0}</div>
@@ -438,6 +616,83 @@ export default function AndonOverallDashboard() {
             });
           })}
         </div>
+
+          {selectedCard && (
+        <Card className="absolute bottom-4 left-4 w-[700px] h-[500px] z-20 overflow-y-auto">
+          <CardHeader className="sticky top-0 bg-white z-10 p-4 border-b">
+            <CardTitle className="flex justify-between items-center">
+              {selectedCard.machines.length > 0 && new Set(selectedCard.machines.map(m => m.MchLoc)).size > 1 ? (
+                <>All Buildings - Status {statusLabels[selectedCard.machines[0].status as keyof typeof statusLabels]} ({selectedCard.machines.length} machines)</>
+              ) : (
+                <>{selectedCard.name} Status {statusLabels[selectedCard.machines[0].status as keyof typeof statusLabels]} ({selectedCard.machines.length} machines)</>
+              )}
+              <Button
+                variant="default"
+                onClick={() => setSelectedCard(undefined)}
+              >
+                <strong>X</strong>
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4">
+               <Table>
+                  <TableHeader className="">
+                    <TableRow>
+                      <TableHead>Machine</TableHead>
+                      <TableHead>Mch Number</TableHead>
+                      <TableHead>Mch Loc</TableHead>
+                      <TableHead>MchTonage</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Countboard</TableHead>
+                      {/* <TableHead>EMS</TableHead> */}
+                    </TableRow>
+                  </TableHeader>
+              {selectedCard.machines.map(machine => {
+                return (
+                
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>{machine.MchDesc}</TableCell>
+                      <TableCell>{machine.MchNumber}</TableCell>
+                      <TableCell>{machine.MchLoc}</TableCell>
+                      <TableCell>{machine.Tonage}</TableCell>
+                      <TableCell>{statusLabels[machine.status as keyof typeof statusLabels]}</TableCell>
+                      <TableCell>
+                        <Button
+                          onClick={() => {
+                            window.open(
+                              `/admin/countboard/?machineNumber=${machine.MchNumber}&location=${machine.MchLoc}`,
+                              '_blank'
+                            );
+                          }}
+                        >
+                          <Calculator />
+                        </Button>
+                      </TableCell>
+                      {/* <TableCell>
+                        <Button
+                          onClick={() => {
+                            window.open(
+                              `/admin/ems/?machineNumber=${machine.MchNumber}&location=${machine.MchLoc}`,
+                              '_blank'
+                            );
+                          }}
+                        >
+                          <Zap />
+                        </Button>
+                      </TableCell> */}
+                    </TableRow>
+                  </TableBody>
+                )
+              })}
+                 </Table> 
+              
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       </div>
   );
 }
