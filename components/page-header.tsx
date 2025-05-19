@@ -98,6 +98,10 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('andon/overall', 'Overall', false)}
               </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/overall-uv', 'Overall UV', false)}
+              </BreadcrumbItem>
             </>
           )}
 
@@ -118,6 +122,10 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('andon/overall', 'Overall', false)}
               </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/overall-uv', 'Overall UV', false)}
+              </BreadcrumbItem>
             </>
           )}
 
@@ -137,6 +145,34 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('andon/overall', 'Overall', true)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/overall-uv', 'Overall UV', false)}
+              </BreadcrumbItem>
+            </>
+          )}
+
+          {currentPage === 'andon' && currentSubPage === 'overall-uv' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon', 'Andon', false)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/uv', 'Andon UV', false)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/overall', 'Overall', false)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('andon/overall-uv', 'Overall UV', true)}
               </BreadcrumbItem>
             </>
           )}

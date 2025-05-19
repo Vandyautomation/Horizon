@@ -134,7 +134,7 @@ export default function AndonOverallDashboard() {
       const client = mqtt.connect(`${process.env.NEXT_PUBLIC_MQTT_WS}`);
       client.on("connect", () => {
         console.log("Connected to MQTT broker");
-        client.subscribe(`uns/andon`);
+        client.subscribe(`uns/andon/uv`);
       });
       client.on("message", (topic, message) => {
         try {
@@ -180,7 +180,7 @@ export default function AndonOverallDashboard() {
       };
     }, []);
 
-  const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings/injection`;
+  const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings/uv`;
   const { data: rawBuildings, error } = useSWR<Building[]>(
     key, 
     async (url) => {
@@ -291,8 +291,10 @@ export default function AndonOverallDashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Breakdown</div>
                   <div className="text-3xl font-bold">
-                    {buildings?.reduce((acc, building) => 
-                      acc + building.machines.filter(m => m.status === 'ORANGE').length, 0) || 0}
+                    {((buildings?.reduce((acc, building) => 
+                      acc + building.machines.filter(m => m.status === 'ORANGE').length, 0) || 0) / 
+                    (buildings?.reduce((acc, building) => 
+                      acc + building.machines.length, 0) || 1) * 100).toFixed(2)}%
                   </div>
                 </CardContent>
               </Card>
@@ -313,8 +315,10 @@ export default function AndonOverallDashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Running</div>
                   <div className="text-3xl font-bold">
-                    {buildings?.reduce((acc, building) => 
-                      acc + building.machines.filter(m => m.status === 'GREEN').length, 0) || 0}
+                    {((buildings?.reduce((acc, building) => 
+                      acc + building.machines.filter(m => m.status === 'GREEN').length, 0) || 0) / 
+                    (buildings?.reduce((acc, building) => 
+                      acc + building.machines.length, 0) || 1) * 100).toFixed(2)}%
                   </div>
                 </CardContent>
               </Card>
@@ -335,8 +339,10 @@ export default function AndonOverallDashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Planned Stop</div>
                   <div className="text-3xl font-bold">
-                    {buildings?.reduce((acc, building) => 
-                      acc + building.machines.filter(m => m.status === 'WHITE').length, 0) || 0}
+                    {((buildings?.reduce((acc, building) => 
+                      acc + building.machines.filter(m => m.status === 'WHITE').length, 0) || 0) / 
+                    (buildings?.reduce((acc, building) => 
+                      acc + building.machines.length, 0) || 1) * 100).toFixed(2)}%
                   </div>
                 </CardContent>
               </Card>
@@ -357,8 +363,10 @@ export default function AndonOverallDashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Org Dysfuncti...</div>
                   <div className="text-3xl font-bold">
-                    {buildings?.reduce((acc, building) => 
-                      acc + building.machines.filter(m => m.status === 'PURPLE').length, 0) || 0}
+                    {((buildings?.reduce((acc, building) => 
+                      acc + building.machines.filter(m => m.status === 'PURPLE').length, 0) || 0) / 
+                    (buildings?.reduce((acc, building) => 
+                      acc + building.machines.length, 0) || 1) * 100).toFixed(2)}%
                   </div>
                 </CardContent>
               </Card>
@@ -379,8 +387,10 @@ export default function AndonOverallDashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">SMED</div>
                   <div className="text-3xl font-bold">
-                    {buildings?.reduce((acc, building) => 
-                      acc + building.machines.filter(m => m.status === 'BLUE').length, 0) || 0}
+                    {((buildings?.reduce((acc, building) => 
+                      acc + building.machines.filter(m => m.status === 'BLUE').length, 0) || 0) / 
+                    (buildings?.reduce((acc, building) => 
+                      acc + building.machines.length, 0) || 1) * 100).toFixed(2)}%
                   </div>
                 </CardContent>
               </Card>
@@ -401,8 +411,10 @@ export default function AndonOverallDashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Micro Stop</div>
                   <div className="text-3xl font-bold">
-                    {buildings?.reduce((acc, building) => 
-                      acc + building.machines.filter(m => m.status === 'YELLOW').length, 0) || 0}
+                    {((buildings?.reduce((acc, building) => 
+                      acc + building.machines.filter(m => m.status === 'YELLOW').length, 0) || 0) / 
+                    (buildings?.reduce((acc, building) => 
+                      acc + building.machines.length, 0) || 1) * 100).toFixed(2)}%
                   </div>
                 </CardContent>
               </Card>
@@ -423,8 +435,10 @@ export default function AndonOverallDashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-sm">Non Scrap</div>
                   <div className="text-3xl font-bold">
-                    {buildings?.reduce((acc, building) => 
-                      acc + building.machines.filter(m => m.status === 'RED').length, 0) || 0}
+                    {((buildings?.reduce((acc, building) => 
+                      acc + building.machines.filter(m => m.status === 'RED').length, 0) || 0) / 
+                    (buildings?.reduce((acc, building) => 
+                      acc + building.machines.length, 0) || 1) * 100).toFixed(2)}%
                   </div>
                 </CardContent>
               </Card>
@@ -484,7 +498,7 @@ export default function AndonOverallDashboard() {
                     }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Breakdown</div>
-                        <div className="text-3xl font-bold">{counts['ORANGE'] || 0}</div>
+                        <div className="text-3xl font-bold">{((counts['ORANGE'] || 0) / (machines.length || 1) * 100).toFixed(2)}%</div>
                       </CardContent>
                     </Card>
                     
@@ -503,7 +517,7 @@ export default function AndonOverallDashboard() {
                     }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Running</div>
-                        <div className="text-3xl font-bold">{counts['GREEN'] || 0}</div>
+                        <div className="text-3xl font-bold">{((counts['GREEN'] || 0) / (machines.length || 1) * 100).toFixed(2)}%</div>
                       </CardContent>
                     </Card>
                     
@@ -522,7 +536,7 @@ export default function AndonOverallDashboard() {
                     }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Planned Stop</div>
-                        <div className="text-3xl font-bold">{counts['WHITE'] || 0}</div>
+                        <div className="text-3xl font-bold">{((counts['WHITE'] || 0) / (machines.length || 1) * 100).toFixed(2)}%</div>
                       </CardContent>
                     </Card>
                     
@@ -541,7 +555,7 @@ export default function AndonOverallDashboard() {
                     }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Org Dysfuncti...</div>
-                        <div className="text-3xl font-bold">{counts['PURPLE'] || 0}</div>
+                        <div className="text-3xl font-bold">{((counts['PURPLE'] || 0) / (machines.length || 1) * 100).toFixed(2)}%</div>
                       </CardContent>
                     </Card>
                     
@@ -560,7 +574,7 @@ export default function AndonOverallDashboard() {
                     }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">SMED</div>
-                        <div className="text-3xl font-bold">{counts['BLUE'] || 0}</div>
+                        <div className="text-3xl font-bold">{((counts['BLUE'] || 0) / (machines.length || 1) * 100).toFixed(2)}%</div>
                       </CardContent>
                     </Card>
                     
@@ -579,7 +593,7 @@ export default function AndonOverallDashboard() {
                     }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Micro Stop</div>
-                        <div className="text-3xl font-bold">{counts['YELLOW'] || 0}</div>
+                        <div className="text-3xl font-bold">{((counts['YELLOW'] || 0) / (machines.length || 1) * 100).toFixed(2)}%</div>
                       </CardContent>
                     </Card>
                     
@@ -598,7 +612,7 @@ export default function AndonOverallDashboard() {
                     }}>
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Non Scrap</div>
-                        <div className="text-3xl font-bold">{counts['RED'] || 0}</div>
+                        <div className="text-3xl font-bold">{((counts['RED'] || 0) / (machines.length || 1) * 100).toFixed(2)}%</div>
                       </CardContent>
                     </Card>
                     <Card className="bg-cyan-500 text-white">
