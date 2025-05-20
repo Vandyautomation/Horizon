@@ -14,7 +14,11 @@ export async function addEquipment(equipmentId: string, category: string, name: 
   const sqlQuery = `
   INSERT INTO EquipmentMST (EquipmentId, Category, name, brand, energyBudget, created_at, modified_at, active) 
   VALUES (@equipmentId, @category, @name, @brand, @energyBudget, getdate(), getdate(), 1)`;
-  return await queryDatabase(sqlQuery, { equipmentId, category, name, brand, energyBudget });
+  try {
+    return await queryDatabase(sqlQuery, { equipmentId, category, name, brand, energyBudget });
+  } catch (error: any) {
+    throw new Error(`Failed to add equipment: ${error.message}`);
+  }
 }
 
 export async function updateEquipment(id: number, equipmentId: string, category: string, name: string, brand: string, energyBudget: string) {
@@ -27,7 +31,11 @@ export async function updateEquipment(id: number, equipmentId: string, category:
       energyBudget = @energyBudget, 
       modified_at = getdate()
   WHERE id = @id`;
-  return await queryDatabase(sqlQuery, { id, equipmentId, category, name, brand, energyBudget });
+  try {
+    return await queryDatabase(sqlQuery, { id, equipmentId, category, name, brand, energyBudget });
+  } catch (error: any) {
+    throw new Error(`Failed to update equipment: ${error.message}`);
+  }
 }
 
 export async function deleteEquipment(id: number) {
@@ -36,5 +44,9 @@ export async function deleteEquipment(id: number) {
   SET active = 0, 
       modified_at = getdate()
   WHERE id = @id`;
-  return await queryDatabase(sqlQuery, { id });
+  try {
+    return await queryDatabase(sqlQuery, { id });
+  } catch (error: any) {
+    throw new Error(`Failed to delete equipment: ${error.message}`);
+  }
 }
