@@ -104,7 +104,12 @@ export async function addCoois(data: any[][]) {
     )
   `;
 
-  return await queryDatabase(sqlQuery);
+  try {
+    return await queryDatabase(sqlQuery);
+  } catch (error: any) {
+    console.error('Error inserting coois data:', error);
+    throw new Error(`Failed to insert coois data: ${error.message}`);
+  }
 }
 
 
@@ -132,7 +137,12 @@ export async function editProcess(hourlyId: number, process: string) {
       set process = @process
       where mchid = (select machine_id from IoT.dbo.hourly_uv where id = @hourlyId)
   `;
-  return await queryDatabase(sqlQuery, { hourlyId, process });
+  try {
+    return await queryDatabase(sqlQuery, { hourlyId, process });
+  } catch (error: any) {
+    console.error('Error updating process:', error);
+    throw new Error(`Failed to update process: ${error.message}`);
+  }
 }
 
 
@@ -158,7 +168,12 @@ export async function getCoois(poName: string|undefined) {
         poId DESC;
 
   `;
-  return await queryDatabase(sqlQuery, { poName });
+  try {
+    return await queryDatabase(sqlQuery, { poName });
+  } catch (error: any) {
+    console.error('Error getting coois:', error);
+    throw new Error(`Failed to get coois: ${error.message}`);
+  }
 }
 
 export async function attachPo(poName: string, machineName: string) {
@@ -200,7 +215,12 @@ export async function attachPo(poName: string, machineName: string) {
       RAISERROR (@errorMessage, 16, 1);
   END
   `;
-  return await queryDatabase(sqlQuery, { poName, machineName });
+  try {
+    return await queryDatabase(sqlQuery, { poName, machineName });
+  } catch (error: any) {
+    console.error('Error attaching PO:', error);
+    throw new Error(`Failed to attach PO: ${error.message}`);
+  }
 }
 
 export async function updateCVT(taskId: number, newCvt: number) {
@@ -210,7 +230,12 @@ export async function updateCVT(taskId: number, newCvt: number) {
             updated_at = getdate()
         WHERE id = @taskId;
     `;
+  try {
     return await queryDatabase(sqlQuery, { taskId, newCvt });
+  } catch (error) {
+    console.error('Error updating CVT:', error);
+    throw new Error('Failed to update CVT');
+  }
   }
 
   export async function updateComment(hourlyId: number, type: string, content: string, uap: string | null) {
@@ -229,7 +254,12 @@ export async function updateCVT(taskId: number, newCvt: number) {
         WHERE id = @hourlyId;
     END
     `;
-    return await queryDatabase(sqlQuery, { hourlyId, type, content });
+      try {
+        return await queryDatabase(sqlQuery, { hourlyId, type, content });
+      } catch (error: any) {
+        console.error('Error updating comment:', error);
+        throw new Error(`Failed to update comment: ${error.message}`);
+      }
 
     } else {
       const sqlQuery = `
@@ -246,7 +276,12 @@ export async function updateCVT(taskId: number, newCvt: number) {
         WHERE id = @hourlyId;
     END
     `;
-    return await queryDatabase(sqlQuery, { hourlyId, type, content });
+      try {
+        return await queryDatabase(sqlQuery, { hourlyId, type, content });
+      } catch (error: any) {
+        console.error('Error updating comment:', error);
+        throw new Error(`Failed to update comment: ${error.message}`);
+      }
     }    
   }
 
