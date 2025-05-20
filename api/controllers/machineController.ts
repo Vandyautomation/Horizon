@@ -835,7 +835,7 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         fromTime
     FROM (
         SELECT
-            t.FromTime,
+            t.fromTime,
             -- Return NULL for future time periods
             CASE
                 WHEN t.FromTime > @current THEN NULL
@@ -862,41 +862,41 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     SET @from = DATEADD(HOUR, 0, CAST(@date AS DATETIME));
     SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(@date AS DATETIME)));
 
-    -- Creating a table with all 5 minute intervals for the day
-    WITH TimeIntervals AS (
-        SELECT
-            DATEADD(MINUTE, (rn-1)*5, @from) AS FromTime
-        FROM (
-            SELECT TOP 288 -- 288 = 24 hours * 12 intervals per hour
-                ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn
-            FROM master.dbo.spt_values t1
-            CROSS JOIN master.dbo.spt_values t2
-        ) AS Numbers
-    ),
+    -- 1. Generate time intervals (288 x 5min for 24h)
+    IF OBJECT_ID('tempdb..#TimeIntervals') IS NOT NULL DROP TABLE #TimeIntervals;
+    WITH Tally AS (
+        SELECT TOP (288) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 AS n
+        FROM master.dbo.spt_values a CROSS JOIN master.dbo.spt_values b
+    )
+    SELECT
+        DATEADD(MINUTE, n * 5, @from) AS FromTime
+    INTO #TimeIntervals
+    FROM Tally;
 
-    -- Get the last status before our time period (if exists)
-    FirstStatus AS (
-        SELECT TOP 1
-            StatusDate,
-            StatusLight,
-            MchID
-        FROM MchStatusTRX
-        WHERE MchID = @machine_id
-        AND Active = 1
-        AND StatusDate < @from
-        ORDER BY StatusDate DESC
-    ),
+    -- 2. Get first status before @from
+    IF OBJECT_ID('tempdb..#FirstStatus') IS NOT NULL DROP TABLE #FirstStatus;
+    SELECT TOP 1
+        StatusDate,
+        StatusLight,
+        MchID
+    INTO #FirstStatus
+    FROM MchStatusTRX
+    WHERE MchID = @machine_id
+    AND Active = 1
+    AND StatusDate < @from
+    ORDER BY StatusDate DESC;
 
-    -- Combine the first status with all statuses in our period
-    AllStatusChanges AS (
-        SELECT
-            StatusDate,
-            StatusLight,
-            MchID
-        FROM FirstStatus
-
+    -- 3. Get all status changes (including previous one)
+    IF OBJECT_ID('tempdb..#StatusChanges') IS NOT NULL DROP TABLE #StatusChanges;
+    SELECT
+        StatusDate AS ChangeTime,
+        StatusLight,
+        MchID,
+        LEAD(StatusDate) OVER (ORDER BY StatusDate) AS NextStatusDate
+    INTO #StatusChanges
+    FROM (
+        SELECT * FROM #FirstStatus
         UNION ALL
-
         SELECT
             StatusDate,
             StatusLight,
@@ -905,64 +905,52 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         WHERE MchID = @machine_id
         AND Active = 1
         AND StatusDate BETWEEN @from AND @to
-    ),
+    ) AS AllStatus;
 
-    -- Add lead/lag information to calculate durations
-    StatusChanges AS (
-        SELECT
-            StatusDate AS ChangeTime,
-            StatusLight,
-            MchID,
-            LEAD(StatusDate) OVER (ORDER BY StatusDate) AS NextStatusDate
-        FROM AllStatusChanges
-    ),
+    -- Optional: index for faster filtering
+    CREATE CLUSTERED INDEX IX_StatusChanges_ChangeTime ON #StatusChanges(ChangeTime);
 
-    -- Calculate duration of each status light for each 5-minute interval
-    IntervalStatus AS (
-        SELECT
-            t.FromTime,
-            s.StatusLight,
-            s.MchID,
+    -- 4. Calculate duration overlaps with 5-minute intervals
+    IF OBJECT_ID('tempdb..#IntervalStatus') IS NOT NULL DROP TABLE #IntervalStatus;
+    SELECT
+        t.FromTime,
+        s.StatusLight,
+        s.MchID,
+        DurationSeconds =
             CASE
-                -- Status spans the entire interval
                 WHEN s.ChangeTime <= t.FromTime AND (s.NextStatusDate IS NULL OR s.NextStatusDate > DATEADD(MINUTE, 5, t.FromTime))
-                    THEN 300 -- 5 minutes in seconds
-
-                -- Status starts before interval but ends within it
+                    THEN 300
                 WHEN s.ChangeTime <= t.FromTime AND s.NextStatusDate <= DATEADD(MINUTE, 5, t.FromTime)
                     THEN DATEDIFF(SECOND, t.FromTime, s.NextStatusDate)
-
-                -- Status starts within interval and continues beyond it
-                WHEN s.ChangeTime > t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime) AND
-                    (s.NextStatusDate IS NULL OR s.NextStatusDate >= DATEADD(MINUTE, 5, t.FromTime))
+                WHEN s.ChangeTime > t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime)
+                    AND (s.NextStatusDate IS NULL OR s.NextStatusDate >= DATEADD(MINUTE, 5, t.FromTime))
                     THEN DATEDIFF(SECOND, s.ChangeTime, DATEADD(MINUTE, 5, t.FromTime))
-
-                -- Status starts and ends within the interval
                 WHEN s.ChangeTime > t.FromTime AND s.NextStatusDate < DATEADD(MINUTE, 5, t.FromTime)
                     THEN DATEDIFF(SECOND, s.ChangeTime, s.NextStatusDate)
-
                 ELSE 0
-            END AS DurationSeconds
-        FROM TimeIntervals t
-        CROSS APPLY (
-            SELECT * FROM StatusChanges s
-            WHERE (s.ChangeTime <= t.FromTime AND (s.NextStatusDate > t.FromTime OR s.NextStatusDate IS NULL))
-            OR (s.ChangeTime >= t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime))
-        ) s
-    ),
+            END
+    INTO #IntervalStatus
+    FROM #TimeIntervals t
+    JOIN #StatusChanges s
+    ON (s.ChangeTime <= t.FromTime AND (s.NextStatusDate > t.FromTime OR s.NextStatusDate IS NULL))
+    OR (s.ChangeTime >= t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime));
 
-    -- Get the status with maximum duration for each interval
-    MaxDuration AS (
+    -- 5. Get max duration per interval
+    IF OBJECT_ID('tempdb..#MaxDuration') IS NOT NULL DROP TABLE #MaxDuration;
+    SELECT *
+    INTO #MaxDuration
+    FROM (
         SELECT
             FromTime,
             StatusLight,
             MchID,
             DurationSeconds,
             ROW_NUMBER() OVER (PARTITION BY FromTime ORDER BY DurationSeconds DESC) AS rn
-        FROM IntervalStatus
-    )
+        FROM #IntervalStatus
+    ) AS ranked
+    WHERE rn = 1;
 
-    -- Final output with pivoted data
+    -- 6. Final select with conditional pivot
     SELECT
         CASE WHEN StatusLight = 'BLUE' THEN 1 ELSE NULL END AS blue,
         CASE WHEN StatusLight = 'ORANGE' THEN 1 ELSE NULL END AS orange,
@@ -972,19 +960,13 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         CASE WHEN StatusLight = 'WHITE' THEN 1 ELSE NULL END AS white,
         CASE WHEN StatusLight = 'RED' THEN 1 ELSE NULL END AS red,
         CASE WHEN StatusLight = 'GREEN' THEN 1 ELSE NULL END AS green,
-        fromTime
-    FROM (
-        SELECT
-            t.FromTime,
-            -- Return NULL for future time periods
-            CASE
-                WHEN t.FromTime > @current THEN NULL
-                ELSE ISNULL(m.StatusLight, NULL)
-            END AS StatusLight
-        FROM TimeIntervals t
-        LEFT JOIN MaxDuration m ON t.FromTime = m.FromTime AND m.rn = 1
-    ) AS StatusData
-    ORDER BY FromTime;
+        t.fromTime
+    FROM #TimeIntervals t
+    LEFT JOIN #MaxDuration m
+        ON t.FromTime = m.FromTime
+    WHERE t.FromTime <= @current
+    ORDER BY t.FromTime;
+
     `
       return await queryDatabase(sqlQuery, { machine_id, shift })
   } else if(date && ems){ // HISTORY EMS
@@ -997,41 +979,41 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
     SET @from = DATEADD(HOUR, 0, CAST(@date AS DATETIME));
     SET @to = DATEADD(HOUR, 0, DATEADD(DAY, 1, CAST(@date AS DATETIME)));
 
-    -- Creating a table with all 5 minute intervals for the day
-    WITH TimeIntervals AS (
-        SELECT
-            DATEADD(MINUTE, (rn-1)*5, @from) AS FromTime
-        FROM (
-            SELECT TOP 288 -- 288 = 24 hours * 12 intervals per hour
-                ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn
-            FROM master.dbo.spt_values t1
-            CROSS JOIN master.dbo.spt_values t2
-        ) AS Numbers
-    ),
+    -- 1. Generate time intervals (288 x 5min for 24h)
+    IF OBJECT_ID('tempdb..#TimeIntervals') IS NOT NULL DROP TABLE #TimeIntervals;
+    WITH Tally AS (
+        SELECT TOP (288) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 AS n
+        FROM master.dbo.spt_values a CROSS JOIN master.dbo.spt_values b
+    )
+    SELECT
+        DATEADD(MINUTE, n * 5, @from) AS FromTime
+    INTO #TimeIntervals
+    FROM Tally;
 
-    -- Get the last status before our time period (if exists)
-    FirstStatus AS (
-        SELECT TOP 1
-            StatusDate,
-            StatusLight,
-            MchID
-        FROM MchStatusTRX
-        WHERE MchID = @machine_id
-        AND Active = 1
-        AND StatusDate < @from
-        ORDER BY StatusDate DESC
-    ),
+    -- 2. Get first status before @from
+    IF OBJECT_ID('tempdb..#FirstStatus') IS NOT NULL DROP TABLE #FirstStatus;
+    SELECT TOP 1
+        StatusDate,
+        StatusLight,
+        MchID
+    INTO #FirstStatus
+    FROM MchStatusTRX
+    WHERE MchID = @machine_id
+    AND Active = 1
+    AND StatusDate < @from
+    ORDER BY StatusDate DESC;
 
-    -- Combine the first status with all statuses in our period
-    AllStatusChanges AS (
-        SELECT
-            StatusDate,
-            StatusLight,
-            MchID
-        FROM FirstStatus
-
+    -- 3. Get all status changes (including previous one)
+    IF OBJECT_ID('tempdb..#StatusChanges') IS NOT NULL DROP TABLE #StatusChanges;
+    SELECT
+        StatusDate AS ChangeTime,
+        StatusLight,
+        MchID,
+        LEAD(StatusDate) OVER (ORDER BY StatusDate) AS NextStatusDate
+    INTO #StatusChanges
+    FROM (
+        SELECT * FROM #FirstStatus
         UNION ALL
-
         SELECT
             StatusDate,
             StatusLight,
@@ -1040,64 +1022,52 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         WHERE MchID = @machine_id
         AND Active = 1
         AND StatusDate BETWEEN @from AND @to
-    ),
+    ) AS AllStatus;
 
-    -- Add lead/lag information to calculate durations
-    StatusChanges AS (
-        SELECT
-            StatusDate AS ChangeTime,
-            StatusLight,
-            MchID,
-            LEAD(StatusDate) OVER (ORDER BY StatusDate) AS NextStatusDate
-        FROM AllStatusChanges
-    ),
+    -- Optional: index for faster filtering
+    CREATE CLUSTERED INDEX IX_StatusChanges_ChangeTime ON #StatusChanges(ChangeTime);
 
-    -- Calculate duration of each status light for each 5-minute interval
-    IntervalStatus AS (
-        SELECT
-            t.FromTime,
-            s.StatusLight,
-            s.MchID,
+    -- 4. Calculate duration overlaps with 5-minute intervals
+    IF OBJECT_ID('tempdb..#IntervalStatus') IS NOT NULL DROP TABLE #IntervalStatus;
+    SELECT
+        t.FromTime,
+        s.StatusLight,
+        s.MchID,
+        DurationSeconds =
             CASE
-                -- Status spans the entire interval
                 WHEN s.ChangeTime <= t.FromTime AND (s.NextStatusDate IS NULL OR s.NextStatusDate > DATEADD(MINUTE, 5, t.FromTime))
-                    THEN 300 -- 5 minutes in seconds
-
-                -- Status starts before interval but ends within it
+                    THEN 300
                 WHEN s.ChangeTime <= t.FromTime AND s.NextStatusDate <= DATEADD(MINUTE, 5, t.FromTime)
                     THEN DATEDIFF(SECOND, t.FromTime, s.NextStatusDate)
-
-                -- Status starts within interval and continues beyond it
-                WHEN s.ChangeTime > t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime) AND
-                    (s.NextStatusDate IS NULL OR s.NextStatusDate >= DATEADD(MINUTE, 5, t.FromTime))
+                WHEN s.ChangeTime > t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime)
+                    AND (s.NextStatusDate IS NULL OR s.NextStatusDate >= DATEADD(MINUTE, 5, t.FromTime))
                     THEN DATEDIFF(SECOND, s.ChangeTime, DATEADD(MINUTE, 5, t.FromTime))
-
-                -- Status starts and ends within the interval
                 WHEN s.ChangeTime > t.FromTime AND s.NextStatusDate < DATEADD(MINUTE, 5, t.FromTime)
                     THEN DATEDIFF(SECOND, s.ChangeTime, s.NextStatusDate)
-
                 ELSE 0
-            END AS DurationSeconds
-        FROM TimeIntervals t
-        CROSS APPLY (
-            SELECT * FROM StatusChanges s
-            WHERE (s.ChangeTime <= t.FromTime AND (s.NextStatusDate > t.FromTime OR s.NextStatusDate IS NULL))
-            OR (s.ChangeTime >= t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime))
-        ) s
-    ),
+            END
+    INTO #IntervalStatus
+    FROM #TimeIntervals t
+    JOIN #StatusChanges s
+    ON (s.ChangeTime <= t.FromTime AND (s.NextStatusDate > t.FromTime OR s.NextStatusDate IS NULL))
+    OR (s.ChangeTime >= t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime));
 
-    -- Get the status with maximum duration for each interval
-    MaxDuration AS (
+    -- 5. Get max duration per interval
+    IF OBJECT_ID('tempdb..#MaxDuration') IS NOT NULL DROP TABLE #MaxDuration;
+    SELECT *
+    INTO #MaxDuration
+    FROM (
         SELECT
             FromTime,
             StatusLight,
             MchID,
             DurationSeconds,
             ROW_NUMBER() OVER (PARTITION BY FromTime ORDER BY DurationSeconds DESC) AS rn
-        FROM IntervalStatus
-    )
+        FROM #IntervalStatus
+    ) AS ranked
+    WHERE rn = 1;
 
-    -- Final output with pivoted data
+    -- 6. Final select with conditional pivot
     SELECT
         CASE WHEN StatusLight = 'BLUE' THEN 1 ELSE NULL END AS blue,
         CASE WHEN StatusLight = 'ORANGE' THEN 1 ELSE NULL END AS orange,
@@ -1107,19 +1077,13 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         CASE WHEN StatusLight = 'WHITE' THEN 1 ELSE NULL END AS white,
         CASE WHEN StatusLight = 'RED' THEN 1 ELSE NULL END AS red,
         CASE WHEN StatusLight = 'GREEN' THEN 1 ELSE NULL END AS green,
-        fromTime
-    FROM (
-        SELECT
-            t.FromTime,
-            -- Return NULL for future time periods
-            CASE
-                WHEN t.FromTime > @current THEN NULL
-                ELSE ISNULL(m.StatusLight, NULL)
-            END AS StatusLight
-        FROM TimeIntervals t
-        LEFT JOIN MaxDuration m ON t.FromTime = m.FromTime AND m.rn = 1
-    ) AS StatusData
-    ORDER BY FromTime;
+        t.fromTime
+    FROM #TimeIntervals t
+    LEFT JOIN #MaxDuration m
+        ON t.fromTime = m.fromTime
+    WHERE t.fromTime <= @current
+    ORDER BY t.fromTime;
+
 
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
@@ -1152,40 +1116,41 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
     END;
 
-    WITH TimeIntervals AS (
-        SELECT
-            DATEADD(MINUTE, (rn-1)*5, @from) AS FromTime
-        FROM (
-            SELECT TOP 288 -- 288 = 24 hours * 12 intervals per hour
-                ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn
-            FROM master.dbo.spt_values t1
-            CROSS JOIN master.dbo.spt_values t2
-        ) AS Numbers
-    ),
+    -- 1. Generate time intervals (288 x 5min for 24h)
+    IF OBJECT_ID('tempdb..#TimeIntervals') IS NOT NULL DROP TABLE #TimeIntervals;
+    WITH Tally AS (
+        SELECT TOP (288) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 AS n
+        FROM master.dbo.spt_values a CROSS JOIN master.dbo.spt_values b
+    )
+    SELECT
+        DATEADD(MINUTE, n * 5, @from) AS FromTime
+    INTO #TimeIntervals
+    FROM Tally;
 
-    -- Get the last status before our time period (if exists)
-    FirstStatus AS (
-        SELECT TOP 1
-            StatusDate,
-            StatusLight,
-            MchID
-        FROM MchStatusTRX
-        WHERE MchID = @machine_id
-        AND Active = 1
-        AND StatusDate < @from
-        ORDER BY StatusDate DESC
-    ),
+    -- 2. Get first status before @from
+    IF OBJECT_ID('tempdb..#FirstStatus') IS NOT NULL DROP TABLE #FirstStatus;
+    SELECT TOP 1
+        StatusDate,
+        StatusLight,
+        MchID
+    INTO #FirstStatus
+    FROM MchStatusTRX
+    WHERE MchID = @machine_id
+    AND Active = 1
+    AND StatusDate < @from
+    ORDER BY StatusDate DESC;
 
-    -- Combine the first status with all statuses in our period
-    AllStatusChanges AS (
-        SELECT
-            StatusDate,
-            StatusLight,
-            MchID
-        FROM FirstStatus
-
+    -- 3. Get all status changes (including previous one)
+    IF OBJECT_ID('tempdb..#StatusChanges') IS NOT NULL DROP TABLE #StatusChanges;
+    SELECT
+        StatusDate AS ChangeTime,
+        StatusLight,
+        MchID,
+        LEAD(StatusDate) OVER (ORDER BY StatusDate) AS NextStatusDate
+    INTO #StatusChanges
+    FROM (
+        SELECT * FROM #FirstStatus
         UNION ALL
-
         SELECT
             StatusDate,
             StatusLight,
@@ -1194,64 +1159,52 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         WHERE MchID = @machine_id
         AND Active = 1
         AND StatusDate BETWEEN @from AND @to
-    ),
+    ) AS AllStatus;
 
-    -- Add lead/lag information to calculate durations
-    StatusChanges AS (
-        SELECT
-            StatusDate AS ChangeTime,
-            StatusLight,
-            MchID,
-            LEAD(StatusDate) OVER (ORDER BY StatusDate) AS NextStatusDate
-        FROM AllStatusChanges
-    ),
+    -- Optional: index for faster filtering
+    CREATE CLUSTERED INDEX IX_StatusChanges_ChangeTime ON #StatusChanges(ChangeTime);
 
-    -- Calculate duration of each status light for each 5-minute interval
-    IntervalStatus AS (
-        SELECT
-            t.FromTime,
-            s.StatusLight,
-            s.MchID,
+    -- 4. Calculate duration overlaps with 5-minute intervals
+    IF OBJECT_ID('tempdb..#IntervalStatus') IS NOT NULL DROP TABLE #IntervalStatus;
+    SELECT
+        t.FromTime,
+        s.StatusLight,
+        s.MchID,
+        DurationSeconds =
             CASE
-                -- Status spans the entire interval
                 WHEN s.ChangeTime <= t.FromTime AND (s.NextStatusDate IS NULL OR s.NextStatusDate > DATEADD(MINUTE, 5, t.FromTime))
-                    THEN 300 -- 5 minutes in seconds
-
-                -- Status starts before interval but ends within it
+                    THEN 300
                 WHEN s.ChangeTime <= t.FromTime AND s.NextStatusDate <= DATEADD(MINUTE, 5, t.FromTime)
                     THEN DATEDIFF(SECOND, t.FromTime, s.NextStatusDate)
-
-                -- Status starts within interval and continues beyond it
-                WHEN s.ChangeTime > t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime) AND
-                    (s.NextStatusDate IS NULL OR s.NextStatusDate >= DATEADD(MINUTE, 5, t.FromTime))
+                WHEN s.ChangeTime > t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime)
+                    AND (s.NextStatusDate IS NULL OR s.NextStatusDate >= DATEADD(MINUTE, 5, t.FromTime))
                     THEN DATEDIFF(SECOND, s.ChangeTime, DATEADD(MINUTE, 5, t.FromTime))
-
-                -- Status starts and ends within the interval
                 WHEN s.ChangeTime > t.FromTime AND s.NextStatusDate < DATEADD(MINUTE, 5, t.FromTime)
                     THEN DATEDIFF(SECOND, s.ChangeTime, s.NextStatusDate)
-
                 ELSE 0
-            END AS DurationSeconds
-        FROM TimeIntervals t
-        CROSS APPLY (
-            SELECT * FROM StatusChanges s
-            WHERE (s.ChangeTime <= t.FromTime AND (s.NextStatusDate > t.FromTime OR s.NextStatusDate IS NULL))
-            OR (s.ChangeTime >= t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime))
-        ) s
-    ),
+            END
+    INTO #IntervalStatus
+    FROM #TimeIntervals t
+    JOIN #StatusChanges s
+    ON (s.ChangeTime <= t.FromTime AND (s.NextStatusDate > t.FromTime OR s.NextStatusDate IS NULL))
+    OR (s.ChangeTime >= t.FromTime AND s.ChangeTime < DATEADD(MINUTE, 5, t.FromTime));
 
-    -- Get the status with maximum duration for each interval
-    MaxDuration AS (
+    -- 5. Get max duration per interval
+    IF OBJECT_ID('tempdb..#MaxDuration') IS NOT NULL DROP TABLE #MaxDuration;
+    SELECT *
+    INTO #MaxDuration
+    FROM (
         SELECT
             FromTime,
             StatusLight,
             MchID,
             DurationSeconds,
             ROW_NUMBER() OVER (PARTITION BY FromTime ORDER BY DurationSeconds DESC) AS rn
-        FROM IntervalStatus
-    )
+        FROM #IntervalStatus
+    ) AS ranked
+    WHERE rn = 1;
 
-    -- Final output with pivoted data
+    -- 6. Final select with conditional pivot
     SELECT
         CASE WHEN StatusLight = 'BLUE' THEN 1 ELSE NULL END AS blue,
         CASE WHEN StatusLight = 'ORANGE' THEN 1 ELSE NULL END AS orange,
@@ -1261,19 +1214,13 @@ export async function getNooeMachine(machine_id: string, date: string | null, sh
         CASE WHEN StatusLight = 'WHITE' THEN 1 ELSE NULL END AS white,
         CASE WHEN StatusLight = 'RED' THEN 1 ELSE NULL END AS red,
         CASE WHEN StatusLight = 'GREEN' THEN 1 ELSE NULL END AS green,
-        fromTime
-    FROM (
-        SELECT
-            t.FromTime,
-            -- Return NULL for future time periods
-            CASE
-                WHEN t.FromTime > @current THEN NULL
-                ELSE ISNULL(m.StatusLight, NULL)
-            END AS StatusLight
-        FROM TimeIntervals t
-        LEFT JOIN MaxDuration m ON t.FromTime = m.FromTime AND m.rn = 1
-    ) AS StatusData
-    ORDER BY FromTime;
+        t.fromTime
+    FROM #TimeIntervals t
+    LEFT JOIN #MaxDuration m
+        ON t.fromTime = m.fromTime
+    WHERE t.FromTime <= @current
+    ORDER BY t.FromTime;
+
 
     `;
     return await queryDatabase(sqlQuery, { machine_id });
