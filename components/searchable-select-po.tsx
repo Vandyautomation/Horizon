@@ -85,6 +85,7 @@ export function SearchablePOSelect({
             placeholder="Search PO number..."
             className="h-9"
             value={searchPoNumber}
+            required
             onChangeCapture={handleSearchPoNumberChange}
           />
           <CommandEmpty>No PO number found.</CommandEmpty>

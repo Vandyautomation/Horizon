@@ -100,6 +100,9 @@ countboardRoutes.post('/utility', async (c) => {
 
 countboardRoutes.post('/task', async (c) => {
   const { poNumber, machineName } = await c.req.json();
+  if (!poNumber || !machineName) {
+    return c.json({ error: 'PO number and machine name are required' }, 400);
+  }
   try {
     await attachPo(poNumber, machineName);
     if (process.env.NODE_ENV === "development") {
