@@ -14,6 +14,13 @@ const dbConfig = {
     trustServerCertificate: true,
     connectTimeout: timeout,
     requestTimeout: timeout,
+    // 🐛 Add this block for debugging Tedious
+    debug: {
+      packet: true,
+      data: true,
+      payload: true,
+      token: true
+    }
   },
   pool: {
     max: 10, // Maximum connections in pool
