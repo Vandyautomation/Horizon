@@ -165,7 +165,7 @@ export default function CountboardDashboard() {
       const hour = now.getHours();
       const lastRefreshedHour = localStorage.getItem("lastRefreshedHour");
 
-      if ((hour === 6 || hour === 14 || hour === 22) && lastRefreshedHour != hour.toString()) {
+      if ((hour === 6 || hour === 14 || hour === 22) && lastRefreshedHour !== hour.toString()) {
         localStorage.setItem("lastRefreshedHour", hour.toString());
         toast.success("Auto Refreshing every shift ...", { duration: 1000 });
         setTimeout(() => {
@@ -174,8 +174,15 @@ export default function CountboardDashboard() {
       }
     };
 
+    // Initial check
     refreshAtShiftChange();
-  }, [router]);
+
+    // Set up interval to check every minute
+    const intervalId = setInterval(refreshAtShiftChange, 60000);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []);
 
 
   const [shiftStartHour, setShiftStartHour] = useState(0);
