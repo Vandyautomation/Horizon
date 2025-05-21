@@ -259,7 +259,7 @@ function InjectionMoldingMachine({
         ]}
       />
       {machine?.status === 'ORANGE' && (
-          <Html position={[0, 4, 0]} center>
+          <Html position={[0, 4.7, 0]} center>
             <div className="bg-orange-500 text-white p-1 text-sm border animate-pulse">
               Breakdown!!!
             </div>
