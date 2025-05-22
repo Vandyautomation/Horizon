@@ -270,8 +270,7 @@ useEffect(() => {
     })
 
     if (existingTask) {
-      toast.error("Task with the same PO already exists");
-      return;
+      toast.success("Task with the same PO already exists, will create a new task with the same PO");
     }
 
     toast.promise(
