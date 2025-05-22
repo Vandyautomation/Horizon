@@ -2,7 +2,7 @@ import { Context } from 'hono';
 import { queryDatabase } from '../utils/queryDatabase';
 
 export async function getBuildings(type?: string) {
-    const listBuilding = (type == 'injection' ? `'INJ Bld G', 'INJ Bld H', 'INJ Bld J', 'INJ Bld Q', 'INJ Bld R', 'INJ Bld S'` : `'M', 'E', 'K', 'SP'`)
+    const listBuilding = (type == 'injection' ? `'INJ Bld G', 'INJ Bld H', 'INJ Bld J', 'INJ Bld Q', 'INJ Bld R', 'INJ Bld S'` : `'E', 'K', 'M', 'SP'`)
     const sqlQuery =
         `
         DECLARE @from datetime;
@@ -22,9 +22,26 @@ export async function getBuildings(type?: string) {
         ELSE IF @shift = 3
         BEGIN
             SET @from = DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
-        END
-        SELECT 
-        m.MchNumber AS id, 
+        END;
+
+        WITH PowerMeterConsumption AS (
+        SELECT
+            MchID COLLATE SQL_Latin1_General_CP1_CI_AS AS MchID,
+            SUM(Diff) AS consumption
+        FROM (
+            SELECT
+                MchID COLLATE SQL_Latin1_General_CP1_CI_AS AS MchID,
+                PMValue - LAG(PMValue) OVER (PARTITION BY MchID ORDER BY id) AS Diff
+            FROM eEnergy.dbo.PowerMeter
+            WHERE TrxType = 'Automatic'
+            AND PMDT BETWEEN @from AND GETDATE()
+        ) AS DiffCalc
+        WHERE Diff IS NOT NULL
+        GROUP BY MchID
+    )
+
+    SELECT
+        m.MchNumber AS id,
         m.MchLoc AS building,
         m.[position],
         m.rotation,
@@ -32,30 +49,40 @@ export async function getBuildings(type?: string) {
         m.MchDesc,
         m.MchLoc,
         m.MchNumber,
-        m.MchTon as Tonage,
-        (SELECT SUM(Diff) AS consumption
-        FROM (
-            SELECT 
-                MchID COLLATE SQL_Latin1_General_CP1_CI_AS AS MchID,
-                PMValue - LAG(PMValue) OVER (PARTITION BY MchID ORDER BY id) AS Diff
-            FROM eEnergy.dbo.PowerMeter
-            WHERE TrxType = 'Automatic' and PMDT BETWEEN @from AND GETDATE()
-        ) t
-        WHERE Diff IS NOT NULL 
-        AND MchID = m.MchID COLLATE SQL_Latin1_General_CP1_CI_AS
-        GROUP BY MchID
-        ) AS consumption,
-        (select top 1 actual_ct from countboard_tasks t where t.machine_name = MchDesc order by id desc) AS cycletime,
-        (select top 1 ct from countboard_tasks t where t.machine_name = MchDesc order by id desc) AS target_cycletime,
-        (select top 1 actual_cvt from countboard_tasks t where t.machine_name = MchDesc order by id desc) AS cavity,
-        (select top 1 cvt from countboard_tasks t where t.machine_name = MchDesc order by id desc) AS target_cavity,
-        (select top 1 oee from MachineData md where md.MchID = m.MchID order by id desc) AS oee,
-        (select top 1 ooe from MachineData md where md.MchID = m.MchID order by id desc) AS ooe
-    FROM IoT.dbo.MachineMST m 
-    WHERE MchLoc IN (${listBuilding}) and m.Active = 1
-    ORDER BY MchLoc, CAST(m.MchNumber AS INT);
+        m.MchTon AS Tonage,
+        pmc.consumption,
+        ct.actual_ct AS cycletime,
+        ct.ct AS target_cycletime,
+        ct.actual_cvt AS cavity,
+        ct.cvt AS target_cavity,
+        md.oee,
+        md.ooe
+    FROM IoT.dbo.MachineMST m
+    LEFT JOIN PowerMeterConsumption pmc
+    ON pmc.MchID = m.MchID COLLATE SQL_Latin1_General_CP1_CI_AS
+
+    OUTER APPLY (
+        SELECT TOP 1
+            actual_ct, ct, actual_cvt, cvt
+        FROM countboard_tasks t
+        WHERE t.machine_name = m.MchDesc COLLATE SQL_Latin1_General_CP1_CI_AS
+        ORDER BY id DESC
+    ) AS ct
+
+    OUTER APPLY (
+        SELECT TOP 1
+            oee, ooe
+        FROM MachineData md
+        WHERE md.MchID = m.MchID COLLATE SQL_Latin1_General_CP1_CI_AS
+        ORDER BY id DESC
+    ) AS md
+
+    WHERE m.MchLoc IN (${listBuilding})
+    AND m.Active = 1
+
+    ORDER BY m.MchLoc, TRY_CAST(m.MchNumber AS INT);
     `
-    // console.log(sqlQuery)
+    console.log(sqlQuery)
 
     const machines = await queryDatabase(sqlQuery, {});
     // Convert position and rotation to arrays for all machines
@@ -90,7 +117,7 @@ export async function getBuildings(type?: string) {
     // If type is 'uv', create an "All" group with all machines
 
 
-    
+
     // Create result array with one entry per building
     const result = Object.entries(buildingGroups).map(([name, machines]) => ({
         id: Math.random().toString(36).substring(2, 10),
@@ -101,18 +128,6 @@ export async function getBuildings(type?: string) {
     }));
     // console.log(result)
     // console.log(machines)
-    // for (const machine of formattedMachines) {
-    //     delete machine.position
-    //     delete machine.rotation
-    //     delete machine.oee
-    //     delete machine.ooe
-    //     delete machine.cycletime
-    //     delete machine.target_cycletime
-    //     delete machine.cavity
-    //     delete machine.target_cavity
-    //     delete machine.consumption
-    //     delete machine.building
-    // }
     return result;
 
 
