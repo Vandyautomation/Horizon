@@ -82,7 +82,7 @@ export async function getBuildings(type?: string) {
 
     ORDER BY m.MchLoc, TRY_CAST(m.MchNumber AS INT);
     `
-    console.log(sqlQuery)
+    // console.log(sqlQuery)
 
     const machines = await queryDatabase(sqlQuery, {});
     // Convert position and rotation to arrays for all machines
