@@ -50,7 +50,7 @@ export default function RoutingUpload() {
           try {
             const workbook = XLSX.read(event.target?.result as string, { type: "array" })
             const worksheet = workbook.Sheets[workbook.SheetNames[workbook.SheetNames.length-1]]
-            const data = XLSX.utils.sheet_to_json(worksheet, { range: "G5:W10000", header: 1, raw: true })
+            const data = XLSX.utils.sheet_to_json(worksheet, { range: "C5:W10000", header: 1, raw: true })
             setData(data)
             // console.log(JSON.stringify(data[0]))
             // console.log(data.slice(0,10))
@@ -115,8 +115,8 @@ export default function RoutingUpload() {
                     <p className="">1. Pastikan data sudah benar, yaitu ROUTING</p>
                     <p className="">2. Pastikan data komplit, hindari data kosong, untuk COATING Cavities diisi 0</p>
                     <p className="">3. Sheet yang dipilih adalah sheet yang paling terakhir</p>
-                    <p className="">4. Kolom yang dipilih adalah G5:W10000</p>
-                    <p className="">5. Data yang wajib ada : Material, Material Description, Cycle Time, Cavities</p>
+                    <p className="">4. Kolom yang dipilih adalah C5:W10000</p>
+                    <p className="">5. Data yang wajib ada : Scheduler, Material, Material Description, Cycle Time, Cavities</p>
                     <p className="flex">6. Download contoh file ROUTING : <><a href="/admin/contoh_routing.xlsx" download className="text-secondary-foreground underline flex items-center"> Contoh ROUTING <Download size={16}/></a></></p>
                 </div>
                 <div

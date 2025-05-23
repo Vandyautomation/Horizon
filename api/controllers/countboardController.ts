@@ -10,11 +10,11 @@ SELECT id, name from RejectMST where active = 1
 
 export async function addRouting(data: any[][]) {
     const validData = data.slice(1).filter((row) => {
-      const [Material, MaterialDescription, GrC, BaseQuantity, Un1, Un2, OpAc, WorkCtr, WorkCenterDescription, Machine, Unit1, Labor, Unit2, NoEmpl, CycleTime, CtrK, Cavities] = row;
+      const [Scheduler, , MRPController, OldMaterialNo, Material, MaterialDescription, GrC, BaseQuantity, Un1, Un2, OpAc, WorkCtr, WorkCenterDescription, Machine, Unit1, Labor, Unit2, NoEmpl, CycleTime, CtrK, Cavities] = row;
   
       // Check for null or undefined values and ensure the data types are correct
       if (
-        !Material || !MaterialDescription  || !CycleTime || !Cavities ||
+        !Scheduler || !Material || !MaterialDescription || !CycleTime || !Cavities ||
          typeof CycleTime !== 'number' || typeof Cavities !== 'number'
       ) {
         return false;
@@ -32,6 +32,7 @@ export async function addRouting(data: any[][]) {
 
     const sqlQuery = `
       INSERT INTO IoT.dbo.routing (
+        scheduler,
         material_id, 
         material_name, 
         ct,
@@ -45,7 +46,7 @@ export async function addRouting(data: any[][]) {
           ${validData
             .map(
               (row) =>
-                `('${escapeSingleQuote(row[0])}', '${escapeSingleQuote(row[1])}', ${row[14]}, ${row[16]}, getdate(), getdate(), 0)`
+                `('${escapeSingleQuote(row[0])}', ('${escapeSingleQuote(row[4])}', '${escapeSingleQuote(row[5])}', ${row[18]}, ${row[20]}, getdate(), getdate(), 0)`
             )
             .join(", ")}
       ) AS new_data( material_id, material_name, cvt, ct, uploaded_at, modified_at, is_sync)
@@ -82,6 +83,8 @@ export async function addCoois(data: any[][]) {
     INSERT INTO IoT.dbo.coois (
       po_name, 
       so_name, 
+      op_no,
+      type,
       material_id, 
       material_name, 
       required_qty, 
@@ -95,7 +98,7 @@ export async function addCoois(data: any[][]) {
         ${validData
           .map(
             (row) =>
-              `('${row[0]}', '${row[1]}', '${row[4]}', '${row[5]}', ${row[6]}, ${row[7]}, getdate(), getdate(), 0)`
+              `('${row[0]}', '${row[1]}', '${row[2]}', '${row[3]}', '${row[4]}', '${row[5]}', ${row[6]}, ${row[7]}, getdate(), getdate(), 0)`
           )
           .join(", ")}
     ) AS new_data(po_name, so_item, material_id, material_name, required_qty, produced_qty, uploaded_at, modified_at, is_sync)
