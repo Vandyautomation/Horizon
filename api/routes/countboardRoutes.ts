@@ -17,9 +17,9 @@ countboardRoutes.get('/rejects', async (c) => {
 
 countboardRoutes.get('/coois', async (c) => {
   const poName = c.req.query('poName');
-
+  const type = c.req.query('type');
   try {
-    const data = await getCoois(poName);
+    const data = await getCoois(poName, type);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);

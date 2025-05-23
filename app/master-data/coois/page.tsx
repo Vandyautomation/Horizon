@@ -172,7 +172,7 @@ export default function CooisUpload() {
           <CardHeader>
             <div className="flex items-center justify-between">
             <CardTitle>Uploaded Data (Shown first 50 rows)</CardTitle>
-            <Button onClick={() => handleSyncDb()}><RefreshCw className={loading ? 'animate-spin' : '' }/>Syncronize to DB</Button>
+            <Button onClick={() => handleSyncDb()} disabled={loading}><RefreshCw className={loading ? 'animate-spin' : '' }/>Syncronize to DB</Button>
             </div>
           </CardHeader>
           <CardContent>

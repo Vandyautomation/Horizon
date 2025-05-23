@@ -1143,6 +1143,7 @@ const refetchStateData = () => mutate(stateDataKey);
                 <SearchablePOSelect
                     value={selectedPO}  
                     onValueChange={(newValue) => setSelectedPO(newValue)}
+                    type='Injection'
                 />
               </div>
                <div className="flex flex-col">

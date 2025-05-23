@@ -1586,6 +1586,7 @@ export default function CountboardDashboardUv() {
                 <SearchablePOSelect
                     value={selectedPO}
                     onValueChange={(newValue) => setSelectedPO(newValue)}
+                    type='Metalizing, Spray Painting, Coating'
                 />
               </div>
                <div className="flex flex-col">

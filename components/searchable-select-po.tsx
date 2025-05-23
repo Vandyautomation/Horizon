@@ -32,10 +32,12 @@ type PoNumber = {
 
 export function SearchablePOSelect({
   value = null,
-  onValueChange
+  onValueChange,
+  type
 }: {
   value: PoNumber | null
   onValueChange: (value: PoNumber | null) => void
+  type: string
 }) {
   const [open, setOpen] = useState(false)
   const [poNumbers, setPoNumbers] = useState<PoNumber[]>([]);
@@ -46,7 +48,7 @@ export function SearchablePOSelect({
   useEffect(() => {
     const fetchPo = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/coois?poName=${searchPoNumber}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/coois?poName=${searchPoNumber}&type=${type}`, {
         });
         const data = await response.json();
         setPoNumbers(data);

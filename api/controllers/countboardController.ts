@@ -13,12 +13,12 @@ export async function addRouting(data: any[][]) {
       const [Scheduler, , MRPController, OldMaterialNo, Material, MaterialDescription, GrC, BaseQuantity, Un1, Un2, OpAc, WorkCtr, WorkCenterDescription, Machine, Unit1, Labor, Unit2, NoEmpl, CycleTime, CtrK, Cavities] = row;
   
       // Check for null or undefined values and ensure the data types are correct
-      if (
-        !Scheduler || !Material || !MaterialDescription || !CycleTime || !Cavities ||
-         typeof CycleTime !== 'number' || typeof Cavities !== 'number'
-      ) {
-        return false;
-      }
+      // if (
+      //   !Scheduler || !Material || !MaterialDescription || !CycleTime || !Cavities ||
+      //    typeof CycleTime !== 'number' || typeof Cavities !== 'number'
+      // ) {
+      //   return false;
+      // }
   
       return true;
     });
@@ -27,32 +27,49 @@ export async function addRouting(data: any[][]) {
       throw new Error('Data tidak valid untuk di insert, periksa kembali');
     }
 
+  // console.log('Backend Valid data length:', validData.length)
+
     // Escape single quotes by replacing ' with ''
     const escapeSingleQuote = (value: string) => value.replace(/'/g, "''");
 
     const sqlQuery = `
-      INSERT INTO IoT.dbo.routing (
-        scheduler,
-        material_id, 
-        material_name, 
-        ct,
-        cvt,
-        created_at,
-        modified_at,
-        is_sync
+      WITH deduplicated_source AS (
+        SELECT
+          scheduler,
+          material_id,
+          material_name,
+          ct,
+          cvt,
+          created_at,
+          modified_at,
+          is_sync,
+          ROW_NUMBER() OVER (PARTITION BY material_id ORDER BY material_id) as rn
+        FROM (
+          VALUES
+            ${validData
+        .map(
+          (row) =>
+            `('${escapeSingleQuote(row[0])}', '${escapeSingleQuote(row[4])}', '${escapeSingleQuote(row[5])}', ${row[18]}, ${row[20]}, getdate(), getdate(), 0)`
+        )
+      .join(", ")}
+        ) AS source(scheduler, material_id, material_name, ct, cvt, created_at, modified_at, is_sync)
       )
-      SELECT * FROM (
-        VALUES 
-          ${validData
-            .map(
-              (row) =>
-                `('${escapeSingleQuote(row[0])}', ('${escapeSingleQuote(row[4])}', '${escapeSingleQuote(row[5])}', ${row[18]}, ${row[20]}, getdate(), getdate(), 0)`
-            )
-            .join(", ")}
-      ) AS new_data( material_id, material_name, cvt, ct, uploaded_at, modified_at, is_sync)
-      WHERE NOT EXISTS (
-        SELECT 1 FROM IoT.dbo.routing WHERE material_id = new_data.material_id and isnull(is_deleted,0)=0
-      )
+      MERGE INTO IoT.dbo.routing AS target
+      USING (
+        SELECT * FROM deduplicated_source WHERE rn = 1
+      ) AS unique_source
+      ON target.material_id = unique_source.material_id 
+         AND ISNULL(target.is_deleted, 0) = 0
+      WHEN MATCHED THEN
+        UPDATE SET
+          scheduler = unique_source.scheduler,
+          material_name = unique_source.material_name,
+          created_at = unique_source.created_at,
+          modified_at = unique_source.modified_at,
+          is_sync = unique_source.is_sync
+      WHEN NOT MATCHED THEN
+        INSERT (scheduler, material_id, material_name, ct, cvt, created_at, modified_at, is_sync)
+        VALUES (unique_source.scheduler, unique_source.material_id, unique_source.material_name, unique_source.ct, unique_source.cvt, unique_source.created_at, unique_source.modified_at, unique_source.is_sync);
     `;
   
     return await queryDatabase(sqlQuery);
@@ -80,20 +97,8 @@ export async function addCoois(data: any[][]) {
   }
 
   const sqlQuery = `
-    INSERT INTO IoT.dbo.coois (
-      po_name, 
-      so_name, 
-      op_no,
-      type,
-      material_id, 
-      material_name, 
-      required_qty, 
-      produced_qty,
-      uploaded_at,
-      modified_at,
-      is_sync
-    )
-    SELECT * FROM (
+    MERGE INTO IoT.dbo.coois AS target
+    USING (
       VALUES 
         ${validData
           .map(
@@ -101,10 +106,22 @@ export async function addCoois(data: any[][]) {
               `('${row[0]}', '${row[1]}', '${row[2]}', '${row[3]}', '${row[4]}', '${row[5]}', ${row[6]}, ${row[7]}, getdate(), getdate(), 0)`
           )
           .join(", ")}
-    ) AS new_data(po_name, so_item, material_id, material_name, required_qty, produced_qty, uploaded_at, modified_at, is_sync)
-    WHERE NOT EXISTS (
-      SELECT 1 FROM IoT.dbo.coois WHERE po_name = new_data.po_name and isnull(is_deleted,0)=0
-    )
+    ) AS source(po_name, so_name, op_no, type, material_id, material_name, required_qty, produced_qty, uploaded_at, modified_at, is_sync)
+    ON target.po_name = source.po_name AND ISNULL(target.is_deleted, 0) = 0
+    WHEN MATCHED THEN
+      UPDATE SET
+        so_name = source.so_name,
+        op_no = source.op_no,
+        type = source.type,
+        material_id = source.material_id,
+        material_name = source.material_name,
+        required_qty = source.required_qty,
+        produced_qty = source.produced_qty,
+        modified_at = source.modified_at,
+        is_sync = source.is_sync
+    WHEN NOT MATCHED THEN
+      INSERT (po_name, so_name, op_no, type, material_id, material_name, required_qty, produced_qty, uploaded_at, modified_at, is_sync)
+      VALUES (source.po_name, source.so_name, source.op_no, source.type, source.material_id, source.material_name, source.required_qty, source.produced_qty, source.uploaded_at, source.modified_at, source.is_sync);
   `;
 
   try {
@@ -150,29 +167,31 @@ export async function editProcess(hourlyId: number, process: string) {
 
 
 
-export async function getCoois(poName: string|undefined) {
+export async function getCoois(poName: string | undefined, type: string | undefined) {
   const sqlQuery = `
     SELECT 
     TOP 10
-        MAX(Id) AS poId, 
-        po_name AS poNumber,
-        material_id AS materialId,
-        material_name AS materialName
+        MAX(coois.Id) AS poId,
+        coois.po_name AS poNumber,
+        coois.material_id AS materialId,
+        coois.material_name AS materialName
     FROM 
         IoT.dbo.coois
+    LEFT JOIN IoT.dbo.routing ON coois.material_id = routing.material_id
     WHERE 
-        ISNULL(is_deleted, 0) = 0  
-        AND po_name IS NOT NULL 
-        AND po_name != ''
-        AND po_name like '%'+ @poName + '%'
+        ISNULL(coois.is_deleted, 0) = 0
+        AND coois.po_name IS NOT NULL
+        AND coois.po_name != ''
+        AND coois.po_name like '%'+ @poName + '%'
+        AND (routing.scheduler = @type or routing.scheduler is null)
     GROUP BY 
-        po_name, material_id, material_name
+        coois.po_name, coois.material_id, coois.material_name
     ORDER BY 
         poId DESC;
 
   `;
   try {
-    return await queryDatabase(sqlQuery, { poName });
+    return await queryDatabase(sqlQuery, { poName, type });
   } catch (error: any) {
     console.error('Error getting coois:', error);
     throw new Error(`Failed to get coois: ${error.message}`);
