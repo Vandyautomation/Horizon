@@ -168,6 +168,7 @@ export async function editProcess(hourlyId: number, process: string) {
 
 
 export async function getCoois(poName: string | undefined, type: string | undefined) {
+  const whereType = type === 'Metalizing, Spray Painting, Coating' ? "'Metalizing', 'Spray Painting', 'Coating'" : `'${type}'`;
   const sqlQuery = `
     SELECT 
     TOP 10
@@ -183,7 +184,7 @@ export async function getCoois(poName: string | undefined, type: string | undefi
         AND coois.po_name IS NOT NULL
         AND coois.po_name != ''
         AND coois.po_name like '%'+ @poName + '%'
-        AND (routing.scheduler = @type or routing.scheduler is null)
+        AND (routing.scheduler in (${whereType}) or routing.scheduler is null)
     GROUP BY 
         coois.po_name, coois.material_id, coois.material_name
     ORDER BY 
