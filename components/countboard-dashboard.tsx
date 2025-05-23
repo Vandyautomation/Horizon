@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import albeaLogo from "@/public/albea-white.png"
+import albeaLogo from "@/public/logo-albea.png"
 import {
   Card,
   CardContent,
@@ -748,245 +748,235 @@ const refetchStateData = () => mutate(stateDataKey);
 
   return (
     <div className="p-2 space-y-2 w-full">
-      <div className="flex flex-wrap gap-2">
-        {isLoading ? (
-          <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
-          Loading ...
-        </Label>
-        ) : (
-          <Select value={selectedLocation} onValueChange={handleLocationChange} >
-            <SelectTrigger className="w-[110px]">
-              <SelectValue placeholder="Building" />
-            </SelectTrigger>
-            <SelectContent>
-              {uniqueLocations?.map(locationName => (
-                <SelectItem key={locationName} value={locationName}>
-                  {locationName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-      {isLoading ? (
-          <div></div>
-        ) : (
-        <Select value={selectedMachineNumber} onValueChange={handleMachineNumberChange}>
-          <SelectTrigger className="w-[60px]">
-            <SelectValue placeholder="MchNumber" />
-          </SelectTrigger>
-          <SelectContent>
-            {filteredMachines?.map(machine => (
-              <SelectItem key={machine.machineNumber} value={machine.machineNumber}>
-                {machine.machineNumber}
-              </SelectItem>
-            ))} 
-          </SelectContent>
-        </Select>)}
-
-        <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
-          {selectedMachine?.machineDescription || "MchDesc"}
-        </Label>
-        <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
-          {Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
-        </Label>
-        <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
-         PO{taskData && taskData.length > 0 ? taskData[taskData.length - 1].po_name : " Number"}
-        </Label>
-        
-        <Select value={selectedRefreshRate} onValueChange={handleRefreshRateChange}>
-          <SelectTrigger className="w-[80px]">
-            <SelectValue placeholder="Refresh Rate">
-              <div className="flex gap-1 align-middle items-center">
-              <RefreshCw size={15}/>
-              {Number(selectedRefreshRate)/1000} s
-              </div>
-              </SelectValue>
-          </SelectTrigger>
-          <SelectContent >
-            {refreshRateList?.map(refreshRate => (
-                <SelectItem key={refreshRate} value={refreshRate}>
-                  {Number(refreshRate) / 1000} s
-                </SelectItem>
-              ))} 
-          </SelectContent>
-        </Select>
-        <Button
-          onClick={() => handleRefreshButton()}
-          disabled={isLoadingRefresh}
-          variant="default"
-        >
-            <RefreshCw className="w-4 h-4" style={{ animation: isLoadingRefresh ? "spin 2s linear infinite" : "none" }} />
-        </Button>
-        <Button onClick={() => setIsPODialogOpen(true)} variant="default">
-            <FilePlus2 className="w-4 h-4 mr-2"  />
-            PO
-        </Button>
-        <Button onClick={() => setIsCVTDialogOpen(true)} variant="default">
-            <Pencil className="w-4 h-4 mr-2" />
-            CVT
-        </Button>
-        <div className="flex items-center space-x-2 border border-gray-250 rounded-md px-3 py-2">
-        <Switch id="live-mode" 
-            checked={isLiveMode}
-            onCheckedChange={handleLiveMode} />
-        <Label htmlFor="live-mode">LIVE MODE</Label>
+      <div className="flex gap-4 justify-between items-center">
+        {/* Left side - Logo and Building selection */}
+        <div className="flex flex-col gap-4">
+          <Image 
+            src={albeaLogo} 
+            alt="Albea" 
+            width={150} 
+            height={100} 
+            className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"
+          />
         </div>
-        <Dialog open={isDialogUtilityOpen} onOpenChange={setIsDialogUtilityOpen}>
-          <DialogTrigger asChild>
-            <Button variant={"default"}><GearIcon/> Setup Utility</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Warning</DialogTitle>
-              <DialogDescription>
-          Ini akan mengubah status utiltiy menjadi ON pada mesin {selectedMachine?.machineDescription}. Apakah anda yakin?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="default" onClick={() =>{ handleSetupUtility(), setIsDialogUtilityOpen(false)}}>
-          Yes
-              </Button>
-              <Button variant="outline" onClick={() => setIsDialogUtilityOpen(false)}>
-          No
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
+        {/* Right side - Machine info and controls */}
+        <div className="flex flex-col gap-2 flex-1">
+          {/* First row - Machine info */}
+          <div className="flex flex-wrap gap-2">
+            {isLoading ? (
+              <div></div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Select value={selectedLocation} onValueChange={handleLocationChange}>
+              <SelectTrigger className="w-[120px] h-[43px] text-lg text-nowrap">
+                <SelectValue placeholder="Building" />
+              </SelectTrigger>
+              <SelectContent>
+                {uniqueLocations?.map(locationName => (
+                  <SelectItem key={locationName} value={locationName} className="text-lg text-nowrap">
+                    {locationName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+              <Select value={selectedMachineNumber} onValueChange={handleMachineNumberChange}>
+                <SelectTrigger className="w-[70px] h-[43px] text-lg text-nowrap">
+                  <SelectValue placeholder="MchNumber" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredMachines?.map(machine => (
+                    <SelectItem key={machine.machineNumber} value={machine.machineNumber} className="text-lg text-nowrap">
+                      {machine.machineNumber}
+                    </SelectItem>
+                  ))} 
+                </SelectContent>
+              </Select>
+              </div>
+            )}
 
-        {!isLiveMode && (
-          <>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={cn(
-                  "w-[185px] justify-start text-left font-normal",
-                  !selectedDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="h-4 w-4" />
-                {selectedDate ? format(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24), "PPP") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24) }
-                onSelect={selectedDate => handleDateSelect(new Date(selectedDate!.getTime() + 1000 * 60 * 60 * 24))}
-                initialFocus
+            <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
+              {selectedMachine?.machineDescription || "MchDesc"}
+            </Label>
+            <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
+              {Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
+            </Label>
+            <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
+              PO{taskData && taskData.length > 0 ? taskData[taskData.length - 1].po_name : " Number"}
+            </Label>
+            <Button onClick={() => setIsPODialogOpen(true)} variant="default" className="h-[43px]">
+              <FilePlus2 className="w-4 h-4 mr-2" />
+              PO
+            </Button>
+            <Button onClick={() => setIsCVTDialogOpen(true)} variant="default" className="h-[43px]">
+              <Pencil className="w-4 h-4 mr-2" />
+              CVT
+            </Button>
+            <Dialog open={isDialogUtilityOpen} onOpenChange={setIsDialogUtilityOpen}>
+              <DialogTrigger asChild>
+                <Button variant={"default"} className="h-[43px]"><GearIcon/> Setup Utility</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Warning</DialogTitle>
+                  <DialogDescription>
+                    Ini akan mengubah status utiltiy menjadi ON pada mesin {selectedMachine?.machineDescription}. Apakah anda yakin?
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="default" onClick={() =>{ handleSetupUtility(), setIsDialogUtilityOpen(false)}}>
+                    Yes
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsDialogUtilityOpen(false)}>
+                    No
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <div className="flex items-center space-x-2 border border-gray-250 rounded-md px-3 py-2">
+              <Switch 
+                id="live-mode" 
+                checked={isLiveMode}
+                onCheckedChange={handleLiveMode} 
               />
-            </PopoverContent>
-          </Popover>
-          <Select value={selectedShift} onValueChange={handleShiftSelect}>
-            <SelectTrigger className="w-[80px]">
-              <SelectValue placeholder="Shift" />
-            </SelectTrigger>
-            <SelectContent>
-              {shiftList?.map(shift => (
-                <SelectItem key={shift} value={shift}>
-                  Shift {shift}
-                </SelectItem>
-              ))} 
-            </SelectContent>
-          </Select>
-          </>
-        )}
-        <Button onClick={() => router.push("/countboard/uv")}><SprayCan/>Go to UV</Button>
+              <Label htmlFor="live-mode">LIVE MODE</Label>
+            </div>
 
+            {!isLiveMode && (
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-[155px] justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="h-4 w-4" />
+                      {selectedDate ? format(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24), "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)}
+                      onSelect={selectedDate => handleDateSelect(new Date(selectedDate!.getTime() + 1000 * 60 * 60 * 24))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Select value={selectedShift} onValueChange={handleShiftSelect}>
+                  <SelectTrigger className="w-[80px]">
+                    <SelectValue placeholder="Shift" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {shiftList?.map(shift => (
+                      <SelectItem key={shift} value={shift}>
+                        Shift {shift}
+                      </SelectItem>
+                    ))} 
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+          </div>
 
+          {/* Second row - Controls
+          <div className="flex flex-wrap gap-2">
+            
+          </div> */}
+        </div>
       </div>
       {selectedMachine === null && isLoading == false ? (
         <div className="text-center">Please select machine...</div>
       ) : (
-      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-24 w-full">
-        <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/>
+      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-28 w-full">
         <Card className="p-0">
-          <CardHeader className="py-2 text-sm font-medium">Production Status</CardHeader>
+          <CardHeader className="py-2 text-lg font-bold">Production Status</CardHeader>
           <CardContent className="grid grid-cols-3 gap-4">
             <div>
-            <div className="text-2xl font-bold text-green-600">{totalActual}</div>
-              <div className="text-sm text-muted-foreground">Actual</div>
+            <div className="text-3xl font-bold text-green-600">{totalActual}</div>
+              <div className="text-base text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-600">{totalTarget}</div>
-              <div className="text-sm text-muted-foreground">Target</div>
+              <div className="text-3xl font-bold text-yellow-600">{totalTarget}</div>
+              <div className="text-base text-muted-foreground">Target</div>
             </div>
             <div>
-              <div className={`text-2xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{totalGap}</div>
-              <div className="text-sm text-muted-foreground">Gap</div>
+              <div className={`text-3xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{totalGap}</div>
+              <div className="text-base text-muted-foreground">Gap</div>
             </div>
           </CardContent>
         </Card>
 
         <Card onClick={() => setIsCVTDialogOpen(true)}>
-          <CardHeader className="py-2 text-sm font-medium">Cavities</CardHeader>
+          <CardHeader className="py-2 text-lg font-bold">Cavities</CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div>
-              <div className={`text-2xl font-bold ${getCvtColor(taskData?.[0]?.actual_cvt ?? 0, taskData?.[0]?.target_cvt ?? 0)}`}>{taskData?.[0]?.actual_cvt ?? 0}</div>
-              <div className="text-sm text-muted-foreground">Actual</div>
+              <div className={`text-3xl font-bold ${getCvtColor(taskData?.[0]?.actual_cvt ?? 0, taskData?.[0]?.target_cvt ?? 0)}`}>{taskData?.[0]?.actual_cvt ?? 0}</div>
+              <div className="text-base text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{taskData?.[0]?.target_cvt || 0}</div>
-              <div className="text-sm text-muted-foreground">Target</div>
+              <div className="text-3xl font-bold">{taskData?.[0]?.target_cvt || 0}</div>
+              <div className="text-base text-muted-foreground">Target</div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-         <CardHeader className="py-2 text-sm font-medium">Cycle Time</CardHeader>
+         <CardHeader className="py-2 text-lg font-bold">Cycle Time</CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div>
-              <div className={`text-2xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}s</div>
-              <div className="text-sm text-muted-foreground">Actual</div>
+              <div className={`text-3xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}s</div>
+              <div className="text-base text-muted-foreground">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{taskData?.[0]?.target_ct ?? 0}s</div>
-              <div className="text-sm text-muted-foreground">Target</div>
+              <div className="text-3xl font-bold">{taskData?.[0]?.target_ct ?? 0}s</div>
+              <div className="text-base text-muted-foreground">Target</div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-         <CardHeader className="py-2 text-sm font-medium text-red-500">Non O.O.E</CardHeader>
+         <CardHeader className="py-2 text-lg font-bold text-red-500 text-nowrap">Non O.O.E</CardHeader>
           <CardContent className="grid grid-cols-1 gap-4">
             <div>
-              <div className="text-2xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(2)}%</div>
+              <div className="text-3xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(2)}%</div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="">
-          <CardHeader className="py-2 text-sm font-medium">Performance Metrics</CardHeader>
+          <CardHeader className="py-2 text-lg font-bold">Performance Metrics</CardHeader>
           <CardContent className="grid grid-cols-7 gap-4">
             <div>
-              <div className="text-2xl font-bold text-green-600">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(2)}%</div>
-              <div className="text-sm text-muted-foreground">OK</div>
+              <div className="text-3xl font-bold text-green-600">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(2)}%</div>
+              <div className="text-base text-muted-foreground">OK</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-red-600">{oeeData?.[0]?.red.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">NQ</div>
+              <div className="text-3xl font-bold text-red-600">{oeeData?.[0]?.red.toFixed(2) || 0}</div>
+              <div className="text-base text-muted-foreground">NQ</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-600">{oeeData?.[0]?.yellow.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">SD</div>
+              <div className="text-3xl font-bold text-yellow-600">{oeeData?.[0]?.yellow.toFixed(2) || 0}</div>
+              <div className="text-base text-muted-foreground">SD</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{oeeData?.[0]?.white.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">PS</div>
+              <div className="text-3xl font-bold">{oeeData?.[0]?.white.toFixed(2) || 0}</div>
+              <div className="text-base text-muted-foreground">PS</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">C/O</div>
+              <div className="text-3xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(2) || 0}</div>
+              <div className="text-base text-muted-foreground">C/O</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">BD</div>
+              <div className="text-3xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(2) || 0}</div>
+              <div className="text-base text-muted-foreground">BD</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(2) || 0}</div>
-              <div className="text-sm text-muted-foreground">OP</div>
+              <div className="text-3xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(2) || 0}</div>
+              <div className="text-base text-muted-foreground">OP</div>
             </div>
           </CardContent>
         </Card>
@@ -1003,29 +993,29 @@ const refetchStateData = () => mutate(stateDataKey);
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[60px]">Time</TableHead>
-                  <TableHead className="w-[60px]">ItemNo</TableHead>
-                  <TableHead className="w-[60px]">Target</TableHead>
-                  <TableHead className="w-[250px] text-center">Actual Qty</TableHead>
-                  <TableHead>Delta</TableHead>
-                  <TableHead className="text-center">SCRAP</TableHead>
-                  <TableHead className="text-center">RWK</TableHead>
-                  <TableHead className="text-center border border-r-1 border-l-1 border-t-0 border-b-0">NOOE</TableHead>
-                  <TableHead>Causes</TableHead>
-                  <TableHead>Comments/Actions</TableHead>
+                  <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Time</TableHead>
+                  <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">ItemNo</TableHead>
+                  <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Target</TableHead>
+                  <TableHead className="w-[250px] text-center text-lg text-nowrap font-bold text-black">Actual Qty</TableHead>
+                  <TableHead className="text-lg text-nowrap font-bold text-black">Delta</TableHead>
+                  <TableHead className="text-center text-lg text-nowrap font-bold text-black">SCRAP</TableHead>
+                  <TableHead className="text-center text-lg text-nowrap font-bold text-black">RWK</TableHead>
+                  <TableHead className="text-center border border-r-1 border-l-1 border-t-0 border-b-0 text-lg text-nowrap font-bold text-black">NOOE</TableHead>
+                  <TableHead className="text-lg text-nowrap font-bold text-black">Causes</TableHead>
+                  <TableHead className="text-lg text-nowrap font-bold text-black">Comments/Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {Array.isArray(hourlyData) && hourlyData?.length === 0 ? (
                   <TableRow className="h-12">
-                    <TableCell colSpan={10} className="text-center">No data available</TableCell>
+                    <TableCell colSpan={10} className="text-center text-lg text-nowrap font-bold text-black">No data available</TableCell>
                   </TableRow>
                 ) : (
                   (Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => (
                     <TableRow className="h-12" key={row.time}>
-                      <TableCell className="h-full">{row.time}</TableCell>
-                      <TableCell className="h-full">{row.itemNo}</TableCell>
-                      <TableCell className="text-center h-full">{row.target}</TableCell>
+                      <TableCell className="h-full text-lg text-nowrap  text-black">{row.time}</TableCell>
+                      <TableCell className="h-full text-lg text-nowrap  text-black">{row.itemNo}</TableCell>
+                      <TableCell className="text-center h-full text-lg text-nowrap  text-black">{row.target}</TableCell>
                       <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
                         {(() => {
@@ -1054,20 +1044,20 @@ const refetchStateData = () => mutate(stateDataKey);
                             </>
                           );
                         })()}
-                        <span className="relative z-10 ml-2">{row.actual}</span>
+                        <span className="relative z-10 ml-2 text-lg text-nowrap  text-black">{row.actual}</span>
                       </div>
                       </TableCell>
 
-                      <TableCell className={row.delta >= 0 ? "text-green-600" : "text-red-600"}>{row.delta}</TableCell>
-                      <TableCell className="text-center">{row.scrap}</TableCell>
-                      <TableCell className="text-center">{row.rework}</TableCell>
+                      <TableCell className={`text-lg text-nowrap  text-black ${row.delta >= 0 ? "text-green-600" : "text-red-600"}`}>{row.delta}</TableCell>
+                      <TableCell className="text-center text-lg text-nowrap  text-black">{row.scrap}</TableCell>
+                      <TableCell className="text-center text-lg text-nowrap  text-black">{row.rework}</TableCell>
                       <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-black-250">
                       {renderNooeIndicators(row.from_datetime)}
                       </TableCell>
                       <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span>{row.causes || 'N/A'}</span>
+                            <span className="text-lg text-nowrap">{row.causes || 'N/A'}</span>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>{row.causes ? 'Click to edit causes' : 'Click to add causes'}</p>
@@ -1077,7 +1067,7 @@ const refetchStateData = () => mutate(stateDataKey);
                       <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span>{row.comments || 'N/A'}</span>
+                            <span className="text-lg text-nowrap">{row.comments || 'N/A'}</span>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>{row.comments ? 'Click to edit comments' : 'Click to add comments'}</p>
