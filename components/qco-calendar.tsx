@@ -38,8 +38,8 @@ import { SearchableTaskCategorySelect } from "./searchable-select-task-category"
 type ManufacturingDataItem = {
   uuid: string
   start_at: string
-  actual_started_at: string
-  actual_ended_at: string
+  actual_started_at: string | null
+  actual_ended_at: string | null
   machine_name: string
   item_name: string
   po_name: string
@@ -678,8 +678,8 @@ useEffect(() => {
                   .map((item, index) => {
                     const itemDate = parseISO(item.start_at)
                     const itemEndDate = parseISO(item.end_at)
-                    const actualStartedAt = parseISO(item.actual_started_at)
-                    const actualEndedAt = parseISO(item.actual_ended_at)
+                    const actualStartedAt = item.actual_started_at ? parseISO(item.actual_started_at) : null
+                    const actualEndedAt = item.actual_ended_at ? parseISO(item.actual_ended_at) : null
                     const hour = itemDate.getHours()
                     const minute = itemDate.getMinutes()
                     const top = (hour) * 80 + (minute / 60) * 80
@@ -807,7 +807,11 @@ useEffect(() => {
                               <p className="text-medium">{item.category}</p>
                               <p className="text-xs">Planned: {format(itemDate, "HH:mm")} - {format(itemEndDate, "HH:mm")}</p>
                               <p className="text-xs">{item.status}</p>
-                              { ((item.status === "started" || item.status === 'finished') && item.actual_ended_at && item.actual_started_at ) && <p className="text-xs text-red-500">Actual: {format(actualStartedAt, "HH:mm")} - {format(actualEndedAt, "HH:mm")}</p>}
+                              { ((item.status === "started" || item.status === 'finished') && item.actual_ended_at && item.actual_started_at ) && (
+                                <p className="text-xs text-red-500">
+                                  Actual: {format(item.actual_started_at, "HH:mm")} - {format(item.actual_ended_at, "HH:mm")}
+                                </p>
+                              )}
                             </div>
                           </TooltipContent>
                           </ContextMenu>
