@@ -1265,18 +1265,15 @@ export async function getTaskMachine(machine_name: string, date: string | null, 
       actual_ct, 
       cvt as target_cvt,
       ct as target_ct,
-      CASE 
-          WHEN (cast(required_qty as int) - cast(produced_qty as int)) > cvt * (
-                  (8) / (ct / 3600.0)
-              )
-          THEN
-              FLOOR(cvt * (
-                      (8) / (ct / 3600.0)
-                  )
-              )
-          ELSE 
-              cast(required_qty as int) - cast(produced_qty as int)
-      END AS shift_target_qty,
+      CASE
+        WHEN NULLIF(ct, 0) IS NOT NULL AND
+             (CAST(required_qty AS INT) - CAST(produced_qty AS INT)) >
+             (cvt * (8 * 3600.0 / NULLIF(ct, 0)))
+        THEN
+            FLOOR(cvt * (8 * 3600.0 / NULLIF(ct, 0)))
+        ELSE
+            CAST(required_qty AS INT) - CAST(produced_qty AS INT)
+    END AS shift_target_qty,
       created_at, 
       updated_at
     FROM IoT.dbo.countboard_tasks t
@@ -1304,18 +1301,15 @@ export async function getTaskMachine(machine_name: string, date: string | null, 
       actual_ct, 
       cvt as target_cvt,
       ct as target_ct,
-      CASE 
-          WHEN (cast(required_qty as int) - cast(produced_qty as int)) > cvt * (
-                  (8) / (ct / 3600.0)
-              )
-          THEN
-              FLOOR(cvt * (
-                      (8) / (ct / 3600.0)
-                  )
-              )
-          ELSE 
-              cast(required_qty as int) - cast(produced_qty as int)
-      END AS shift_target_qty,
+      CASE
+        WHEN NULLIF(ct, 0) IS NOT NULL AND
+             (CAST(required_qty AS INT) - CAST(produced_qty AS INT)) >
+             (cvt * (8 * 3600.0 / NULLIF(ct, 0)))
+        THEN
+            FLOOR(cvt * (8 * 3600.0 / NULLIF(ct, 0)))
+        ELSE
+            CAST(required_qty AS INT) - CAST(produced_qty AS INT)
+    END AS shift_target_qty,
       created_at, 
       updated_at
   FROM IoT.dbo.countboard_tasks t
