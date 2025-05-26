@@ -635,7 +635,7 @@ useEffect(() => {
                             </div>
                             <div className="text-xs flex justify-between pt-1">
                               Planned: {format(parseISO(item.start_at), "HH:mm")} - {format(parseISO(item.end_at), "HH:mm")} 
-                              { (item.status === "started" || item.status === 'finished') && <p className="text-xs text-red-500">|  Actual: {format(parseISO(item.actual_started_at), "HH:mm")} - {format(parseISO(item.actual_ended_at), "HH:mm")}</p>}
+                              { ((item.status === "started" || item.status === 'finished') && item.actual_ended_at && item.actual_started_at ) && <p className="text-xs text-red-500">|  Actual: {format(parseISO(item.actual_started_at), "HH:mm")} - {format(parseISO(item.actual_ended_at), "HH:mm")}</p>}
                               <Badge variant={item.status}>{item.status}</Badge>
                             </div>
                           </div>
@@ -807,7 +807,7 @@ useEffect(() => {
                               <p className="text-medium">{item.category}</p>
                               <p className="text-xs">Planned: {format(itemDate, "HH:mm")} - {format(itemEndDate, "HH:mm")}</p>
                               <p className="text-xs">{item.status}</p>
-                              { (item.status === "started" || item.status === 'finished') && <p className="text-xs text-red-500">Actual: {format(actualStartedAt, "HH:mm")} - {format(actualEndedAt, "HH:mm")}</p>}
+                              { ((item.status === "started" || item.status === 'finished') && item.actual_ended_at && item.actual_started_at ) && <p className="text-xs text-red-500">Actual: {format(actualStartedAt, "HH:mm")} - {format(actualEndedAt, "HH:mm")}</p>}
                             </div>
                           </TooltipContent>
                           </ContextMenu>
