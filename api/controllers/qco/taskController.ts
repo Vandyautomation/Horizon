@@ -37,7 +37,8 @@ export async function getTasks(limit?: number, page?: number, start_at?: string,
                 t.pro as po_name,
                 m.UAP as UAP,
                 c.po_name as mold_name,
-                c.material_name as item_name, tc.name as category_name, tc.name as category
+                c.material_name as item_name, tc.name as category_name, tc.name as category,
+                t.started_at as actual_started_at, t.ended_at as actual_ended_at
         FROM tasks t
         LEFT JOIN task_categories tc ON tc.id = t.category_id
         LEFT JOIN coois c ON c.po_name = t.pro

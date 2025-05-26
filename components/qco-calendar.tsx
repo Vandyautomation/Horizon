@@ -38,6 +38,8 @@ import { SearchableTaskCategorySelect } from "./searchable-select-task-category"
 type ManufacturingDataItem = {
   uuid: string
   start_at: string
+  actual_started_at: string
+  actual_ended_at: string
   machine_name: string
   item_name: string
   po_name: string
@@ -104,23 +106,33 @@ const [startDate, setStartDate] = useState(() => {
 
 useSWR(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks?week_start_at=${format(startDate, "yyyy-MM-dd")}&limit=100&page=1`, fetcher, {
   onSuccess: (data) => {
-                const timezoneOffset = new Date().getTimezoneOffset() * 60000;
-                const correctedData = data.data.map((item: ManufacturingDataItem) => {
-                  if (item.start_at) {
-                  const startAt = new Date(item.start_at);
-                  startAt.setTime(startAt.getTime() + timezoneOffset);
-                  item.start_at = startAt.toISOString();
-                  }
-                  
-                  if (item.end_at) {
-                  const endAt = new Date(item.end_at);
-                  endAt.setTime(endAt.getTime() + timezoneOffset);
-                  item.end_at = endAt.toISOString();
-                  }
-                  
-                  return item;
-                });
-    setManufacturingData(correctedData || []);
+    toast.promise(
+      new Promise((resolve) => {
+        const timezoneOffset = new Date().getTimezoneOffset() * 60000;
+        const correctedData = data.data.map((item: ManufacturingDataItem) => {
+          if (item.start_at) {
+            const startAt = new Date(item.start_at);
+            startAt.setTime(startAt.getTime() + timezoneOffset);
+            item.start_at = startAt.toISOString();
+          }
+          
+          if (item.end_at) {
+            const endAt = new Date(item.end_at);
+            endAt.setTime(endAt.getTime() + timezoneOffset);
+            item.end_at = endAt.toISOString();
+          }
+          
+          return item;
+        });
+        setManufacturingData(correctedData || []);
+        resolve(correctedData);
+      }),
+      {
+        loading: 'Loading schedule data...',
+        success: 'Schedule data loaded successfully',
+        error: 'Failed to load schedule data'
+      }
+    );
   },
   revalidateOnFocus: true,
   revalidateOnReconnect: true,
@@ -621,7 +633,9 @@ useEffect(() => {
                             <div className="text-sm py-1 flex justify-between">{item.machine_name}
                             <Badge>{item.category}</Badge>
                             </div>
-                            <div className="text-xs flex justify-between pt-1">{format(parseISO(item.start_at), "HH:mm")} - {format(parseISO(item.end_at), "HH:mm")} 
+                            <div className="text-xs flex justify-between pt-1">
+                              Planned: {format(parseISO(item.start_at), "HH:mm")} - {format(parseISO(item.end_at), "HH:mm")} 
+                              { (item.status === "started" || item.status === 'finished') && <p className="text-xs text-red-500">|  Actual: {format(parseISO(item.actual_started_at), "HH:mm")} - {format(parseISO(item.actual_ended_at), "HH:mm")}</p>}
                               <Badge variant={item.status}>{item.status}</Badge>
                             </div>
                           </div>
@@ -664,6 +678,8 @@ useEffect(() => {
                   .map((item, index) => {
                     const itemDate = parseISO(item.start_at)
                     const itemEndDate = parseISO(item.end_at)
+                    const actualStartedAt = parseISO(item.actual_started_at)
+                    const actualEndedAt = parseISO(item.actual_ended_at)
                     const hour = itemDate.getHours()
                     const minute = itemDate.getMinutes()
                     const top = (hour) * 80 + (minute / 60) * 80
@@ -789,8 +805,9 @@ useEffect(() => {
                               <p className="font-medium">{item.item_name}</p>
                               <p className="text-sm">{item.machine_name}</p>
                               <p className="text-medium">{item.category}</p>
-                              <p className="text-xs">{format(itemDate, "HH:mm")} - {format(itemEndDate, "HH:mm")}</p>
+                              <p className="text-xs">Planned: {format(itemDate, "HH:mm")} - {format(itemEndDate, "HH:mm")}</p>
                               <p className="text-xs">{item.status}</p>
+                              { (item.status === "started" || item.status === 'finished') && <p className="text-xs text-red-500">Actual: {format(actualStartedAt, "HH:mm")} - {format(actualEndedAt, "HH:mm")}</p>}
                             </div>
                           </TooltipContent>
                           </ContextMenu>
