@@ -355,16 +355,23 @@ const refetchStateData = () => mutate(stateDataKey);
 
   useEffect(() => {
     if(selectedMachine?.machineName){
-          Promise.all([
+          try {
+            Promise.all([
       refetchHourlyData(),
       refetchOeeData(),
       refetchTaskData(),
       refetchNoeeData(),
       refetchStateData(),
     ]);
+          } catch (error) {
+            toast.error("Failed to fetch data");
+          }
     }
   }, [selectedMachine?.machineName]);
 
+  // if(!machines){
+  //   return <div>Loading...</div>
+  // }
   const uniqueLocations = Array.from(new Set(machines?.map(machine => machine.locationName)));
   const filteredMachines = machines?.filter(machine => machine.locationName === selectedLocation);
 
@@ -893,19 +900,19 @@ const refetchStateData = () => mutate(stateDataKey);
       ) : (
       <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-28 w-full">
         <Card className="p-0">
-          <CardHeader className="py-2 text-lg font-bold">Production Status</CardHeader>
+          <CardHeader className="py-2 text-lg font-bold text-nowrap">Production Status</CardHeader>
           <CardContent className="grid grid-cols-3 gap-4">
             <div>
             <div className="text-3xl font-bold text-green-600">{totalActual}</div>
-              <div className="text-base text-muted-foreground">Actual</div>
+              <div className="text-lg ">Actual</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-yellow-600">{totalTarget}</div>
-              <div className="text-base text-muted-foreground">Target</div>
+              <div className="text-lg ">Target</div>
             </div>
             <div>
               <div className={`text-3xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{totalGap}</div>
-              <div className="text-base text-muted-foreground">Gap</div>
+              <div className="text-lg ">Gap</div>
             </div>
           </CardContent>
         </Card>
@@ -915,11 +922,11 @@ const refetchStateData = () => mutate(stateDataKey);
           <CardContent className="grid grid-cols-2 gap-4">
             <div>
               <div className={`text-3xl font-bold ${getCvtColor(taskData?.[0]?.actual_cvt ?? 0, taskData?.[0]?.target_cvt ?? 0)}`}>{taskData?.[0]?.actual_cvt ?? 0}</div>
-              <div className="text-base text-muted-foreground">Actual</div>
+              <div className="text-lg ">Actual</div>
             </div>
             <div>
               <div className="text-3xl font-bold">{taskData?.[0]?.target_cvt || 0}</div>
-              <div className="text-base text-muted-foreground">Target</div>
+              <div className="text-lg ">Target</div>
             </div>
           </CardContent>
         </Card>
@@ -929,11 +936,11 @@ const refetchStateData = () => mutate(stateDataKey);
           <CardContent className="grid grid-cols-2 gap-4">
             <div>
               <div className={`text-3xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}s</div>
-              <div className="text-base text-muted-foreground">Actual</div>
+              <div className="text-lg ">Actual</div>
             </div>
             <div>
               <div className="text-3xl font-bold">{taskData?.[0]?.target_ct ?? 0}s</div>
-              <div className="text-base text-muted-foreground">Target</div>
+              <div className="text-lg ">Target</div>
             </div>
           </CardContent>
         </Card>
@@ -952,31 +959,80 @@ const refetchStateData = () => mutate(stateDataKey);
           <CardContent className="grid grid-cols-7 gap-4">
             <div>
               <div className="text-3xl font-bold text-green-600">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(2)}%</div>
-              <div className="text-base text-muted-foreground">OK</div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-lg text-green-600">OK</div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Running</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div>
               <div className="text-3xl font-bold text-red-600">{oeeData?.[0]?.red.toFixed(2) || 0}</div>
-              <div className="text-base text-muted-foreground">NQ</div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-lg text-red-600">NQ</div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Non Quality</p>
+                </TooltipContent>
+                </Tooltip>
             </div>
             <div>
               <div className="text-3xl font-bold text-yellow-600">{oeeData?.[0]?.yellow.toFixed(2) || 0}</div>
-              <div className="text-base text-muted-foreground">SD</div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-lg text-yellow-600">SD</div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Slow Down</p>
+                </TooltipContent>
+                </Tooltip>
             </div>
             <div>
               <div className="text-3xl font-bold">{oeeData?.[0]?.white.toFixed(2) || 0}</div>
-              <div className="text-base text-muted-foreground">PS</div>
+             <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-lg text-white-600">PS</div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Planned Stoppage</p>
+              </TooltipContent>
+             </Tooltip>
             </div>
             <div>
               <div className="text-3xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(2) || 0}</div>
-              <div className="text-base text-muted-foreground">C/O</div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-lg text-blue-400">C/O</div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Change Over</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div>
               <div className="text-3xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(2) || 0}</div>
-              <div className="text-base text-muted-foreground">BD</div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-lg text-orange-600">BD</div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Breakdown</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div>
               <div className="text-3xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(2) || 0}</div>
-              <div className="text-base text-muted-foreground">OP</div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-lg text-purple-600">OP</div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Organizational Disfunction</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </CardContent>
         </Card>

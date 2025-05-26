@@ -29,6 +29,7 @@ import { Label } from './ui/label';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Calculator, Power, Zap } from 'lucide-react';
 import { toast } from "react-hot-toast";
+import { getMqttClient, closeMqttClient } from '@/lib/mqtt';
 
 interface Machine {
   id: string;
@@ -429,15 +430,12 @@ export default function ShopfloorDashboard() {
   }, []);
 
     useEffect(() => {
-      const client = mqtt.connect(`${process.env.NEXT_PUBLIC_MQTT_WS}`);
-      client.on("connect", () => {
-        console.log("Connected to MQTT broker");
-        client.subscribe(`uns/andon`);
-      });
+      const client = getMqttClient();
+      client.subscribe(`uns/andon`);
+      
       client.on("message", (topic, message) => {
         try {
           const messageData = JSON.parse(message.toString());
-          // console.log(`new message:${messageData}`);
           setAndon(messageData);
 
           setBuildings((prevBuildings) => {
@@ -466,14 +464,11 @@ export default function ShopfloorDashboard() {
           console.error("Error parsing MQTT message:", error);
         }
       });
-        console.log(`updated building from mqtt : ${JSON.stringify(buildings)}`)
 
       setMqttClient(client);
-  
+
       return () => {
-        client.end();
-        console.log("Disconnected to MQTT broker");
-  
+        client.unsubscribe(`uns/andon`);
         setMqttClient(null);
       };
     }, []);
