@@ -935,11 +935,11 @@ const refetchStateData = () => mutate(stateDataKey);
          <CardHeader className="py-2 text-lg font-bold">Cycle Time</CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div>
-              <div className={`text-3xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}s</div>
+              <div className={`text-3xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}</div>
               <div className="text-lg ">Actual</div>
             </div>
             <div>
-              <div className="text-3xl font-bold">{taskData?.[0]?.target_ct ?? 0}s</div>
+              <div className="text-3xl font-bold">{taskData?.[0]?.target_ct ?? 0}</div>
               <div className="text-lg ">Target</div>
             </div>
           </CardContent>

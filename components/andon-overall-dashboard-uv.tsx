@@ -37,6 +37,7 @@ interface Machine {
   target_cycletime: number;
   cavity: number;
   target_cavity: number;
+  timestamp: string;
   oee: number;
   ooe: number;
   status:
@@ -62,6 +63,7 @@ interface Andon {
   MchNumber: number;
   MchLoc: string;
   StatusLight: string;
+  timestamp: string;
 }
 
 const statusLabels = {
@@ -156,6 +158,7 @@ export default function AndonOverallDashboard() {
                 return {
                   ...machine,
                   status: messageData.StatusLight,
+                  timestamp: messageData.timestamp,
                 };
               }
               return machine;
@@ -221,7 +224,8 @@ export default function AndonOverallDashboard() {
               const statusLight = matchingAndon.StatusLight as Machine['status'];
               return {
                 ...machine,
-                status: statusLight
+                status: statusLight,
+                timestamp: matchingAndon.timestamp,
               };
             }
           }
@@ -531,12 +535,7 @@ export default function AndonOverallDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-cyan-500 text-white cursor-pointer" onClick={() => {
-                const buildingsWithGreenMachines = buildings?.filter(building => 
-                  building.machines.some(m => m.status === 'GREEN')
-                );
-                setSelectedCard(buildingsWithGreenMachines?.[0]);
-              }}>
+              <Card className="bg-cyan-500 text-white">
                         <CardContent className="p-4 text-center">
                           <div className="text-sm">OEE</div>
                           <div className="text-3xl font-bold">{buildings?.length ? ((buildings.reduce((acc, building) => acc + building.oee, 0) || 0) / buildings.length * 100).toFixed(2) : '0'}%</div>
@@ -758,6 +757,7 @@ export default function AndonOverallDashboard() {
                   <TableHead className="w-[100px]">Mch Number</TableHead>
                   <TableHead className="w-[100px]">Mch Loc</TableHead>
                   <TableHead className="w-[120px]">Status</TableHead>
+                  <TableHead className="w-[180px]">Last Status Changed</TableHead>
                   <TableHead className="w-[100px]">Countboard</TableHead>
                 </TableRow>
               </TableHeader>
@@ -784,6 +784,42 @@ export default function AndonOverallDashboard() {
                         <TableCell className="w-[100px]">{machine.MchLoc}</TableCell>
                         <TableCell className="w-[120px]" style={{ color: statusColors[machine.status as keyof typeof statusColors] }}>
                           {statusLabels[machine.status as keyof typeof statusLabels]}
+                        </TableCell>
+                        <TableCell className="w-[180px]">
+                          {machine.timestamp !== ''
+                            ? (() => {
+                                const timestamp = new Date(machine.timestamp);
+                                const now = new Date();
+                                const diffMs = now.getTime() - timestamp.getTime();
+                                const diffMins = Math.floor(diffMs / 60000);
+                                const diffHours = Math.floor(diffMins / 60);
+                                
+                                if (diffMins < 60) {
+                                  return `${diffMins} minutes ago`;
+                                } else if (diffHours < 24) {
+                                  const remainingMins = diffMins % 60;
+                                  return `${diffHours} hour${diffHours > 1 ? 's' : ''} ${remainingMins > 0 ? remainingMins + ' minutes' : ''} ago`;
+                                } else {
+                                  return timestamp.toLocaleString();
+                                }
+                              })()
+                            : <span className="text-muted-foreground italic"> {">"} {(() => {
+                                const targetDate = new Date('2025-05-26T12:15:00');
+                                const now = new Date();
+                                const diffMs = now.getTime() - targetDate.getTime();
+                                const diffMins = Math.floor(diffMs / 60000);
+                                const diffHours = Math.floor(diffMins / 60);
+                                const diffDays = Math.floor(diffHours / 24);
+                                
+                                if (diffMins < 60) {
+                                  return `${diffMins} minutes`;
+                                } else if (diffHours < 24) {
+                                  const remainingMins = diffMins % 60;
+                                  return `${diffHours} hour${diffHours > 1 ? 's' : ''} ${remainingMins > 0 ? remainingMins + ' minutes' : ''}`;
+                                } else {
+                                  return `${diffDays} day${diffDays > 1 ? 's' : ''}`;
+                                }
+                              })()} ago</span>}
                         </TableCell>
                         <TableCell className="w-[100px]">
                           <Button
