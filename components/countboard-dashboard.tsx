@@ -24,7 +24,7 @@ import {
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import Image from 'next/image'
-import {   CalendarIcon, FilePlus2, Pencil, RefreshCw, SprayCan } from "lucide-react"
+import {   CalendarIcon, FilePlus2, Pencil, RefreshCw, SprayCan, Eye, EyeOff, Minimize, Maximize } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
@@ -849,6 +849,28 @@ const refetchStateData = () => mutate(stateDataKey);
               <Label htmlFor="live-mode">LIVE MODE</Label>
             </div>
 
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-[43px] w-[43px]"
+              onClick={() => {
+                const params = new URLSearchParams(searchParams);
+                const isHidden = searchParams.get('hideUI') === 'true';
+                if (!isHidden) {
+                  params.set('hideUI', 'true');
+                } else {
+                  params.delete('hideUI');
+                }
+                router.push(`${pathname}?${params.toString()}`);
+              }}
+            >
+              {searchParams.get('hideUI') === 'true' ? (
+                <Minimize className="h-4 w-4" />
+              ) : (
+                <Maximize className="h-4 w-4" />
+              )}
+            </Button>
+
             {!isLiveMode && (
               <>
                 <Popover>
@@ -898,139 +920,153 @@ const refetchStateData = () => mutate(stateDataKey);
       {selectedMachine === null && isLoading == false ? (
         <div className="text-center">Please select machine...</div>
       ) : (
-      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-28 w-full">
+      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-32 w-full mb-2">
         <Card className="p-0">
-          <CardHeader className="py-2 text-lg font-bold text-nowrap">Production Status</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4">
+          <CardHeader className="py-2 text-lg font-bold text-nowrap p-0 pb-2">Production Status</CardHeader>
+          <CardContent className="grid grid-cols-3 gap-4 p-2">
             <div>
-            <div className="text-3xl font-bold text-green-600">{totalActual}</div>
+            <div className="text-4xl font-bold text-green-600">{totalActual}</div>
               <div className="text-lg ">Actual</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-yellow-600">{totalTarget}</div>
+              <div className="text-4xl font-bold text-yellow-600">{totalTarget}</div>
               <div className="text-lg ">Target</div>
             </div>
             <div>
-              <div className={`text-3xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{totalGap}</div>
+              <div className={`text-4xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{totalGap}</div>
               <div className="text-lg ">Gap</div>
             </div>
           </CardContent>
         </Card>
 
         <Card onClick={() => setIsCVTDialogOpen(true)}>
-          <CardHeader className="py-2 text-lg font-bold">Cavities</CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
+          <CardHeader className="py-2 text-lg font-bold p-0 pb-2">Cavities</CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4 p-2">
             <div>
-              <div className={`text-3xl font-bold ${getCvtColor(taskData?.[0]?.actual_cvt ?? 0, taskData?.[0]?.target_cvt ?? 0)}`}>{taskData?.[0]?.actual_cvt ?? 0}</div>
+              <div className={`text-4xl font-bold ${getCvtColor(taskData?.[0]?.actual_cvt ?? 0, taskData?.[0]?.target_cvt ?? 0)}`}>{taskData?.[0]?.actual_cvt ?? 0}</div>
               <div className="text-lg ">Actual</div>
             </div>
             <div>
-              <div className="text-3xl font-bold">{taskData?.[0]?.target_cvt || 0}</div>
+              <div className="text-4xl font-bold">{taskData?.[0]?.target_cvt || 0}</div>
               <div className="text-lg ">Target</div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-         <CardHeader className="py-2 text-lg font-bold">Cycle Time</CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
+         <CardHeader className="py-2 text-lg font-bold p-0 pb-2">Cycle Time</CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4 p-2">
             <div>
-              <div className={`text-3xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}</div>
+              <div className={`text-4xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}</div>
               <div className="text-lg ">Actual</div>
             </div>
             <div>
-              <div className="text-3xl font-bold">{taskData?.[0]?.target_ct ?? 0}</div>
+              <div className="text-4xl font-bold">{taskData?.[0]?.target_ct ?? 0}</div>
               <div className="text-lg ">Target</div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-         <CardHeader className="py-2 text-lg font-bold text-red-500 text-nowrap">Non O.O.E</CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4">
+         <CardHeader className="py-2 text-lg font-bold text-red-500 text-nowrap p-0 pb-2">Non O.O.E</CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 p-2">
             <div>
-              <div className="text-3xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(2)}%</div>
+              <div className="text-4xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(2)}%</div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="">
-          <CardHeader className="py-2 text-lg font-bold">Performance Metrics</CardHeader>
-          <CardContent className="grid grid-cols-7 gap-4">
+          <CardHeader className="py-2 text-lg font-bold p-0 pb-2">Performance Metrics</CardHeader>
+          <CardContent className="grid grid-cols-7 gap-1 p-2">
             <div>
-              <div className="text-3xl font-bold text-green-600">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(2)}%</div>
               <Tooltip>
                 <TooltipTrigger asChild>
+                  <div>
+                  <div className="text-4xl font-bold text-green-600 px-0">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(2)}%</div>
                   <div className="text-lg text-green-600">OK</div>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Running</p>
+                  <p className="">Running</p>
                 </TooltipContent>
               </Tooltip>
             </div>
             <div>
-              <div className="text-3xl font-bold text-red-600">{oeeData?.[0]?.red.toFixed(2) || 0}</div>
-              <Tooltip>
+            <Tooltip>
                 <TooltipTrigger asChild>
+                  <div>
+                  <div className="text-4xl font-bold text-red-600 px-0">{oeeData?.[0]?.red.toFixed(2) || 0}</div>
                   <div className="text-lg text-red-600">NQ</div>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Non Quality</p>
+                  <p className="">Non Quality</p>
                 </TooltipContent>
                 </Tooltip>
             </div>
             <div>
-              <div className="text-3xl font-bold text-yellow-600">{oeeData?.[0]?.yellow.toFixed(2) || 0}</div>
               <Tooltip>
                 <TooltipTrigger asChild>
+                  <div className="">
+                  <div className="text-4xl font-bold text-yellow-600 px-0">{oeeData?.[0]?.yellow.toFixed(2) || 0}</div>
                   <div className="text-lg text-yellow-600">SD</div>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Slow Down</p>
+                  <p className="">Slow Down</p>
                 </TooltipContent>
                 </Tooltip>
             </div>
             <div>
-              <div className="text-3xl font-bold">{oeeData?.[0]?.white.toFixed(2) || 0}</div>
-             <Tooltip>
+               <Tooltip>
               <TooltipTrigger asChild>
+                <div>
+                <div className="text-4xl font-bold">{oeeData?.[0]?.white.toFixed(2) || 0}</div>
                 <div className="text-lg text-white-600">PS</div>
+                </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Planned Stoppage</p>
+                <p className="">Planned Stoppage</p>
               </TooltipContent>
              </Tooltip>
             </div>
             <div>
-              <div className="text-3xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(2) || 0}</div>
               <Tooltip>
                 <TooltipTrigger asChild>
+                  <div>
+                  <div className="text-4xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(2) || 0}</div>
                   <div className="text-lg text-blue-400">C/O</div>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Change Over</p>
+                  <p className="">Change Over</p>
                 </TooltipContent>
               </Tooltip>
             </div>
             <div>
-              <div className="text-3xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(2) || 0}</div>
               <Tooltip>
                 <TooltipTrigger asChild>
+                  <div>
+                  <div className="text-4xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(2) || 0}</div>
                   <div className="text-lg text-orange-600">BD</div>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Breakdown</p>
+                  <p className="">Breakdown</p>
                 </TooltipContent>
               </Tooltip>
             </div>
             <div>
-              <div className="text-3xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(2) || 0}</div>
               <Tooltip>
                 <TooltipTrigger asChild>
+                  <div>
+                  <div className="text-4xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(2) || 0}</div>
                   <div className="text-lg text-purple-600">OP</div>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Organizational Disfunction</p>
+                  <p className="">Organizational Disfunction</p>
                 </TooltipContent>
               </Tooltip>
             </div>
