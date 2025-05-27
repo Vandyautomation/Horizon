@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
-export default function AdminUI() {
+export default function Welcome() {
   const [user, setUser] = useState('');
   useEffect(() => {
     // Retrieve user data from local storage
