@@ -197,8 +197,8 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
     // Initially fetch a frame
     fetchNewFrame();
     
-    // Set up interval for subsequent fetches - consider 100ms (10fps) for better performance
-    intervalRef.current = setInterval(fetchNewFrame, 100);
+    // Set up interval for subsequent fetches - consider 100ms (10fps) for better performance, make it 30fps
+    intervalRef.current = setInterval(fetchNewFrame, 33);
     
     // Cleanup on unmount or when camerasVisible changes
     return () => {
