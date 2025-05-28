@@ -145,7 +145,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
     try {
       const timestamp = Date.now();
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/frame/${id}?timestamp=${timestamp}`, 
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/detection/api/frame/${id}?timestamp=${timestamp}`, 
         { signal: abortControllerRef.current.signal }
         );
       
