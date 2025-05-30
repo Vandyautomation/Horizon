@@ -1139,11 +1139,11 @@ export function MachinesForm() {
                             {editingMachine.position || 'None'}
                           </div>
                           <div className="grid grid-cols-2 gap-0.5 mb-1 ml-16">
-                            {Array.from({ length: 14 }).map((_, colIndex) =>
+                            {Array.from({ length: 15 }).map((_, colIndex) =>
                               Array.from({ length: 2 }).map((_, rowIndex) => {
                                 // Calculate position values
                                 // x goes from -35 (left) to +30 (right), middle (col 7) is x=0
-                                const x = -(colIndex - 6) * 5
+                                const x = -(colIndex - 7) * 5
                                 // y is always 0
                                 const y = 0
                                 // z goes from -10 (top) to 0 (bottom row)
