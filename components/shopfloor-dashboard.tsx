@@ -632,18 +632,11 @@ export default function ShopfloorDashboard() {
             {selectedBuilding?.machines.length == 0 && <Label>Please define the machine position in this <a href="/admin/machines" className="text-blue-500">link</a></Label>}
           </CardContent>
         </Card>
-        {/* <Card className="absolute top-24 right-6 z-10">
+        <Card className="absolute top-[70px] left-1/2 -translate-x-1/2 z-10">
           <CardHeader>
-            <CardTitle>Overall Equipment Effectiveness (OEE)</CardTitle>
+            <CardTitle className="text-3xl">IMM BUILDING {selectedBuilding?.name.split(' ')[2]}</CardTitle>
           </CardHeader>
-          <CardContent>
-            {Array.isArray(selectedBuilding?.machines) && selectedBuilding && (
-              <div className="text-center">
-                <p className="font-semibold">Total Average OEE</p>
-              </div>
-            )}
-          </CardContent>
-        </Card> */}
+        </Card>
       </div>
       <Card className="absolute top-[70px] right-6 w-[500px] z-10 p-0">
         <CardHeader className="flex pb-2 pt-2">

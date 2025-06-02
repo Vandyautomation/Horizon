@@ -349,6 +349,7 @@ export default function AndonOverallDashboard() {
     <div className="w-full h-full ">
       <div className="flex items-center justify-between">
       <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/>
+        <h1 className="text-4xl font-bold mr-4">ANDON OVERALL DASHBOARD UV</h1>
         <h1 className="text-4xl font-bold mr-4">TECHPACK ASIA</h1>
         </div>
         <div className="p-0">
