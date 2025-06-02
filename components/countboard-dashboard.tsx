@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import albeaLogo from "@/public/logo-albea.png"
+import albeaLogo from "@/public/albea-white.png"
 import {
   Card,
   CardContent,
@@ -70,6 +70,7 @@ type HourlyData = {
 };
 
 type OoeData = {
+  targetYearly: number;
   timea: number;
   pmidle: number;
   timeb: number;
@@ -196,6 +197,7 @@ export default function CountboardDashboard() {
 
 
   const [shiftStartHour, setShiftStartHour] = useState(0);
+  const [shiftEndHour, setShiftEndHour] = useState(0);
   useEffect(() => {
     const now = new Date();
     const hour = now.getHours();
@@ -222,6 +224,8 @@ export default function CountboardDashboard() {
     now.setHours(6 + (shift - 1) * 8, 0, 0, 0);
     setSelectedShift(shift.toString());
     setShiftStartHour(now.getTime());
+    now.setHours(6 + (shift - 1) * 8 + 8, 0, 0, 0);
+    setShiftEndHour(now.getTime());
   }, []);
   
   const from = isLiveMode 
@@ -229,7 +233,7 @@ export default function CountboardDashboard() {
     : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(6 + (+selectedShift - 1) * 8, 0, 0, 0);
   
   const to = isLiveMode
-    ? 'now' // Live mode uses current timestamp
+    ? shiftEndHour // Live mode uses current timestamp
     : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(6 + (+selectedShift - 1) * 8 + 8, 0, 0, 0); // Set to end of shift
   
   
@@ -805,9 +809,16 @@ const refetchStateData = () => mutate(stateDataKey);
             <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
               {selectedMachine?.machineDescription || "MchDesc"}
             </Label>
-            <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
-              {Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
-            </Label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
+                  {Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
+                </Label>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="">{Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}</p>
+              </TooltipContent>
+            </Tooltip>
             <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
               PO{taskData && taskData.length > 0 ? taskData[taskData.length - 1].po_name : " Number"}
             </Label>
@@ -924,17 +935,19 @@ const refetchStateData = () => mutate(stateDataKey);
         <Card className="p-0">
           <CardHeader className="py-2 text-lg font-bold text-nowrap p-0 pb-2">Production Status</CardHeader>
           <CardContent className="grid grid-cols-3 gap-4 p-2">
+            
             <div>
-            <div className="text-4xl font-bold text-green-600">{totalActual}</div>
-              <div className="text-lg ">Actual</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-yellow-600">{totalTarget}</div>
+              <div className="text-4xl font-bold text-black">{totalTarget}</div>
               <div className="text-lg ">Target</div>
             </div>
             <div>
-              <div className={`text-4xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{totalGap}</div>
-              <div className="text-lg ">Gap</div>
+            <div className="text-4xl font-bold text-black">{totalActual}</div>
+              <div className="text-lg ">Actual</div>
+            </div>
+            
+            <div>
+              <div className={`text-4xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{Math.abs(totalGap)}</div>
+              <div className="text-lg ">Delta</div>
             </div>
           </CardContent>
         </Card>
@@ -943,60 +956,56 @@ const refetchStateData = () => mutate(stateDataKey);
           <CardHeader className="py-2 text-lg font-bold p-0 pb-2">Cavities</CardHeader>
           <CardContent className="grid grid-cols-2 gap-4 p-2">
             <div>
-              <div className={`text-4xl font-bold ${getCvtColor(taskData?.[0]?.actual_cvt ?? 0, taskData?.[0]?.target_cvt ?? 0)}`}>{taskData?.[0]?.actual_cvt ?? 0}</div>
-              <div className="text-lg ">Actual</div>
-            </div>
-            <div>
               <div className="text-4xl font-bold">{taskData?.[0]?.target_cvt || 0}</div>
               <div className="text-lg ">Target</div>
+            </div>
+            <div>
+              <div className={`text-4xl font-bold ${getCvtColor(taskData?.[0]?.actual_cvt ?? 0, taskData?.[0]?.target_cvt ?? 0)}`}>{taskData?.[0]?.actual_cvt ?? 0}</div>
+              <div className="text-lg ">Actual</div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-         <CardHeader className="py-2 text-lg font-bold p-0 pb-2">Cycle Time</CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4 p-2">
-            <div>
-              <div className={`text-4xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}</div>
-              <div className="text-lg ">Actual</div>
-            </div>
+         <CardHeader className="py-2 text-lg font-bold p-0 pb-0">Cycle Time <p className="text-xs font-normal">(in second)</p></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4 p-2 pb-0 pt-0">
             <div>
               <div className="text-4xl font-bold">{taskData?.[0]?.target_ct ?? 0}</div>
               <div className="text-lg ">Target</div>
             </div>
+            <div>
+              <div className={`text-4xl font-bold ${getCtColor(taskData?.[0]?.actual_ct ?? 0, taskData?.[0]?.target_ct ?? 0)}`}>{taskData?.[0]?.actual_ct ?? 0}</div>
+              <div className="text-lg ">Actual</div>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-         <CardHeader className="py-2 text-lg font-bold text-red-500 text-nowrap p-0 pb-2">Non O.O.E</CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 p-2">
+         <CardHeader className="py-2 text-lg font-bold text-black text-nowrap p-0 pb-2">
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-bold text-red-500 px-8">Non O.O.E</div>
+            <div className="text-lg font-bold text-black px-8">O.O.E</div>
+          </div>
+         </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4 p-2 pb-0">
             <div>
-              <div className="text-4xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(2)}%</div>
+              <div className="text-4xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(1)}%</div>
+            </div>
+            <div>
+              <div className={`text-4xl font-bold ${((oeeData?.[0]?.ooe || 0) * 100.0) > (oeeData?.[0]?.targetYearly || 0) ? "text-green-500" : "text-red-500"}`}>{((oeeData?.[0]?.ooe || 0) * 100.0).toFixed(1)}%</div>
             </div>
           </CardContent>
+          <div className="text-lg ">Target {oeeData?.[0]?.targetYearly || 0}%</div>
         </Card>
 
         <Card className="">
-          <CardHeader className="py-2 text-lg font-bold p-0 pb-2">Performance Metrics</CardHeader>
-          <CardContent className="grid grid-cols-7 gap-1 p-2">
-            <div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                  <div className="text-4xl font-bold text-green-600 px-0">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(2)}%</div>
-                  <div className="text-lg text-green-600">OK</div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="">Running</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+          <CardHeader className="py-2 text-lg font-bold p-0 pb-0">Performance Metrics <p className="text-xs font-normal">(in hour)</p></CardHeader>
+          <CardContent className="grid grid-cols-6 gap-4 p-2 pb-0 pt-0">
             <div>
             <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-red-600 px-0">{oeeData?.[0]?.red.toFixed(2) || 0}</div>
+                  <div className="text-4xl font-bold text-red-600 px-0">{oeeData?.[0]?.red.toFixed(1) || 0}</div>
                   <div className="text-lg text-red-600">NQ</div>
                   </div>
                 </TooltipTrigger>
@@ -1009,7 +1018,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="">
-                  <div className="text-4xl font-bold text-yellow-600 px-0">{oeeData?.[0]?.yellow.toFixed(2) || 0}</div>
+                  <div className="text-4xl font-bold text-yellow-600 px-0">{oeeData?.[0]?.yellow.toFixed(1) || 0}</div>
                   <div className="text-lg text-yellow-600">SD</div>
                   </div>
                 </TooltipTrigger>
@@ -1022,7 +1031,7 @@ const refetchStateData = () => mutate(stateDataKey);
                <Tooltip>
               <TooltipTrigger asChild>
                 <div>
-                <div className="text-4xl font-bold">{oeeData?.[0]?.white.toFixed(2) || 0}</div>
+                <div className="text-4xl font-bold">{oeeData?.[0]?.white.toFixed(1) || 0}</div>
                 <div className="text-lg text-white-600">PS</div>
                 </div>
               </TooltipTrigger>
@@ -1035,7 +1044,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(2) || 0}</div>
+                  <div className="text-4xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(1) || 0}</div>
                   <div className="text-lg text-blue-400">C/O</div>
                   </div>
                 </TooltipTrigger>
@@ -1048,7 +1057,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(2) || 0}</div>
+                  <div className="text-4xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(1) || 0}</div>
                   <div className="text-lg text-orange-600">BD</div>
                   </div>
                 </TooltipTrigger>
@@ -1061,7 +1070,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(2) || 0}</div>
+                  <div className="text-4xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(1) || 0}</div>
                   <div className="text-lg text-purple-600">OP</div>
                   </div>
                 </TooltipTrigger>
@@ -1080,7 +1089,7 @@ const refetchStateData = () => mutate(stateDataKey);
       <div className="p-0 w-full space-y-4 justify-between flex flex-col">
       <TooltipProvider>
       <Card className="w-full">
-          <CardContent>
+          <CardContent className="pb-0">
             <div className="w-full flex overflow-x-auto">
             <Table>
               <TableHeader>
@@ -1089,29 +1098,29 @@ const refetchStateData = () => mutate(stateDataKey);
                   <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">ItemNo</TableHead>
                   <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Target</TableHead>
                   <TableHead className="w-[250px] text-center text-lg text-nowrap font-bold text-black">Actual Qty</TableHead>
-                  <TableHead className="text-lg text-nowrap font-bold text-black">Delta</TableHead>
-                  <TableHead className="text-center text-lg text-nowrap font-bold text-black">SCRAP</TableHead>
-                  <TableHead className="text-center text-lg text-nowrap font-bold text-black">RWK</TableHead>
+                  <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Delta</TableHead>
+                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Scrap</TableHead>
+                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Rework</TableHead>
                   <TableHead className="text-center border border-r-1 border-l-1 border-t-0 border-b-0 text-lg text-nowrap font-bold text-black">NOOE</TableHead>
-                  <TableHead className="text-lg text-nowrap font-bold text-black">Causes</TableHead>
-                  <TableHead className="text-lg text-nowrap font-bold text-black">Comments/Actions</TableHead>
+                  <TableHead className="w-[350px] max-w-[350px] text-lg nowrap font-bold text-black">Causes</TableHead>
+                  <TableHead className="w-[350px] max-w-[350px] text-lg nowrap font-bold text-black">Comments/Actions</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="pb-0">
                 {Array.isArray(hourlyData) && hourlyData?.length === 0 ? (
                   <TableRow className="h-12">
                     <TableCell colSpan={10} className="text-center text-lg text-nowrap font-bold text-black">No data available</TableCell>
                   </TableRow>
                 ) : (
                   (Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => (
-                    <TableRow className="h-12" key={row.time}>
+                    <TableRow className="h-[56px]" key={row.time}>
                       <TableCell className="h-full text-lg text-nowrap  text-black">{row.time}</TableCell>
                       <TableCell className="h-full text-lg text-nowrap  text-black">{row.itemNo}</TableCell>
                       <TableCell className="text-center h-full text-lg text-nowrap  text-black">{row.target}</TableCell>
                       <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
                         {(() => {
-                          const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.target), 0) || 100;
+                          const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.target+10), 0) || 100;
                           return (
                             <>
                               <div
@@ -1122,53 +1131,63 @@ const refetchStateData = () => mutate(stateDataKey);
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-px bg-green-600"
+                                className="absolute inset-0 h-full w-[2px] border-dashed border-r-2 border-yellow-500"
                                 style={{
-                                  left: `${Math.min((row.target / maxValue) * 100, 100)}%`, // Accurate target position
+                                  left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`, // Accurate tolerance position
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-px bg-yellow-500"
+                                className="absolute inset-0 h-full w-[1px] border-dashed border-r-2 border-green-600"
                                 style={{
-                                  left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`, // Accurate tolerance position
+                                  left: `${Math.min((row.target / maxValue) * 100, 100)}%`, // Accurate target position
                                 }}
                               />
                             </>
                           );
                         })()}
-                        <span className="relative z-10 ml-2 text-lg text-nowrap  text-black">{row.actual}</span>
+                        <span className={`relative z-10 ml-2 text-lg text-nowrap  text-black ${row.actual >= row.target ? "text-black" : "text-white"}`}>{row.actual}</span>
                       </div>
                       </TableCell>
 
-                      <TableCell className={`text-lg text-nowrap  text-black ${row.delta >= 0 ? "text-green-600" : "text-red-600"}`}>{row.delta}</TableCell>
+                      <TableCell className={`text-lg text-nowrap  text-black ${row.delta >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(row.delta)}</TableCell>
                       <TableCell className="text-center text-lg text-nowrap  text-black">{row.scrap}</TableCell>
                       <TableCell className="text-center text-lg text-nowrap  text-black">{row.rework}</TableCell>
                       <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-black-250">
                       {renderNooeIndicators(row.from_datetime)}
                       </TableCell>
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)}>
+                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)} className="w-[350px] max-w-[350px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="text-lg text-nowrap">{row.causes || 'N/A'}</span>
+                            <p className="text-xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.causes || 'N/A'}</p>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{row.causes ? 'Click to edit causes' : 'Click to add causes'}</p>
+                            <p>{row.causes ? row.causes : 'Click to add causes'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)}>
+                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)} className="w-[350px] max-w-[350px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="text-lg text-nowrap">{row.comments || 'N/A'}</span>
+                            <p className="text-xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.comments || 'N/A'}</p>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{row.comments ? 'Click to edit comments' : 'Click to add comments'}</p>
+                            <p>{row.comments ? row.comments : 'Click to add comments'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
                     </TableRow>
                   ))
                 )}
+                <TableRow className="h-12 pb-0">
+                  <TableCell colSpan={3}></TableCell>
+                  <TableCell className="w-[250px]"></TableCell>
+                  <TableCell className=" text-nowrap font-bold text-black">
+                      <div className={`text-lg text-nowrap font-bold ${(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0)}</div>
+                  </TableCell>
+                  <TableCell className=" text-nowrap font-bold text-black">
+                      <div className="text-lg text-center text-nowrap font-bold text-black">{hourlyData?.reduce((acc, row) => acc + row.scrap, 0) || 0}</div>
+                  </TableCell>
+                </TableRow>                  
               </TableBody>
             </Table>
             </div>
@@ -1185,7 +1204,7 @@ const refetchStateData = () => mutate(stateDataKey);
           <iframe
           src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
           width="100%" 
-          height="150"
+          height="100"
         ></iframe>
         ) : (
           <></>
