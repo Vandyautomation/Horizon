@@ -995,7 +995,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <div className={`text-4xl font-bold ${((oeeData?.[0]?.ooe || 0) * 100.0) > (oeeData?.[0]?.targetYearly || 0) ? "text-green-500" : "text-red-500"}`}>{((oeeData?.[0]?.ooe || 0) * 100.0).toFixed(1)}%</div>
             </div>
           </CardContent>
-          <div className="text-lg ">Target {oeeData?.[0]?.targetYearly || 0}%</div>
+          <div className="text-lg ">Target {(oeeData?.[0]?.targetYearly || 0).toFixed(1)}%</div>
         </Card>
 
         <Card className="">
@@ -1145,7 +1145,7 @@ const refetchStateData = () => mutate(stateDataKey);
                             </>
                           );
                         })()}
-                        <span className={`relative z-10 ml-2 text-lg text-nowrap  text-black ${row.actual >= row.target ? "text-black" : "text-white"}`}>{row.actual}</span>
+                        <span className={`relative z-10 ml-2 text-lg text-nowrap  text-black ${row.actual >= row.target_tolerance ? "text-black" : "text-white"}`}>{row.actual}</span>
                       </div>
                       </TableCell>
 
