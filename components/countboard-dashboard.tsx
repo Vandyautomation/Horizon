@@ -811,7 +811,7 @@ const refetchStateData = () => mutate(stateDataKey);
             </Label>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
+                <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base min-w-[390px]">
                   {Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
                 </Label>
               </TooltipTrigger>
@@ -1000,33 +1000,7 @@ const refetchStateData = () => mutate(stateDataKey);
 
         <Card className="w-1/2">
           <CardHeader className="py-2 text-lg font-bold p-0 pb-0">Performance Metrics <p className="text-xs font-normal">(in hour)</p></CardHeader>
-          <CardContent className="grid grid-cols-6 gap-4 p-2 pb-0 pt-0 w-full">
-            <div>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                  <div className="text-4xl font-bold text-red-600 px-0">{oeeData?.[0]?.red.toFixed(1) || 0}</div>
-                  <div className="text-lg text-red-600">NQ</div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="">Non Quality</p>
-                </TooltipContent>
-                </Tooltip>
-            </div>
-            <div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="">
-                  <div className="text-4xl font-bold text-yellow-600 px-0">{oeeData?.[0]?.yellow.toFixed(1) || 0}</div>
-                  <div className="text-lg text-yellow-600">SD</div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="">Slow Down</p>
-                </TooltipContent>
-                </Tooltip>
-            </div>
+          <CardContent className="grid grid-cols-7 gap-4 p-2 pb-0 pt-0 w-full">
             <div>
                <Tooltip>
               <TooltipTrigger asChild>
@@ -1054,6 +1028,20 @@ const refetchStateData = () => mutate(stateDataKey);
               </Tooltip>
             </div>
             <div>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                  <div className="text-4xl font-bold text-red-600 px-0">{oeeData?.[0]?.red.toFixed(1) || 0}</div>
+                  <div className="text-lg text-red-600">NQ</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="">Non Quality</p>
+                </TooltipContent>
+                </Tooltip>
+            </div>
+
+             <div>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
@@ -1066,6 +1054,7 @@ const refetchStateData = () => mutate(stateDataKey);
                 </TooltipContent>
               </Tooltip>
             </div>
+
             <div>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1079,6 +1068,37 @@ const refetchStateData = () => mutate(stateDataKey);
                 </TooltipContent>
               </Tooltip>
             </div>
+
+            <div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="">
+                  <div className="text-4xl font-bold text-yellow-600 px-0">{oeeData?.[0]?.yellow.toFixed(1) || 0}</div>
+                  <div className="text-lg text-yellow-600">SD</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="">Slow Down</p>
+                </TooltipContent>
+                </Tooltip>
+            </div>
+
+            <div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="">
+                  <div className="text-4xl font-bold text-gray-600 px-0">{oeeData?.[0]?.grey.toFixed(1) || 0}</div>
+                  <div className="text-lg text-gray-600">UC</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="">Unclassified</p>
+                </TooltipContent>
+                </Tooltip>
+            </div>
+            
+           
+            
           </CardContent>
         </Card>
       </div> 
@@ -1131,13 +1151,13 @@ const refetchStateData = () => mutate(stateDataKey);
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-[2px] border-dashed border-r-2 border-yellow-500"
+                                className="absolute inset-0 h-full w-[2px] border-dashed border-r-4 border-yellow-500"
                                 style={{
                                   left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`, // Accurate tolerance position
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-[1px] border-dashed border-r-2 border-green-600"
+                                className="absolute inset-0 h-full w-[1px] border-dashed border-r-4 border-green-600"
                                 style={{
                                   left: `${Math.min((row.target / maxValue) * 100, 100)}%`, // Accurate target position
                                 }}
@@ -1203,10 +1223,12 @@ const refetchStateData = () => mutate(stateDataKey);
         {/* <div className="flex gap-2">
           
         </div> */}
-      <div className="w-full  rounded-xl shadow-md">
         {selectedMachine?.machineName ? (
           stateData != undefined && stateData.length > 0 && hourlyData != undefined && hourlyData.length > 0 ? (
-            <ChangeState data={stateData} />
+          <div className="w-full  rounded-xl shadow-md border-2 border-gray-250">
+              <ChangeState data={stateData} />
+          </div>
+
           ) : (
             <></>
           )
@@ -1218,7 +1240,6 @@ const refetchStateData = () => mutate(stateDataKey);
         ) : (
           <></>
         )}
-        </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent>
             <DialogHeader>

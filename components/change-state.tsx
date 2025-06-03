@@ -113,10 +113,13 @@ export default function ChangeState({ data }: ChangeStateProps) {
     const x = e.clientX
     const y = rect.top + window.scrollY
 
+    // Add debounce to prevent rapid updates
+    if (tooltip && Math.abs(tooltip.x - x) < 5) return;
+
     setTooltip({
       from: change,
       to: nextChange,
-      duration: calculateDuration(new Date(change.AdjustedStatusDate), new Date(nextChange.AdjustedStatusDate)),
+      duration: change != nextChange ? calculateDuration(new Date(change.AdjustedStatusDate), new Date(nextChange.AdjustedStatusDate)) : calculateDuration(new Date(change.AdjustedStatusDate), new Date(new Date().getTime() + 7 * 60 * 60 * 1000)),
       x,
       y,
     })
@@ -124,18 +127,18 @@ export default function ChangeState({ data }: ChangeStateProps) {
 
   const segments = sortedData.map((change, index) => {
     const nextChange = sortedData[index + 1]
-    if (!nextChange) return null
-
+   
     const start = new Date(change.AdjustedStatusDate)
-    const end = new Date(nextChange.AdjustedStatusDate)
-    const segmentWidth = ((end.getTime() - start.getTime()) / totalDuration) * 100
+    const end = nextChange ? new Date(nextChange.AdjustedStatusDate) : new Date(endTime)
+    let segmentWidth = ((end.getTime() - start.getTime()) / totalDuration) * 100;
+
 
     return (
       <div
         key={change.ID}
         className={`h-full ${getColorClass(change.Color)} relative `}
         style={{ width: `${segmentWidth*2}%` }}
-        onMouseMove={(e) => handleMouseMove(e, change, nextChange)}
+        onMouseMove={(e) => handleMouseMove(e, change, nextChange ? nextChange : change)}
         onMouseLeave={() => setTooltip(null)}
       >
       </div>
@@ -143,29 +146,32 @@ export default function ChangeState({ data }: ChangeStateProps) {
   })
 
   return (
-    <div className="w-full mx-auto py-2 px-4">
+    <div className="w-full mx-auto py-2 px-4  rounded-xl">
       <div className="space-y-2">
         <div className="relative">
           <div className="h-12 flex w-full">{segments}</div>
 
           {tooltip && (
             <div
-              className="fixed bg-white border rounded-lg shadow-lg p-3 z-10 transition-transform duration-150 ease-out"
+              className="fixed bg-white border rounded-lg shadow-lg p-3 z-50 transition-all duration-200 ease-out"
               style={{
                 left: `${tooltip.x}px`,
-                bottom: `90px`,
+                bottom: `120px`,
                 transform: "translateX(-50%)",
+                pointerEvents: "none",
+                willChange: "transform",
               }}
             >
               <div className="space-y-1 text-sm">
                 <p className={`${getColorTextClass(tooltip.from.Color)}`}>{tooltip.from.Color}</p>
+                <p>{tooltip.from.ID}</p>
                 <p>
                   <span className="font-medium">From: </span>
                   {format(new Date(new Date(parseISO(tooltip.from.AdjustedStatusDate)).getTime() - 7 * 60 * 60 * 1000), "HH:mm:ss")}
                 </p>
                 <p>
                   <span className="font-medium">To: </span>
-                  {format(new Date(new Date(parseISO(tooltip.to.AdjustedStatusDate)).getTime() - 7 * 60 * 60 * 1000), "HH:mm:ss")}
+                  { tooltip.from != tooltip.to ? format(new Date(new Date(parseISO(tooltip.to.AdjustedStatusDate)).getTime() - 7 * 60 * 60 * 1000), "HH:mm:ss") : format(new Date(),"HH:mm:ss")}
                 </p>
                 <p>
                   <span className="font-medium">Duration: </span>

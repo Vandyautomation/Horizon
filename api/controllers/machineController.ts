@@ -80,15 +80,19 @@ export async function getChangeState(machine_name: string, date: string | null, 
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name  and Active = 1
         and StatusDate between @from and @to
-  
+
+
 
         UNION ALL
 
-        SELECT TOP 1 ID, @from as AdjustedStatusDate, StatusLight as Color
-        from IoT.dbo.MchStatusTRX with (nolock)
-        Where MchID = @machine_name
-        and StatusDate < @from  and Active = 1
-        order by AdjustedStatusDate DESC
+        SELECT ID, @from as AdjustedStatusDate, StatusLight as Color
+        from (
+            SELECT TOP 1 ID, StatusLight
+            from IoT.dbo.MchStatusTRX
+            Where MchID = @machine_name
+            and StatusDate < @from and Active = 1
+            order by ID DESC
+        ) as LastStatus
         `;
         return await queryDatabase(sqlQuery, {machine_name, date, shift});
     } else {
@@ -121,15 +125,19 @@ export async function getChangeState(machine_name: string, date: string | null, 
         from IoT.dbo.MchStatusTRX with (nolock)
         Where MchID = @machine_name and Active = 1
         and StatusDate between @from and @to
-  
+
+
 
         UNION ALL
 
-        SELECT TOP 1 ID, @from as AdjustedStatusDate, StatusLight as Color
-        from IoT.dbo.MchStatusTRX with (nolock)
-        Where MchID = @machine_name
-        and StatusDate < @from  and Active = 1
-        order by AdjustedStatusDate DESC
+        SELECT ID, @from as AdjustedStatusDate, StatusLight as Color
+        from (
+            SELECT TOP 1 ID, StatusLight
+            from IoT.dbo.MchStatusTRX
+            Where MchID = @machine_name
+            and StatusDate < @from and Active = 1
+            order by ID DESC
+        ) as LastStatus
         `;
         return await queryDatabase(sqlQuery, {machine_name});
 
@@ -161,6 +169,7 @@ LEFT JOIN IoT.dbo.EquipmentMST e on e.EquipmentID = em.EquipmentID and e.Active 
 WHERE
     m.Active = 1
     AND m.MchLoc IS NOT NULL
+    AND m.MchLoc != 'NULL'
     AND m.MchLoc != 'Mixing Bld T'
      AND (@type IS NULL OR m.MchProcess = @type)
 GROUP BY
