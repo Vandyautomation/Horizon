@@ -35,9 +35,17 @@ export default function ChangeState({ data }: ChangeStateProps) {
     } else if (hour >= 14 && hour < 22) {
       return new Date(date.setHours(14, 0, 0, 0));
     } else {
-      return new Date(date.setHours(22, 0, 0, 0));
+      if (hour >= 22) {
+        return new Date(date.setHours(22, 0, 0, 0));
+      } else {
+        // For hours 0-6, set to previous day's 22:00
+        const prevDay = new Date(date);
+        prevDay.setDate(prevDay.getDate() - 1);
+        return new Date(prevDay.setHours(22, 0, 0, 0));
+      }
     }
   };
+
   const calculateShiftEndTime = (date: Date) => {
     const hour = date.getHours();
     if (hour >= 6 && hour < 14) {
@@ -45,13 +53,21 @@ export default function ChangeState({ data }: ChangeStateProps) {
     } else if (hour >= 14 && hour < 22) {
       return new Date(date.setHours(22, 0, 0, 0));
     } else {
-      return new Date(date.setHours(6, 0, 0, 0));
+      if (hour >= 22) {
+        // For hours 22-24, set to next day's 6:00
+        const nextDay = new Date(date);
+        nextDay.setDate(nextDay.getDate() + 1);
+        return new Date(nextDay.setHours(6, 0, 0, 0));
+      } else {
+        // For hours 0-6
+        return new Date(date.setHours(6, 0, 0, 0));
+      }
     }
   }
 
   const startTime = calculateShiftStartTime(new Date(sortedData[0].AdjustedStatusDate));
-  const endTime = calculateShiftEndTime(new Date(sortedData[sortedData.length - 1].AdjustedStatusDate));
-  const totalDuration = endTime.getTime() - startTime.getTime()
+  const endTime = calculateShiftEndTime(new Date(sortedData[0].AdjustedStatusDate)); // Use same base date for consistent 8-hour span
+  const totalDuration = endTime.getTime() - startTime.getTime(); // Should be exactly 8 hours
 
   const getColorClass = (color: string) => {
     switch (color) {
@@ -104,8 +120,11 @@ export default function ChangeState({ data }: ChangeStateProps) {
       const mins = minutes % 60
       return `${hours}h ${mins > 0 ? `${mins}m` : ''}`
     }
+    if (minutes > 0) {
+      return `${minutes} minutes`
+    }
 
-    return `${minutes} minutes`
+    return `${(diff / 1000).toFixed(0)} seconds`
   }
 
   const handleMouseMove = (e: React.MouseEvent, change: StateChange, nextChange: StateChange) => {
@@ -129,15 +148,21 @@ export default function ChangeState({ data }: ChangeStateProps) {
     const nextChange = sortedData[index + 1]
    
     const start = new Date(change.AdjustedStatusDate)
-    const end = nextChange ? new Date(nextChange.AdjustedStatusDate) : new Date(endTime)
-    let segmentWidth = ((end.getTime() - start.getTime()) / totalDuration) * 100;
-
+    const end = nextChange ? new Date(nextChange.AdjustedStatusDate) : new Date(new Date().getTime() + 7 * 60 * 60 * 1000)
+    
+    // Calculate width based on the full time range (8 hours = 480 minutes)
+    const segmentDuration = end.getTime() - start.getTime()
+    const totalShiftMinutes = 8 * 60 // 8 hours in minutes
+    const segmentWidth = (segmentDuration / (totalShiftMinutes * 60 * 1000)) * 100
 
     return (
       <div
         key={change.ID}
-        className={`h-full ${getColorClass(change.Color)} relative `}
-        style={{ width: `${segmentWidth*2}%` }}
+        className={`h-full ${getColorClass(change.Color)} relative ${index == 0 ? 'rounded-l-lg' : ''} ${index == sortedData.length - 1 ? 'rounded-r-lg' : ''}`}
+        style={{ 
+          width: `${segmentWidth}%`,
+          minWidth: '1px' // Ensure very small segments are still visible
+        }}
         onMouseMove={(e) => handleMouseMove(e, change, nextChange ? nextChange : change)}
         onMouseLeave={() => setTooltip(null)}
       >
@@ -146,14 +171,14 @@ export default function ChangeState({ data }: ChangeStateProps) {
   })
 
   return (
-    <div className="w-full mx-auto py-2 px-4  rounded-xl">
+    <div className="w-full mx-auto py-2 px-4 rounded-xl">
       <div className="space-y-2">
         <div className="relative">
-          <div className="h-12 flex w-full">{segments}</div>
+          <div className="h-12 flex w-full" style={{ minWidth: '800px' }}>{segments}</div>
 
           {tooltip && (
             <div
-              className="fixed bg-white border rounded-lg shadow-lg p-3 z-50 transition-all duration-200 ease-out"
+              className="fixed bg-white border rounded-lg shadow-lg p-3 z-10 transition-all duration-200 ease-out"
               style={{
                 left: `${tooltip.x}px`,
                 bottom: `120px`,
@@ -164,7 +189,6 @@ export default function ChangeState({ data }: ChangeStateProps) {
             >
               <div className="space-y-1 text-sm">
                 <p className={`${getColorTextClass(tooltip.from.Color)}`}>{tooltip.from.Color}</p>
-                <p>{tooltip.from.ID}</p>
                 <p>
                   <span className="font-medium">From: </span>
                   {format(new Date(new Date(parseISO(tooltip.from.AdjustedStatusDate)).getTime() - 7 * 60 * 60 * 1000), "HH:mm:ss")}
@@ -181,11 +205,11 @@ export default function ChangeState({ data }: ChangeStateProps) {
             </div>
           )}
 
-          <div className="flex justify-between mt-2 text-lg text-gray-600">
+          <div className="flex justify-between mt-2 text-lg text-gray-600" style={{ minWidth: '800px' }}>
             {Array.from({ length: 17 }).map((_, i) => {
-              const time = new Date(startTime)
-              time.setMinutes(time.getMinutes() + i * 30)
-              return <span key={i}>{format(time, "HH:mm")}</span>
+              const time = new Date(startTime);
+              time.setMinutes(time.getMinutes() + i * 30);
+              return <span key={i} className="flex-shrink-0">{format(time, "HH:mm")}</span>
             })}
           </div>
         </div>

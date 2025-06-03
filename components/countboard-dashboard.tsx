@@ -933,8 +933,8 @@ const refetchStateData = () => mutate(stateDataKey);
       ) : (
       <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-32 w-full mb-2">
         <Card className="p-0">
-          <CardHeader className="py-2 text-lg font-bold text-nowrap p-0 pb-2">Production Output</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4 p-2">
+          <CardHeader className="py-2 text-lg font-bold text-nowrap p-0 pb-2 ">Production Output</CardHeader>
+          <CardContent className="grid grid-cols-3 gap-4 p-2 pr-4">
             
             <div>
               <div className="text-4xl font-bold text-black">{totalTarget}</div>
