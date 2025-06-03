@@ -1109,7 +1109,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <TableBody className="pb-0">
                 {Array.isArray(hourlyData) && hourlyData?.length === 0 ? (
                   <TableRow className="h-12">
-                    <TableCell colSpan={10} className="text-center text-lg text-nowrap font-bold text-black">No data available</TableCell>
+                    <TableCell colSpan={10} className="text-center text-lg text-nowrap  text-black">No data available</TableCell>
                   </TableRow>
                 ) : (
                   hourlyData?.map((row, index) => (
@@ -1178,10 +1178,11 @@ const refetchStateData = () => mutate(stateDataKey);
                     </TableRow>
                   ))
                 )}
+                {hourlyData && hourlyData.length > 0 && (
                 <TableRow className="h-12 pb-1 border-t border-black">
                   <TableCell colSpan={3}></TableCell>
                   <TableCell className="w-[250px]"></TableCell>
-                  <TableCell className=" text-nowrap font-bold text-black">
+                  <TableCell className="text-nowrap font-bold text-black">
                       <div className={`text-lg text-nowrap font-bold ${(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0)}</div>
                   </TableCell>
                   <TableCell className=" text-nowrap font-bold text-black">
@@ -1190,7 +1191,8 @@ const refetchStateData = () => mutate(stateDataKey);
                   <TableCell className=" text-nowrap font-bold text-black">
                       <div className="text-lg text-center text-nowrap font-bold text-black">{hourlyData?.reduce((acc, row) => acc + row.rework, 0) || 0}</div>
                   </TableCell>
-                </TableRow>                  
+                </TableRow>
+                )}
               </TableBody>
             </Table>
             </div>
@@ -1201,14 +1203,18 @@ const refetchStateData = () => mutate(stateDataKey);
         {/* <div className="flex gap-2">
           
         </div> */}
-      <div className="w-full border border-gray-250 rounded-xl shadow-md">
+      <div className="w-full  rounded-xl shadow-md">
         {selectedMachine?.machineName ? (
-          // <ChangeState data={stateData} />
-          <iframe
-          src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
-          width="100%" 
-          height="100"
-        ></iframe>
+          stateData != undefined && stateData.length > 0 && hourlyData != undefined && hourlyData.length > 0 ? (
+            <ChangeState data={stateData} />
+          ) : (
+            <></>
+          )
+        //   <iframe
+        //   src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
+        //   width="100%" 
+        //   height="100"
+        // ></iframe>
         ) : (
           <></>
         )}

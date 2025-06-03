@@ -18,14 +18,14 @@ interface TooltipInfo {
 }
 
 interface ChangeStateProps {
-  data: StateChange[]
+  data: StateChange[] | undefined
 }
 
 export default function ChangeState({ data }: ChangeStateProps) {
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null)
 
   // Sort data by date
-  const sortedData = [...data].sort(
+  const sortedData = [...(data || [])].sort(
     (a, b) => new Date(a.AdjustedStatusDate).getTime() - new Date(b.AdjustedStatusDate).getTime()
   )
   const calculateShiftStartTime = (date: Date) => {
@@ -38,9 +38,19 @@ export default function ChangeState({ data }: ChangeStateProps) {
       return new Date(date.setHours(22, 0, 0, 0));
     }
   };
+  const calculateShiftEndTime = (date: Date) => {
+    const hour = date.getHours();
+    if (hour >= 6 && hour < 14) {
+      return new Date(date.setHours(14, 0, 0, 0));
+    } else if (hour >= 14 && hour < 22) {
+      return new Date(date.setHours(22, 0, 0, 0));
+    } else {
+      return new Date(date.setHours(6, 0, 0, 0));
+    }
+  }
 
   const startTime = calculateShiftStartTime(new Date(sortedData[0].AdjustedStatusDate));
-  const endTime = calculateShiftStartTime(new Date(sortedData[sortedData.length - 1].AdjustedStatusDate));
+  const endTime = calculateShiftEndTime(new Date(sortedData[sortedData.length - 1].AdjustedStatusDate));
   const totalDuration = endTime.getTime() - startTime.getTime()
 
   const getColorClass = (color: string) => {
@@ -101,7 +111,7 @@ export default function ChangeState({ data }: ChangeStateProps) {
   const handleMouseMove = (e: React.MouseEvent, change: StateChange, nextChange: StateChange) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX
-    const y = rect.bottom + window.scrollY
+    const y = rect.top + window.scrollY
 
     setTooltip({
       from: change,
@@ -123,28 +133,27 @@ export default function ChangeState({ data }: ChangeStateProps) {
     return (
       <div
         key={change.ID}
-        className={`h-full ${getColorClass(change.Color)} relative`}
-        style={{ width: `${segmentWidth}%` }}
+        className={`h-full ${getColorClass(change.Color)} relative `}
+        style={{ width: `${segmentWidth*2}%` }}
         onMouseMove={(e) => handleMouseMove(e, change, nextChange)}
         onMouseLeave={() => setTooltip(null)}
-      />
+      >
+      </div>
     )
   })
 
   return (
-    <div className="w-full mx-auto py-6 px-4">
-      <div className="space-y-4">
-        <h2 className="text-sm font-semibold">Change State</h2>
-
+    <div className="w-full mx-auto py-2 px-4">
+      <div className="space-y-2">
         <div className="relative">
-          <div className="h-16 flex">{segments}</div>
+          <div className="h-12 flex w-full">{segments}</div>
 
           {tooltip && (
             <div
               className="fixed bg-white border rounded-lg shadow-lg p-3 z-10 transition-transform duration-150 ease-out"
               style={{
                 left: `${tooltip.x}px`,
-                top: `${tooltip.y}px`,
+                bottom: `90px`,
                 transform: "translateX(-50%)",
               }}
             >
@@ -152,11 +161,11 @@ export default function ChangeState({ data }: ChangeStateProps) {
                 <p className={`${getColorTextClass(tooltip.from.Color)}`}>{tooltip.from.Color}</p>
                 <p>
                   <span className="font-medium">From: </span>
-                  {format(parseISO(tooltip.from.AdjustedStatusDate), "dd/MM/yyyy HH:mm:ss")}
+                  {format(new Date(new Date(parseISO(tooltip.from.AdjustedStatusDate)).getTime() - 7 * 60 * 60 * 1000), "HH:mm:ss")}
                 </p>
                 <p>
                   <span className="font-medium">To: </span>
-                  {format(parseISO(tooltip.to.AdjustedStatusDate), "dd/MM/yyyy HH:mm:ss")}
+                  {format(new Date(new Date(parseISO(tooltip.to.AdjustedStatusDate)).getTime() - 7 * 60 * 60 * 1000), "HH:mm:ss")}
                 </p>
                 <p>
                   <span className="font-medium">Duration: </span>
@@ -166,8 +175,8 @@ export default function ChangeState({ data }: ChangeStateProps) {
             </div>
           )}
 
-          <div className="flex justify-between mt-2 text-sm text-gray-600">
-            {Array.from({ length: 8 }).map((_, i) => {
+          <div className="flex justify-between mt-2 text-lg text-gray-600">
+            {Array.from({ length: 17 }).map((_, i) => {
               const time = new Date(startTime)
               time.setMinutes(time.getMinutes() + i * 30)
               return <span key={i}>{format(time, "HH:mm")}</span>
