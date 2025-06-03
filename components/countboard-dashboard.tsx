@@ -811,7 +811,7 @@ const refetchStateData = () => mutate(stateDataKey);
             </Label>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
+                <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
                   {Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
                 </Label>
               </TooltipTrigger>
@@ -832,7 +832,7 @@ const refetchStateData = () => mutate(stateDataKey);
             </Button>
             <Dialog open={isDialogUtilityOpen} onOpenChange={setIsDialogUtilityOpen}>
               <DialogTrigger asChild>
-                <Button variant={"default"} className="h-[43px]"><GearIcon/> Setup Utility</Button>
+                <Button variant={"default"} className="h-[43px]"><GearIcon/>Utility</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
@@ -954,7 +954,7 @@ const refetchStateData = () => mutate(stateDataKey);
 
         <Card onClick={() => setIsCVTDialogOpen(true)}>
           <CardHeader className="py-2 text-lg font-bold p-0 pb-2">Cavities</CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4 p-2">
+          <CardContent className="grid grid-cols-2 gap-4 p-2 pr-4">
             <div>
               <div className="text-4xl font-bold">{taskData?.[0]?.target_cvt || 0}</div>
               <div className="text-lg ">Target</div>
@@ -968,7 +968,7 @@ const refetchStateData = () => mutate(stateDataKey);
 
         <Card>
          <CardHeader className="py-2 text-lg font-bold p-0 pb-0">Cycle Time <p className="text-xs font-normal">(in second)</p></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4 p-2 pb-0 pt-0">
+          <CardContent className="grid grid-cols-2 gap-4 p-2 pb-0 pt-0 pr-4">
             <div>
               <div className="text-4xl font-bold">{taskData?.[0]?.target_ct ?? 0}</div>
               <div className="text-lg ">Target</div>
@@ -998,9 +998,9 @@ const refetchStateData = () => mutate(stateDataKey);
           <div className="text-lg ">Target {(oeeData?.[0]?.targetYearly || 0).toFixed(1)}%</div>
         </Card>
 
-        <Card className="">
+        <Card className="w-1/2">
           <CardHeader className="py-2 text-lg font-bold p-0 pb-0">Performance Metrics <p className="text-xs font-normal">(in hour)</p></CardHeader>
-          <CardContent className="grid grid-cols-6 gap-4 p-2 pb-0 pt-0">
+          <CardContent className="grid grid-cols-6 gap-4 p-2 pb-0 pt-0 w-full">
             <div>
             <Tooltip>
                 <TooltipTrigger asChild>
@@ -1112,11 +1112,11 @@ const refetchStateData = () => mutate(stateDataKey);
                     <TableCell colSpan={10} className="text-center text-lg text-nowrap font-bold text-black">No data available</TableCell>
                   </TableRow>
                 ) : (
-                  (Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => (
-                    <TableRow className="h-[56px]" key={row.time}>
-                      <TableCell className="h-full text-lg text-nowrap  text-black">{row.time}</TableCell>
-                      <TableCell className="h-full text-lg text-nowrap  text-black">{row.itemNo}</TableCell>
-                      <TableCell className="text-center h-full text-lg text-nowrap  text-black">{row.target}</TableCell>
+                  hourlyData?.map((row, index) => (
+                    <TableRow className={`h-[56px] ${index === (hourlyData?.length ?? 0) - 1 ? "border-b border-black" : ""}`} key={row.time}>
+                      <TableCell className="h-full text-lg text-nowrap text-black">{row.time}</TableCell>
+                      <TableCell className="h-full text-lg text-nowrap text-black">{row.itemNo}</TableCell>
+                      <TableCell className="text-center h-full text-lg text-nowrap text-black">{row.target}</TableCell>
                       <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
                         {(() => {
@@ -1178,7 +1178,7 @@ const refetchStateData = () => mutate(stateDataKey);
                     </TableRow>
                   ))
                 )}
-                <TableRow className="h-12 pb-0">
+                <TableRow className="h-12 pb-1 border-t border-black">
                   <TableCell colSpan={3}></TableCell>
                   <TableCell className="w-[250px]"></TableCell>
                   <TableCell className=" text-nowrap font-bold text-black">
@@ -1186,6 +1186,9 @@ const refetchStateData = () => mutate(stateDataKey);
                   </TableCell>
                   <TableCell className=" text-nowrap font-bold text-black">
                       <div className="text-lg text-center text-nowrap font-bold text-black">{hourlyData?.reduce((acc, row) => acc + row.scrap, 0) || 0}</div>
+                  </TableCell>
+                  <TableCell className=" text-nowrap font-bold text-black">
+                      <div className="text-lg text-center text-nowrap font-bold text-black">{hourlyData?.reduce((acc, row) => acc + row.rework, 0) || 0}</div>
                   </TableCell>
                 </TableRow>                  
               </TableBody>
