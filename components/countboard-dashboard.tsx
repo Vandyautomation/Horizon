@@ -1086,7 +1086,7 @@ const refetchStateData = () => mutate(stateDataKey);
       {selectedMachine === null ? (
         null
       ) : (
-      <div className="p-0 w-full space-y-4 justify-between flex flex-col">
+      <div className="p-0 w-full space-y-2 justify-between flex flex-col">
       <TooltipProvider>
       <Card className="w-full">
           <CardContent className="pb-0">
@@ -1237,7 +1237,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <DialogTitle>Attach PO</DialogTitle>
             </DialogHeader>
             <DialogDescription className="p-0 m-0">Select PO to attach to this machine</DialogDescription>
-            <div className="space-y-4">
+            <div className="space-y-2">
               <div>
                 <Label htmlFor="machine">Machine</Label>
                 <Input id="machine" value={selectedMachine?.machineName} disabled />
