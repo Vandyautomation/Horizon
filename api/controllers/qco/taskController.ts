@@ -180,13 +180,16 @@ export async function getTasksByUuid(uuidString: string) {
         page: []
     };
 }
-
 export async function summary(start_at: string) {
     if (start_at && isNaN(Date.parse(start_at as string))) {
         return {
-            data: null,
+            success: false,
             messages: ['Invalid date format'],
-            success: false
+            data: {
+                total_finished: 0,
+                total_time: '0h 0m'
+            },
+            page: []
         };
     }
 
@@ -211,9 +214,10 @@ export async function summary(start_at: string) {
         success: true,
         messages: ['success get data'],
         data: {
-            total_finished: total_finished[0].count,
-            total_time: convertSecondToHourMinute(total_time)
+            total_finished: total_finished[0].count || 0,
+            total_time: convertSecondToHourMinute(total_time) || '0h 0m'
         },
+        page: []
     };
 }
 
