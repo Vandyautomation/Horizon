@@ -277,7 +277,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
           {/* I've shown the pattern - you would replace all the other breadcrumb items in the same way */}
 
           {/* Example for a nested route */}
-          {currentSubPage === 'coois'  && (
+          {currentSubPage === 'coois'  && !currentSubSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -290,10 +290,14 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('master-data/coois', 'COOIS', true)}
               </BreadcrumbItem>
+               <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data/coois/data', 'COOIS Data')}
+              </BreadcrumbItem>
             </>
           )}
 
-          {currentSubPage === 'routing'  && (
+          {currentSubPage === 'routing'  && !currentSubSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -305,6 +309,48 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('master-data/routing', 'Routing', true)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data/routing/data', 'Routing Data')}
+              </BreadcrumbItem>
+            </>
+          )}
+          {currentSubPage === 'coois' && currentSubSubPage === 'data' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data', 'Master Data')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data/coois', 'COOIS')}
+              </BreadcrumbItem>
+               <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data/coois/data', 'COOIS Data', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+          {currentSubPage === 'routing' && currentSubSubPage === 'data' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data', 'Master Data')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data/routing', 'Routing')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data/routing/data', 'Routing Data', true)}
               </BreadcrumbItem>
             </>
           )}
