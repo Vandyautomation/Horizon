@@ -121,6 +121,16 @@ useSWR(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/qco/api/tasks?week_start_at=$
             endAt.setTime(endAt.getTime() + timezoneOffset);
             item.end_at = endAt.toISOString();
           }
+          if (item.actual_started_at) {
+            const actualStartedAt = new Date(item.actual_started_at);
+            actualStartedAt.setTime(actualStartedAt.getTime() + timezoneOffset);
+            item.actual_started_at = actualStartedAt.toISOString();
+          }
+          if (item.actual_ended_at) {
+            const actualEndedAt = new Date(item.actual_ended_at);
+            actualEndedAt.setTime(actualEndedAt.getTime() + timezoneOffset);
+            item.actual_ended_at = actualEndedAt.toISOString();
+          }
           
           return item;
         });

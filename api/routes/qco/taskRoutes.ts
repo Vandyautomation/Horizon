@@ -40,11 +40,17 @@ taskRoutes.get('/:id', async (c) => {
 
 taskRoutes.get('/summary', async (c) => {
   try {
-    const start_at = c.req.query('start_at') ? c.req.query('start_at') || '' : new Date().toISOString();
+    process.stdout.write('=== Summary Endpoint Called ===\n');
+    process.stdout.write('Query params: ' + JSON.stringify(c.req.query()) + '\n');
+    const start_at = c.req.query('start_at') || new Date().toISOString();
+    process.stdout.write("start_at value: " + start_at + '\n');
+    process.stdout.write("start_at type: " + typeof start_at + '\n');
 
+    const result = await summary(start_at);
+    process.stdout.write("Summary result: " + JSON.stringify(result) + '\n');
 
-    const tasks = await summary(start_at);
-    return c.json(tasks, 200);
+    return c.json(result);
+    // return c.text('hello', 200)
   } catch (error) {
     return c.json({ success: false, message: (error as Error).message }, 500);
   }

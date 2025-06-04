@@ -180,8 +180,13 @@ export async function getTasksByUuid(uuidString: string) {
         page: []
     };
 }
-export async function summary(start_at: string) {
+export async function summary(start_at: string | null) {
+    process.stdout.write('=== Summary Function Called ===\n');
+    process.stdout.write('Input start_at: ' + start_at + '\n');
+    process.stdout.write('Input start_at type: ' + typeof start_at + '\n');
+
     if (start_at && isNaN(Date.parse(start_at as string))) {
+        process.stdout.write('Invalid date format detected\n');
         return {
             success: false,
             messages: ['Invalid date format'],
@@ -193,35 +198,84 @@ export async function summary(start_at: string) {
         };
     }
 
-    const total_finished = await queryDatabase(`
-        SELECT COUNT(*) as count
-        FROM tasks
-        WHERE status = 'finished'
-        ${start_at ? 'AND CONVERT(date, start_at) = @date' : ''}
-    `, start_at ? { date: new Date(start_at) } : {});
+    try {
+        process.stdout.write('Executing database queries...\n');
 
-    const real_times = await queryDatabase(`
-        SELECT DATEDIFF(SECOND, started_at, ended_at) AS sql_real_time
-        FROM tasks
-        WHERE status = 'finished'
-        ${start_at ? 'AND CONVERT(date, start_at) = @date' : ''}
-    `, start_at ? { date: new Date(start_at) } : {});
+        // Log the SQL query and parameters for total_finished
+        const totalFinishedQuery = `
+            SELECT COUNT(*) as count
+            FROM tasks
+            WHERE status = 'finished'
+            ${start_at ? 'AND CONVERT(date, start_at) = @date' : ''}
+        `;
+        const totalFinishedParams = start_at ? { date: new Date(start_at) } : {};
+        process.stdout.write('total_finished query: ' + totalFinishedQuery + '\n');
+        process.stdout.write('total_finished params: ' + JSON.stringify(totalFinishedParams) + '\n');
 
-    const total_time = real_times.reduce((sum: number, row: { sql_real_time: string | number }) =>
-        sum + Number(row.sql_real_time), 0);
+        const total_finished = await queryDatabase(totalFinishedQuery, totalFinishedParams);
+        process.stdout.write('total_finished query result: ' + JSON.stringify(total_finished) + '\n');
 
-    return {
-        success: true,
-        messages: ['success get data'],
-        data: {
-            total_finished: total_finished[0].count || 0,
-            total_time: convertSecondToHourMinute(total_time) || '0h 0m'
-        },
-        page: []
-    };
+        // Log the SQL query and parameters for real_times
+        const realTimesQuery = `
+            SELECT DATEDIFF(SECOND, started_at, ended_at) AS sql_real_time
+            FROM tasks
+            WHERE status = 'finished'
+            ${start_at ? 'AND CONVERT(date, start_at) = @date' : ''}
+        `;
+        const realTimesParams = start_at ? { date: new Date(start_at) } : {};
+        process.stdout.write('real_times query: ' + realTimesQuery + '\n');
+        process.stdout.write('real_times params: ' + JSON.stringify(realTimesParams) + '\n');
+
+        const real_times = await queryDatabase(realTimesQuery, realTimesParams);
+        process.stdout.write('real_times query result: ' + JSON.stringify(real_times) + '\n');
+
+        // Ensure we have valid data
+        if (!total_finished || !Array.isArray(total_finished) || !real_times || !Array.isArray(real_times)) {
+            process.stdout.write('Invalid data received from database\n');
+            return {
+                success: false,
+                messages: ['Error retrieving data from database'],
+                data: {
+                    total_finished: 0,
+                    total_time: '0h 0m'
+                },
+                page: []
+            };
+        }
+
+        const total_time = real_times.reduce((sum: number, row: { sql_real_time: string | number }) =>
+            sum + Number(row.sql_real_time || 0), 0);
+        process.stdout.write('Calculated total_time: ' + total_time + '\n');
+
+        const result = {
+            success: true,
+            messages: ['success get data'],
+            data: {
+                total_finished: total_finished[0]?.count || 0,
+                total_time: convertSecondToHourMinute(total_time) || '0h 0m'
+            },
+            page: []
+        };
+        process.stdout.write('Final result: ' + JSON.stringify(result) + '\n');
+        return result;
+    } catch (error) {
+        process.stdout.write('Error in summary function: ' + error + '\n');
+        return {
+            success: false,
+            messages: ['An error occurred while processing the summary'],
+            data: {
+                total_finished: 0,
+                total_time: '0h 0m'
+            },
+            page: []
+        };
+    }
 }
 
 function convertSecondToHourMinute(seconds: number) {
+    if (seconds === 0) {
+        return '0h 0m';
+    }
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}m`;
