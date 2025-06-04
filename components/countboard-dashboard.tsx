@@ -1226,7 +1226,7 @@ const refetchStateData = () => mutate(stateDataKey);
         {selectedMachine?.machineName ? (
           stateData != undefined && stateData.length > 0 && hourlyData != undefined && hourlyData.length > 0 ? (
           <div className="w-full  rounded-xl shadow-md border-2 border-gray-250">
-              <ChangeState data={stateData} />
+              <ChangeState data={stateData} isLive={isLiveMode} />
           </div>
 
           ) : (

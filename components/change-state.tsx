@@ -19,9 +19,10 @@ interface TooltipInfo {
 
 interface ChangeStateProps {
   data: StateChange[] | undefined
+  isLive: boolean
 }
 
-export default function ChangeState({ data }: ChangeStateProps) {
+export default function ChangeState({ data, isLive }: ChangeStateProps) {
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null)
 
   // Sort data by date
@@ -138,7 +139,7 @@ export default function ChangeState({ data }: ChangeStateProps) {
     setTooltip({
       from: change,
       to: nextChange,
-      duration: change != nextChange ? calculateDuration(new Date(change.AdjustedStatusDate), new Date(nextChange.AdjustedStatusDate)) : calculateDuration(new Date(change.AdjustedStatusDate), new Date(new Date().getTime() + 7 * 60 * 60 * 1000)),
+      duration: change != nextChange ? calculateDuration(new Date(change.AdjustedStatusDate), new Date(nextChange.AdjustedStatusDate)) : isLive ? calculateDuration(new Date(change.AdjustedStatusDate), new Date(new Date().getTime() + 7 * 60 * 60 * 1000)) : calculateDuration(new Date(change.AdjustedStatusDate), new Date(endTime)),
       x,
       y,
     })
@@ -146,9 +147,14 @@ export default function ChangeState({ data }: ChangeStateProps) {
 
   const segments = sortedData.map((change, index) => {
     const nextChange = sortedData[index + 1]
+    const isLastSegment = index === sortedData.length - 1
    
     const start = new Date(change.AdjustedStatusDate)
-    const end = nextChange ? new Date(nextChange.AdjustedStatusDate) : new Date(new Date().getTime() + 7 * 60 * 60 * 1000)
+    const end = nextChange 
+      ? new Date(nextChange.AdjustedStatusDate) 
+      : isLive 
+        ? new Date(new Date().getTime() + 7 * 60 * 60 * 1000) 
+        : new Date(new Date(endTime).getTime() + 7 * 60 * 60 * 1000)
     
     // Calculate width based on the full time range (8 hours = 480 minutes)
     const segmentDuration = end.getTime() - start.getTime()
@@ -158,12 +164,17 @@ export default function ChangeState({ data }: ChangeStateProps) {
     return (
       <div
         key={change.ID}
-        className={`h-full ${getColorClass(change.Color)} relative ${index == 0 ? 'rounded-l-lg' : ''} ${index == sortedData.length - 1 ? 'rounded-r-lg' : ''}`}
+        className={`h-full ${getColorClass(change.Color)} relative ${index == 0 ? 'rounded-l-lg' : ''} ${isLastSegment ? 'rounded-r-lg' : ''}`}
         style={{ 
           width: `${segmentWidth}%`,
-          minWidth: '1px' // Ensure very small segments are still visible
+          minWidth: '1px'
         }}
-        onMouseMove={(e) => handleMouseMove(e, change, nextChange ? nextChange : change)}
+        onMouseMove={(e) => handleMouseMove(e, change, nextChange ? nextChange : {
+          ...change,
+          AdjustedStatusDate: isLive 
+            ? new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString()
+            : new Date(new Date(endTime).getTime() + 7 * 60 * 60 * 1000).toISOString()
+        })}
         onMouseLeave={() => setTooltip(null)}
       >
       </div>
