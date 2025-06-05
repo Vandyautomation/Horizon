@@ -578,7 +578,7 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
     LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
     LEFT JOIN CooisLatest c ON c.po_name = t.po_name
     WHERE h.machine_id = @machine_id
-    AND h.shift_id = @shift_id
+    AND h.shift_id = @shift
     AND h.from_datetime BETWEEN @from AND @to
     ORDER BY h.from_datetime asc;
 
