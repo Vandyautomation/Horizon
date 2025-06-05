@@ -538,79 +538,110 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
           SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME))); -- Goes into the next day
       END
 
-      SELECT sub.* 
-      FROM (
-          SELECT TOP 8
-              h.id AS hourlyId,
-              from_datetime,
-              FORMAT(from_datetime, 'HH:mm') AS time,
-              FORMAT(to_datetime, 'HH:mm') AS to_hour_minute,
-              shift_id,
-              c.material_id,
-              ISNULL(running_target_qty, 0) AS target,
-              ISNULL(running_target_qty, 0) * 0.98 AS target_tolerance,
-              ISNULL(running_actual_qty, 0) AS actual,
-              task_id, target_qty, actual_qty, ISNULL(running_actual_qty,0) - ISNULL(running_target_qty,0) AS delta, 
-              hour_id, machine_id,
-              c.material_id AS itemNo,
-              c.material_name AS itemDesc,
-              h.cause AS causes, h.note AS comments,
-              h.ooe,
-              h.scrap,
-              h.rework
-          FROM IoT.dbo.hourly h
-          LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
-          OUTER APPLY (
-              SELECT TOP 1 *
-              FROM IoT.dbo.coois c
-              WHERE t.po_name = c.po_name AND ISNULL(c.is_deleted, 0) = 0
-              ORDER BY c.id DESC
-          ) AS c
-          WHERE machine_id = @machine_id 
-            AND shift_id = @shift
-            AND from_datetime BETWEEN @from AND @to
-          ORDER BY from_datetime DESC
-      ) AS sub
-      ORDER BY CAST(hour_id AS INT) ASC;
+    -- Use CTE to get latest non-deleted coois rows by po_name
+    ;WITH CooisLatest AS (
+        SELECT c1.*
+        FROM IoT.dbo.coois c1
+        JOIN (
+            SELECT po_name, MAX(id) AS max_id
+            FROM IoT.dbo.coois
+            WHERE ISNULL(is_deleted, 0) = 0
+            GROUP BY po_name
+        ) latest ON c1.po_name = latest.po_name AND c1.id = latest.max_id
+    )
+
+    -- Main query
+    SELECT TOP 8
+        h.id AS hourlyId,
+        FORMAT(h.from_datetime, 'HH:mm') AS time,
+        FORMAT(h.to_datetime, 'HH:mm') AS to_hour_minute,
+        h.from_datetime,
+        h.shift_id,
+        c.material_id,
+        ISNULL(h.running_target_qty, 0) AS target,
+        ISNULL(h.running_target_qty, 0) * 0.98 AS target_tolerance,
+        ISNULL(h.running_actual_qty, 0) AS actual,
+        h.task_id,
+        h.target_qty,
+        h.actual_qty,
+        ISNULL(h.running_actual_qty, 0) - ISNULL(h.running_target_qty, 0) AS delta,
+        h.hour_id,
+        h.machine_id,
+        c.material_id AS itemNo,
+        c.material_name AS itemDesc,
+        h.cause AS causes,
+        h.note AS comments,
+        h.ooe,
+        h.scrap,
+        h.rework
+    FROM IoT.dbo.hourly h
+    LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
+    LEFT JOIN CooisLatest c ON c.po_name = t.po_name
+    WHERE h.machine_id = @machine_id
+    AND h.shift_id = @shift_id
+    AND h.from_datetime BETWEEN @from AND @to
+    ORDER BY h.from_datetime asc;
+
       `
       return await queryDatabase(sqlQuery, { machine_id, date, shift });
     } else {
       const sqlQuery = `
       declare @shift_id int;
+      declare @from DATETIME;
+      declare @to DATETIME;
       set @shift_id = case when DATEPART(HOUR, GETDATE()) between 5 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
-      SELECT sub.* 
-      FROM (
-          SELECT  top 8
-              h.id as hourlyId,
-              FORMAT(from_datetime, 'HH:mm') AS time,
-              FORMAT(to_datetime, 'HH:mm') AS to_hour_minute,
-              from_datetime,
-              shift_id,
-              c.material_id,
-              ISNULL(running_target_qty, 0) AS target,
-              ISNULL(running_target_qty, 0) * 0.98 AS target_tolerance,
-              ISNULL(running_actual_qty, 0) AS actual,
-              task_id, target_qty, actual_qty, ISNULL(running_actual_qty,0) - ISNULL(running_target_qty,0) AS delta, 
-              hour_id, machine_id,
-              c.material_id as itemNo,
-              c.material_name as itemDesc,
-              h.cause as causes, h.note as comments,
-              h.ooe,
-              h.scrap,
-              h.rework
-          FROM IoT.dbo.hourly h
-          LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
-          outer APPLY (
-          SELECT TOP 1 *
-          FROM IoT.dbo.coois c
-          WHERE t.po_name = c.po_name AND ISNULL(c.is_deleted, 0) = 0
-          ORDER BY c.id DESC
-          ) AS c
-          WHERE machine_id = @machine_id AND shift_id = @shift_id
-        
-          ORDER BY from_datetime DESC
-      ) AS sub
-      ORDER BY cast(hour_id as int) ASC;
+      set @from = case when @shift_id = 1 then DATEADD(HOUR, 6, cast(CAST(GETDATE() AS date)as datetime))
+      when @shift_id = 2 then DATEADD(HOUR, 14, cast(CAST(GETDATE() AS date)as datetime))
+      when @shift_id = 3 then DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+      end
+      set @to = case when @shift_id = 1 then DATEADD(HOUR, 14, cast(CAST(GETDATE() AS date)as datetime))
+      when @shift_id = 2 then DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+      when @shift_id = 3 then DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)))
+      end
+        -- Use CTE to get latest non-deleted coois rows by po_name
+        ;WITH CooisLatest AS (
+            SELECT c1.*
+            FROM IoT.dbo.coois c1
+            JOIN (
+                SELECT po_name, MAX(id) AS max_id
+                FROM IoT.dbo.coois
+                WHERE ISNULL(is_deleted, 0) = 0
+                GROUP BY po_name
+            ) latest ON c1.po_name = latest.po_name AND c1.id = latest.max_id
+        )
+
+        -- Main query
+        SELECT TOP 8
+            h.id AS hourlyId,
+            FORMAT(h.from_datetime, 'HH:mm') AS time,
+            FORMAT(h.to_datetime, 'HH:mm') AS to_hour_minute,
+            h.from_datetime,
+            h.shift_id,
+            c.material_id,
+            ISNULL(h.running_target_qty, 0) AS target,
+            ISNULL(h.running_target_qty, 0) * 0.98 AS target_tolerance,
+            ISNULL(h.running_actual_qty, 0) AS actual,
+            h.task_id,
+            h.target_qty,
+            h.actual_qty,
+            ISNULL(h.running_actual_qty, 0) - ISNULL(h.running_target_qty, 0) AS delta,
+            h.hour_id,
+            h.machine_id,
+            c.material_id AS itemNo,
+            c.material_name AS itemDesc,
+            h.cause AS causes,
+            h.note AS comments,
+            h.ooe,
+            h.scrap,
+            h.rework
+        FROM IoT.dbo.hourly h
+        LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
+        LEFT JOIN CooisLatest c ON c.po_name = t.po_name
+        WHERE h.machine_id = @machine_id
+        AND h.shift_id = @shift_id
+        AND h.from_datetime BETWEEN @from AND @to
+        ORDER BY h.from_datetime asc;
+
       `;
       return await queryDatabase(sqlQuery, { machine_id });
     }  
