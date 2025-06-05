@@ -176,6 +176,32 @@ type PoNumber = {
   materialName: string
 }
 
+
+interface VideoSource {
+  id: string
+  name: string
+  url: string
+}
+
+
+interface DeviceName {
+  id: string
+  name: string
+  value: string
+  machine_id: string
+}
+
+type ModalType = 'camera' | 'videoSource' | 'deviceName'
+type ModalMode = 'add' | 'edit'
+
+interface ModalState {
+  open: boolean
+  type: ModalType
+  mode: ModalMode
+  initialData: Camera | VideoSource | DeviceName | null
+  id?: string
+}
+
 export default function CountboardDashboardUv() {
   const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
@@ -206,6 +232,17 @@ export default function CountboardDashboardUv() {
   const [cameras, setCameras] = useState<Camera[]>([])
   const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null)
 
+  const [videoSources, setVideoSources] = useState<VideoSource[]>([])
+  const [deviceNames, setDeviceNames] = useState<DeviceName[]>([])
+  const [yamlFiles, setYamlFiles] = useState<{ name: string }[]>([])
+  const [modalState, setModalState] = useState<ModalState>({
+    open: false,
+    type: 'camera',
+    mode: 'add',
+    initialData: null,
+    id: undefined,
+  })
+  
   const pathname = usePathname()
   const router = useRouter()
 
@@ -238,6 +275,7 @@ export default function CountboardDashboardUv() {
     now.setHours(6 + (shift - 1) * 8, 0, 0, 0);
     setSelectedShift(shift.toString());
     setShiftStartHour(now.getTime());
+    loadInitialData();
   }, []);
 
   useEffect(() => {
@@ -968,6 +1006,74 @@ export default function CountboardDashboardUv() {
     // Cleanup interval on unmount
     return () => clearInterval(intervalId)
   }, [beUrl])
+
+    const loadInitialData = async () => {
+    try {
+      const [camerasRes, sourcesRes, devicesRes, yamlRes, machineRes] = await toast.promise(
+        Promise.all([
+          fetch(`${beUrl}/api/cameras`, {
+            // credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+
+            }
+          }),
+          fetch(`${beUrl}/api/video_sources`, {
+            // credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }),
+          fetch(`${beUrl}/api/device_names`, {
+            // credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }),
+          fetch(`${beUrl}/api/yaml`, {
+            // credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines`, {
+            // credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }),
+          // fetch(`${beUrl}/api/udp_settings`, {
+          //   // credentials: 'include',
+          //   headers: {
+          //     'Content-Type': 'application/json'
+          //   }
+          // }),
+        ]),
+        {
+          loading: 'Loading data...',
+          success: 'Data loaded successfully!',
+          error: 'Failed to load data',
+        }
+      )
+
+      const camerasData = await camerasRes.json()
+      const sourcesData = await sourcesRes.json()
+      const devicesData = await devicesRes.json()
+      const yamlData = await yamlRes.json()
+      const machineData = await machineRes.json()
+      // const udpSettingsData = await udpSettingsRes.json()
+      setCameras(Object.entries(camerasData.data).map(([id, data]: [string, any]) => ({
+        id,
+        ...data,
+      })))
+      setVideoSources(sourcesData.data)
+      setDeviceNames(devicesData.data)
+      setYamlFiles(yamlData.data)
+      // setUdpSettings(udpSettingsData.data)
+    } catch (error) {
+      toast.error("Failed to load initial data")
+    }
+  }
 
 
   return (
@@ -1743,6 +1849,25 @@ export default function CountboardDashboardUv() {
           </DialogContent>
         </Dialog>
       </div>)}
+
+      <CameraDetailModal
+        open={!!selectedCamera}
+        camera={selectedCamera}
+        onClose={() => {setSelectedCamera(null); loadInitialData();}}
+        camerasVisible={!!selectedCamera}
+        id={selectedCamera?.id || ''}
+        yamlFiles={yamlFiles}
+        defaultYamlFile={selectedCamera?.yaml_file}
+        defaultYamlFileContent={selectedCamera?.yaml_file_content}
+        onSettings={() => {setModalState({
+                              open: true,
+                              type: 'camera',
+                              mode: 'edit',
+          initialData: selectedCamera,
+          id: selectedCamera?.id || '',
+        }); }}
+        
+      />
  
   </div>
   )

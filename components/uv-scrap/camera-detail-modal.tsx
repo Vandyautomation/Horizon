@@ -227,7 +227,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
         setAreas([])
       }
     }
-  }, [defaultYamlFile, yamlFiles])
+  }, [defaultYamlFile])
 
   // Load areas from selected YAML file
   useEffect(() => {
@@ -242,10 +242,10 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
     
     // Find the file object
     const file = yamlFiles.find(f => f.name == selectedYaml)
-    console.log("yamlFiles", yamlFiles)
-    console.log("selectedYaml", selectedYaml)
+    
     if (file && file.content) {
       const parsed = yaml.load(String(file.content))
+      // Set areas directly without using the previous state
       setAreas(Array.isArray(parsed) ? parsed : [])
     } else {
       setAreas([])
