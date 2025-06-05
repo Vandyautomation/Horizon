@@ -1646,18 +1646,23 @@ export default function CountboardDashboardUv() {
         {/* <div className="flex gap-2">
           
         </div> */}
-        <div className="w-full border border-gray-250 rounded-md">
         {selectedMachine?.machineName ? (
-          // <ChangeState data={stateData} />
-        <iframe
-          src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
-          width="100%" 
-          height="150"
-        ></iframe>
+          stateData != undefined && stateData.length > 0 && hourlyData != undefined && hourlyData.length > 0 ? (
+          <div className="w-full  rounded-xl shadow-md border-2 border-gray-250">
+              <ChangeState data={stateData} isLive={isLiveMode} />
+          </div>
+
+          ) : (
+            <></>
+          )
+        //   <iframe
+        //   src={`${process.env.NEXT_PUBLIC_GRAFANA_STATE}?orgId=1&var-MchID=${selectedMachine.machineName}&from=${from}&to=${to}&panelId=23&theme=light`}
+        //   width="100%" 
+        //   height="100"
+        // ></iframe>
         ) : (
           <></>
         )}
-        </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent>
             <DialogHeader>
