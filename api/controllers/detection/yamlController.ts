@@ -3,9 +3,17 @@ import { queryDatabase } from "@/api/utils/queryDatabase";
 
 export async function getYaml() {
     const query = `
-        SELECT * FROM yaml_files
+        SELECT id, name, created_at, updated_at FROM yaml_files
     `;
     const result = await queryDatabase(query);
+    return result;
+}
+
+export async function getYamlByName(name: string) {
+    const query = `
+        SELECT id, name, content FROM yaml_files WHERE name = @name
+    `;
+    const result = await queryDatabase(query, { name });
     return result;
 }
 

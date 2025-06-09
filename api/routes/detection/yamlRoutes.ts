@@ -1,11 +1,21 @@
 import { Hono } from 'hono';
-import { createYaml, deleteYaml, getYaml, handleYaml, updateYaml } from '@/api/controllers/detection/yamlController';
+import { createYaml, deleteYaml, getYaml, getYamlByName, handleYaml, updateYaml } from '@/api/controllers/detection/yamlController';
 
 const yamlRoutes = new Hono();
 
 yamlRoutes.get('/', async (c) => {
     try {
         const yaml = await getYaml();
+        return c.json({ success: true, message: 'Success fetch yaml data', data: yaml }, 200);
+    } catch (error) {
+        return c.json({ success: false, message: (error as Error).message }, 500);
+    }
+});
+
+yamlRoutes.get('/:name', async (c) => {
+    try {
+        const { name } = c.req.param();
+        const yaml = await getYamlByName(name);
         return c.json({ success: true, message: 'Success fetch yaml data', data: yaml }, 200);
     } catch (error) {
         return c.json({ success: false, message: (error as Error).message }, 500);

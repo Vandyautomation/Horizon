@@ -248,7 +248,20 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
       // Set areas directly without using the previous state
       setAreas(Array.isArray(parsed) ? parsed : [])
     } else {
-      setAreas([])
+      toast.promise(
+        fetch(`${pythonUrl}/api/yaml/${selectedYaml}`)
+          .then(res => res.json())
+          .then(data => {
+            const parsed = yaml.load(String(data.data[0].content))
+            setAreas(Array.isArray(parsed) ? parsed : [])
+          }),
+        {
+          loading: 'Loading YAML file...',
+          success: 'YAML file loaded successfully',
+          error: 'Failed to load YAML file'
+        }
+      )
+      // setAreas([])
     }
   }, [selectedYaml, yamlFiles])
 

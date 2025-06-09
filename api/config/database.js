@@ -12,7 +12,7 @@ const dbConfig = {
     encrypt: true, // Use SSL if required by your setup
     enableArithAbort: true,
     trustServerCertificate: true,
-    connectTimeout: timeout,
+    connectTimeout: 8000,
     requestTimeout: timeout,
     // 🐛 Add this block for debugging Tedious
     debug: {
@@ -25,7 +25,7 @@ const dbConfig = {
   pool: {
     max: 10, // Maximum connections in pool
     min: 0,
-    idleTimeoutMillis: 30000,
+    idleTimeoutMillis: 8000,
   },
 };
 

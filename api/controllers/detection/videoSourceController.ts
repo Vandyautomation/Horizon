@@ -2,7 +2,7 @@ import { queryDatabase } from "@/api/utils/queryDatabase";
 
 export async function getVideoSources() {
     const query = `
-        SELECT * FROM video_sources
+        SELECT id, name, url, created_at, updated_at FROM video_sources
     `;
     const result = await queryDatabase(query);
     return result;
