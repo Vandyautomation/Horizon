@@ -17,7 +17,7 @@ export async function fetchUsers() {
   //   WHERE u.deletedAt IS NULL;
   // `;
   const query = `
-    select u.*, r.name as role_name, r.display_name as role_display_name from useraccessmst u
+    select u.UserRFID, u.UserName, u.UserGroup, u.UserLoc, u.UserDept, u.UserUAP, u.UserTitle, r.name as role_name, r.display_name as role_display_name from useraccessmst u
     left join roles r on r.id = u.role_id
     where u.active = 1
   `;
