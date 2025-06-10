@@ -1148,7 +1148,7 @@ const refetchStateData = () => mutate(stateDataKey);
                                 className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
                                 style={{
                                   width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
-                                  maxWidth: "250px",
+                                  // maxWidth: "260px",
                                 }}
                               />
                               <div
