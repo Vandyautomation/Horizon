@@ -1001,7 +1001,7 @@ export default function CountboardDashboardUv() {
     fetchStatus()
 
     // Set up interval to fetch every second
-    const intervalId = setInterval(fetchStatus, 1000)
+    const intervalId = setInterval(fetchStatus, 3000)
 
     // Cleanup interval on unmount
     return () => clearInterval(intervalId)

@@ -5,10 +5,12 @@
    "scripts": {
       "dev": "next dev",
       "dev-be": "NODE_ENV=development bun run api/index.ts",
+      "dev-be-qco": "NODE_ENV=development bun run api/index_qco.ts",
       "dev-full": "concurrently \"bun run dev\" \"bun run start\"",
       "dev:reset": "bunx prisma migrate reset --force --skip-seed",
       "build-be": "tsc && tsc-alias",
       "start-be": "NODE_ENV=production bun run api/index.ts",
+      "start-be-qco": "NODE_ENV=production bun run api/index_qco.ts",
       "build": "next build",
       "start": "next start",
       "lint": "next lint",
