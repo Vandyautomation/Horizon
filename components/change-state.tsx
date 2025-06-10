@@ -83,7 +83,7 @@ export default function ChangeState({ data, isLive }: ChangeStateProps) {
       case "BLUE":
         return "bg-blue-500"
       case "WHITE":
-        return "bg-white"
+        return "bg-gray-100"
       case "RED":
         return "bg-red-500"
       default:
