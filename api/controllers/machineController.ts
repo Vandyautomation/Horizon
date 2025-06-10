@@ -446,14 +446,24 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
       declare @shift_id int;
       declare @from DATETIME;
       declare @to DATETIME;
-      set @shift_id = case when DATEPART(HOUR, GETDATE()) between 5 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
+      set @shift_id = case when DATEPART(HOUR, GETDATE()) between 6 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
       set @from = case when @shift_id = 1 then DATEADD(HOUR, 6, cast(CAST(GETDATE() AS date)as datetime))
       when @shift_id = 2 then DATEADD(HOUR, 14, cast(CAST(GETDATE() AS date)as datetime))
-      when @shift_id = 3 then DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+      when @shift_id = 3 then
+        CASE
+          WHEN DATEPART(HOUR, GETDATE()) >= 0 AND DATEPART(HOUR, GETDATE()) < 6
+          THEN DATEADD(HOUR, 22, cast(DATEADD(DAY, -1, CAST(GETDATE() AS date)) as datetime))
+          ELSE DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+        END
       end
       set @to = case when @shift_id = 1 then DATEADD(HOUR, 14, cast(CAST(GETDATE() AS date)as datetime))
       when @shift_id = 2 then DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
-      when @shift_id = 3 then DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)))
+      when @shift_id = 3 then
+        CASE
+          WHEN DATEPART(HOUR, GETDATE()) >= 0 AND DATEPART(HOUR, GETDATE()) < 6
+          THEN DATEADD(HOUR, 6, cast(CAST(GETDATE() AS date)as datetime))
+          ELSE DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)))
+        END
       end
       ;WITH CooisLatest AS (
         SELECT c1.*
@@ -589,14 +599,24 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
       declare @shift_id int;
       declare @from DATETIME;
       declare @to DATETIME;
-      set @shift_id = case when DATEPART(HOUR, GETDATE()) between 5 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
+      set @shift_id = case when DATEPART(HOUR, GETDATE()) between 6 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
       set @from = case when @shift_id = 1 then DATEADD(HOUR, 6, cast(CAST(GETDATE() AS date)as datetime))
       when @shift_id = 2 then DATEADD(HOUR, 14, cast(CAST(GETDATE() AS date)as datetime))
-      when @shift_id = 3 then DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+      when @shift_id = 3 then
+        CASE
+          WHEN DATEPART(HOUR, GETDATE()) >= 0 AND DATEPART(HOUR, GETDATE()) < 6
+          THEN DATEADD(HOUR, 22, cast(DATEADD(DAY, -1, CAST(GETDATE() AS date)) as datetime))
+          ELSE DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+        END
       end
       set @to = case when @shift_id = 1 then DATEADD(HOUR, 14, cast(CAST(GETDATE() AS date)as datetime))
       when @shift_id = 2 then DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
-      when @shift_id = 3 then DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)))
+      when @shift_id = 3 then
+        CASE
+          WHEN DATEPART(HOUR, GETDATE()) >= 0 AND DATEPART(HOUR, GETDATE()) < 6
+          THEN DATEADD(HOUR, 6, cast(CAST(GETDATE() AS date)as datetime))
+          ELSE DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime)))
+        END
       end
         -- Use CTE to get latest non-deleted coois rows by po_name
         ;WITH CooisLatest AS (
