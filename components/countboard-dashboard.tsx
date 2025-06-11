@@ -1000,7 +1000,7 @@ const refetchStateData = () => mutate(stateDataKey);
       ) : (
       <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-32 w-full mb-2">
         <Card className="p-0">
-          <CardHeader className="py-2 text-lg font-bold text-nowrap p-0 pb-2 ">Production Output</CardHeader>
+          <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row ">Production Output <p className="text-sm font-bold text-green-500">OOE = 85%</p></CardHeader>
           <CardContent className="grid grid-cols-3 gap-4 p-2 pr-4">
             
             <div>
@@ -1062,8 +1062,8 @@ const refetchStateData = () => mutate(stateDataKey);
               <div className={`text-4xl font-bold ${((oeeData?.[0]?.ooe || 0) * 100.0) > (oeeData?.[0]?.targetYearly || 0) ? "text-green-500" : "text-red-500"}`}>{((oeeData?.[0]?.ooe || 0) * 100.0).toFixed(1)}%</div>
             </div>
           </CardContent>
-          <div className="text-lg text-right pr-4">
-            Target {(oeeData?.[0]?.targetYearly || 0).toFixed(1)}%</div>
+          {/* <div className="text-lg text-right pr-4">
+            Target {(oeeData?.[0]?.targetYearly || 0).toFixed(1)}%</div> */}
         </Card>
 
         <Card className="w-1/2">
@@ -1073,7 +1073,7 @@ const refetchStateData = () => mutate(stateDataKey);
                <Tooltip>
               <TooltipTrigger asChild>
                 <div>
-                <div className="text-4xl font-bold">{((oeeData?.[0]?.white || 0) * 60.0).toFixed(1) || 0}</div>
+                <div className="text-4xl font-bold">{((oeeData?.[0]?.white || 0) * 60.0).toFixed(0) || 0}</div>
                 <div className="text-lg text-white-600">PS</div>
                 </div>
               </TooltipTrigger>
@@ -1086,7 +1086,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-blue-400">{((oeeData?.[0]?.blue || 0) * 60.0).toFixed(1) || 0}</div>
+                  <div className="text-4xl font-bold text-blue-400">{((oeeData?.[0]?.blue || 0) * 60.0).toFixed(0) || 0}</div>
                   <div className="text-lg text-blue-400">C/O</div>
                   </div>
                 </TooltipTrigger>
@@ -1099,7 +1099,7 @@ const refetchStateData = () => mutate(stateDataKey);
             <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-red-600 px-0">{((oeeData?.[0]?.red || 0) * 60.0).toFixed(1) || 0}</div>
+                  <div className="text-4xl font-bold text-red-600 px-0">{((oeeData?.[0]?.red || 0) * 60.0).toFixed(0) || 0}</div>
                   <div className="text-lg text-red-600">NQ</div>
                   </div>
                 </TooltipTrigger>
@@ -1113,7 +1113,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-orange-600">{((oeeData?.[0]?.orange || 0) * 60.0).toFixed(1) || 0}</div>
+                  <div className="text-4xl font-bold text-orange-600">{((oeeData?.[0]?.orange || 0) * 60.0).toFixed(0) || 0}</div>
                   <div className="text-lg text-orange-600">BD</div>
                   </div>
                 </TooltipTrigger>
@@ -1127,7 +1127,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-purple-600">{((oeeData?.[0]?.purple || 0) * 60.0).toFixed(1) || 0}</div>
+                  <div className="text-4xl font-bold text-purple-600">{((oeeData?.[0]?.purple || 0) * 60.0).toFixed(0) || 0}</div>
                   <div className="text-lg text-purple-600">OP</div>
                   </div>
                 </TooltipTrigger>
@@ -1141,7 +1141,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="">
-                  <div className="text-4xl font-bold text-yellow-600 px-0">{((oeeData?.[0]?.yellow || 0) * 60.0).toFixed(1) || 0}</div>
+                  <div className="text-4xl font-bold text-yellow-600 px-0">{((oeeData?.[0]?.yellow || 0) * 60.0).toFixed(0) || 0}</div>
                   <div className="text-lg text-yellow-600">SD</div>
                   </div>
                 </TooltipTrigger>
@@ -1155,7 +1155,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="">
-                  <div className="text-4xl font-bold text-gray-600 px-0">{((oeeData?.[0]?.grey || 0) * 60.0).toFixed(1) || 0}</div>
+                  <div className="text-4xl font-bold text-gray-600 px-0">{((oeeData?.[0]?.grey || 0) * 60.0).toFixed(0) || 0}</div>
                   <div className="text-lg text-gray-600">UC</div>
                   </div>
                 </TooltipTrigger>
@@ -1185,7 +1185,7 @@ const refetchStateData = () => mutate(stateDataKey);
                   <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Time</TableHead>
                   <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">ItemNo</TableHead>
                   <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Target</TableHead>
-                  <TableHead className="w-[250px] text-center text-lg text-nowrap font-bold text-black">Actual Qty</TableHead>
+                  <TableHead className="w-[250px] text-center text-lg text-nowrap font-bold text-black flex items-center justify-center gap-2">Actual Qty <p className="text-xs text-green-500">OOE 100% ⸺ / 85% - - -</p></TableHead>
                   <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Delta</TableHead>
                   <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Scrap</TableHead>
                   <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Rework</TableHead>
@@ -1202,9 +1202,9 @@ const refetchStateData = () => mutate(stateDataKey);
                 ) : (
                   hourlyData?.map((row, index) => (
                     <TableRow className={`h-[56px] ${index === (hourlyData?.length ?? 0) - 1 ? "border-b border-black" : ""}`} key={row.time}>
-                      <TableCell className="h-full text-lg text-nowrap text-black">{row.time}</TableCell>
-                      <TableCell className="h-full text-lg text-nowrap text-black">{row.itemNo}</TableCell>
-                      <TableCell className="text-center h-full text-lg text-nowrap text-black">{row.target}</TableCell>
+                      <TableCell className="h-full text-xl text-nowrap text-black">{row.time}</TableCell>
+                      <TableCell className="h-full text-xl text-nowrap text-black">{row.itemNo}</TableCell>
+                      <TableCell className="text-center h-full text-xl text-nowrap text-black">{row.target}</TableCell>
                       <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
                         {(() => {
@@ -1219,13 +1219,13 @@ const refetchStateData = () => mutate(stateDataKey);
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-[2px] border-dashed border-r-4 border-yellow-500"
+                                className="absolute inset-0 h-full w-[1px] border-dashed border-r-4 border-green-600"
                                 style={{
                                   left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`, // Accurate tolerance position
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-[1px] border-dashed border-r-4 border-green-600"
+                                className="absolute inset-0 h-full w-[1px] border-r-4 border-green-600"
                                 style={{
                                   left: `${Math.min((row.target / maxValue) * 100, 100)}%`, // Accurate target position
                                 }}
@@ -1233,20 +1233,20 @@ const refetchStateData = () => mutate(stateDataKey);
                             </>
                           );
                         })()}
-                        <span className={`relative z-10 ml-2 text-lg text-nowrap  text-black ${row.actual >= row.target_tolerance ? "text-black" : "text-white"}`}>{row.actual}</span>
+                        <span className={`relative z-10 ml-2 text-xl text-nowrap  text-black ${row.actual >= row.target_tolerance ? "text-black" : "text-white"}`}>{row.actual}</span>
                       </div>
                       </TableCell>
 
-                      <TableCell className={`text-lg text-nowrap  text-black ${row.delta >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(row.delta)}</TableCell>
-                      <TableCell className="text-center text-lg text-nowrap  text-black">{row.scrap}</TableCell>
-                      <TableCell className="text-center text-lg text-nowrap  text-black">{row.rework}</TableCell>
+                      <TableCell className={`text-xl text-nowrap  text-black ${row.delta >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(row.delta)}</TableCell>
+                      <TableCell className="text-center text-xl text-nowrap  text-black">{row.scrap}</TableCell>
+                      <TableCell className="text-center text-xl text-nowrap  text-black">{row.rework}</TableCell>
                       <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-black-250">
                       {renderNooeIndicators(row.from_datetime)}
                       </TableCell>
                       <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)} className="w-[350px] max-w-[350px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <p className="text-xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.causes || 'N/A'}</p>
+                            <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.causes || 'N/A'}</p>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>{row.causes ? row.causes : 'Click to add causes'}</p>
@@ -1256,7 +1256,7 @@ const refetchStateData = () => mutate(stateDataKey);
                       <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)} className="w-[350px] max-w-[350px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <p className="text-xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.comments || 'N/A'}</p>
+                            <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.comments || 'N/A'}</p>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>{row.comments ? row.comments : 'Click to add comments'}</p>
@@ -1271,13 +1271,13 @@ const refetchStateData = () => mutate(stateDataKey);
                   <TableCell colSpan={3}></TableCell>
                   <TableCell className="w-[250px]"></TableCell>
                   <TableCell className="text-nowrap font-bold text-black">
-                      <div className={`text-lg text-nowrap font-bold ${(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0)}</div>
+                      <div className={`text-xl text-nowrap font-bold ${(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0)}</div>
                   </TableCell>
                   <TableCell className=" text-nowrap font-bold text-black">
-                      <div className="text-lg text-center text-nowrap font-bold text-black">{hourlyData?.reduce((acc, row) => acc + row.scrap, 0) || 0}</div>
+                      <div className="text-xl text-center text-nowrap font-bold text-black">{hourlyData?.reduce((acc, row) => acc + row.scrap, 0) || 0}</div>
                   </TableCell>
                   <TableCell className=" text-nowrap font-bold text-black">
-                      <div className="text-lg text-center text-nowrap font-bold text-black">{hourlyData?.reduce((acc, row) => acc + row.rework, 0) || 0}</div>
+                      <div className="text-xl text-center text-nowrap font-bold text-black">{hourlyData?.reduce((acc, row) => acc + row.rework, 0) || 0}</div>
                   </TableCell>
                 </TableRow>
                 )}
