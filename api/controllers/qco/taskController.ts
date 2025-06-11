@@ -104,7 +104,7 @@ export async function getTasksByUuid(uuidString: string) {
 
     const user_sub_tasks = await queryDatabase(`
         SELECT 
-        cast(ust.id as int) as id, ust.uuid, ust.task_id, ust.sub_task_id, ust.role_id, ust.[index], ust.name, 
+        cast(ust.id as int) as id, ust.uuid, ust.task_id, ust.sub_task_id, ust.role_id, cast(ust.[index] as int) as [index], ust.name, 
         ust.note, ust.is_preparation, ust.is_parallel, ust.standard_time, ust.is_snoozed, ust.is_notif,
         ust.start_at, ust.notif_at, ust.started_at, ust.ended_at, ust.created_at, ust.updated_at, 
         ust.additional_time, ust.started_by
