@@ -11,6 +11,7 @@ import { Pencil, Settings, Trash } from "lucide-react"
 
 interface Area {
   id: string
+  uuid: string
   points: [number, number][]
 }
 
@@ -220,7 +221,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
   useEffect(() => {
     if (defaultYamlFile) {
       if (defaultYamlFileContent) {
-        const parsed = yaml.load(defaultYamlFileContent)
+        const parsed = yaml.load(defaultYamlFileContent) as Area[]
         setAreas(Array.isArray(parsed) ? parsed : [])
         setSelectedYaml(defaultYamlFile)
       } else {
@@ -232,7 +233,12 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
   // Load areas from selected YAML file
   useEffect(() => {
     if(selectedYaml == defaultYamlFile) {
+        setAreas(defaultYamlFileContent ? (yaml.load(defaultYamlFileContent) as Area[]) : [])
         return
+    }
+
+    if(isCreatingNew) {
+      return
     }
 
     if (!selectedYaml) {
@@ -243,16 +249,17 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
     // Find the file object
     const file = yamlFiles.find(f => f.name == selectedYaml)
     
-    if (file && file.content) {
-      const parsed = yaml.load(String(file.content))
+    if (file && file.content ) {
+      const parsed = yaml.load(String(file.content)) as Area[]
       // Set areas directly without using the previous state
       setAreas(Array.isArray(parsed) ? parsed : [])
-    } else {
+    } else if(!isCreatingNew){
       toast.promise(
         fetch(`${pythonUrl}/api/yaml/${selectedYaml}`)
           .then(res => res.json())
           .then(data => {
-            const parsed = yaml.load(String(data.data[0].content))
+            const parsed = yaml.load(String(data.data[0].content)) as Area[]
+            setAreas([]);
             setAreas(Array.isArray(parsed) ? parsed : [])
           }),
         {
@@ -315,7 +322,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
 
   const handleFinishPolygon = () => {
     if (currentPoints.length < 3 || !newAreaId) return
-    setAreas(prev => [...prev, { id: newAreaId, points: currentPoints }])
+    setAreas(prev => [...prev, { id: newAreaId, uuid: crypto.getRandomValues(new Uint8Array(6)).join(''), points: currentPoints } as Area])
     setCurrentPoints([])
     setNewAreaId("")
     setDrawing(false)
@@ -354,6 +361,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
       const yamlContent = yaml.dump(
         areas.map(a => ({
           id: a.id,
+          uuid: a.uuid,
           points: a.points.map(([x, y]) => [Math.round(x), Math.round(y)])
         })),
         { lineWidth: -1 }
@@ -395,7 +403,12 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
         success: "Areas and camera updated!",
         error: (e) => e.message || "Save failed"
       }
-    ).finally(() => setSaving(false))
+    ).finally(() => {
+      setSaving(false);
+      setIsCreatingNew(false);
+      setSelectedYaml(null);
+      setAreas([]);
+    })
   }
 
   // Render polygons as SVG overlays
@@ -405,7 +418,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
         const points = editingAreaIdx === idx ? editingPoints : area.points;
         return (
           <polygon
-            key={area.id}
+            key={area.uuid}
             points={points.map(p => p.join(",")).join(" ")}
             fill="rgba(59,130,246,0.3)" // blue-500/30
             stroke="#2563eb" // blue-600
@@ -578,14 +591,9 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
         <div className="mt-4 flex flex-col gap-2 h-[150px] overflow-y-scroll scrollbar-visible scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
           <div className="font-semibold">Areas: {areas.length} (Scroll Down)</div>
           {areas.map((area, idx) => (
-            <div key={area.id} className="flex items-center gap-2">
+            <div key={area.uuid} className="flex items-center gap-2">
               {editingAreaIdx === idx ? (
                 <>
-                  {/* <Input
-                    className="w-32"
-                    value={editingAreaId}
-                    onChange={e => setEditingAreaId(e.target.value)}
-                  /> */}
                   <Select
                     value={editingAreaType}
                     onValueChange={val => setEditingAreaType(val)}
@@ -634,6 +642,7 @@ export function CameraDetailModal({ open, camera, onClose, yamlFiles, defaultYam
                   <Button size="icon" variant="ghost" onClick={() => handleDeleteArea(idx)} title="Delete area">
                     <Trash className="w-4 h-4" />
                   </Button>
+                  <span className="text-xs text-muted-foreground">{area.uuid}</span>
                 </>
               )}
             </div>

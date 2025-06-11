@@ -26,7 +26,7 @@ yamlRoutes.post('/', async (c) => {
     try {
         const { action, name, content } = await c.req.json();
         const yaml = await handleYaml(action, name, content);
-        return c.json({ success: true, message: 'Success create yaml', data: yaml }, 200);
+        return c.json({ success: true, message: `Success ${action} yaml`, data: yaml }, 200);
     } catch (error) {
         return c.json({ success: false, message: (error as Error).message }, 500);
     }

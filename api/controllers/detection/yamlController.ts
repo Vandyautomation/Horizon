@@ -19,7 +19,7 @@ export async function getYamlByName(name: string) {
 
 export async function createYaml(name: string, content: string) {
     const query = `
-        INSERT INTO yaml_files (name, content) VALUES (@name, @content)
+        INSERT INTO yaml_files (file_path,name, content) VALUES (@name, @name, @content)
     `;
     const result = await queryDatabase(query, { name, content });
     return result;
@@ -43,9 +43,11 @@ export async function deleteYaml(id: string) {
 }
 
 export async function handleYaml(action: string, name: string, content: string) {
-    if (action === "create") {
+    if (action === "add") {
         return await createYaml(name, content);
     } else if (action === "update") {
         return await updateYaml(name, content);
+    } else {
+        throw new Error("Invalid action");
     }
 }
