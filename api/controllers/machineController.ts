@@ -154,6 +154,7 @@ export async function getMachine(type: string | null) {
     m.MchNumber as machineNumber,
     m.MchTon as machineTonage,
     m.MchLoc as locationName,
+    m.MchStatus as machineStatus,
     m.position,
     m.rotation,
     m.MchProcess as Process,
@@ -174,7 +175,7 @@ WHERE
      AND (@type IS NULL OR m.MchProcess = @type)
 GROUP BY
     m.id, m.MchID, m.MchDesc, m.MchNumber, m.MchTon,
-    m.MchLoc, m.position, m.rotation, m.MchProcess, m.uap, m.energyBudget, m.Type
+    m.MchLoc, m.position, m.rotation, m.MchProcess, m.uap, m.energyBudget, m.Type, m.MchStatus
 ORDER BY
     m.MchLoc ASC, CAST(m.MchNumber AS INT) ASC;
 
@@ -1983,3 +1984,23 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
       return await queryDatabase(sqlQuery, { machine_name });
     }
   }
+
+export async function makeMachineGrey(machineId: string) {
+    const sqlQuery = `
+      UPDATE IoT.dbo.MachineMST SET is_override = 1, MchStatus = 'TRIAL' WHERE MchID = @machineId;
+
+      INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
+      VALUES (@machineId, GETDATE(), 'GREY', 1);
+    `;
+    return await queryDatabase(sqlQuery, { machineId });
+}
+
+export async function removeOverride(machineId: string) {
+    const sqlQuery = `
+    UPDATE IoT.dbo.MachineMST SET is_override = 0, MchStatus = NULL WHERE MchID = @machineId;
+
+    INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
+    VALUES (@machineId, GETDATE(), (select top 1 StatusLight from IoT.dbo.MchStatusTRX where MchID = @machineId  and Active = 1 and StatusLight != 'GREY' order by ID desc), 1);
+  `;
+    return await queryDatabase(sqlQuery, { machineId });
+}

@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils"
 import { Switch } from "./ui/switch"
 import ChangeState from "./change-state"
 import { GearIcon } from "@radix-ui/react-icons"
+import { Badge } from "./ui/badge"
 
 type MachineDetail = {
   machineId: number;
@@ -51,6 +52,7 @@ type MachineDetail = {
   machineNumber: string;
   locationId: number;
   locationName: string;
+  machineStatus: string;
 };
 
 type HourlyData = {
@@ -143,7 +145,7 @@ export default function CountboardDashboard() {
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isDialogUtilityOpen, setIsDialogUtilityOpen] = useState(false);
+  const [isDialogConfigurationOpen, setIsDialogConfigurationOpen] = useState(false);
   const [selectedComment, setSelectedComment] = useState({ index: -1, hourlyId: -1, type: '', content: '' });
   const [currentCVT, setCurrentCVT] = useState<number | 0>(0);
   const [isPODialogOpen, setIsPODialogOpen] = useState(false);
@@ -589,6 +591,33 @@ const refetchStateData = () => mutate(stateDataKey);
     [selectedMachine]
   );
 
+  const handleTrialMachine = useCallback(
+    async () => {
+      setIsLoading(true);
+      const machineStatus = selectedMachine?.machineStatus == 'TRIAL' ? 'NORMAL' : 'TRIAL';
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/trial/${selectedMachine?.machineName}?machineStatus=${machineStatus}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.error || `Failed to Update trial machine`;
+        throw new Error(errorMessage);
+      }
+      toast.success(`Trial machine updated successfully!`);
+      setIsDialogConfigurationOpen(false);
+    } catch (error) {
+      toast.error((error as Error).message);
+      console.error(`Failed to Update trial machine:`, error);
+    }
+    finally {
+      setIsLoading(false);
+      window.location.reload();
+    }
+  }, [selectedMachine]);
+
 
   const getBarColor = (actual: number, target: number, target_tolerance: number) => {
     if (actual >= target) return 'bg-green-500';
@@ -807,7 +836,7 @@ const refetchStateData = () => mutate(stateDataKey);
             )}
 
             <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
-              {selectedMachine?.machineDescription || "MchDesc"}
+              {selectedMachine?.machineDescription || "MchDesc"} {selectedMachine?.machineStatus == 'TRIAL' ? <Badge variant="secondary" className="ml-2">TRIAL</Badge> : null }
             </Label>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -830,25 +859,63 @@ const refetchStateData = () => mutate(stateDataKey);
               <Pencil className="w-4 h-4 mr-2" />
               CVT
             </Button>
-            <Dialog open={isDialogUtilityOpen} onOpenChange={setIsDialogUtilityOpen}>
+            <Dialog open={isDialogConfigurationOpen} onOpenChange={setIsDialogConfigurationOpen}>
               <DialogTrigger asChild>
-                <Button variant={"default"} className="h-[43px]"><GearIcon/>Utility</Button>
+                <Button variant={"default"} className="h-[43px]"><GearIcon/>Config</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Warning</DialogTitle>
-                  <DialogDescription>
-                    Ini akan mengubah status utiltiy menjadi ON pada mesin {selectedMachine?.machineDescription}. Apakah anda yakin?
-                  </DialogDescription>
+                  <DialogTitle>Configuration Menu</DialogTitle>
                 </DialogHeader>
-                <DialogFooter>
-                  <Button variant="default" onClick={() =>{ handleSetupUtility(), setIsDialogUtilityOpen(false)}}>
-                    Yes
-                  </Button>
-                  <Button variant="outline" onClick={() => setIsDialogUtilityOpen(false)}>
-                    No
-                  </Button>
-                </DialogFooter>
+                <div className="grid gap-4 py-4">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                        <GearIcon className="w-4 h-4 mr-2" />Turn ON Utility
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Warning</DialogTitle>
+                        <DialogDescription>
+                          Ini akan mengubah status utility menjadi ON pada mesin {selectedMachine?.machineDescription}. Apakah anda yakin?
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="default" onClick={() => { handleSetupUtility(); setIsDialogConfigurationOpen(false) }}>
+                          Yes
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsDialogConfigurationOpen(false)}>
+                          No
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                       <GearIcon className="w-4 h-4 mr-2" /> Set Machine into {selectedMachine?.machineStatus == 'TRIAL' ? 'Normal' : 'Trial'}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Warning</DialogTitle>
+                        <DialogDescription>
+                          Ini akan mengubah status mesin {selectedMachine?.machineDescription} menjadi {selectedMachine?.machineStatus == 'TRIAL' ? 'Normal' : 'Trial'}. Apakah anda yakin?
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="default" onClick={() => { handleTrialMachine(); setIsDialogConfigurationOpen(false) }}>
+                          Yes
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsDialogConfigurationOpen(false)}>
+                          No
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </DialogContent>
             </Dialog>
             <div className="flex items-center space-x-2 border border-gray-250 rounded-md px-3 py-2">
