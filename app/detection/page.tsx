@@ -25,6 +25,7 @@ interface Camera {
   device_name: string
   is_active: boolean
   is_paused: boolean
+  threshold: number
   status: 'running' | 'paused' | 'error' | 'stopped'
 }
 

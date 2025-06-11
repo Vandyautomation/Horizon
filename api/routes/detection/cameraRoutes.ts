@@ -35,8 +35,8 @@ cameraRoutes.get('/:machine_id', async (c) => {
 
 cameraRoutes.post('/', async (c) => {
     try {
-        const { name, video_source, yaml_file, udp_ip, udp_port, device_name } = await c.req.json();
-        const camera = await createCamera(name, video_source, yaml_file, udp_ip, udp_port, device_name);
+        const { name, video_source, yaml_file, udp_ip, udp_port, device_name, threshold } = await c.req.json();
+        const camera = await createCamera(name, video_source, yaml_file, udp_ip, udp_port, device_name, threshold);
         await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/camera/sync`, {
             method: 'POST',
             headers: {
@@ -107,8 +107,8 @@ cameraRoutes.post('/restart', async (c) => {
 cameraRoutes.put('/:id', async (c) => {
     try {
         const { id } = c.req.param();
-        const { name, video_source, yaml_file, udp_ip, udp_port, device_name } = await c.req.json();
-        const camera = await updateCamera(id, name, video_source, yaml_file, udp_ip, udp_port, device_name);
+        const { name, video_source, yaml_file, udp_ip, udp_port, device_name, threshold } = await c.req.json();
+        const camera = await updateCamera(id, name, video_source, yaml_file, udp_ip, udp_port, device_name, threshold);
         // console.log("Updating camera by calling sync api")
         const sync = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/camera/sync`, {
             method: 'POST',

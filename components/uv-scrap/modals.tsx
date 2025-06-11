@@ -115,6 +115,19 @@ export function UvScrapModal({
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="threshold">Threshold</Label>
+                <Input
+                  id="threshold"
+                  name="threshold"
+                  type="number"
+                  min={5000}
+                  step={100}
+                  defaultValue={initialData?.threshold || 10000}
+                  required
+                />
+                <Label className="text-sm text-muted-foreground">Semakin besar nilai threshold, maka lebih sensitif</Label>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="device_name">Device Name</Label>
                 <Select name="device_name" defaultValue={deviceNames?.find(device => device.value == initialData?.device_name)?.value || initialData?.device_name}>
                   <SelectTrigger>
