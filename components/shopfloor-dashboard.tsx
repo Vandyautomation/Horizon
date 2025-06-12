@@ -27,7 +27,7 @@ import { Button } from './ui/button';
 import useSWR from 'swr';
 import { Label } from './ui/label';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Calculator, Power, Zap } from 'lucide-react';
+import { Calculator, LayoutGrid, Power, Zap } from 'lucide-react';
 import { toast } from "react-hot-toast";
 import { getMqttClient, closeMqttClient } from '@/lib/mqtt';
 
@@ -292,7 +292,7 @@ function InjectionMoldingMachine({
           ⚡️{machine.consumption} { machine.consumption != null ? 'kWh': '-'}
         </div>
       </Html>
-      <Html position={[0, 4.5, 0]} center>
+      <Html position={[0, 4.7, 0]} center>
         <div
           style={{
             backgroundColor: 'black',
@@ -303,6 +303,9 @@ function InjectionMoldingMachine({
           }`}
         >
           🕑{machine.cycletime} { machine.cycletime != null ? 's': '-'}
+          <p className={`text-xs flex items-center text-white pt-1`}><LayoutGrid className="w-4 h-4" /> 
+            <p className={`${machine.cavity < machine.target_cavity ? 'text-red-400' : machine.cavity > machine.target_cavity ? 'text-green-400' : 'text-white'}`}>{machine.cavity}</p>
+            /{machine.target_cavity}</p>
         </div>
       </Html>
       {/* <group position={[0, 3, -3]} rotation={[0, Math.PI / 2, 0]}>
