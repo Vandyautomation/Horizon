@@ -474,7 +474,7 @@ export async function createTask(body: any) {
 
 export async function notifyTask(body: any) {
     // Validate required fields
-    if (!body.notif_type || !body.role_id || !body.user_sub_tasks_id || !body.notify_at) {
+    if (!body.notif_type || !body.role_id || !body.user_sub_task_id || !body.notify_at) {
         return {
             success: false,
             messages: ['Missing required parameters'],
@@ -485,8 +485,8 @@ export async function notifyTask(body: any) {
     try {
         // Get the user_sub_task
         const userSubTask = await queryDatabase(`
-            SELECT * FROM user_sub_tasks WHERE uuid = @user_sub_tasks_id
-        `, { user_sub_tasks_id: body.user_sub_tasks_id });
+            SELECT * FROM user_sub_tasks WHERE uuid = @user_sub_task_id
+        `, { user_sub_task_id: body.user_sub_task_id });
         if (!userSubTask || userSubTask.length === 0) {
             return {
                 success: false,
@@ -517,7 +517,7 @@ export async function notifyTask(body: any) {
         const insertNotificationParams = {
             notif_type: body.notif_type,
             role_id: body.role_id,
-            user_sub_tasks_id: body.user_sub_tasks_id,
+            user_sub_task_id: body.user_sub_task_id,
             sub_task_name: userSubTask[0].name,
             notify_at: body.notify_at,
             message_time: notifyDate.toISOString(),
@@ -527,8 +527,8 @@ export async function notifyTask(body: any) {
             machine_name: task[0].machine_name,
         };
         const sqlQuery = `
-            INSERT INTO notifications (notif_type, role_id, user_sub_tasks_id, sub_task_name, notify_at, message_time, additional_time, mold_name, task_id, machine_name, created_at, updated_at)
-            VALUES (@notif_type, @role_id, @user_sub_tasks_id, @sub_task_name, @notify_at, @message_time, @additional_time, @mold_name, @task_id, @machine_name, GETDATE(), GETDATE())
+            INSERT INTO notifications (notif_type, role_id, user_sub_task_id, sub_task_name, notify_at, message_time, additional_time, mold_name, task_id, machine_name, created_at, updated_at)
+            VALUES (@notif_type, @role_id, @user_sub_task_id, @sub_task_name, @notify_at, @message_time, @additional_time, @mold_name, @task_id, @machine_name, GETDATE(), GETDATE())
         `;
         await queryDatabase(sqlQuery, insertNotificationParams);
 

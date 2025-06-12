@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { getTasks } from '@/api/controllers/qco/taskController';
 import { authMiddleware } from '@/api/middleware/authMiddleware';
-import { finishUserSubTask, startUserSubTask, updateUserSubTaskNote } from '@/api/controllers/qco/userSubTaskController';
+import { finishUserSubTask, getUserSubTaskById, invalidSuboHandler, startUserSubTask, updateUserSubTaskNote } from '@/api/controllers/qco/userSubTaskController';
 
 const userSubTaskRoutes = new Hono();
 
@@ -46,6 +46,40 @@ userSubTaskRoutes.post('/end', authMiddleware, async (c) => {
       success: true,
       message: 'Task ended successfully',
       data: body
+    }, 200);
+  } catch (error) {
+    return c.json({
+      success: false,
+      message: (error as Error).message
+    }, 500);
+  }
+});
+
+userSubTaskRoutes.post('/invalid/:uuid', authMiddleware, async (c) => {
+  try {
+    const body = {
+      uuid: c.req.param('uuid') || '',
+    };
+
+    const subTask = await getUserSubTaskById(body.uuid);
+
+    if (subTask.length === 0) {
+      return c.json({
+        success: false,
+        message: 'Subtask not found'
+      }, 404);
+    }
+
+    // invalid the subtask
+    const result = await invalidSuboHandler(body.uuid, subTask[0].task_id);
+
+    await finishUserSubTask(c, subTask[0].uuid);
+
+
+    return c.json({
+      success: true,
+      message: 'Subtask invalidated successfully, created new subtask',
+      data: {}
     }, 200);
   } catch (error) {
     return c.json({

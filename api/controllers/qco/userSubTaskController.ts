@@ -48,7 +48,7 @@ export async function startUserSubTask(c: Context, uuid: string) {
 
     if (subTaskBefore && subTaskBefore.length > 0) {
         // Check if tasks are non-parallel and previous task is not ended
-        if (!subTaskBefore[0].is_parallel && !userSubTask[0].is_parallel && !subTaskBefore[0].finish_at) {
+        if (!subTaskBefore[0].is_parallel && !userSubTask[0].is_parallel && !subTaskBefore[0].ended_at) {
             throw new HTTPException(400, { message: 'Sorry, the sub task before has not ended yet' });
         }
     }
@@ -94,11 +94,11 @@ export async function finishUserSubTask(c: Context, uuid: string) {
         throw new HTTPException(404, { message: 'Sub task not found' });
     }
 
-    if (userSubTask[0].finish_at) {
+    if (userSubTask[0].ended_at) {
         throw new HTTPException(400, { message: 'Sorry, the sub task has been ended previously' });
     }
 
-    if (!userSubTask[0].start_at) {
+    if (!userSubTask[0].started_at) {
         throw new HTTPException(400, { message: 'Sorry, this sub task has not started yet' });
     }
 
@@ -211,4 +211,92 @@ export async function updateAdditionalTime(uuid: string, additionalTime: number)
         WHERE uuid = @uuid
     `;
     return await queryDatabase(sqlQuery, { uuid, additionalTime });
+}
+
+export async function invalidSuboHandler(uuid: string, taskId: number) {
+
+    // get the Setting Mesin & Robot Subtask from the task_id
+    const settingMesinRobotSubtaskQuery = `
+        SELECT TOP 1 * FROM IoT.dbo.user_sub_tasks
+        WHERE task_id = @task_id
+        AND name like 'Setting Mesin & Robot%'
+        ORDER BY id DESC
+    `;
+    const settingMesinRobotSubtask = await queryDatabase(settingMesinRobotSubtaskQuery, { task_id: taskId });
+
+    if (settingMesinRobotSubtask.length === 0) {
+        throw new HTTPException(400, { message: 'Setting Mesin & Robot Subtask not found' });
+    }
+
+    const settingMesinRobotSubtaskId = settingMesinRobotSubtask[0].id;
+
+    // get the Validasi SUBO from the task_id
+    const validasiSubtaskQuery = `
+        SELECT TOP 1 * FROM IoT.dbo.user_sub_tasks
+        WHERE task_id = @task_id
+        AND name like 'Validasi SUBO%'
+        ORDER BY id DESC
+    `;
+    const validasiSubtask = await queryDatabase(validasiSubtaskQuery, { task_id: taskId });
+
+
+    if (validasiSubtask.length === 0) {
+        throw new HTTPException(400, { message: 'Validasi SUBO Subtask not found' });
+    }
+    // check # number from the name but also handle if it's the first one
+    const validasiSubtaskName = validasiSubtask[0].name;
+    const validasiSubtaskNameSplit = validasiSubtaskName.split(' ');
+    const validasiSubtaskNameNumber = validasiSubtaskNameSplit[validasiSubtaskNameSplit.length - 1];
+    const validasiSubtaskNameNumberInt = parseInt(validasiSubtaskNameNumber.replace('#', ''));
+    const validasiSubtaskNameNumberIntPlus = isNaN(validasiSubtaskNameNumberInt) ? 1 : validasiSubtaskNameNumberInt + 1;
+
+    let uuidNew = crypto.randomUUID();
+
+    const settingMesinRobotSubtaskParam = {
+        task_id: taskId,
+        uuid: uuidNew,
+        role_id: settingMesinRobotSubtask[0].role_id,
+        is_preparation: settingMesinRobotSubtask[0].is_preparation,
+        is_parallel: settingMesinRobotSubtask[0].is_parallel,
+        standard_time: settingMesinRobotSubtask[0].standard_time
+    }
+
+    const sqlQuerySettingMesinRobot = `
+        INSERT INTO IoT.dbo.user_sub_tasks
+        (task_id, uuid, name, is_preparation, is_parallel, role_id, standard_time, is_notif, notif_at, [index], created_at, updated_at, start_at)
+        VALUES
+        (@task_id, @uuid, 'Setting Mesin & Robot #${validasiSubtaskNameNumberIntPlus}', @is_preparation, @is_parallel, @role_id, @standard_time, 0, GETDATE(), 99+${validasiSubtaskNameNumberIntPlus}, GETDATE(), GETDATE(), GETDATE())
+    `;
+    try {
+        await queryDatabase(sqlQuerySettingMesinRobot, settingMesinRobotSubtaskParam);
+    } catch (error: any) {
+        console.error(error);
+        throw new HTTPException(500, { message: 'Failed to create new subtask : ' + error.message });
+    }
+
+    let uuidNew2 = crypto.randomUUID();
+
+    const validasiSubtaskParam = {
+        task_id: taskId,
+        uuid: uuidNew2,
+        role_id: validasiSubtask[0].role_id,
+        is_preparation: validasiSubtask[0].is_preparation,
+        is_parallel: validasiSubtask[0].is_parallel,
+        standard_time: validasiSubtask[0].standard_time
+    }
+
+    const sqlQueryValidasiSubtask = `
+        INSERT INTO IoT.dbo.user_sub_tasks
+        (task_id, uuid, name, is_preparation, is_parallel, role_id, standard_time, is_notif, notif_at, [index], created_at, updated_at, start_at)
+        VALUES
+        (@task_id, @uuid, 'Validasi SUBO #${validasiSubtaskNameNumberIntPlus}', @is_preparation, @is_parallel, @role_id, @standard_time, 0, GETDATE(), 99+${validasiSubtaskNameNumberIntPlus}, GETDATE(), GETDATE(), GETDATE())
+    `;
+    try {
+        await queryDatabase(sqlQueryValidasiSubtask, validasiSubtaskParam);
+    } catch (error: any) {
+        console.error(error);
+        throw new HTTPException(500, { message: 'Failed to create new subtask : ' + error.message });
+    }
+
+    return true;
 }

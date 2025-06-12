@@ -149,13 +149,14 @@ taskRoutes.post('/notify', async (c) => {
     const body = {
       notif_type: c.req.query('notif_type'),
       role_id: c.req.query('role_id'),
-      user_sub_tasks_id: c.req.query('user_sub_tasks_id'),
+      user_sub_task_id: c.req.query('user_sub_task_id'),
       notify_at: c.req.query('notify_at'),
       additional_time: c.req.query('additional_time'),
     };
+    // console.log(body);
 
     // Validate required fields
-    if (!body.notif_type || !body.role_id || !body.user_sub_tasks_id || !body.notify_at) {
+    if (!body.notif_type || !body.role_id || !body.user_sub_task_id || !body.notify_at) {
       return c.json({ success: false, message: 'Missing required parameters' }, 400);
     }
 
