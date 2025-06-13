@@ -6,7 +6,7 @@ const taskRoutes = new Hono();
 taskRoutes.get('/', async (c) => {
   try {
     const page = c.req.query('page') ? parseInt(c.req.query('page') || '1') : 1;
-    const limit = c.req.query('limit') ? parseInt(c.req.query('limit') || '10') : 10;
+    const limit = c.req.query('limit') ? parseInt(c.req.query('limit') || '30') : 30;
     const start_at = c.req.query('start_at') ? c.req.query('start_at') : new Date().toISOString();
     const week_start_at = c.req.query('week_start_at') ? c.req.query('week_start_at') : undefined;
 
