@@ -1000,7 +1000,7 @@ const refetchStateData = () => mutate(stateDataKey);
       ) : (
       <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-32 w-full mb-2">
         <Card className="p-0">
-          <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row ">Production Output <p className="text-lg font-bold text-green-500">OOE = 85%</p></CardHeader>
+          <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Production Output <p className="text-lg font-bold text-green-500">OOE = 85%</p></CardHeader>
           <CardContent className="grid grid-cols-3 gap-4 p-2 pr-4">
             
             <div>
@@ -1048,10 +1048,10 @@ const refetchStateData = () => mutate(stateDataKey);
         </Card>
 
         <Card>
-         <CardHeader className="py-2 text-lg font-bold text-black text-nowrap p-0 pb-2">
+         <CardHeader className="py-2 text-lg font-bold text-black text-nowrap p-0 pb-1">
           <div className="flex items-center justify-between">
             <div className="text-lg font-bold text-red-500 px-8">Non O.O.E</div>
-            <div className="text-lg font-bold text-black px-8 pt-1"><Badge variant="ok">OK</Badge></div>
+            <div className="text-lg font-bold text-black px-2 mr-8 pt-1 bg-green-500 rounded-md">OK</div>
           </div>
          </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4 p-2 pb-0">
@@ -1066,15 +1066,15 @@ const refetchStateData = () => mutate(stateDataKey);
             Target {(oeeData?.[0]?.targetYearly || 0).toFixed(1)}%</div> */}
         </Card>
 
-        <Card className="w-1/2">
-          <CardHeader className="py-2 text-lg font-bold p-0 pb-0 flex">Downtime (in minutes)</CardHeader>
+        <Card className="w-1/2 pb-0">
+          <CardHeader className="py-2 text-lg font-bold p-0 pb-4 flex">Downtime (in minutes)</CardHeader>
           <CardContent className="grid grid-cols-7 p-2 pb-0 pt-0 w-full">
             <div>
                <Tooltip>
               <TooltipTrigger asChild>
                 <div>
-                <div className="text-lg text-black bg-white border border-black  px-2 py-1 rounded-l-md">PS</div>
                 <div className="text-4xl font-bold">{((oeeData?.[0]?.white || 0) * 60.0).toFixed(0) || 0}'</div>
+                <div className="text-xl text-black bg-white border border-black  px-2 pt-1 pb-0 rounded-l-md">PS</div>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -1086,9 +1086,8 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-lg text-white bg-[#118DFF] border border-black  px-2 py-1">C/O</div>
-
                   <div className="text-4xl font-bold text-[#118DFF]">{((oeeData?.[0]?.blue || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-white bg-[#118DFF] border border-black  px-2 pt-1 pb-0">C/O</div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -1100,9 +1099,8 @@ const refetchStateData = () => mutate(stateDataKey);
             <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-lg text-white bg-[#FF0000] border border-black  px-2 py-1">NQ</div>
-
                   <div className="text-4xl font-bold text-[#FF0000] px-0">{((oeeData?.[0]?.red || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-white bg-[#FF0000] border border-black  px-2 pt-1 pb-0">NQ</div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -1115,8 +1113,8 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-lg text-white bg-[#FF7400] border border-black  px-2 py-1">BD</div>
                   <div className="text-4xl font-bold text-[#FF7400]">{((oeeData?.[0]?.orange || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-white bg-[#FF7400] border border-black  px-2 pt-1 pb-0">BD</div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -1129,8 +1127,8 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-lg text-white bg-[#6A4C93] border border-black  px-2 py-1">OP</div>
                   <div className="text-4xl font-bold text-[#6A4C93]">{((oeeData?.[0]?.purple || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-white bg-[#6A4C93] border border-black  px-2 pt-1 pb-0">OP</div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -1143,8 +1141,9 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="">
-                  <div className="text-lg text-black bg-[#FFFF00] border border-black  px-2 py-1">SD</div>
                   <div className="text-4xl font-bold text-black px-0">{((oeeData?.[0]?.yellow || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-black bg-[#FFFF00] border border-black  px-2 pt-1 pb-0">SD</div>
+
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -1157,8 +1156,8 @@ const refetchStateData = () => mutate(stateDataKey);
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="">
-                  <div className="text-lg text-white bg-[#AAAAAA] border border-black  px-2 py-1 rounded-r-md">UC</div>
                   <div className="text-4xl font-bold text-[#AAAAAA] px-0">{((oeeData?.[0]?.grey || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-white bg-[#AAAAAA] border border-black  px-2 pt-1 pb-0 rounded-r-md">UC</div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -1218,7 +1217,7 @@ const refetchStateData = () => mutate(stateDataKey);
                       <TableCell className="h-full text-xl text-nowrap text-black">{row.time}</TableCell>
                       <TableCell className="h-full text-xl text-nowrap text-black">{row.itemNo}</TableCell>
                       <TableCell className="text-center h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0">{row.target}</TableCell>
-                      <TableCell className="text-center w-[60px] h-full text-xl text-nowrap text-black">{row.actual}</TableCell>
+                      <TableCell className={`text-center w-[60px] h-full text-xl text-nowrap text-black ${row.actual >= row.target_tolerance ? "text-green-500" : "text-red-500"}`}>{row.actual}</TableCell>
                       <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
                         {(() => {
