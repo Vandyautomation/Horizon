@@ -2011,6 +2011,25 @@ export async function makeMachineGrey(machineId: string) {
     return await queryDatabase(sqlQuery, { machineId });
 }
 
+export async function makeMachineTAO(machineId: string) {
+    const sqlQuery = `
+      UPDATE IoT.dbo.MachineMST SET is_override = 1, MchStatus = 'TAO' WHERE MchID = @machineId;
+
+      INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
+      VALUES (@machineId, GETDATE(), 'WHITE', 1);
+    `;
+    return await queryDatabase(sqlQuery, { machineId });
+}
+export async function removeOverrideTAO(machineId: string) {
+    const sqlQuery = `
+    UPDATE IoT.dbo.MachineMST SET is_override = 0, MchStatus = NULL WHERE MchID = @machineId;
+
+    INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
+    VALUES (@machineId, GETDATE(), (select top 1 StatusLight from IoT.dbo.MchStatusTRX where MchID = @machineId  and Active = 1 and StatusLight != 'WHITE' order by ID desc), 1);
+  `;
+    return await queryDatabase(sqlQuery, { machineId });
+}
+
 export async function removeOverride(machineId: string) {
     const sqlQuery = `
     UPDATE IoT.dbo.MachineMST SET is_override = 0, MchStatus = NULL WHERE MchID = @machineId;

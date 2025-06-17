@@ -12,13 +12,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useState } from "react"
 
 export function UserSetting() {
 
   const router = useRouter()
-
+  const pathname = usePathname()
 
   const [user, setUser] = useState(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -33,8 +33,9 @@ export function UserSetting() {
     localStorage.clear();
 
     window.dispatchEvent(new CustomEvent("storage"))
-    router.refresh();
-    router.push('/login')
+    const pathName = window.location.pathname
+    const params = window.location.search || '' 
+    window.location.href = `/admin/login?redirect=${pathName}${params || ''}`
   }
 
   return (

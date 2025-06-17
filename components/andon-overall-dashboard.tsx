@@ -125,6 +125,21 @@ export default function AndonOverallDashboard() {
   const [resizeDirection, setResizeDirection] = useState<string | null>(null);
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
+  useEffect(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    
+    if (hour >= 6 && hour < 14) {
+      setStartHour(6);
+    } else if (hour >= 14 && hour < 22) {
+      setStartHour(14);
+    } else {
+      setStartHour(22);
+    }
+  }, []);
+
+
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).classList.contains('resize-handle')) {
       return; // Don't start drag if clicking resize handle
@@ -347,7 +362,7 @@ export default function AndonOverallDashboard() {
   return (
     <div className="w-full h-full ">
       <div className="flex items-center justify-between">
-        <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/>
+        <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle bg-white"/>
         <h1 className="text-4xl font-bold mr-4">ANDON OVERALL DASHBOARD</h1>
         <h1 className="text-4xl font-bold mr-4">TECHPACK ASIA</h1>
         </div>
@@ -411,7 +426,7 @@ export default function AndonOverallDashboard() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-gray-100 cursor-pointer" onClick={() => {
+              <Card className="bg-gray-100 text-black cursor-pointer" onClick={() => {
                 const buildingsWithWhiteMachines = buildings?.filter(building => 
                   building.machines.some(m => m.status === 'WHITE')
                 );
@@ -522,16 +537,22 @@ export default function AndonOverallDashboard() {
               </Card>
 
               <Card className="bg-cyan-500 text-white">
-                        <CardContent className="p-4 text-center">
+                        <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OEE</div>
                           <div className="text-3xl font-bold">{buildings?.length ? ((buildings.reduce((acc, building) => acc + building.oee, 0) || 0) / buildings.length * 100).toFixed(2) : '0'}%</div>
+                          <div className="text-xs text-white ">
+                            from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}
+                          </div>
                         </CardContent>
                       </Card>
                       
                       <Card className="bg-cyan-600 text-white">
-                        <CardContent className="p-4 text-center">
+                        <CardContent className="p-2 text-center pb-0">
                           <div className="text-sm">OOE</div>
                           <div className="text-3xl font-bold">{buildings?.length ? ((buildings.reduce((acc, building) => acc + building.ooe, 0) || 0) / buildings.length * 100).toFixed(2) : '0'}%</div>
+                          <div className="text-xs text-white ">
+                            from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}
+                          </div>
                         </CardContent>
                       </Card>
             </div>
@@ -594,7 +615,7 @@ export default function AndonOverallDashboard() {
                       </CardContent>
                     </Card>
                     
-                    <Card className="bg-gray-100 cursor-pointer" onClick={() => {
+                    <Card className="bg-gray-100 text-black cursor-pointer" onClick={() => {
                       const buildingWithLocationWhiteMachines = buildings?.find(building => 
                         building.machines.some(m => m.MchLoc === location && m.status === 'WHITE')
                       );
@@ -688,17 +709,23 @@ export default function AndonOverallDashboard() {
                         <div className="text-3xl font-bold">{counts['RED'] || 0}</div>
                       </CardContent>
                     </Card>
-                    <Card className="bg-cyan-500 text-white">
-                        <CardContent className="p-4 text-center">
+                    <Card className="bg-cyan-500 text-white ">
+                        <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OEE</div>
                           <div className="text-3xl font-bold">{((building.oee || 0) * 100).toFixed(2)}%</div>
+                          <div className="text-xs text-white ">
+                            from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}
+                          </div>
                         </CardContent>
                       </Card>
                       
                       <Card className="bg-cyan-600 text-white">
-                        <CardContent className="p-4 text-center">
+                        <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OOE</div>
                           <div className="text-3xl font-bold">{((building.ooe || 0) * 100).toFixed(2)}%</div>
+                          <div className="text-xs text-white ">
+                            from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}
+                          </div>
                         </CardContent>
                       </Card>
                   </div>

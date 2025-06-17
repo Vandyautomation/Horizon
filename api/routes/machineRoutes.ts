@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { addMachine, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, makeMachineGrey, removeOverride, updateMachine } from '../controllers/machineController';
+import { addMachine, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, makeMachineGrey, makeMachineTAO, removeOverride, removeOverrideTAO, updateMachine } from '../controllers/machineController';
 import { getTask } from '../controllers/scaleTaskController';
 import { cache } from 'hono/cache'
 
@@ -173,6 +173,18 @@ machineRoutes.post('/trial/:machineId', async (c) => {
     data = await makeMachineGrey(machineId);
   } else {
     data = await removeOverride(machineId);
+  }
+  return c.json(data);
+});
+
+machineRoutes.post('/tao/:machineId', async (c) => {
+  const { machineId } = c.req.param();
+  const machineStatus = c.req.query('machineStatus');
+  let data;
+  if (machineStatus == 'TAO') {
+    data = await makeMachineTAO(machineId);
+  } else {
+    data = await removeOverrideTAO(machineId);
   }
   return c.json(data);
 });

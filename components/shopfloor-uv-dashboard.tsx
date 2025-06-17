@@ -480,7 +480,7 @@ export default function ShopfloorUvDashboard() {
     }
   }, [buildings, selectedBuilding]);
 
-   const searchParams = useSearchParams()
+    const searchParams = useSearchParams()
     const params = new URLSearchParams(searchParams);
 
   let queryLocation = searchParams.get('building') || '';

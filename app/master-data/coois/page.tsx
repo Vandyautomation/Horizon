@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import * as XLSX from "xlsx" 
 import { Upload, FileSpreadsheet, AlertCircle, Download, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,13 +12,53 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "react-hot-toast"
 import { Progress } from "@/components/ui/progress"
+import { useRouter } from "next/navigation"
 
 export default function CooisUpload() {
+  const router = useRouter()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [progress, setProgress] = useState(0)
   const [data, setData] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [userData, setUserData] = useState<any>(null)
+
+    const checkUser = async () => {
+      const user = localStorage.getItem("user");
+      if (user) {
+        try {
+          const userData = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          });
+          const userDataJson = await userData.json();
+          setUserData(userDataJson.data.payload.user);
+        } catch (error) {
+          console.error("Error checking user:", error);
+          setUserData(null);
+        }
+      } else {
+        setUserData(null);
+      }
+      return null;
+    }
+
+    useEffect(() => {
+      checkUser();
+    }, []);
+
+    // useEffect(() => {
+    //   if (userData === null) {
+    //     // console.log('userData', userData)
+    //     toast.error('You are not logged in, redirecting to login page');
+    //     router.push('/login');
+    //   } else if (userData && userData?.role_name !== 'admin') {
+    //     toast.error('You are not authorized to access this page, redirecting to home page');
+    //     router.push('/');
+    //   }
+    // }, [userData, router]);
+
+  
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {

@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "react-hot-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 export function LoginForm() {
   const [username, setUsername] = useState("");
@@ -20,6 +20,8 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const handleSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
@@ -56,8 +58,9 @@ export function LoginForm() {
 
       // Redirect to the next page
       toast.success('Login successful!');
-      router.refresh();
-      router.push('/')
+      let redirect = searchParams.get('redirect') || '/'
+      window.location.href = `${redirect}`
+      // window.location.reload();
     } catch (err) {
       setError((err as Error).message);
       // console.log((err as Error).message)

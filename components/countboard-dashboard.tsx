@@ -43,6 +43,8 @@ import { Switch } from "./ui/switch"
 import ChangeState from "./change-state"
 import { GearIcon } from "@radix-ui/react-icons"
 import { Badge } from "./ui/badge"
+import Link from "next/link"
+
 
 type MachineDetail = {
   machineId: number;
@@ -159,8 +161,24 @@ export default function CountboardDashboard() {
   const [isLoadingRefresh, setIsLoadingRefresh] = useState(false); 
   const [isLiveMode, setIsLiveMode] = useState(true); 
 
+  const [userData, setUserData] = useState<any>(null);
+
   const pathname = usePathname()
   const router = useRouter()
+
+  const checkUser = async () => {
+    const user = localStorage.getItem("user");
+    if (user) {
+      const userData = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      const userDataJson = await userData.json();
+      setUserData(userDataJson.data.payload.user);
+      // console.log(userDataJson.data.payload.user);
+    }
+    return null;
+  }
 
   useEffect(() => {
     const refreshAtShiftChange = () => {
@@ -618,6 +636,33 @@ const refetchStateData = () => mutate(stateDataKey);
     }
   }, [selectedMachine]);
 
+    const handleTAOMachine = useCallback(
+    async () => {
+      setIsLoading(true);
+      const machineStatus = selectedMachine?.machineStatus == 'TAO' ? 'NORMAL' : 'TAO';
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tao/${selectedMachine?.machineName}?machineStatus=${machineStatus}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.error || `Failed to Update TAO machine`;
+        throw new Error(errorMessage);
+      }
+      toast.success(`TAO machine updated successfully!`);
+      setIsDialogConfigurationOpen(false);
+    } catch (error) {
+      toast.error((error as Error).message);
+      console.error(`Failed to Update TAO machine:`, error);
+    }
+    finally {
+      setIsLoading(false);
+      window.location.reload();
+    }
+  }, [selectedMachine]);
+
 
   const getBarColor = (actual: number, target: number, target_tolerance: number) => {
     if (actual >= target) return 'bg-green-500';
@@ -836,7 +881,7 @@ const refetchStateData = () => mutate(stateDataKey);
             )}
 
             <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
-              {selectedMachine?.machineDescription || "MchDesc"} {selectedMachine?.machineStatus == 'TRIAL' ? <Badge variant="secondary" className="ml-2">TRIAL</Badge> : null }
+              {selectedMachine?.machineDescription || "MchDesc"} {selectedMachine?.machineStatus == 'TRIAL' ? <Badge variant="secondary" className="ml-2">TRIAL</Badge> : null } {selectedMachine?.machineStatus == 'TAO' ? <Badge variant="secondary" className="ml-2">TAO</Badge> : null }
             </Label>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -861,7 +906,7 @@ const refetchStateData = () => mutate(stateDataKey);
             </Button>
             <Dialog open={isDialogConfigurationOpen} onOpenChange={setIsDialogConfigurationOpen}>
               <DialogTrigger asChild>
-                <Button variant={"default"} className="h-[43px]"><GearIcon/>Config</Button>
+                <Button variant={"default"} className="h-[43px]" onClick={() => checkUser()}><GearIcon/>Config</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
@@ -895,7 +940,7 @@ const refetchStateData = () => mutate(stateDataKey);
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant="outline" className="w-full justify-start">
-                       <GearIcon className="w-4 h-4 mr-2" /> Set Machine into {selectedMachine?.machineStatus == 'TRIAL' ? 'Normal' : 'Trial'}
+                       <GearIcon className="w-4 h-4 mr-2" /> Set Machine into {selectedMachine?.machineStatus == 'TRIAL' ? 'Normal' : 'Trial'} from {selectedMachine?.machineStatus ? selectedMachine?.machineStatus : 'Normal'}
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -915,6 +960,36 @@ const refetchStateData = () => mutate(stateDataKey);
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
+                  {!userData && (
+                    <div className="text-sm text-gray-500">
+                      Need more access for admin ? click <Link href={`/login/?redirect=${window.location.pathname}${window.location.search}`} className="text-blue-500">here</Link> to login
+                    </div>
+                  )}
+                  {userData && userData?.role_name == 'admin' && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                       <GearIcon className="w-4 h-4 mr-2" /> Set Machine into {selectedMachine?.machineStatus == 'TAO' ? 'Normal' : 'TAO'} from {selectedMachine?.machineStatus ? selectedMachine?.machineStatus : 'Normal'}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Warning</DialogTitle>
+                        <DialogDescription>
+                          Ini akan mengubah status mesin {selectedMachine?.machineDescription} menjadi {selectedMachine?.machineStatus == 'TAO' ? 'Normal' : 'TAO'}. Apakah anda yakin?
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="default" onClick={() => { handleTAOMachine(); setIsDialogConfigurationOpen(false) }}>
+                          Yes
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsDialogConfigurationOpen(false)}>
+                          No
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                  )}
                 </div>
               </DialogContent>
             </Dialog>

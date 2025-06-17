@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { createUser, deleteUser, fetchUserById, fetchUserByNik, fetchUserByUsername, fetchUsers, updateUser } from '../controllers/userController';
+import { getAuthToken } from '../utils/cookieUtils';
+import { authMiddleware } from '../middleware/authMiddleware';
 
 const userRoutes = new Hono();
 
@@ -7,6 +9,16 @@ userRoutes.get('/', async (c) => {
   try {
     const users = await fetchUsers();
     return c.json({ success: true, message: 'Success fetch user data', data: users }, 200);
+  } catch (error) {
+    return c.json({ success: false, message: (error as Error).message }, 500);
+  }
+});
+
+userRoutes.get('/check', authMiddleware, async (c) => {
+  try {
+    const user = await c.get('jwtPayload') as any;
+    console.log(user);
+    return c.json({ success: true, message: 'Success fetch user data', data: user }, 200);
   } catch (error) {
     return c.json({ success: false, message: (error as Error).message }, 500);
   }
