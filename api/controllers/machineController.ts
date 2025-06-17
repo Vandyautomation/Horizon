@@ -1606,7 +1606,15 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
                     StatusLight,
                     ISNULL(LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT), @from) AS BeforePMDT,
                     PMDT,
-                    valueUsed,
+                    case
+						when LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT) is null then
+						PMValue -	(select top 1  PMValue from eEnergy.dbo.PowerMeter
+							where MchID = @machine_name and TrxType = 'Automatic'
+							and PMDT between dateadd(minute,0,@from) and dateadd(minute,1,@from)
+							order by PMValue Desc
+							)
+						else  valueUsed
+						end as valueUsed,
                     PMValue AS ManualPMValue
                 FROM eEnergy.dbo.PowerMeter WITH (NOLOCK)
                 WHERE
@@ -1736,7 +1744,15 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
                     StatusLight,
                     ISNULL(LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT), @from) AS BeforePMDT,
                     PMDT,
-                    valueUsed,
+                    case
+						when LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT) is null then
+						PMValue -	(select top 1  PMValue from eEnergy.dbo.PowerMeter
+							where MchID = @machine_name and TrxType = 'Automatic'
+							and PMDT between dateadd(minute,0,@from) and dateadd(minute,1,@from)
+							order by PMValue Desc
+							)
+						else  valueUsed
+						end as valueUsed,
                     PMValue AS ManualPMValue
                 FROM eEnergy.dbo.PowerMeter WITH (NOLOCK)
                 WHERE
