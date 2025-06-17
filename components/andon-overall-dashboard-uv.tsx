@@ -348,7 +348,7 @@ export default function AndonOverallDashboard() {
   return (
     <div className="w-full h-full ">
       <div className="flex items-center justify-between">
-      <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/>
+      <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle bg-white"/>
         <h1 className="text-4xl font-bold mr-4">ANDON OVERALL DASHBOARD UV</h1>
         <h1 className="text-4xl font-bold mr-4">TECHPACK ASIA</h1>
         </div>
@@ -431,7 +431,7 @@ export default function AndonOverallDashboard() {
                   });
                 }
               }}>
-                <CardContent className="p-4 text-center">
+                <CardContent className="p-4 text-center text-black">
                   <div className="text-sm">Planned Stop <p className="text-xs">({((buildings?.reduce((acc, building) => 
                       acc + building.machines.filter(m => m.status === 'WHITE').length, 0) || 0) / 
                     (buildings?.reduce((acc, building) => 
@@ -544,16 +544,18 @@ export default function AndonOverallDashboard() {
               </Card>
 
               <Card className="bg-cyan-500 text-white">
-                        <CardContent className="p-4 text-center">
+                        <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OEE</div>
                           <div className="text-3xl font-bold">{buildings?.length ? ((buildings.reduce((acc, building) => acc + building.oee, 0) || 0) / buildings.length * 100).toFixed(2) : '0'}%</div>
+                          <div className="text-xs text-white ">from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}</div>
                         </CardContent>
                       </Card>
                       
                       <Card className="bg-cyan-600 text-white">
-                        <CardContent className="p-4 text-center">
+                        <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OOE</div>
                           <div className="text-3xl font-bold">{buildings?.length ? ((buildings.reduce((acc, building) => acc + building.ooe, 0) || 0) / buildings.length * 100).toFixed(2) : '0'}%</div>
+                          <div className="text-xs text-white ">from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}</div>
                         </CardContent>
                       </Card>
             </div>
@@ -629,7 +631,7 @@ export default function AndonOverallDashboard() {
                         });
                       }
                     }}>
-                      <CardContent className="p-4 text-center">
+                      <CardContent className="p-4 text-center text-black">
                         <div className="text-sm">Planned Stop <p className="text-xs">({((counts['WHITE'] || 0) / (machines.length || 1) * 100).toFixed(2)}%)</p></div>
                         <div className="text-3xl font-bold">{counts['WHITE'] || 0}</div>
                       </CardContent>
@@ -711,16 +713,18 @@ export default function AndonOverallDashboard() {
                       </CardContent>
                     </Card>
                     <Card className="bg-cyan-500 text-white">
-                        <CardContent className="p-4 text-center">
+                        <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OEE</div>
                           <div className="text-3xl font-bold">{((building.oee || 0) * 100).toFixed(2)}%</div>
+                          <div className="text-xs text-white ">from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}</div>
                         </CardContent>
                       </Card>
                       
                       <Card className="bg-cyan-600 text-white">
-                        <CardContent className="p-4 text-center">
+                        <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OOE</div>
                           <div className="text-3xl font-bold">{((building.ooe || 0) * 100).toFixed(2)}%</div>
+                          <div className="text-xs text-white ">from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}</div>
                         </CardContent>
                       </Card>
                   </div>
