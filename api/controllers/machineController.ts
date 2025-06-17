@@ -1604,7 +1604,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
                 SELECT
                     StatusLightBefore,
                     StatusLight,
-                    LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
+                    ISNULL(LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT), @from) AS BeforePMDT,
                     PMDT,
                     valueUsed,
                     PMValue AS ManualPMValue
@@ -1734,7 +1734,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
                 SELECT
                     StatusLightBefore,
                     StatusLight,
-                    LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT) AS BeforePMDT,
+                    ISNULL(LAG(PMDT) OVER (PARTITION BY MchID ORDER BY PMDT), @from) AS BeforePMDT,
                     PMDT,
                     valueUsed,
                     PMValue AS ManualPMValue
