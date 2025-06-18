@@ -900,9 +900,17 @@ const refetchStateData = () => mutate(stateDataKey);
               </div>
             )}
 
-            <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
-              {selectedMachine?.machineDescription || "MchDesc"} {selectedMachine?.machineStatus == 'TRIAL' ? <Badge variant="secondary" className="ml-2">TRIAL</Badge> : null } {selectedMachine?.machineStatus == 'TAO' ? <Badge variant="secondary" className="ml-2">TAO</Badge> : null }
-            </Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
+                    {selectedMachine?.machineDescription || "MchDesc"} {selectedMachine?.machineStatus == 'TRIAL' ? <Badge variant="secondary" className="ml-2">TRIAL</Badge> : null } {selectedMachine?.machineStatus == 'TAO' ? <Badge variant="secondary" className="ml-2">TAO</Badge> : null }
+                  </Label>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p> {selectedMachine?.machineName || "MchID"}</p>
+                </TooltipContent>
+              </Tooltip>
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base min-w-[390px]">

@@ -654,7 +654,22 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
             h.machine_id,
             c.material_id AS itemNo,
             c.material_name AS itemDesc,
-            h.cause AS causes,
+            case
+                when (select problem from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to) is not null
+                then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + problem, ', ') AS ProblemList
+                    FROM IoT.dbo.TicketTRX
+                    WHERE MchID = @machine_id
+                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime) + ' , ' + h.cause
+                else h.cause
+            end as causes,
+            case
+                when (select actionplan from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to) is not null
+                then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + actionplan, ', ') AS ActionList
+                    FROM IoT.dbo.TicketTRX
+                    WHERE MchID = @machine_id
+                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime) + ' , ' + h.note
+                else h.note
+            end as comments,
             h.note AS comments,
             h.ooe,
             h.scrap,
