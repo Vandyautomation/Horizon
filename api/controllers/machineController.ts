@@ -361,7 +361,7 @@ export async function addMachine(name: string, description: string) {
 
 export async function getHourlyMachine(machine_id: string, date: string | null, shift: string | null, type: string | null) {
   if(type === 'uv'){
-    if(date && shift){
+      if (date && shift) { // History Mode
       const sqlQuery = `
       DECLARE @from DATETIME;
       DECLARE @to DATETIME;
@@ -401,14 +401,14 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
             h.shift_id,
             c.material_id,
             ISNULL(h.running_target_qty, 0) AS target,
-            ISNULL(h.running_target_qty, 0) * 0.85 AS target_tolerance,
+            ISNULL(h.running_target_qty, 0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS target_tolerance,
             ISNULL(h.running_actual_qty, 0) AS actual,
             ISNULL(h.running_actual_in_qty, 0) AS actual_in,
             ISNULL(h.running_actual_in_qty, 0) - ISNULL(h.running_actual_out_qty, 0) AS gap,
             h.task_id,
             h.target_qty,
             h.actual_qty,
-            ISNULL(h.running_actual_qty,0) - ISNULL(h.running_target_qty,0) AS delta,
+            ISNULL(h.running_actual_qty,0) - ISNULL(h.running_target_qty,0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS delta,
             h.hour_id,
             h.machine_id,
             c.material_id AS itemNo,
@@ -442,7 +442,7 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
 
       `
       return await queryDatabase(sqlQuery, { machine_id, date, shift });
-    } else {
+      } else { // Live Mode
       const sqlQuery = `
       declare @shift_id int;
       declare @from DATETIME;
@@ -484,14 +484,14 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
         h.shift_id,
         c.material_id,
         ISNULL(h.running_target_qty, 0) AS target,
-        ISNULL(h.running_target_qty, 0) * 0.85 AS target_tolerance,
+        ISNULL(h.running_target_qty, 0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS target_tolerance,
         ISNULL(h.running_actual_qty, 0) AS actual,
         ISNULL(h.running_actual_in_qty, 0) AS actual_in,
         ISNULL(h.running_actual_in_qty, 0) - ISNULL(h.running_actual_out_qty, 0) AS gap,
         h.task_id,
         h.target_qty,
         h.actual_qty,
-        ISNULL(h.running_actual_qty,0) - ISNULL(h.running_target_qty,0) AS delta,
+        ISNULL(h.running_actual_qty,0) - ISNULL(h.running_target_qty,0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS delta,
         h.hour_id,
         h.machine_id,
         c.material_id AS itemNo,
@@ -527,7 +527,7 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
       return await queryDatabase(sqlQuery, { machine_id });
     }
   } else if( type === 'injection'){
-    if(date && shift){
+      if (date && shift) { // History Mode
       const sqlQuery = `
       DECLARE @from DATETIME;
       DECLARE @to DATETIME;
@@ -570,12 +570,12 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
         h.shift_id,
         c.material_id,
         ISNULL(h.running_target_qty, 0) AS target,
-        ISNULL(h.running_target_qty, 0) * 0.85 AS target_tolerance,
+        ISNULL(h.running_target_qty, 0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS target_tolerance,
         ISNULL(h.running_actual_qty, 0) AS actual,
         h.task_id,
         h.target_qty,
         h.actual_qty,
-        ISNULL(h.running_actual_qty, 0) - ISNULL(h.running_target_qty, 0) AS delta,
+        ISNULL(h.running_actual_qty, 0) - ISNULL(h.running_target_qty, 0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS delta,
         h.hour_id,
         h.machine_id,
         c.material_id AS itemNo,
@@ -595,7 +595,7 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
 
       `
       return await queryDatabase(sqlQuery, { machine_id, date, shift });
-    } else {
+      } else { // Live Mode
       const sqlQuery = `
       declare @shift_id int;
       declare @from DATETIME;
@@ -640,12 +640,12 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
             h.shift_id,
             c.material_id,
             ISNULL(h.running_target_qty, 0) AS target,
-            ISNULL(h.running_target_qty, 0) * 0.85 AS target_tolerance,
+            ISNULL(h.running_target_qty, 0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS target_tolerance,
             ISNULL(h.running_actual_qty, 0) AS actual,
             h.task_id,
             h.target_qty,
             h.actual_qty,
-            ISNULL(h.running_actual_qty, 0) - ISNULL(h.running_target_qty, 0) AS delta,
+            ISNULL(h.running_actual_qty, 0) - ISNULL(h.running_target_qty, 0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS delta,
             h.hour_id,
             h.machine_id,
             c.material_id AS itemNo,
@@ -769,14 +769,17 @@ export async function getOeeMachine(machine_id: string, date: string | null, shi
           totalorange AS orange,
           totalpurple AS purple,
           totalgrey AS grey,
-          (select top 1 value from IoT.dbo.parameter_setting where name = 'target_oee_yearly' order by id desc) as targetYearly
+          (select top 1 value from IoT.dbo.parameter_setting where name = 'target_oee_yearly' order by id desc) as targetYearly,
+          (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance' order by id desc) as targetTolerance
       FROM TimeCalculations
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
 
   } else {
     const sqlQuery = `
-    SELECT MchID, timea, pmidle, timeb, breakdown, timee, ooe, oee, breakdownperc, green, red, yellow, white, blue, orange, purple, grey, (select top 1 value from IoT.dbo.parameter_setting where name = 'target_oee_yearly' order by id desc) as targetYearly
+    SELECT MchID, timea, pmidle, timeb, breakdown, timee, ooe, oee, breakdownperc, green, red, yellow, white, blue, orange, purple, grey,
+    (select top 1 value from IoT.dbo.parameter_setting where name = 'target_oee_yearly' order by id desc) as targetYearly,
+    (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance' order by id desc) as targetTolerance
     FROM MachineData where MchID = @machine_id
     `;
     return await queryDatabase(sqlQuery, { machine_id });

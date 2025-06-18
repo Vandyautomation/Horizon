@@ -17,7 +17,7 @@ userRoutes.get('/', async (c) => {
 userRoutes.get('/check', authMiddleware, async (c) => {
   try {
     const user = await c.get('jwtPayload') as any;
-    console.log(user);
+    // console.log(user);
     return c.json({ success: true, message: 'Success fetch user data', data: user }, 200);
   } catch (error) {
     return c.json({ success: false, message: (error as Error).message }, 500);

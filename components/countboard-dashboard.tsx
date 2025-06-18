@@ -75,6 +75,7 @@ type HourlyData = {
 
 type OoeData = {
   targetYearly: number;
+  targetTolerance: number;
   timea: number;
   pmidle: number;
   timeb: number;
@@ -784,8 +785,8 @@ const refetchStateData = () => mutate(stateDataKey);
   }, [queryShift]);
 
   const totalActual = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0), 0) || 0
-  const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.target || 0), 0) || 0
-  const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target || 0), 0) || 0
+  const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.target_tolerance || 0), 0) || 0
+  const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target_tolerance || 0), 0) || 0
 
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
@@ -1075,20 +1076,21 @@ const refetchStateData = () => mutate(stateDataKey);
       ) : (
       <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-32 w-full mb-2">
         <Card className="p-0">
-          <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Production Output <p className="text-lg font-bold text-green-500">OOE = 85%</p></CardHeader>
+          <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Production Output 
+            <p className="text-lg font-bold text-green-500">OOE = {(oeeData?.[0]?.targetTolerance || 0) * 100}%</p></CardHeader>
           <CardContent className="grid grid-cols-3 gap-4 p-2 pr-4">
             
             <div>
-              <div className="text-4xl font-bold text-black">{totalTarget}</div>
+              <div className="text-4xl font-bold text-black">{totalTarget.toFixed(0)}</div>
               <div className="text-lg ">Target</div>
             </div>
             <div>
-            <div className="text-4xl font-bold text-black">{totalActual}</div>
+            <div className={`text-4xl font-bold ${totalActual >= totalTarget ? "text-green-600" : "text-red-600"}`}>{totalActual}</div>
               <div className="text-lg ">Actual</div>
             </div>
             
             <div>
-              <div className={`text-4xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{Math.abs(totalGap)}</div>
+              <div className={`text-4xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{Math.abs(totalGap).toFixed(0)}</div>
               <div className="text-lg ">Delta</div>
             </div>
           </CardContent>
@@ -1262,7 +1264,7 @@ const refetchStateData = () => mutate(stateDataKey);
                   <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">ItemNo</TableHead>
                   <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black border border-r-0 border-l-1 border-t-0">Target</TableHead>
                   <TableHead className="w-[50px] text-lg text-nowrap font-bold text-black text-right">Actual</TableHead>
-                  <TableHead className="w-[250px] text-left text-lg text-nowrap font-bold text-green-500 flex items-center justify-center">OOE 100% ⸺ / 85% - - -</TableHead>
+                  <TableHead className="w-[250px] text-left text-lg text-nowrap font-bold text-green-500 flex items-center justify-center">OOE 100% ⸺ / {(oeeData?.[0]?.targetTolerance || 0) * 100}% - - -</TableHead>
                   <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black border border-r-1 border-l-0 border-t-0">Delta</TableHead>
                   <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Scrap</TableHead>
                   <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Rework</TableHead>
@@ -1291,7 +1293,7 @@ const refetchStateData = () => mutate(stateDataKey);
                     <TableRow className={`h-[56px] ${index === (hourlyData?.length ?? 0) - 1 ? "border-b border-black" : ""}`} key={row.time}>
                       <TableCell className="h-full text-xl text-nowrap text-black">{row.time}</TableCell>
                       <TableCell className="h-full text-xl text-nowrap text-black">{row.itemNo}</TableCell>
-                      <TableCell className="text-center h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0">{row.target}</TableCell>
+                      <TableCell className="text-center h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0">{row.target_tolerance.toFixed(0)}</TableCell>
                       <TableCell className={`text-center w-[60px] h-full text-xl text-nowrap text-black ${row.actual >= row.target_tolerance ? "text-green-500" : "text-red-500"}`}>{row.actual}</TableCell>
                       <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
@@ -1324,7 +1326,7 @@ const refetchStateData = () => mutate(stateDataKey);
                         {/* <span className={`relative z-10 ml-2 text-xl text-nowrap  text-black ${row.actual >= row.target_tolerance ? "text-black" : "text-white"}`}>{row.actual}</span> */}
                       </div>
                       </TableCell>
-                      <TableCell className={`text-xl text-nowrap  text-black ${row.delta >= 0 ? "text-green-600" : "text-red-600"} border border-r-1 border-b-0 border-l-0`}>{Math.abs(row.delta)}</TableCell>
+                      <TableCell className={`text-xl text-nowrap  text-black ${row.delta >= 0 ? "text-green-600" : "text-red-600"} border border-r-1 border-b-0 border-l-0`}>{Math.abs(row.delta).toFixed(0)}</TableCell>
                       <TableCell className="text-center text-xl text-nowrap  text-black">{row.scrap}</TableCell>
                       <TableCell className="text-center text-xl text-nowrap  text-black">{row.rework}</TableCell>
                       <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-black-250">
