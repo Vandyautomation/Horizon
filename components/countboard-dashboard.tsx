@@ -1360,7 +1360,7 @@ const refetchStateData = () => mutate(stateDataKey);
                   <TableCell colSpan={4}></TableCell>
                   <TableCell className="w-[250px]"></TableCell>
                   <TableCell className="text-nowrap font-bold text-black">
-                      <div className={`text-xl text-nowrap font-bold ${(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0)}</div>
+                      <div className={`text-xl text-nowrap font-bold ${(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0).toFixed(0)}</div>
                   </TableCell>
                   <TableCell className=" text-nowrap font-bold text-black">
                       <div className="text-xl text-center text-nowrap font-bold text-black">{hourlyData?.reduce((acc, row) => acc + row.scrap, 0) || 0}</div>
