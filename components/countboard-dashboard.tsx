@@ -64,6 +64,7 @@ type HourlyData = {
   itemNo: string;
   itemDesc: string;
   target: number;
+  target_final: number;
   target_tolerance: number;
   actual: number;
   delta: number;
@@ -785,7 +786,25 @@ const refetchStateData = () => mutate(stateDataKey);
   }, [queryShift]);
 
   const totalActual = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0), 0) || 0
-  const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.target_tolerance || 0), 0) || 0
+  const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => {
+    const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" });
+    const nowDate = new Date(now);
+    const itemFromTime = new Date(new Date(item.from_datetime).getTime() - 6 * 60 * 60 * 1000).getTime();
+    const nowTime = nowDate.getTime();
+    const remainingSeconds = nowDate.getSeconds();
+    const remainingMinutes = nowDate.getMinutes() * 60;
+    return (
+      total +
+      (
+        itemFromTime < nowTime
+          ? item.target_final * (oeeData?.[0]?.targetTolerance || 1)
+          : Math.floor(
+              (item.target_final * (remainingMinutes + remainingSeconds) / 3600) *
+              (oeeData?.[0]?.targetTolerance || 1)
+            )
+      )
+    ) || 0;
+  }, 0) || 0;
   const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target_tolerance || 0), 0) || 0
 
 
@@ -1081,11 +1100,11 @@ const refetchStateData = () => mutate(stateDataKey);
           <CardContent className="grid grid-cols-3 gap-4 p-2 pr-4">
             
             <div>
-              <div className="text-4xl font-bold text-black">{totalTarget.toFixed(0)}</div>
+              <div className="text-4xl font-bold text-black">{Math.floor(totalTarget)}</div>
               <div className="text-lg ">Target</div>
             </div>
             <div>
-            <div className={`text-4xl font-bold ${totalActual >= totalTarget ? "text-green-600" : "text-red-600"}`}>{totalActual}</div>
+            <div className={`text-4xl font-bold text-black`}>{totalActual}</div>
               <div className="text-lg ">Actual</div>
             </div>
             
@@ -1289,43 +1308,72 @@ const refetchStateData = () => mutate(stateDataKey);
                     <TableCell colSpan={10} className="text-center text-lg text-nowrap  text-black">No data available</TableCell>
                   </TableRow>
                 ) : (
-                  hourlyData?.map((row, index) => (
+                  hourlyData?.map((row, index) => {
+                    const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"});
+                    const nowDate = new Date(now);
+                    const remainingSeconds = nowDate.getSeconds();
+                    const remainingMinutes = nowDate.getMinutes() * 60;
+                    const to_datetime = new Date( new Date(row.from_datetime).getTime() - 6 * 60 * 60 * 1000);
+                    let textAnimation = 'animate-pulse'
+                    var target_show = 0;
+                    var target_show_100 = 0;
+                    if(to_datetime < nowDate || row.target == 0){
+                      console.log('to_datetime < nowDate', to_datetime, nowDate);
+                      target_show = Math.floor(row.target_final * (oeeData?.[0]?.targetTolerance || 1));
+                      target_show_100 = row.target_final;
+                      textAnimation = ''
+                    } else {
+                      console.log('to_datetime > nowDate', to_datetime, nowDate);
+                      textAnimation = 'animate-pulse'
+                      target_show = Math.floor((row.target_final * (remainingMinutes + remainingSeconds) / 3600) * (oeeData?.[0]?.targetTolerance || 1));
+                      target_show_100 = Math.floor((row.target_final * (remainingMinutes + remainingSeconds) / 3600));
+                    }
+                    return (
                     <TableRow className={`h-[56px] ${index === (hourlyData?.length ?? 0) - 1 ? "border-b border-black" : ""}`} key={row.time}>
                       <TableCell className="h-full text-xl text-nowrap text-black">{row.time}</TableCell>
                       <TableCell className="h-full text-xl text-nowrap text-black">{row.itemNo}</TableCell>
-                      <TableCell className="text-center h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0">{row.target_tolerance.toFixed(0)}</TableCell>
-                      <TableCell className={`text-center w-[60px] h-full text-xl text-nowrap text-black ${row.actual >= row.target_tolerance ? "text-green-500" : "text-red-500"}`}>{row.actual}</TableCell>
-                      <TableCell className="relative overflow-hidden h-full">
-                      <div className="flex items-center h-full w-full">
-                        {(() => {
-                          const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.target+10), 0) || 100;
-                          return (
-                            <>
-                              <div
-                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
-                                style={{
-                                  width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
-                                  // maxWidth: "260px",
-                                }}
-                              />
-                              <div
-                                className="absolute inset-0 h-full w-[1px] border-dashed border-r-4 border-green-600"
-                                style={{
-                                  left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`, // Accurate tolerance position
-                                }}
-                              />
-                              <div
-                                className="absolute inset-0 h-full w-[1px] border-r-4 border-green-600"
-                                style={{
-                                  left: `${Math.min((row.target / maxValue) * 100, 100)}%`, // Accurate target position
-                                }}
-                              />
-                            </>
-                          );
-                        })()}
-                        {/* <span className={`relative z-10 ml-2 text-xl text-nowrap  text-black ${row.actual >= row.target_tolerance ? "text-black" : "text-white"}`}>{row.actual}</span> */}
-                      </div>
-                      </TableCell>
+                      <TableCell className={`text-center h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0 ${textAnimation}`}>{target_show}</TableCell>
+                      <TableCell className={`text-center w-[60px] h-full text-xl text-nowrap text-black ${textAnimation} ${row.actual >= target_show ? "text-green-500" : "text-red-500"}`}>{row.actual}</TableCell>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <TableCell className="relative overflow-hidden h-full">
+                            <div className="flex items-center h-full w-full">
+                              {(() => {
+                                const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.target+10), 0) || 100;
+                                return (
+                                  <>
+                                    <div
+                                      className={`absolute inset-0 h-full rounded ${textAnimation} ${getBarColor(row.actual, row.target, target_show)}`}
+                                      style={{
+                                        width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
+                                        // maxWidth: "260px",
+                                      }}
+                                    />
+                                    <div
+                                      className="absolute inset-0 h-full w-[1px] border-dashed border-r-4 border-green-600"
+                                      style={{
+                                        left: `${Math.min((target_show / maxValue) * 100, 100)}%`, // Accurate tolerance position
+                                      }}
+                                    />
+                                    <div
+                                      className="absolute inset-0 h-full w-[1px] border-r-4 border-green-600"
+                                      style={{
+                                        left: `${Math.min((target_show_100 / maxValue) * 100, 100)}%`, // Accurate target position
+                                      }}
+                                    />
+                                  </>
+                                );
+                              })()}
+                              {/* <span className={`relative z-10 ml-2 text-xl text-nowrap  text-black ${row.actual >= row.target_tolerance ? "text-black" : "text-white"}`}>{row.actual}</span> */}
+                            </div>
+                            </TableCell>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>- - - Target : {target_show}</p>
+                          <p>⸺ Target : {target_show_100}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      
                       <TableCell className={`text-xl text-nowrap  text-black ${row.delta >= 0 ? "text-green-600" : "text-red-600"} border border-r-1 border-b-0 border-l-0`}>{Math.abs(row.delta).toFixed(0)}</TableCell>
                       <TableCell className="text-center text-xl text-nowrap  text-black">{row.scrap}</TableCell>
                       <TableCell className="text-center text-xl text-nowrap  text-black">{row.rework}</TableCell>
@@ -1353,7 +1401,8 @@ const refetchStateData = () => mutate(stateDataKey);
                         </Tooltip>
                       </TableCell>
                     </TableRow>
-                  ))
+                  )
+                })
                 )}
                 {hourlyData && hourlyData.length > 0 && (
                 <TableRow className="h-12 pb-1 border-t border-black">
