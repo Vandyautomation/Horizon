@@ -1339,7 +1339,7 @@ const refetchStateData = () => mutate(stateDataKey);
                           <TableCell className="relative overflow-hidden h-full">
                             <div className="flex items-center h-full w-full">
                               {(() => {
-                                const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, item.target+10), 0) || 100;
+                                const maxValue = hourlyData?.reduce((max, item) => Math.max(max, item.actual, target_show_100*1.1), 0) || 100;
                                 return (
                                   <>
                                     <div
