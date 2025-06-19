@@ -151,7 +151,7 @@ export default function CountboardDashboard() {
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDialogConfigurationOpen, setIsDialogConfigurationOpen] = useState(false);
-  const [selectedComment, setSelectedComment] = useState({ index: -1, hourlyId: -1, type: '', content: '' });
+  const [selectedComment, setSelectedComment] = useState({ index: -1, hourlyId: -1, type: '', content: '', content2: '' });
   const [currentCVT, setCurrentCVT] = useState<number | 0>(0);
   const [isPODialogOpen, setIsPODialogOpen] = useState(false);
   const [isCVTDialogOpen, setIsCVTDialogOpen] = useState(false);
@@ -479,8 +479,8 @@ const refetchStateData = () => mutate(stateDataKey);
     }
   }
 
-  const handleCellClick = (index: number, hourlyId: number, type: 'causes' | 'comments', content: string) => {
-    setSelectedComment({ index, hourlyId, type, content });
+  const handleCellClick = (index: number, hourlyId: number, type: 'causes' | 'comments', content: string, content2: string) => {
+    setSelectedComment({ index, hourlyId, type, content, content2 });
     setIsDialogOpen(true);
   };
 
@@ -1394,7 +1394,7 @@ const refetchStateData = () => mutate(stateDataKey);
                       <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-black-250">
                       {renderNooeIndicators(row.from_datetime)}
                       </TableCell>
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)} className="w-[350px] max-w-[350px]">
+                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes, row.problem)} className="w-[350px] max-w-[350px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.problem ? row.problem + ' ' + row.causes : 'N/A'}</p>
@@ -1404,7 +1404,7 @@ const refetchStateData = () => mutate(stateDataKey);
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)} className="w-[350px] max-w-[350px]">
+                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments, row.action)} className="w-[350px] max-w-[350px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
                               <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.action ? row.action + ' ' + row.comments : 'N/A'}</p>
@@ -1470,6 +1470,12 @@ const refetchStateData = () => mutate(stateDataKey);
               value={selectedComment.content}
               onChange={(e) => setSelectedComment({ ...selectedComment, content: e.target.value })}
               placeholder={`Enter ${selectedComment.type}...`}
+              className="min-h-[100px]"
+            />
+            <Label className="text-sm text-gray-500">{selectedComment.type === 'causes' ? 'Problem' : 'Action'} dari Andon App:</Label>
+            <Textarea
+              value={selectedComment.content2}
+              disabled={true}
               className="min-h-[100px]"
             />
             <DialogFooter>
