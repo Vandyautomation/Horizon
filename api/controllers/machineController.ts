@@ -91,7 +91,7 @@ export async function getChangeState(machine_name: string, date: string | null, 
             from IoT.dbo.MchStatusTRX
             Where MchID = @machine_name
             and StatusDate < @from and Active = 1
-            order by ID DESC
+            order by StatusDate DESC
         ) as LastStatus
         `;
         return await queryDatabase(sqlQuery, {machine_name, date, shift});
@@ -116,10 +116,29 @@ export async function getChangeState(machine_name: string, date: string | null, 
         END
         ELSE IF @shift = 3
         BEGIN
-            SET @from = DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
-            SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
-        END
-    
+            -- Check current time to determine shift 3 boundaries
+            DECLARE @currentTime TIME = CAST(GETDATE() AS TIME);
+            DECLARE @currentDate DATE = CAST(GETDATE() AS DATE);
+
+            IF @currentTime >= '22:00:00'
+            BEGIN
+                -- If current time is 22:00 or later, shift 3 starts today at 22:00 and ends tomorrow at 6:00
+                SET @from = DATEADD(HOUR, 22, CAST(GETDATE() AS DATETIME));
+                SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(GETDATE() AS DATETIME)));
+            END
+            ELSE IF @currentTime < '06:00:00'
+            BEGIN
+                -- If current time is before 6:00, shift 3 started yesterday at 22:00 and ends today at 6:00
+                SET @from = DATEADD(HOUR, 22, DATEADD(DAY, -1, CAST(GETDATE() AS DATETIME)));
+                SET @to = DATEADD(HOUR, 6, CAST(GETDATE() AS DATETIME));
+            END
+            ELSE
+            BEGIN
+                -- Default case: shift 3 starts at 22:00 of the given date and ends at 6:00 of the next day
+                SET @from = DATEADD(HOUR, 22, CAST(GETDATE() AS DATETIME));
+                SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(GETDATE() AS DATETIME)));
+            END
+            END
 
         SELECT ID, StatusDate as AdjustedStatusDate, StatusLight as Color
         from IoT.dbo.MchStatusTRX with (nolock)
@@ -136,7 +155,7 @@ export async function getChangeState(machine_name: string, date: string | null, 
             from IoT.dbo.MchStatusTRX
             Where MchID = @machine_name
             and StatusDate < @from and Active = 1
-            order by ID DESC
+            order by StatusDate DESC
         ) as LastStatus
         `;
         return await queryDatabase(sqlQuery, {machine_name});
@@ -200,10 +219,10 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
         SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
         SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
     END
-    ELSE
+    ELSE IF @shift = 3
     BEGIN
         SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
-        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(@date AS date)as datetime))); -- Goes into the next day
+        SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(@date AS date)as datetime))); -- Goes into the next day fix if now
     END  
 
     SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT, d.created_at
@@ -268,8 +287,28 @@ export async function getSpindle(machine_id: string, date: string | null, shift:
         END
         ELSE IF @shift = 3
         BEGIN
-            SET @from = DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
-            SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, cast(CAST(GETDATE() AS date)as datetime))); -- Goes into the next day
+            -- Check current time to determine shift 3 boundaries
+            DECLARE @currentTime TIME = CAST(GETDATE() AS TIME);
+            DECLARE @currentDate DATE = CAST(GETDATE() AS DATE);
+
+        IF @currentTime >= '22:00:00'
+        BEGIN
+            -- If current time is 22:00 or later, shift 3 starts today at 22:00 and ends tomorrow at 6:00
+            SET @from = DATEADD(HOUR, 22, CAST(GETDATE() AS DATETIME));
+            SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(GETDATE() AS DATETIME)));
+        END
+        ELSE IF @currentTime < '06:00:00'
+        BEGIN
+            -- If current time is before 6:00, shift 3 started yesterday at 22:00 and ends today at 6:00
+            SET @from = DATEADD(HOUR, 22, DATEADD(DAY, -1, CAST(GETDATE() AS DATETIME)));
+            SET @to = DATEADD(HOUR, 6, CAST(GETDATE() AS DATETIME));
+        END
+        ELSE
+        BEGIN
+            -- Default case: shift 3 starts at 22:00 of the given date and ends at 6:00 of the next day
+            SET @from = DATEADD(HOUR, 22, CAST(GETDATE() AS DATETIME));
+            SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(GETDATE() AS DATETIME)));
+            END
         END
 
         SELECT s.SpindleSTD, d.highestCountSpindleInCurrentCycle as SpindleACT, d.created_at
