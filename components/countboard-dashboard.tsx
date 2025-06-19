@@ -1164,7 +1164,7 @@ const refetchStateData = () => mutate(stateDataKey);
               <div className="text-4xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(1)}%</div>
             </div>
             <div>
-              <div className={`text-4xl font-bold ${((oeeData?.[0]?.ooe || 0) * 100.0) > (oeeData?.[0]?.targetYearly || 0) ? "text-green-500" : "text-red-500"}`}>{((oeeData?.[0]?.ooe || 0) * 100.0).toFixed(1)}%</div>
+              <div className={`text-4xl font-bold ${((oeeData?.[0]?.ooe || 0) * 100.0) > (oeeData?.[0]?.targetTolerance || 0) * 100.0 ? "text-green-500" : "text-red-500"}`}>{((oeeData?.[0]?.ooe || 0) * 100.0).toFixed(1)}%</div>
             </div>
           </CardContent>
           {/* <div className="text-lg text-right pr-4">
