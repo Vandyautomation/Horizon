@@ -409,12 +409,31 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
             h.task_id,
             h.target_qty,
             h.actual_qty,
-            ISNULL(h.running_actual_qty,0) - ISNULL(h.running_target_qty,0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS delta,
             h.hour_id,
             h.machine_id,
             c.material_id AS itemNo,
             c.material_name AS itemDesc,
+            case
+                when (select problem from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
+                then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + problem, ', ') AS ProblemList
+                    FROM IoT.dbo.TicketTRX
+                    WHERE MchID = @machine_id
+                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime
+                    AND problem != 'MicroStop'
+                    AND problem != 'Not Given')
+                else null
+            end as problem,
             h.cause AS causes,
+            case
+                when (select actionplan from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
+                then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + actionplan, ', ') AS ActionList
+                    FROM IoT.dbo.TicketTRX
+                    WHERE MchID = @machine_id
+                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime
+                    AND problem != 'MicroStop'
+                    AND problem != 'Not Given')
+                else null
+            end as action,
             h.note AS comments,
             h.ooe,
             h.reject_a,
@@ -493,13 +512,32 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
         h.task_id,
         h.target_qty,
         h.actual_qty,
-        ISNULL(h.running_actual_qty,0) - ISNULL(h.running_target_qty,0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS delta,
         h.hour_id,
         h.machine_id,
         c.material_id AS itemNo,
         c.material_name AS itemDesc,
-        h.cause AS causes,
-        h.note AS comments,
+        case
+                when (select problem from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
+                then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + problem, ', ') AS ProblemList
+                    FROM IoT.dbo.TicketTRX
+                    WHERE MchID = @machine_id
+                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime
+                    AND problem != 'MicroStop'
+                    AND problem != 'Not Given')
+                else null
+            end as problem,
+            h.cause AS causes,
+            case
+                when (select actionplan from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
+                then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + actionplan, ', ') AS ActionList
+                    FROM IoT.dbo.TicketTRX
+                    WHERE MchID = @machine_id
+                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime
+                    AND problem != 'MicroStop'
+                    AND problem != 'Not Given')
+                else null
+            end as action,
+            h.note AS comments,
         h.ooe,
         h.reject_a,
         h.reject_b,
@@ -578,13 +616,28 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
         h.task_id,
         h.target_qty,
         h.actual_qty,
-        ISNULL(h.running_actual_qty, 0) - ISNULL(h.running_target_qty, 0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS delta,
         h.hour_id,
         h.machine_id,
         c.material_id AS itemNo,
         c.material_name AS itemDesc,
-        h.cause AS causes,
-        h.note AS comments,
+        case
+                when (select problem from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
+                then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + problem, ', ') AS ProblemList
+                    FROM IoT.dbo.TicketTRX
+                    WHERE MchID = @machine_id
+                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime)
+                else null
+            end as problem,
+            h.cause AS causes,
+            case
+                when (select actionplan from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
+                then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + actionplan, ', ') AS ActionList
+                    FROM IoT.dbo.TicketTRX
+                    WHERE MchID = @machine_id
+                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime)
+                else null
+            end as action,
+            h.note AS comments,
         h.ooe,
         h.scrap,
         h.rework
@@ -649,27 +702,31 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
             h.task_id,
             h.target_qty,
             h.actual_qty,
-            ISNULL(h.running_actual_qty, 0) - ISNULL(h.running_target_qty, 0) * (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance') AS delta,
             h.hour_id,
             h.machine_id,
             c.material_id AS itemNo,
             c.material_name AS itemDesc,
             case
-                when (select problem from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to) is not null
+                when (select problem from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
                 then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + problem, ', ') AS ProblemList
                     FROM IoT.dbo.TicketTRX
                     WHERE MchID = @machine_id
-                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime) + ' , ' + h.cause
-                else h.cause
-            end as causes,
+                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime
+                    AND problem != 'MicroStop'
+                    AND problem != 'Not Given')
+                else null
+            end as problem,
+            h.cause AS causes,
             case
-                when (select actionplan from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to) is not null
+                when (select actionplan from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
                 then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + actionplan, ', ') AS ActionList
                     FROM IoT.dbo.TicketTRX
                     WHERE MchID = @machine_id
-                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime) + ' , ' + h.note
-                else h.note
-            end as comments,
+                    AND TicketDate BETWEEN h.from_datetime AND h.to_datetime
+                    AND problem != 'MicroStop'
+                    AND problem != 'Not Given')
+                else null
+            end as action,
             h.note AS comments,
             h.ooe,
             h.scrap,

@@ -67,11 +67,12 @@ type HourlyData = {
   target_final: number;
   target_tolerance: number;
   actual: number;
-  delta: number;
   scrap: number;
   rework: number;
   causes: string;
   comments: string;
+  problem: string;
+  action: string;
 };
 
 type OoeData = {
@@ -805,7 +806,7 @@ const refetchStateData = () => mutate(stateDataKey);
       )
     ) || 0;
   }, 0) || 0;
-  const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target_tolerance || 0), 0) || 0
+  const totalGap = totalActual - totalTarget;
 
 
   if (error) return <ErrorState message="Error loading machines. Please try again later." />;
@@ -1336,6 +1337,11 @@ const refetchStateData = () => mutate(stateDataKey);
                       target_show = Math.floor((row.target_final * (remainingMinutes + remainingSeconds) / 3600) * (oeeData?.[0]?.targetTolerance || 1));
                       target_show_100 = Math.floor((row.target_final * (remainingMinutes + remainingSeconds) / 3600));
                     }
+
+                    var delta = row.actual - target_show;
+                    // if(delta < 0){
+                    //   delta = 0;
+                    // }
                     return (
                     <TableRow className={`h-[56px] ${index === (hourlyData?.length ?? 0) - 1 ? "border-b border-black" : ""}`} key={row.time}>
                       <TableCell className="h-full text-xl text-nowrap text-black">{row.time}</TableCell>
@@ -1382,7 +1388,7 @@ const refetchStateData = () => mutate(stateDataKey);
                         </TooltipContent>
                       </Tooltip>
                       
-                      <TableCell className={`text-xl text-nowrap  text-black ${row.delta >= 0 ? "text-green-600" : "text-red-600"} border border-r-1 border-b-0 border-l-0`}>{Math.abs(row.delta).toFixed(0)}</TableCell>
+                      <TableCell className={`text-xl text-nowrap  text-black ${delta >= 0 ? "text-green-600" : "text-red-600"} border border-r-1 border-b-0 border-l-0`}>{Math.abs(delta).toFixed(0)}</TableCell>
                       <TableCell className="text-center text-xl text-nowrap  text-black">{row.scrap}</TableCell>
                       <TableCell className="text-center text-xl text-nowrap  text-black">{row.rework}</TableCell>
                       <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-black-250">
@@ -1391,20 +1397,20 @@ const refetchStateData = () => mutate(stateDataKey);
                       <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)} className="w-[350px] max-w-[350px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.causes || 'N/A'}</p>
+                            <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.problem ? row.problem + ' ' + row.causes : 'N/A'}</p>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{row.causes ? row.causes : 'Click to add causes'}</p>
+                            <p>{row.problem ? row.problem + ' ' + row.causes : 'Click to add causes'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
                       <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)} className="w-[350px] max-w-[350px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.comments || 'N/A'}</p>
+                              <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.action ? row.action + ' ' + row.comments : 'N/A'}</p>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{row.comments ? row.comments : 'Click to add comments'}</p>
+                            <p>{row.action ? row.action + ' ' + row.comments : 'Click to add comments'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
@@ -1414,10 +1420,10 @@ const refetchStateData = () => mutate(stateDataKey);
                 )}
                 {hourlyData && hourlyData.length > 0 && (
                 <TableRow className="h-12 pb-1 border-t border-black">
-                  <TableCell colSpan={4}></TableCell>
+                  <TableCell colSpan={4}></TableCell> 
                   <TableCell className="w-[250px]"></TableCell>
                   <TableCell className="text-nowrap font-bold text-black">
-                      <div className={`text-xl text-nowrap font-bold ${(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(hourlyData?.reduce((acc, row) => acc + row.delta, 0) || 0).toFixed(0)}</div>
+                      <div className={`text-xl text-nowrap font-bold ${totalActual - totalTarget >=0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(totalActual - totalTarget).toFixed(0)}</div>
                   </TableCell>
                   <TableCell className=" text-nowrap font-bold text-black">
                       <div className="text-xl text-center text-nowrap font-bold text-black">{hourlyData?.reduce((acc, row) => acc + row.scrap, 0) || 0}</div>
