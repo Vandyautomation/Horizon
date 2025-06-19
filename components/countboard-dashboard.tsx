@@ -1397,20 +1397,23 @@ const refetchStateData = () => mutate(stateDataKey);
                       <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes, row.problem)} className="w-[350px] max-w-[350px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.problem ? row.problem + ' ' + row.causes : 'N/A'}</p>
+                            <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">
+                              {row.problem && row.causes ? row.problem + ' ' + row.causes : row.causes ? row.causes : row.problem ? row.problem : 'N/A'}
+                              </p>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{row.problem ? row.problem + ' ' + row.causes : 'Click to add causes'}</p>
+                            <p>{row.problem && row.causes ? row.problem + ' ' + row.causes : row.causes ? row.causes : row.problem ? row.problem : 'Click to add causes'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
                       <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments, row.action)} className="w-[350px] max-w-[350px]">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                              <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">{row.action ? row.action + ' ' + row.comments : 'N/A'}</p>
+                              <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">
+                                {row.action && row.comments ? row.action + ' ' + row.comments : row.comments ? row.comments : row.action ? row.action : 'N/A'}</p>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{row.action ? row.action + ' ' + row.comments : 'Click to add comments'}</p>
+                            <p>{row.action && row.comments ? row.action + ' ' + row.comments : row.comments ? row.comments : row.action ? row.action : 'Click to add comments'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
