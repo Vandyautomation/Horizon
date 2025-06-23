@@ -273,8 +273,9 @@ function InjectionMoldingMachine({
           style={{
             backgroundColor: statusColors[machine?.status],
             boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
+            border: machine.status === 'WHITE' ? '1px solid black' : 'none',
           }}
-          className={`bg-opacity-50 text-white p-1 rounded ${
+          className={`bg-opacity-50 ${machine.status === 'WHITE' ? 'text-black' : 'text-white'} p-1 rounded ${
             isSelected ? 'font-bold' : ''
           }`}
         >
