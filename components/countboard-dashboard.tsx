@@ -994,7 +994,7 @@ const refetchStateData = () => mutate(stateDataKey);
                       Need more access for admin ? click <Link href={`/login/?redirect=${window.location.pathname}${window.location.search}`} className="text-blue-500">here</Link> to login
                     </div>
                   )}
-                  {userData && userData?.role_name == 'admin' && (
+                  {userData && (userData?.role_name == 'admin' || userData?.role_name == 'admin_premium' || userData?.role_name == 'admin_lean') && (
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant="outline" className="w-full justify-start">
