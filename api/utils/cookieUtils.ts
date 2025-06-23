@@ -4,7 +4,8 @@ import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 export function setAuthToken(c: Context, token: string) {
   setCookie(c, 'authToken', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    // secure: process.env.NODE_ENV === 'production',
+    secure: false,
     sameSite: 'strict',
     path: '/',
   });
