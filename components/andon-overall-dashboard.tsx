@@ -47,7 +47,8 @@ interface Machine {
     | 'ORANGE'
     | 'PURPLE'
     | 'RED'
-    | 'YELLOW';
+    | 'YELLOW'
+    | 'GREY';
 }
 
 interface Building {
@@ -74,6 +75,7 @@ const statusLabels = {
   RED: "Non Quality",
   PURPLE: "Org Dysfunction",
   YELLOW: "Micro Stop",
+  GREY: "Unclassified",
 };
 
 const statusColors = {
@@ -84,6 +86,7 @@ const statusColors = {
   RED: "#ef4444",
   PURPLE: "#a855f7",
   YELLOW: "yellow",
+  GREY: "#6b7280",
 };
 
 // Group machines by building code (MchLoc)
@@ -98,7 +101,7 @@ function groupByBuilding(machines: Machine[]) {
 
 // Count statuses for a group of machines
 function countStatuses(machines: Machine[]) {
-  const statusTypes = ['GREEN', 'WHITE', 'BLUE', 'ORANGE', 'RED', 'PURPLE', 'YELLOW'];
+  const statusTypes = ['GREEN', 'WHITE', 'BLUE', 'ORANGE', 'RED', 'PURPLE', 'YELLOW', 'GREY'];
   const counts: Record<string, number> = {};
   statusTypes.forEach(status => counts[status] = 0);
   machines.forEach(m => {
@@ -371,7 +374,7 @@ export default function AndonOverallDashboard() {
           {/* ALL Machines Summary Card */}
           <div className="mb-4">
             
-            <div className="grid grid-cols-10 gap-2 mt-2">
+            <div className="grid grid-cols-11 gap-2 mt-2">
                <Card className="bg-gray-800 text-white">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -536,6 +539,28 @@ export default function AndonOverallDashboard() {
                 </CardContent>
               </Card>
 
+              <Card className="bg-gray-500 text-white cursor-pointer" onClick={() => {
+                const buildingsWithRedMachines = buildings?.filter(building => 
+                  building.machines.some(m => m.status === 'GREY')
+                );
+                if (buildingsWithRedMachines?.length) {
+                  setSelectedCard({
+                    ...buildingsWithRedMachines[0],
+                    machines: buildingsWithRedMachines.flatMap(building => 
+                      building.machines.filter(m => m.status === 'GREY')
+                    )
+                  });
+                }
+              }}>
+                <CardContent className="p-4 text-center">
+                  <div className="text-sm">Unclassified</div>
+                  <div className="text-3xl font-bold">
+                    {buildings?.reduce((acc, building) => 
+                      acc + building.machines.filter(m => m.status === 'GREY').length, 0) || 0}
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="bg-cyan-500 text-white">
                         <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OEE</div>
@@ -568,7 +593,7 @@ export default function AndonOverallDashboard() {
               
               return (
                 <div className="mb-2" key={`${building.id}-${location}`}>
-                  <div className="grid grid-cols-10 gap-2 mt-2">
+                  <div className="grid grid-cols-11 gap-2 mt-2">
                     <Card className="bg-gray-800 text-white " >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -707,6 +732,24 @@ export default function AndonOverallDashboard() {
                       <CardContent className="p-4 text-center">
                         <div className="text-sm">Non Scrap</div>
                         <div className="text-3xl font-bold">{counts['RED'] || 0}</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-gray-500 text-white cursor-pointer" onClick={() => {
+                      const buildingWithLocationGreyMachines = buildings?.find(building => 
+                        building.machines.some(m => m.MchLoc === location && m.status === 'GREY')
+                      );
+                      if (buildingWithLocationGreyMachines) {
+                        setSelectedCard({
+                          ...buildingWithLocationGreyMachines,
+                          machines: buildingWithLocationGreyMachines.machines.filter(m => 
+                            m.MchLoc === location && m.status === 'GREY'
+                          )
+                        });
+                      }
+                    }}>
+                      <CardContent className="p-4 text-center">
+                        <div className="text-sm">Unclassified</div>
+                        <div className="text-3xl font-bold">{counts['GREY'] || 0}</div>
                       </CardContent>
                     </Card>
                     <Card className="bg-cyan-500 text-white ">

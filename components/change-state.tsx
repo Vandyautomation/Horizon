@@ -86,6 +86,8 @@ export default function ChangeState({ data, isLive }: ChangeStateProps) {
         return "bg-gray-100"
       case "RED":
         return "bg-red-500"
+      case "GREY":
+        return "bg-gray-500"
       default:
         return "bg-gray-500"
     }
@@ -107,6 +109,8 @@ export default function ChangeState({ data, isLive }: ChangeStateProps) {
         return "text-primary"
       case "RED":
         return "text-red-500"
+      case "GREY":
+        return "text-gray-500"
       default:
         return "text-gray-500"
     }

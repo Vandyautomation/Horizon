@@ -52,7 +52,8 @@ interface Machine {
     | 'ORANGE'
     | 'PURPLE'
     | 'RED'
-    | 'YELLOW';
+    | 'YELLOW'
+    | 'GREY';
 }
 
 interface Building {
@@ -72,12 +73,13 @@ interface Andon {
 
 const statusColors = {
   GREEN: '#22c55e', // Green
-  WHITE: '#9ca3af', // Gray
+  WHITE: '#F5F5F5', // gray-100
   BLUE: '#3b82f6', // Blue
   ORANGE: '#ffa500', // Darker orange
   RED: '#ef4444', // Red
   PURPLE: '#a855f7', // Purple
   YELLOW: 'yellow', // Yellow
+  GREY: '#6b7280', // Grey
 };
 
 function Wall({
@@ -682,6 +684,7 @@ export default function ShopfloorDashboard() {
                      status === 'RED' ? 'NonQuality' :
                      status === 'PURPLE' ? 'OrgDisfunction' :
                      status === 'YELLOW' ? 'Microstop' :
+                     status === 'GREY' ? 'Unclassified' :
                      status}
                   </span>
                 </div>
