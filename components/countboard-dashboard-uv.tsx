@@ -28,7 +28,7 @@ import Image from 'next/image'
 import {   Box, CalendarIcon, Camera, FilePlus2, Pencil, RefreshCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { useState, useEffect, useCallback, use } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
 import { Label } from "./ui/label"
@@ -44,6 +44,7 @@ import { Switch } from "./ui/switch"
 import ChangeState from "./change-state"
 import { CameraFeed } from "./uv-scrap/camera-feed"
 import Link from "next/link"
+import { GearIcon } from "@radix-ui/react-icons"
 
 
 type MachineDetail = {
@@ -54,6 +55,7 @@ type MachineDetail = {
   machineNumber: string;
   locationId: number;
   locationName: string;
+  machineStatus: string;
 };
 
 type HourlyData = {
@@ -231,6 +233,8 @@ export default function CountboardDashboardUv() {
   const [rejectList, setRejectList] = useState<RejectList[]>([]);
   const [cameras, setCameras] = useState<Camera[]>([])
   const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null)
+  const [isDialogConfigurationOpen, setIsDialogConfigurationOpen] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
 
   const [videoSources, setVideoSources] = useState<VideoSource[]>([])
   const [deviceNames, setDeviceNames] = useState<DeviceName[]>([])
@@ -247,6 +251,20 @@ export default function CountboardDashboardUv() {
   const router = useRouter()
 
   const [shiftStartHour, setShiftStartHour] = useState(0);
+
+    const checkUser = async () => {
+    const user = localStorage.getItem("user");
+    if (user) {
+      const userData = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      const userDataJson = await userData.json();
+      setUserData(userDataJson.data.payload.user);
+      // console.log(userDataJson.data.payload.user);
+    }
+    return null;
+  }
   
   useEffect(() => {
     const now = new Date();
@@ -1074,6 +1092,94 @@ export default function CountboardDashboardUv() {
       toast.error("Failed to load initial data")
     }
   }
+    const handleSetupUtility = useCallback(
+    async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/utility`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "machineNumber": selectedMachine?.machineNumber,
+            "machineLocation": selectedMachine?.locationName,
+            "machineName": selectedMachine?.machineName,
+            "state": "ON"
+           }),
+        });
+
+        if (!response.ok) {
+          // Attempt to extract the server's error message
+          const errorData = await response.json();
+          const errorMessage = errorData.error || `Failed to Update Content`;
+  
+          throw new Error(errorMessage);
+        }
+        toast.success(`Utility state updated successfully!`);
+      } catch (error) {
+        toast.error((error as Error).message);
+        console.error(`Failed to Update utility state:`, error);
+      }
+      finally {
+        setIsLoading(false);
+      }
+      setIsDialogOpen(false);
+    },
+    [selectedMachine]
+  );
+
+  const handleTrialMachine = useCallback(
+    async () => {
+      setIsLoading(true);
+      const machineStatus = selectedMachine?.machineStatus == 'TRIAL' ? 'NORMAL' : 'TRIAL';
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/trial/${selectedMachine?.machineName}?machineStatus=${machineStatus}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.error || `Failed to Update trial machine`;
+        throw new Error(errorMessage);
+      }
+      toast.success(`Trial machine updated successfully!`);
+      setIsDialogConfigurationOpen(false);
+    } catch (error) {
+      toast.error((error as Error).message);
+      console.error(`Failed to Update trial machine:`, error);
+    }
+    finally {
+      setIsLoading(false);
+      window.location.reload();
+    }
+  }, [selectedMachine]);
+
+    const handleTAOMachine = useCallback(
+    async () => {
+      setIsLoading(true);
+      const machineStatus = selectedMachine?.machineStatus == 'TAO' ? 'NORMAL' : 'TAO';
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tao/${selectedMachine?.machineName}?machineStatus=${machineStatus}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.error || `Failed to Update TAO machine`;
+        throw new Error(errorMessage);
+      }
+      toast.success(`TAO machine updated successfully!`);
+      setIsDialogConfigurationOpen(false);
+    } catch (error) {
+      toast.error((error as Error).message);
+      console.error(`Failed to Update TAO machine:`, error);
+    }
+    finally {
+      setIsLoading(false);
+      window.location.reload();
+    }
+  }, [selectedMachine]);
 
 
   return (
@@ -1241,6 +1347,96 @@ export default function CountboardDashboardUv() {
           </Card>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={isDialogConfigurationOpen} onOpenChange={setIsDialogConfigurationOpen}>
+              <DialogTrigger asChild>
+                <Button variant={"default"} className="" onClick={() => checkUser()}><GearIcon/>Config</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Configuration Menu</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                        <GearIcon className="w-4 h-4 mr-2" />Turn ON Utility
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Warning</DialogTitle>
+                        <DialogDescription>
+                          Ini akan mengubah status utility menjadi ON pada mesin {selectedMachine?.machineDescription}. Apakah anda yakin?
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="default" onClick={() => { handleSetupUtility(); setIsDialogConfigurationOpen(false) }}>
+                          Yes
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsDialogConfigurationOpen(false)}>
+                          No
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                       <GearIcon className="w-4 h-4 mr-2" /> Set Machine into {selectedMachine?.machineStatus == 'TRIAL' ? 'Normal' : 'Trial'} from {selectedMachine?.machineStatus ? selectedMachine?.machineStatus : 'Normal'}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Warning</DialogTitle>
+                        <DialogDescription>
+                          Ini akan mengubah status mesin {selectedMachine?.machineDescription} menjadi {selectedMachine?.machineStatus == 'TRIAL' ? 'Normal' : 'Trial'}. Apakah anda yakin?
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="default" onClick={() => { handleTrialMachine(); setIsDialogConfigurationOpen(false) }}>
+                          Yes
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsDialogConfigurationOpen(false)}>
+                          No
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                  {!userData && (
+                    <div className="text-sm text-gray-500">
+                      Need more access for admin ? click <Link href={`/login/?redirect=${window.location.pathname}${window.location.search}`} className="text-blue-500">here</Link> to login
+                    </div>
+                  )}
+                  {userData && (userData?.role_name == 'admin' || userData?.role_name == 'admin_premium' || userData?.role_name == 'admin_lean') && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                       <GearIcon className="w-4 h-4 mr-2" /> Set Machine into {selectedMachine?.machineStatus == 'TAO' ? 'Normal' : 'TAO'} from {selectedMachine?.machineStatus ? selectedMachine?.machineStatus : 'Normal'}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Warning</DialogTitle>
+                        <DialogDescription>
+                          Ini akan mengubah status mesin {selectedMachine?.machineDescription} menjadi {selectedMachine?.machineStatus == 'TAO' ? 'Normal' : 'TAO'}. Apakah anda yakin?
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="default" onClick={() => { handleTAOMachine(); setIsDialogConfigurationOpen(false) }}>
+                          Yes
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsDialogConfigurationOpen(false)}>
+                          No
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
 
       </div>
       {selectedMachine === null && isLoading == false ? (
