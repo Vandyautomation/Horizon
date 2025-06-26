@@ -572,7 +572,7 @@ export default function AndonOverallDashboard() {
                       </Card>
                       
                       <Card className="bg-cyan-600 text-white">
-                        <CardContent className="p-2 text-center pb-0">
+                        <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OOE</div>
                           <div className="text-3xl font-bold">{buildings?.length ? ((buildings.reduce((acc, building) => acc + building.ooe, 0) || 0) / buildings.length * 100).toFixed(2) : '0'}%</div>
                           <div className="text-xs text-white ">
