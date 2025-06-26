@@ -13,6 +13,7 @@ import qcoRouter from './qco';
 import detectionRouter from './detection';
 import cooisDataRouter from './cooisDataRoutes';
 import routingDataRouter from './routingDataRoutes';
+import parameterSettingDataRouter from './parameterSettingDataRoutes';
 
 
 
@@ -34,6 +35,7 @@ router.route('/qco/api', qcoRouter);
 router.route('/detection/api', detectionRouter);
 router.route('/coois-data', cooisDataRouter);
 router.route('/routing-data', routingDataRouter);
+router.route('/parameter-setting', parameterSettingDataRouter);
 
 
 

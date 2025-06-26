@@ -168,25 +168,83 @@ machineRoutes.post('/', async (c) => {
 machineRoutes.post('/trial/:machineId', async (c) => {
   const { machineId } = c.req.param();
   const machineStatus = c.req.query('machineStatus');
+  const machineLocation = c.req.query('machineLocation');
+  const machineNumber = c.req.query('machineNumber');
   let data;
   if (machineStatus == 'TRIAL') {
     data = await makeMachineGrey(machineId);
+    const updateUns = await fetch(`http://dmksrv02:443/nodered1/api/update/uns/andon`, {
+      method: "POST",
+      body: JSON.stringify({
+        colorProblem: 'GREY',
+        MchID: machineId,
+        MchLoc: machineLocation,
+        MchNumber: machineNumber
+      })
+    });
+    if (updateUns.status === 200) {
+      return c.json({ message: 'Data added successfully' });
+    } else {
+      return c.json({ error: 'Failed to update UNS' }, 500);
+    }
   } else {
     data = await removeOverride(machineId);
+    const updateUns = await fetch(`http://dmksrv02:443/nodered1/api/update/uns/andon`, {
+      method: "POST",
+      body: JSON.stringify({
+        colorProblem: data[0].statusLightBefore,
+        MchID: machineId,
+        MchLoc: machineLocation,
+        MchNumber: machineNumber
+      })
+    });
+    if (updateUns.status === 200) {
+      return c.json({ message: 'Data added successfully' });
+    } else {
+      return c.json({ error: 'Failed to update UNS' }, 500);
+    }
   }
-  return c.json(data);
 });
 
 machineRoutes.post('/tao/:machineId', async (c) => {
   const { machineId } = c.req.param();
   const machineStatus = c.req.query('machineStatus');
+  const machineLocation = c.req.query('machineLocation');
+  const machineNumber = c.req.query('machineNumber');
   let data;
   if (machineStatus == 'TAO') {
     data = await makeMachineTAO(machineId);
+    const updateUns = await fetch(`http://dmksrv02:443/nodered1/api/update/uns/andon`, {
+      method: "POST",
+      body: JSON.stringify({
+        colorProblem: 'WHITE',
+        MchID: machineId,
+        MchLoc: machineLocation,
+        MchNumber: machineNumber
+      })
+    });
+    if (updateUns.status === 200) {
+      return c.json({ message: 'Data added successfully' });
+    } else {
+      return c.json({ error: 'Failed to update UNS' }, 500);
+    }
   } else {
     data = await removeOverrideTAO(machineId);
+    const updateUns = await fetch(`http://dmksrv02:443/nodered1/api/update/uns/andon`, {
+      method: "POST",
+      body: JSON.stringify({
+        colorProblem: data[0].statusLightBefore,
+        MchID: machineId,
+        MchLoc: machineLocation,
+        MchNumber: machineNumber
+      })
+    });
+    if (updateUns.status === 200) {
+      return c.json({ message: 'Data added successfully' });
+    } else {
+      return c.json({ error: 'Failed to update UNS' }, 500);
+    }
   }
-  return c.json(data);
 });
 
 export default machineRoutes;

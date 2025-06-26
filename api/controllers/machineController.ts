@@ -2150,10 +2150,16 @@ export async function removeOverrideTAO(machineId: string) {
 
 export async function removeOverride(machineId: string) {
     const sqlQuery = `
+    DECLARE @statusLightBefore VARCHAR(50);
+
+    SET @statusLightBefore = (select top 1 StatusLight from IoT.dbo.MchStatusTRX where MchID = @machineId  and Active = 1 and StatusLight != 'GREY' order by ID desc);
+
     UPDATE IoT.dbo.MachineMST SET is_override = 0, MchStatus = NULL WHERE MchID = @machineId;
 
     INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
-    VALUES (@machineId, GETDATE(), (select top 1 StatusLight from IoT.dbo.MchStatusTRX where MchID = @machineId  and Active = 1 and StatusLight != 'GREY' order by ID desc), 1);
+    VALUES (@machineId, GETDATE(), @statusLightBefore, 1);
+
+    SELECT @statusLightBefore as statusLightBefore;
   `;
     return await queryDatabase(sqlQuery, { machineId });
 }

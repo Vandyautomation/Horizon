@@ -273,8 +273,21 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
-          {/* Continue with the same pattern for all other conditions */}
-          {/* I've shown the pattern - you would replace all the other breadcrumb items in the same way */}
+          {currentSubPage === 'parameter-setting'  && !currentSubSubPage && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data', 'Master Data')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data/parameter-setting', 'Parameter Setting', true)}
+              </BreadcrumbItem>
+            </>
+          )}
 
           {/* Example for a nested route */}
           {currentSubPage === 'coois'  && !currentSubSubPage && (
