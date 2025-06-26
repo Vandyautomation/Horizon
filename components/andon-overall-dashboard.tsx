@@ -531,7 +531,7 @@ export default function AndonOverallDashboard() {
                 }
               }}>
                 <CardContent className="p-4 text-center">
-                  <div className="text-sm">Non Scrap</div>
+                  <div className="text-sm">Non Quality</div>
                   <div className="text-3xl font-bold">
                     {buildings?.reduce((acc, building) => 
                       acc + building.machines.filter(m => m.status === 'RED').length, 0) || 0}
@@ -730,7 +730,7 @@ export default function AndonOverallDashboard() {
                       }
                     }}>
                       <CardContent className="p-4 text-center">
-                        <div className="text-sm">Non Scrap</div>
+                        <div className="text-sm">Non Quality</div>
                         <div className="text-3xl font-bold">{counts['RED'] || 0}</div>
                       </CardContent>
                     </Card>

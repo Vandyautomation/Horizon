@@ -535,7 +535,7 @@ export default function AndonOverallDashboard() {
                 }
               }}>
                 <CardContent className="p-4 text-center">
-                  <div className="text-sm">Non Scrap <p className="text-xs">({((buildings?.reduce((acc, building) => 
+                  <div className="text-sm">Non Quality <p className="text-xs">({((buildings?.reduce((acc, building) => 
                       acc + building.machines.filter(m => m.status === 'RED').length, 0) || 0) / 
                     (buildings?.reduce((acc, building) => 
                       acc + building.machines.length, 0) || 1) * 100).toFixed(2)}%)</p></div>
@@ -736,7 +736,7 @@ export default function AndonOverallDashboard() {
                       }
                     }}>
                       <CardContent className="p-4 text-center">
-                        <div className="text-sm">Non Scrap <p className="text-xs">({((counts['RED'] || 0) / (machines.length || 1) * 100).toFixed(2)}%)</p></div>
+                        <div className="text-sm">Non Quality <p className="text-xs">({((counts['RED'] || 0) / (machines.length || 1) * 100).toFixed(2)}%)</p></div>
                         <div className="text-3xl font-bold">{counts['RED'] || 0}</div>
                       </CardContent>
                     </Card>
