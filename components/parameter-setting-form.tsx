@@ -131,7 +131,7 @@ export function ParameterSettingForm() {
                             <Label>Name</Label>
                             <Input type="text" value={addData.name} onChange={(e) => setAddData({ ...addData, name: e.target.value })} />
                             <Label>Value</Label>
-                            <Input type="number" value={addData.value} onChange={(e) => setAddData({ ...addData, value: parseInt(e.target.value) })} />
+                            <Input type="decimal" step={0.1} value={addData.value} onChange={(e) => setAddData({ ...addData, value: parseFloat(e.target.value) })} />
                             <Label>UOM</Label>
                             <Input type="text" value={addData.uom} onChange={(e) => setAddData({ ...addData, uom: e.target.value })} />
                         </div>
@@ -186,7 +186,7 @@ export function ParameterSettingForm() {
                                                     <Label>Name</Label>
                                                     <Input type="text" value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} />
                                                     <Label>Value</Label>
-                                                    <Input type="number" value={editData.value} onChange={(e) => setEditData({ ...editData, value: parseInt(e.target.value) })} />
+                                                    <Input type="decimal" step={0.1} value={editData.value} onChange={(e) => setEditData({ ...editData, value: parseFloat(e.target.value) })} />
                                                     <Label>UOM</Label>
                                                     <Input type="text" value={editData.uom} onChange={(e) => setEditData({ ...editData, uom: e.target.value })} />
                                                 </div>
