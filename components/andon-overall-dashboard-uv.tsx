@@ -230,6 +230,12 @@ export default function AndonOverallDashboard() {
                 status: statusLight,
                 timestamp: matchingAndon.timestamp,
               };
+            } else {
+              return {
+                ...machine,
+                status: 'GREY',
+                timestamp: '1970-01-01T00:00:00.000Z',
+              };
             }
           }
           return machine;
@@ -253,7 +259,7 @@ export default function AndonOverallDashboard() {
       // Only set if there's an actual change to prevent infinite loops
       if (JSON.stringify(updatedSelectedBuilding) !== JSON.stringify(selectedBuilding)) {
         setSelectedMachine(null); // Reset selected machine when building updates
-        setSelectedBuilding(updatedSelectedBuilding);
+        setSelectedBuilding(updatedSelectedBuilding as Building | null);
         // console.log("Selected building updated:", updatedSelectedBuilding);
       }
     }
@@ -852,13 +858,18 @@ export default function AndonOverallDashboard() {
                                 const diffMs = now.getTime() - timestamp.getTime();
                                 const diffMins = Math.floor(diffMs / 60000);
                                 const diffHours = Math.floor(diffMins / 60);
-                                
+                                const diffDays = Math.floor(diffHours / 24);
                                 if (diffMins < 60) {
                                   return `${diffMins} minutes ago`;
                                 } else if (diffHours < 24) {
                                   const remainingMins = diffMins % 60;
                                   return `${diffHours} hour${diffHours > 1 ? 's' : ''} ${remainingMins > 0 ? remainingMins + ' minutes' : ''} ago`;
-                                } else {
+                                } else if (diffDays < 30) {
+                                  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                                } else if (machine.timestamp === '1970-01-01T00:00:00.000Z') {
+                                  return 'Never';
+                                }
+                                else {
                                   return timestamp.toLocaleString();
                                 }
                               })()
