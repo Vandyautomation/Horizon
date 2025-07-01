@@ -189,7 +189,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
-          {currentPage === 'ems' && (
+          {currentPage === 'ems' && !currentSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -198,8 +198,30 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('ems', 'EMS', true)}
               </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('ems/overall', 'Overall', false)}
+              </BreadcrumbItem>
             </>
           )}
+
+          {currentPage === 'ems' && currentSubPage === 'overall' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('ems', 'EMS', false)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('ems/overall', 'Overall', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+
+
 
           {currentPage === 'detection' && (
             <>
