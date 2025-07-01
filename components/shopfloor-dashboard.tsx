@@ -537,6 +537,12 @@ export default function ShopfloorDashboard() {
                 status: statusLight
               };
             }
+          } else {
+            return {
+              ...machine,
+              status: 'GREY',
+              timestamp: '1970-01-01T00:00:00.000Z',
+            };
           }
           return machine;
         });
@@ -560,7 +566,7 @@ export default function ShopfloorDashboard() {
       // Only set if there's an actual change to prevent infinite loops
       if (JSON.stringify(updatedSelectedBuilding) !== JSON.stringify(selectedBuilding)) {
         setSelectedMachine(null); // Reset selected machine when building updates
-        setSelectedBuilding(updatedSelectedBuilding);
+        setSelectedBuilding(updatedSelectedBuilding as Building | null);
         // console.log("Selected building updated:", updatedSelectedBuilding);
       }
     }
