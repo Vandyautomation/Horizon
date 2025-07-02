@@ -746,7 +746,7 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
             c.material_id AS itemNo,
             c.material_name AS itemDesc,
             case
-                when (select problem from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
+                when (select top 1 problem from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
                 then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + problem, ', ') AS ProblemList
                     FROM IoT.dbo.TicketTRX
                     WHERE MchID = @machine_id
@@ -757,7 +757,7 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
             end as problem,
             h.cause AS causes,
             case
-                when (select actionplan from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
+                when (select top 1 actionplan from IoT.dbo.TicketTRX where MchID = @machine_id and TicketDate between @from and @to and problem != 'MicroStop' and problem != 'Not Given') is not null
                 then (SELECT STRING_AGG(FORMAT(ticketDate, 'HH:mm') + ' ' + actionplan, ', ') AS ActionList
                     FROM IoT.dbo.TicketTRX
                     WHERE MchID = @machine_id
