@@ -311,6 +311,23 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
+          {currentSubPage === 'problem-master'  && !currentSubSubPage && (
+
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data', 'Master Data')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data/problem-master', 'Problem Master', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+
           {/* Example for a nested route */}
           {currentSubPage === 'coois'  && !currentSubSubPage && (
             <>

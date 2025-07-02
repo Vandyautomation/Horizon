@@ -12,7 +12,7 @@ export default function MasterData() {
   
 
   return (
-    <div className="h-1/2 grid grid-cols-3 p-4 gap-4 ">
+    <div className="h-1/2 grid grid-cols-2 p-4 gap-4 ">
     <Card className="flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer" onClick={() => {router.push("/master-data/coois")}}>
         <CardContent
             className="text-center"
@@ -33,6 +33,13 @@ export default function MasterData() {
             className="text-center"
         >
             <Label style={{  fontSize:"1.5rem", cursor:"pointer", fontFamily:"sans-serif", fontWeight:"bold"}}>PARAMETER SETTING</Label>
+        </CardContent>
+    </Card>
+    <Card className="flex items-center justify-center  hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer" onClick={() => {router.push("/master-data/problem-master")}}>
+        <CardContent
+            className="text-center"
+        >
+            <Label style={{  fontSize:"1.5rem", cursor:"pointer", fontFamily:"sans-serif", fontWeight:"bold"}}>PROBLEM MASTER</Label>
         </CardContent>
     </Card>
     </div>
