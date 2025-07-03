@@ -104,6 +104,28 @@ cameraRoutes.post('/restart', async (c) => {
     }
 })
 
+cameraRoutes.post('/hold', async (c) => {
+    try {
+        let { camera_id } = await c.req.json();
+
+        await fetch(`${process.env.NEXT_PUBLIC_BACKEND_PYTHON}/api/camera/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'hold',
+                camera: {
+                    id: Number(camera_id),
+                }
+            })
+        })
+        return c.json({ success: true, message: 'Success hold camera' }, 200);
+    } catch (error) {
+        return c.json({ success: false, message: (error as Error).message }, 500);
+    }
+})
+
 cameraRoutes.put('/:id', async (c) => {
     try {
         const { id } = c.req.param();

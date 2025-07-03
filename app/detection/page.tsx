@@ -26,7 +26,7 @@ interface Camera {
   is_active: boolean
   is_paused: boolean
   threshold: number
-  status: 'running' | 'paused' | 'error' | 'stopped'
+  status: 'running' | 'paused' | 'error' | 'stopped' | 'hold'
 }
 
 interface VideoSource {
@@ -338,6 +338,43 @@ export default function UvScrap() {
     return () => clearTimeout(timer)
   }, [isRestarting])
 
+  const handleHoldCamera = async (id: string) => {
+    const camera = cameras.find((c) => c.id === id)
+    if (!camera) return
+
+    try {
+      const response = await fetch(`${pythonUrl}/api/cameras/hold`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          camera_id: id,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success(`Camera held successfully`)
+        loadInitialData()
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      toast.error(`Failed to hold camera: ${error}`)
+    }
+  }
+
+  const [isHolding, setIsHolding] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isHolding) {
+        setIsHolding(false)
+      }
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [isHolding])
   return (
     <div className="container w-full p-4 space-y-4">
       <Tabs defaultValue="cameras" className="w-full">
@@ -431,13 +468,8 @@ export default function UvScrap() {
                         <TableCell onClick={() => setSelectedCamera(camera)}>{deviceNames.find(device => device.value == camera.device_name)?.name || camera.device_name}</TableCell>
                         <TableCell>
                           <Badge variant={camera.is_active ? "default" : "destructive"}>
-                            {camera.is_active ? "Active" : "Inactive"}
+                            {camera.status}
                           </Badge>
-                          {camera.is_paused && (
-                            <Badge variant="secondary" className="ml-2">
-                              Paused
-                            </Badge>
-                          )}
                         </TableCell>
                         <TableCell className="space-x-2">
                           <Button
@@ -469,6 +501,16 @@ export default function UvScrap() {
                           >
                             <RotateCw className={`w-4 h-4 ${isRestarting ? 'animate-spin' : ''}`} />
                           </Button>
+                          {camera.status != 'hold' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {handleHoldCamera(camera.id);  }}
+                            disabled={isHolding}
+                          >
+                            <Pause className="w-4 h-4" />
+                          </Button>
+                          )}
                         </TableCell>
                       </TableRow>
 

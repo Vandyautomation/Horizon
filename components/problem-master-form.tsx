@@ -192,7 +192,7 @@ export function ProblemMasterForm() {
                                     Previous
                                 </Button>
                                 <span className="text-muted-foreground">
-                                    Page {pageProblemGroup} of {totalPagesProblemGroup}
+                                    Pa?NNge {pageProblemGroup} of {totalPagesProblemGroup}
                                 </span>
                                 <Button 
                                     variant="outline" 

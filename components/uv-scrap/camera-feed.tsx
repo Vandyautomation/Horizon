@@ -9,7 +9,7 @@ import { RotateCcw, RotateCw } from "lucide-react"
 interface CameraFeedProps {
   id: string
   name: string
-  status: 'running' | 'paused' | 'error' | 'stopped',
+  status: 'running' | 'paused' | 'error' | 'stopped' | 'hold',
   onClick: () => void,
   camerasVisible: boolean,
   onRestart: () => void
@@ -20,7 +20,8 @@ export function CameraFeed({ id, name, status, onClick, camerasVisible, onRestar
     running: 'bg-green-500',
     paused: 'bg-yellow-500',
     error: 'bg-red-300',
-    stopped: 'bg-gray-500'
+    stopped: 'bg-gray-500',
+    hold: 'bg-gray-500'
   }
 
   const [imageData, setImageData] = useState<string | null>(null);
