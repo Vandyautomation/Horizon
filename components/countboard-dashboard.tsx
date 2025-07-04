@@ -617,7 +617,7 @@ const refetchStateData = () => mutate(stateDataKey);
       setIsLoading(true);
       const machineStatus = selectedMachine?.machineStatus == 'TRIAL' ? 'NORMAL' : 'TRIAL';
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/trial/${selectedMachine?.machineName}?machineStatus=${machineStatus}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/trial/${selectedMachine?.machineName}?machineStatus=${machineStatus}&machineLocation=${selectedMachine?.locationName}&machineNumber=${selectedMachine?.machineNumber}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -644,7 +644,7 @@ const refetchStateData = () => mutate(stateDataKey);
       setIsLoading(true);
       const machineStatus = selectedMachine?.machineStatus == 'TAO' ? 'NORMAL' : 'TAO';
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tao/${selectedMachine?.machineName}?machineStatus=${machineStatus}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tao/${selectedMachine?.machineName}?machineStatus=${machineStatus}&machineLocation=${selectedMachine?.locationName}&machineNumber=${selectedMachine?.machineNumber}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

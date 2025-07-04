@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useEffect, useState } from "react"
 
 type ProblemGroup = {
     id: string
@@ -90,6 +91,32 @@ export function ProblemMasterForm() {
 
     const [trigger, setTrigger] = React.useState(false)
     const [filter, setFilter] = React.useState("")
+    const [userData, setUserData] = React.useState<any>(null)
+
+    const checkUser = async () => {
+      const user = localStorage.getItem("user");
+      if (user) {
+        try {
+          const userData = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          });
+          const userDataJson = await userData.json();
+          setUserData(userDataJson.data.payload.user);
+        } catch (error) {
+          console.error("Error checking user:", error);
+          setUserData(null);
+        }
+      } else {
+        setUserData(null);
+      }
+      return null;
+    }
+
+    useEffect(() => {
+      checkUser();
+    }, []);
+
 
     React.useEffect(() => {
         const fetchProblemGroupData = async () => {
