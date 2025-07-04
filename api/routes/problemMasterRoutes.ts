@@ -22,8 +22,11 @@ problemMasterDataRouter.get('/problem-group', async (c) => {
   try {
     const name = c.req.query('name');
     const page = parseInt(c.req.query('page') || '1');
-
-    const data = await getProblemGroup(name, page);
+    let pic = c.req.query('pic');
+    if (pic === 'ALL') {
+      pic = undefined;
+    }
+    const data = await getProblemGroup(name, page, pic);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
@@ -74,7 +77,11 @@ problemMasterDataRouter.get('/problem', async (c) => {
     const groupId = c.req.query('groupId');
     const page = parseInt(c.req.query('page') || '1');
     const filter = c.req.query('filter');
-    const data = await getProblem(name, groupId, page, filter);
+    let pic = c.req.query('pic');
+    if (pic === 'ALL') {
+      pic = undefined;
+    }
+    const data = await getProblem(name, groupId, page, filter, pic);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
@@ -124,8 +131,11 @@ problemMasterDataRouter.get('/todo', async (c) => {
     const name = c.req.query('name');
     const problemId = c.req.query('problemId');
     const page = parseInt(c.req.query('page') || '1');
-
-    const data = await getTodo(name, problemId, page);
+    let pic = c.req.query('pic');
+    if (pic === 'ALL') {
+      pic = undefined;
+    }
+    const data = await getTodo(name, problemId, page, pic);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);

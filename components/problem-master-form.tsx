@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
 type ProblemGroup = {
     id: string
@@ -92,6 +93,8 @@ export function ProblemMasterForm() {
     const [trigger, setTrigger] = React.useState(false)
     const [filter, setFilter] = React.useState("")
     const [userData, setUserData] = React.useState<any>(null)
+    const [picFilter, setPicFilter] = React.useState("")
+    const router = useRouter()
 
     const checkUser = async () => {
       const user = localStorage.getItem("user");
@@ -103,12 +106,18 @@ export function ProblemMasterForm() {
           });
           const userDataJson = await userData.json();
           setUserData(userDataJson.data.payload.user);
+          if (userDataJson.data.payload.user.role_name !== "admin" && userDataJson.data.payload.user.role_name !== "master_data_admin") {
+            toast.error("You are not authorized to access this page")
+            router.push("/")
+          }
         } catch (error) {
           console.error("Error checking user:", error);
           setUserData(null);
         }
       } else {
         setUserData(null);
+        toast.error("You are not logged in")
+        router.push("/")
       }
       return null;
     }
@@ -122,7 +131,7 @@ export function ProblemMasterForm() {
         const fetchProblemGroupData = async () => {
             try {
                 setLoadingProblemGroup(true)
-                const response = await fetch(`/be/api/problem-master/problem-group?name=${searchTermProblemGroup}&page=${pageProblemGroup}`)
+                const response = await fetch(`/be/api/problem-master/problem-group?name=${searchTermProblemGroup}&page=${pageProblemGroup}&pic=${picFilter}`)
                 const data = await response.json()
                 setProblemGroupData(data.data)
                 setTotalPagesProblemGroup(data.totalPages)
@@ -137,13 +146,13 @@ export function ProblemMasterForm() {
         
 
         fetchProblemGroupData()
-    }, [searchTermProblemGroup, searchDate, pageProblemGroup])
+    }, [searchTermProblemGroup, searchDate, pageProblemGroup, picFilter])
 
     React.useEffect(() => {
         const fetchProblemData = async () => {
             try {
                 setLoadingProblem(true)
-                const response = await fetch(`/be/api/problem-master/problem?name=${searchTermProblem}&groupId=${groupId}&page=${pageProblem}&filter=${filter}`)
+                const response = await fetch(`/be/api/problem-master/problem?name=${searchTermProblem}&groupId=${groupId}&page=${pageProblem}&filter=${filter}&pic=${picFilter}`)
                 const data = await response.json()
                 setProblemData(data.data)
                 setTotalPagesProblem(data.totalPages)
@@ -157,13 +166,13 @@ export function ProblemMasterForm() {
         }
 
         fetchProblemData()
-    }, [searchTermProblem, trigger, searchDate, pageProblem, filter])
+    }, [searchTermProblem, trigger, searchDate, pageProblem, filter, picFilter])
 
     React.useEffect(() => {
         const fetchTodoData = async () => {
             try {
                 setLoadingTodo(true)
-                const response = await fetch(`/be/api/problem-master/todo?name=${searchTermTodo}&problemId=${problemId}&page=${pageTodo}`)
+                const response = await fetch(`/be/api/problem-master/todo?name=${searchTermTodo}&problemId=${problemId}&page=${pageTodo}&pic=${picFilter}`)
                 const data = await response.json()
                 setTodoData(data.data)
                 setTotalPagesTodo(data.totalPages)
@@ -177,7 +186,7 @@ export function ProblemMasterForm() {
         }
 
         fetchTodoData()
-    }, [searchTermTodo, problemId, searchDate, pageTodo])
+    }, [searchTermTodo, problemId, searchDate, pageTodo, picFilter])
 
     const handleDeleteTodo = async () => {
         try {
@@ -355,12 +364,12 @@ export function ProblemMasterForm() {
             })
             const data = await response.json()
             if (response.ok) {
-                toast.success(data.message)
+                toast.success(data.message || 'Problem group deleted successfully')
                 setGroupId("")
                 setPageProblemGroup(1)
                 window.location.reload()
             } else {
-                toast.error(data.message)
+                toast.error(data.error || 'Error deleting problem group')
             }
         } catch (error) {
             toast.error('Error deleting problem group')
@@ -502,6 +511,7 @@ export function ProblemMasterForm() {
                         Manage problem groups, problems, and todos
                     </p>
                 </div>
+                <div className="flex items-center gap-2">
                 <Button 
                     variant="outline" 
                     onClick={() => window.location.reload()}
@@ -510,6 +520,21 @@ export function ProblemMasterForm() {
                     <RefreshCcwIcon className="w-4 h-4 mr-2" />
                     Refresh
                 </Button>
+                <Label className="text-md font-medium text-primary text-nowrap">Simulasi PIC :</Label>
+                <Select value={picFilter} onValueChange={(value) => {setPicFilter(value)}}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select PIC" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL">ALL</SelectItem>
+                        <SelectItem value="SPV PRODUCTION">SPV PRODUCTION</SelectItem>
+                        <SelectItem value="MEKANIK">MEKANIK</SelectItem>
+                        <SelectItem value="OPERATOR BAHAN">OPERATOR BAHAN</SelectItem>
+                        <SelectItem value="MAINTENANCE">MAINTENANCE</SelectItem>
+                        <SelectItem value="MOLD">MOLD</SelectItem>
+                    </SelectContent>
+                </Select>
+                </div>
             </div>
             <div className="space-y-6">
                 {/* Summary Cards */}
@@ -747,7 +772,7 @@ export function ProblemMasterForm() {
                                                 setAddProblemData({
                                                     id: "",
                                                     name: "",
-                                                    problem_group_id: "",
+                                                    problem_group_id: groupId || "",
                                                     color: "",
                                                     process: ""
                                                 })
@@ -1139,8 +1164,8 @@ export function ProblemMasterForm() {
                         <DialogTrigger asChild>
                             <Button variant="default"  onClick={() => {
                                 setAddData({
-                                    problem_group: {id: "", name: ""},
-                                    problem: {id: "", name: "", problem_group_id: "", color: "", process: ""},
+                                    problem_group: {id: groupId || "", name: problemGroupData.find((item) => item.id === groupId)?.name || ""},
+                                    problem: {id: problemId||"", name: problemData.find((item) => item.id === problemId)?.name || "", problem_group_id: groupId || "", color: problemData.find((item) => item.id === problemId)?.color || "", process: problemData.find((item) => item.id === problemId)?.process || ""},
                                     todo: {id: "", name: "", problem_id: "", pic: "", is_escalated: false}
                                 })
                             }}>
@@ -1276,32 +1301,6 @@ export function ProblemMasterForm() {
                         <>
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button variant="destructive" >
-                                <TrashIcon className="w-4 h-4" />
-                                Delete
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Delete Problem & Todo</DialogTitle>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
-                                    <Label>Are you sure you want to delete this problem & todo?</Label>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button variant="destructive" size="lg" onClick={() => {setTodoId(""); setPageTodo(1); handleDeleteTodo()}}>
-                                    Delete
-                                </Button>
-                                <Button variant="outline" size="lg" onClick={() => {setTodoId(""); setPageTodo(1)}}>
-                                    Cancel
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                    <Dialog>
-                        <DialogTrigger asChild>
                             <Button variant="default" onClick={() => {
                                 setEditData({
                                     problem_group: problemGroupData.find((item) => item.id === problemData.find((item) => item.id === todoData.find((item) => item.id === todoId)?.problem_id)?.problem_group_id)!,
@@ -1435,6 +1434,32 @@ export function ProblemMasterForm() {
                             <DialogFooter>
                                 <Button variant="default" size="lg" onClick={() => {handleEditTodo()}}> 
                                     Save
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="destructive" >
+                                <TrashIcon className="w-4 h-4" />
+                                Delete
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Delete Problem & Todo</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid gap-2">
+                                    <Label>Are you sure you want to delete this problem & todo?</Label>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="destructive" size="lg" onClick={() => {setTodoId(""); setPageTodo(1); handleDeleteTodo()}}>
+                                    Delete
+                                </Button>
+                                <Button variant="outline" size="lg" onClick={() => {setTodoId(""); setPageTodo(1)}}>
+                                    Cancel
                                 </Button>
                             </DialogFooter>
                         </DialogContent>

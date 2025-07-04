@@ -1,18 +1,24 @@
 import { queryDatabase } from '../utils/queryDatabase';
 
-export async function getProblemGroup(name: string | undefined, page: number) {
+export async function getProblemGroup(name: string | undefined, page: number, pic: string | undefined) {
     const offset = (page - 1) * 15;
-    const whereClause = name ? `WHERE name like '%'+ @name + '%'` : '';
-    const totalItems = await queryDatabase(`SELECT COUNT(*) as count FROM IoT.dbo.problem_problem_group ${whereClause}`, { name });
+    const picClause = pic ? `LEFT JOIN IoT.dbo.problem_problem p on pg.id = p.problem_group_id LEFT JOIN IoT.dbo.problem_todo pt on p.id = pt.problem_id` : '';
+    const whereClause = name && pic ? `WHERE pg.name like '%'+ @name + '%' and pt.pic = @pic` : name && !pic ? `WHERE pg.name like '%'+ @name + '%'` : !name && pic ? `WHERE pt.pic = @pic` : '';
+
+    const countQuery = `SELECT COUNT(DISTINCT pg.id) as count FROM IoT.dbo.problem_problem_group pg ${picClause} ${whereClause}`;
+    const totalItems = await queryDatabase(countQuery, { name, pic });
     const totalPages = Math.ceil(totalItems[0].count / 15);
+
     const sqlQuery = `
-    SELECT * FROM IoT.dbo.problem_problem_group 
+    SELECT pg.* FROM IoT.dbo.problem_problem_group pg
+    ${picClause}
     ${whereClause}
-    ORDER BY id asc
+    GROUP BY pg.id, pg.name
+    ORDER BY pg.id asc
     OFFSET ${offset} ROWS FETCH NEXT 15 ROWS ONLY
-  `;
+    `;
     try {
-        const data = await queryDatabase(sqlQuery, { name });
+        const data = await queryDatabase(sqlQuery, { name, pic });
         return {
             data,
             totalPages,
@@ -60,7 +66,7 @@ export async function deleteProblemGroup(id: string) {
         const result = await queryDatabase(checkQuery, { id });
 
         if (result[0].count > 0) {
-            throw new Error('Cannot delete problem group. There are problems associated with this group.');
+            throw new Error('Hapus semua problem terlebih dahulu');
         }
 
         const sqlQuery = `DELETE FROM IoT.dbo.problem_problem_group WHERE id = @id`;
@@ -72,23 +78,52 @@ export async function deleteProblemGroup(id: string) {
     }
 }
 
-export async function getProblem(name: string | undefined, groupId: string | undefined, page: number, filter: string | undefined) {
+export async function getProblem(name: string | undefined, groupId: string | undefined, page: number, filter: string | undefined, pic: string | undefined) {
     const offset = (page - 1) * 15;
-    const whereClause = name ? `WHERE name like '%'+ @name + '%'` : '';
-    const groupClause = name && groupId ? `and problem_group_id = @groupId` : !name && groupId ? `where problem_group_id = @groupId` : '';
-    const filterClause = filter && name ? `and process = @filter` : filter && !name ? `where process = @filter` : '';
-    const totalItems = await queryDatabase(`SELECT COUNT(*) as count FROM IoT.dbo.problem_problem ${whereClause} ${groupClause} ${filterClause}`, { name, groupId, filter });
+
+    // Build WHERE clause conditions
+    const conditions = [];
+    const params: any = {};
+
+    if (name) {
+        conditions.push(`p.name LIKE '%' + @name + '%'`);
+        params.name = name;
+    }
+
+    if (groupId) {
+        conditions.push(`p.problem_group_id = @groupId`);
+        params.groupId = groupId;
+    }
+
+    if (filter) {
+        conditions.push(`p.process = @filter`);
+        params.filter = filter;
+    }
+
+    if (pic) {
+        conditions.push(`pt.pic = @pic`);
+        params.pic = pic;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const joinClause = pic ? `LEFT JOIN IoT.dbo.problem_todo pt ON p.id = pt.problem_id` : '';
+
+    // Get total count
+    const countQuery = `SELECT COUNT(DISTINCT p.id) as count FROM IoT.dbo.problem_problem p ${joinClause} ${whereClause}`;
+    const totalItems = await queryDatabase(countQuery, params);
     const totalPages = Math.ceil(totalItems[0].count / 15);
+
+    // Main query
     const sqlQuery = `
-    SELECT * FROM IoT.dbo.problem_problem
-    ${whereClause}
-    ${filterClause}
-    ${groupClause}
-    ORDER BY id DESC
-    OFFSET ${offset} ROWS FETCH NEXT 15 ROWS ONLY
-  `;
+        SELECT p.* FROM IoT.dbo.problem_problem p
+        ${joinClause}
+        ${whereClause}
+        GROUP BY p.id, p.name, p.problem_group_id, p.color, p.process
+        ORDER BY p.id DESC
+        OFFSET ${offset} ROWS FETCH NEXT 15 ROWS ONLY
+    `;
     try {
-        const data = await queryDatabase(sqlQuery, { name, groupId, filter });
+        const data = await queryDatabase(sqlQuery, { name, groupId, filter, pic });
         return {
             data,
             totalPages,
@@ -148,21 +183,28 @@ export async function deleteProblem(id: string) {
     }
 }
 
-export async function getTodo(name: string | undefined, problemId: string | undefined, page: number) {
+export async function getTodo(name: string | undefined, problemId: string | undefined, page: number, pic: string | undefined) {
     const offset = (page - 1) * 15;
-    const whereClause = name ? `WHERE name like '%'+ @name + '%'` : '';
-    const problemClause = name && problemId ? `and problem_id = @problemId` : !name && problemId ? `where problem_id = @problemId` : '';
-    const totalItems = await queryDatabase(`SELECT COUNT(*) as count FROM IoT.dbo.problem_todo ${whereClause} ${problemClause}`, { name, problemId });
+    const picClause = pic ? `LEFT JOIN IoT.dbo.problem_problem p on pt.problem_id = p.id` : '';
+
+    let whereConditions = [];
+    if (name) whereConditions.push(`pt.name like '%'+ @name + '%'`);
+    if (pic) whereConditions.push(`pt.pic = @pic`);
+    if (problemId) whereConditions.push(`pt.problem_id = @problemId`);
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    const totalItems = await queryDatabase(`SELECT COUNT(*) as count FROM IoT.dbo.problem_todo pt ${picClause} ${whereClause}`, { name, problemId, pic });
     const totalPages = Math.ceil(totalItems[0].count / 15);
     const sqlQuery = `
-    SELECT * FROM IoT.dbo.problem_todo
+    SELECT pt.* FROM IoT.dbo.problem_todo pt
+    ${picClause}
     ${whereClause}
-    ${problemClause}
-    ORDER BY id DESC
+    ORDER BY pt.id DESC
     OFFSET ${offset} ROWS FETCH NEXT 15 ROWS ONLY
   `;
     try {
-        const data = await queryDatabase(sqlQuery, { name, problemId });
+        const data = await queryDatabase(sqlQuery, { name, problemId, pic });
         return {
             data,
             totalPages,
