@@ -34,7 +34,9 @@ machineRoutes.get('/state/:machineId', async (c) => {
     const machine_id = c.req.param('machineId'); 
     const date = c.req.query('date') || null; 
     const shift = c.req.query('shift') || null; 
-    const data = await getChangeState(machine_id, date, shift);
+    const date_from = c.req.query('date_from') || null;
+    const date_to = c.req.query('date_to') || null;
+    const data = await getChangeState(machine_id, date, shift, date_from, date_to);
     return c.json(data);
     // return c.json(200);
 

@@ -53,8 +53,8 @@ let sqlQuery = `
     return await queryDatabase(sqlQuery, { machineId, machineDescription, machineTonage, machineLocation, machineProcess, machineUap, machineEquipment, position, rotation, energyBudget });
 }
 
-export async function getChangeState(machine_name: string, date: string | null, shift: string | null) {
-    if(date && shift){
+export async function getChangeState(machine_name: string, date: string | null, shift: string | null, date_from: string | null, date_to: string | null) {
+    if (date && shift && machine_name && machine_name !== 'all') {
         const sqlQuery = `
         DECLARE @from DATETIME;
         DECLARE @to DATETIME;
@@ -95,7 +95,32 @@ export async function getChangeState(machine_name: string, date: string | null, 
         ) as LastStatus
         `;
         return await queryDatabase(sqlQuery, {machine_name, date, shift});
-    } else {
+    } else if (machine_name === 'all' && date_from && date_to) {
+        const sqlQuery = `
+        SELECT m1.ID, m2.MchID,m1.StatusDate as AdjustedStatusDate, m1.StatusLight as Color
+        from IoT.dbo.MchStatusTRX m1 with (nolock)
+        join IoT.dbo.MachineMST m2 on m1.MchID = m2.MchID
+
+        Where m1.Active = 1
+        and StatusDate between @date_from and @date_to
+
+
+
+        UNION ALL
+
+        SELECT ID, MchID, @date_from as AdjustedStatusDate, StatusLight as Color
+        from (
+            SELECT TOP 1 m1.ID, m2.MchID, m1.StatusLight
+            from IoT.dbo.MchStatusTRX m1
+            join IoT.dbo.MachineMST m2 on m1.MchID = m2.MchID
+            Where m1.StatusDate < @date_from and m1.Active = 1
+            order by StatusDate DESC
+        ) as LastStatus
+        `;
+        console.log(sqlQuery);
+        return await queryDatabase(sqlQuery, { date_from, date_to });
+    }
+    else {
         const sqlQuery = `
         DECLARE @from DATETIME;
         DECLARE @to DATETIME;

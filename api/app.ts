@@ -21,7 +21,7 @@ app.use('/api/*', cors({
     ],
     allowMethods: ['POST', 'GET', 'OPTIONS', 'PUT', 'DELETE'],
     credentials: true,
-}), timeout(8000));
+}), timeout(30000));
 
 
 app.route('/api', router);
