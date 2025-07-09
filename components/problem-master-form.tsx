@@ -21,12 +21,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { ArrowUpDown, FilterIcon, PencilIcon, PlusIcon, RefreshCcwIcon, TrashIcon, XIcon } from "lucide-react"
 import { toast } from "react-hot-toast"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+
 
 type ProblemGroup = {
     id: string
@@ -62,7 +63,6 @@ export function ProblemMasterForm() {
     const [searchTermProblemGroup, setSearchTermProblemGroup] = React.useState("")
     const [searchTermProblem, setSearchTermProblem] = React.useState("")
     const [searchTermTodo, setSearchTermTodo] = React.useState("")
-    const [searchDate, setSearchDate] = React.useState("")
     const [loading, setLoading] = React.useState(true)
     const [pageProblemGroup, setPageProblemGroup] = React.useState(1)
     const [pageProblem, setPageProblem] = React.useState(1)
@@ -95,6 +95,8 @@ export function ProblemMasterForm() {
     const [userData, setUserData] = React.useState<any>(null)
     const [picFilter, setPicFilter] = React.useState("")
     const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
 
     const checkUser = async () => {
       const user = localStorage.getItem("user");
@@ -126,9 +128,7 @@ export function ProblemMasterForm() {
       checkUser();
     }, []);
 
-
-    React.useEffect(() => {
-        const fetchProblemGroupData = async () => {
+const fetchProblemGroupData = async () => {
             try {
                 setLoadingProblemGroup(true)
                 const response = await fetch(`/be/api/problem-master/problem-group?name=${searchTermProblemGroup}&page=${pageProblemGroup}&pic=${picFilter}`)
@@ -143,13 +143,12 @@ export function ProblemMasterForm() {
                 setLoadingProblemGroup(false)
             }
         }
-        
+
+    React.useEffect(() => {        
 
         fetchProblemGroupData()
-    }, [searchTermProblemGroup, searchDate, pageProblemGroup, picFilter])
-
-    React.useEffect(() => {
-        const fetchProblemData = async () => {
+    }, [searchTermProblemGroup, pageProblemGroup, picFilter])
+const fetchProblemData = async () => {
             try {
                 setLoadingProblem(true)
                 const response = await fetch(`/be/api/problem-master/problem?name=${searchTermProblem}&groupId=${groupId}&page=${pageProblem}&filter=${filter}&pic=${picFilter}`)
@@ -164,12 +163,11 @@ export function ProblemMasterForm() {
                 setLoadingProblem(false)
             }
         }
-
-        fetchProblemData()
-    }, [searchTermProblem, trigger, searchDate, pageProblem, filter, picFilter])
-
     React.useEffect(() => {
-        const fetchTodoData = async () => {
+        fetchProblemData()
+    }, [searchTermProblem, trigger, pageProblem, filter, picFilter])
+    
+    const fetchTodoData = async () => {
             try {
                 setLoadingTodo(true)
                 const response = await fetch(`/be/api/problem-master/todo?name=${searchTermTodo}&problemId=${problemId}&page=${pageTodo}&pic=${picFilter}`)
@@ -184,9 +182,35 @@ export function ProblemMasterForm() {
                 setLoadingTodo(false)
             }
         }
-
+    React.useEffect(() => {
         fetchTodoData()
-    }, [searchTermTodo, problemId, searchDate, pageTodo, picFilter])
+    }, [searchTermTodo, problemId, pageTodo, picFilter])
+
+    React.useEffect(() => {
+        // set selected ids to be a query params so whenever the page is refreshed, the selected ids will be the same
+        const groupId = searchParams.get('groupId')
+        const problemId = searchParams.get('problemId')
+        const todoId = searchParams.get('todoId')
+        if (groupId) {
+            setGroupId(groupId)
+        }
+        if (todoId) {
+            setTodoId(todoId)
+        }
+        if (problemId) {
+            setProblemId(problemId)
+            setTrigger(!trigger)
+        }
+    }, [])
+
+    React.useEffect(() => {
+        // set selected ids to be a query params so whenever the page is refreshed, the selected ids will be the same
+        const urlParams = new URLSearchParams(searchParams)
+        urlParams.set('groupId', groupId)
+        urlParams.set('problemId', problemId)
+        urlParams.set('todoId', todoId)
+        window.history.replaceState({}, '', `${window.location.pathname}?${urlParams.toString()}`)
+    }, [todoId, groupId, problemId,])
 
     const handleDeleteTodo = async () => {
         try {
@@ -201,7 +225,7 @@ export function ProblemMasterForm() {
                 toast.success(data.message)
                 setTodoId("")
                 setPageTodo(1)
-                window.location.reload()
+                refetchAllData()
             } else {
                 toast.error('Error deleting todo')
             }
@@ -209,6 +233,12 @@ export function ProblemMasterForm() {
             toast.error('Error deleting todo')
             console.error('Error deleting todo:', error)
         }
+    }
+
+    const refetchAllData = async () => {
+        fetchProblemGroupData()
+        fetchProblemData()
+        fetchTodoData()
     }
 
     const handleEditTodo = async () => {
@@ -243,7 +273,7 @@ export function ProblemMasterForm() {
                 toast.success(data.message)
                 setTodoId("")
                 setPageTodo(1)
-                window.location.reload()
+                refetchAllData()
             } else {
                 toast.error(data.message || 'Error editing todo')
             }
@@ -267,31 +297,37 @@ export function ProblemMasterForm() {
             return
         }
         
-        try {
-            const response = await fetch(`/be/api/problem-master/todo`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: addData.todo.name.trim(),
-                    problem_id: addData.problem.id,
-                    pic: addData.todo.pic,
-                    is_escalated: addData.todo.is_escalated
+        await toast.promise(
+            (async () => {
+                const response = await fetch(`/be/api/problem-master/todo`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: addData.todo.name.trim(),
+                        problem_id: addData.problem.id,
+                        pic: addData.todo.pic,
+                        is_escalated: addData.todo.is_escalated
+                    })
                 })
-            })
-            const data = await response.json()
-            if (response.ok) {
-                toast.success(data.message || "Successfully added todo")
-                setAddData(null)
-                window.location.reload()
-            } else {
-                toast.error(data.message || 'Error adding todo')
+                const data = await response.json()
+                if (response.ok) {
+                    setAddData(null)
+                    setTodoId("")
+                    setPageTodo(1)
+                    refetchAllData()
+                    return data.message || "Successfully added todo"
+                } else {
+                    throw new Error(data.message || 'Error adding todo')
+                }
+            })(),
+            {
+                loading: 'Adding todo...',
+                success: (msg) => msg,
+                error: (err) => err.message || 'Error adding todo'
             }
-        } catch (error) {
-            toast.error('Error adding todo')
-            console.error('Error adding todo:', error)
-        }
+        )
     }
 
     // Problem Group CRUD functions
@@ -314,7 +350,7 @@ export function ProblemMasterForm() {
                 toast.success(data.message)
                 setAddProblemGroupData(null)
                 setPageProblemGroup(1)
-                window.location.reload()
+                refetchAllData()
             } else {
                 toast.error(data.message || 'Error adding problem group')
             }
@@ -344,7 +380,7 @@ export function ProblemMasterForm() {
                 setEditProblemGroupData(null)
                 setGroupId("")
                 setPageProblemGroup(1)
-                window.location.reload()
+                refetchAllData()
             } else {
                 toast.error(data.message || 'Error editing problem group')
             }
@@ -367,7 +403,7 @@ export function ProblemMasterForm() {
                 toast.success(data.message || 'Problem group deleted successfully')
                 setGroupId("")
                 setPageProblemGroup(1)
-                window.location.reload()
+                refetchAllData()
             } else {
                 toast.error(data.error || 'Error deleting problem group')
             }
@@ -409,8 +445,7 @@ export function ProblemMasterForm() {
             if (response.ok) {
                 toast.success(data.message || "Successfully added problem")
                 setAddProblemData(null)
-                setPageProblem(1)
-                window.location.reload()
+                refetchAllData()
             } else {
                 toast.error(data.message || 'Error adding problem')
             }
@@ -451,9 +486,7 @@ export function ProblemMasterForm() {
             if (response.ok) {
                 toast.success(data.message)
                 setEditProblemData(null)
-                setProblemId("")
-                setPageProblem(1)
-                window.location.reload()
+                refetchAllData()
             } else {
                 toast.error(data.message || 'Error editing problem')
             }
@@ -476,7 +509,7 @@ export function ProblemMasterForm() {
                 toast.success(data.message)
                 setProblemId("")
                 setPageProblem(1)
-                window.location.reload()
+                refetchAllData()
             } else {
                 toast.error(data.message)
             }
@@ -494,13 +527,13 @@ export function ProblemMasterForm() {
         }
     }
 
-   if (loadingProblemGroup) {
-        return (
-            <div className="flex h-[50vh] w-full items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            </div>
-        )
-    }
+//    if (loadingProblemGroup) {
+//         return (
+//             <div className="flex h-[50vh] w-full items-center justify-center">
+//                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+//             </div>
+//         )
+//     }
 
     return (
         <div className="h-full flex-1 flex-col space-y-2 p-2 md:flex">
@@ -527,11 +560,13 @@ export function ProblemMasterForm() {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">ALL</SelectItem>
-                        <SelectItem value="SPV PRODUCTION">SPV PRODUCTION</SelectItem>
+                        <SelectItem value="SPV PRODUKSI">SPV PRODUKSI</SelectItem>
                         <SelectItem value="MEKANIK">MEKANIK</SelectItem>
                         <SelectItem value="OPERATOR BAHAN">OPERATOR BAHAN</SelectItem>
                         <SelectItem value="MAINTENANCE">MAINTENANCE</SelectItem>
                         <SelectItem value="MOLD">MOLD</SelectItem>
+                        <SelectItem value="ROBOT">ROBOT</SelectItem>
+                        <SelectItem value="MIXING">MIXING</SelectItem>
                     </SelectContent>
                 </Select>
                 </div>
@@ -704,7 +739,7 @@ export function ProblemMasterForm() {
                                 <Button 
                                     variant="outline" 
                                     size="sm"
-                                    onClick={() => setPageProblemGroup(pageProblemGroup - 1)} 
+                                    onClick={() => {setPageProblemGroup(pageProblemGroup - 1); setTodoId(""); setProblemId(""); setGroupId("")}} 
                                     disabled={pageProblemGroup === 1}
                                 >
                                     Previous
@@ -715,7 +750,7 @@ export function ProblemMasterForm() {
                                 <Button 
                                     variant="outline" 
                                     size="sm"
-                                    onClick={() => setPageProblemGroup(pageProblemGroup + 1)} 
+                                    onClick={() => {setPageProblemGroup(pageProblemGroup + 1); setTodoId(""); setProblemId(""); setGroupId("")}} 
                                     disabled={pageProblemGroup === totalPagesProblemGroup}
                                 >
                                     Next
@@ -1065,7 +1100,7 @@ export function ProblemMasterForm() {
                                 <Button 
                                     variant="outline" 
                                     size="sm"
-                                    onClick={() => setPageProblem(pageProblem - 1)} 
+                                    onClick={() => {setPageProblem(pageProblem - 1); setTodoId(""); setProblemId("");}} 
                                     disabled={pageProblem === 1}
                                 >
                                     Previous
@@ -1076,7 +1111,7 @@ export function ProblemMasterForm() {
                                 <Button 
                                     variant="outline" 
                                     size="sm"
-                                    onClick={() => setPageProblem(pageProblem + 1)} 
+                                    onClick={() => {setPageProblem(pageProblem + 1); setTodoId(""); setProblemId("");}} 
                                     disabled={pageProblem === totalPagesProblem}
                                 >
                                     Next
@@ -1175,7 +1210,7 @@ export function ProblemMasterForm() {
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Add</DialogTitle>
+                                <DialogTitle>Add ToDo</DialogTitle>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                                 <div className="grid gap-2">
@@ -1254,8 +1289,8 @@ export function ProblemMasterForm() {
                                             <SelectValue placeholder="Select status" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="false" className="text-red-500">Non-Escalated</SelectItem>
-                                            <SelectItem value="true" className="text-green-500">Escalated</SelectItem>
+                                            <SelectItem value="false" className="text-red-500 hover:text-red-500">Non-Escalated</SelectItem>
+                                            <SelectItem value="true" className="text-green-500 hover:text-green-500">Escalated</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -1276,13 +1311,20 @@ export function ProblemMasterForm() {
                                             <SelectValue placeholder="Select PIC" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="MEKANIK">MEKANIK</SelectItem>
-                                            <SelectItem value="OPERATOR BAHAN">OPERATOR BAHAN</SelectItem>
-                                            <SelectItem value="SPV PRODUKSI">SPV PRODUKSI</SelectItem>
+                                            {!addData?.todo.is_escalated && (
+                                                <>
+                                                    <SelectItem value="MEKANIK">MEKANIK</SelectItem>
+                                                    <SelectItem value="OPERATOR BAHAN">OPERATOR BAHAN</SelectItem>
+                                                    <SelectItem value="SPV PRODUKSI">SPV PRODUKSI</SelectItem>
+                                                </>
+                                            )}
                                             {addData?.todo.is_escalated && (
                                                 <>
                                                     <SelectItem value="MAINTENANCE">MAINTENANCE</SelectItem>
                                                     <SelectItem value="MOLD">MOLD</SelectItem>
+                                                    <SelectItem value="ROBOT">ROBOT</SelectItem>
+                                                    <SelectItem value="MIXING">MIXING</SelectItem>
+
                                                 </>
                                             )}
                                         </SelectContent>
@@ -1291,9 +1333,11 @@ export function ProblemMasterForm() {
                                 
                             </div>
                             <DialogFooter>
-                                <Button variant="default" size="lg" onClick={() => {handleAddTodo()}}>
-                                    Save
-                                </Button>
+                                <DialogClose asChild>
+                                    <Button variant="default" size="lg" onClick={() => {handleAddTodo()}}>
+                                        Add
+                                    </Button>
+                                </DialogClose>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
@@ -1393,8 +1437,8 @@ export function ProblemMasterForm() {
                                             <SelectValue placeholder="Select status" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="false" className="text-red-500">Non-Escalated</SelectItem>
-                                            <SelectItem value="true" className="text-green-500">Escalated</SelectItem>
+                                            <SelectItem value="false" className="text-red-500 hover:text-red-500">Non-Escalated</SelectItem>
+                                            <SelectItem value="true" className="text-green-500 hover:text-green-500">Escalated</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -1415,13 +1459,19 @@ export function ProblemMasterForm() {
                                             <SelectValue placeholder="Select PIC" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="MEKANIK">MEKANIK</SelectItem>
-                                            <SelectItem value="OPERATOR BAHAN">OPERATOR BAHAN</SelectItem>
-                                            <SelectItem value="SPV PRODUKSI">SPV PRODUKSI</SelectItem>
+                                            {!editData?.todo.is_escalated && (
+                                                <>
+                                                    <SelectItem value="MEKANIK">MEKANIK</SelectItem>
+                                                    <SelectItem value="OPERATOR BAHAN">OPERATOR BAHAN</SelectItem>
+                                                    <SelectItem value="SPV PRODUKSI">SPV PRODUKSI</SelectItem>
+                                                </>
+                                            )}
                                             {editData?.todo.is_escalated && (
                                                 <>
                                                     <SelectItem value="MAINTENANCE">MAINTENANCE</SelectItem>
                                                     <SelectItem value="MOLD">MOLD</SelectItem>
+                                                    <SelectItem value="ROBOT">ROBOT</SelectItem>
+                                                    <SelectItem value="MIXING">MIXING</SelectItem>
                                                 </>
                                             )}
                                             
@@ -1484,7 +1534,7 @@ export function ProblemMasterForm() {
                                 <Button 
                                     variant="outline" 
                                     size="sm"
-                                    onClick={() => setPageTodo(pageTodo - 1)} 
+                                    onClick={() => {setPageTodo(pageTodo - 1); setTodoId("");}} 
                                     disabled={pageTodo === 1}
                                 >
                                     Previous
@@ -1495,7 +1545,7 @@ export function ProblemMasterForm() {
                                 <Button 
                                     variant="outline" 
                                     size="sm"
-                                    onClick={() => setPageTodo(pageTodo + 1)} 
+                                    onClick={() => {setPageTodo(pageTodo + 1); setTodoId(""); }} 
                                     disabled={pageTodo === totalPagesTodo}
                                 >
                                     Next
@@ -1526,7 +1576,7 @@ export function ProblemMasterForm() {
                                                     ? 'bg-blue-100 hover:bg-blue-150' 
                                                     : 'hover:bg-gray-50'
                                             }`}
-                                            onClick={() => {setTodoId(item.id); setPageTodo(1); setProblemId(item.problem_id); setGroupId(problemData.find((problem) => problem.id == item.problem_id)?.problem_group_id!)}}
+                                            onClick={() => {setTodoId(item.id); setPageTodo(1); setProblemId(item.problem_id); setGroupId(problemData.find((problem) => problem.id == item.problem_id)?.problem_group_id ?? "")}}
                                         >
                                             <TableCell className="text-center">{item.name}</TableCell>
                                             <TableCell className="text-center">{item.pic}</TableCell>
