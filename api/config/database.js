@@ -14,6 +14,7 @@ const dbConfig = {
     trustServerCertificate: true,
     connectTimeout: 8000,
     requestTimeout: timeout,
+    enableFeatureExtension: false,
     // 🐛 Add this block for debugging Tedious
     debug: {
       packet: true,

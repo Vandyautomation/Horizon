@@ -84,6 +84,7 @@
       "swr": "^2.2.5",
       "tailwind-merge": "^2.5.4",
       "tailwindcss-animate": "^1.0.7",
+      "tedious": "^18.6.1",
       "three": "^0.173.0",
       "typeorm": "0.3.21",
       "xlsx": "^0.18.5"

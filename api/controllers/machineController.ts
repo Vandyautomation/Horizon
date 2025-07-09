@@ -2195,6 +2195,126 @@ export async function removeOverride(machineId: string) {
     return await queryDatabase(sqlQuery, { machineId });
 }
 
+export async function getTrendWeekly(date_from: string, date_to: string, uap: string) {
+    const sqlQuery = `
+    WITH cte AS (
+        SELECT
+            DATEADD(hour, 0, amr.created_at) AS created_at,
+            DATEPART(ISO_WEEK, DATEADD(hour, 0, amr.created_at)) AS week_number,
+            DATEPART(YEAR, DATEADD(hour, 0, amr.created_at)) AS year_number,
+            amr.shift AS "Shift",
+            m."MchNumber",
+            m."MchLoc",
+            m."UAP",
+            m.MchDesc,
+            m.MchTon,
+            amr.ooe AS "OOE",
+            amr.oee AS "OEE",
+            amr.green AS "GREEN",
+            amr.yellow AS "YELLOW",
+            amr.red AS "RED",
+            amr.white AS "WHITE",
+            amr.purple AS "PURPLE",
+            amr.grey AS "GREY",
+            amr.orange AS "ORANGE",
+            amr.blue AS "BLUE"
+        FROM
+            dbo.andon_monitoring_report amr
+        JOIN
+            dbo.machinemst m ON amr.machine_id = m."MchID"
+        WHERE
+            (amr.machine_id IS NOT NULL OR amr.machine_id != '')
+            AND amr.created_at BETWEEN @date_from AND @date_to
+            AND amr.shift NOT IN (0, 9)
+            AND m."UAP" IS NOT NULL
+            AND m."UAP" != ''
+    )
+    SELECT
+        CONCAT(year_number, '-', week_number) AS week,
+        MchNumber,
+        MchLoc,
+        UAP,
+        cast(AVG(OOE) as float) AS OOE,
+        cast(AVG(OEE) as float) AS OEE,
+        MchDesc,
+        MchTon,
+        cast(AVG(
+            CASE
+                WHEN (green + yellow + red + white + purple + orange + grey + blue) = 0 THEN 0
+                ELSE (yellow + red + white + purple + orange + grey + blue) * 1.0 /
+                    (green + yellow + red + white + purple + orange + grey + blue)
+            END
+        ) as float) AS NonOOE,
+
+        cast(AVG(
+            CASE
+                WHEN (green + yellow + red + white + purple + orange + grey + blue) = 0 THEN 0
+                ELSE white * 1.0 /
+                    (green + yellow + red + white + purple + orange + grey + blue)
+            END
+        ) as float) AS PlannedStoppage,
+
+        cast(AVG(
+            CASE
+                WHEN (green + yellow + red + white + purple + orange + grey + blue) = 0 THEN 0
+                ELSE orange * 1.0 /
+                    (green + yellow + red + white + purple + orange + grey + blue)
+            END
+        ) as float) AS Breakdown,
+
+        cast(AVG(
+            CASE
+                WHEN (green + yellow + red + white + purple + orange + grey + blue) = 0 THEN 0
+                ELSE yellow * 1.0 /
+                    (green + yellow + red + white + purple + orange + grey + blue)
+            END
+        ) as float) AS MicroStop,
+
+        cast(AVG(
+            CASE
+                WHEN (green + yellow + red + white + purple + orange + grey + blue) = 0 THEN 0
+                ELSE red * 1.0 /
+                    (green + yellow + red + white + purple + orange + grey + blue)
+            END
+        ) as float) AS NonQuality,
+
+        cast(AVG(
+            CASE
+                WHEN (green + yellow + red + white + purple + orange + grey + blue) = 0 THEN 0
+                ELSE purple * 1.0 /
+                    (green + yellow + red + white + purple + orange + grey + blue)
+            END
+        ) as float) AS OrgDisfunction,
+
+        cast(AVG(
+            CASE
+                WHEN (green + yellow + red + white + purple + orange + grey + blue) = 0 THEN 0
+                ELSE blue * 1.0 /
+                    (green + yellow + red + white + purple + orange + grey + blue)
+            END
+        ) as float) AS SMED,
+
+        cast(AVG(
+            CASE
+                WHEN (green + yellow + red + white + purple + orange + grey + blue) = 0 THEN 0
+                ELSE grey * 1.0 /
+                    (green + yellow + red + white + purple + orange + grey + blue)
+            END
+        ) as float) AS Other
+
+    FROM
+        cte
+    WHERE
+        (@uap = 'ALL' OR UAP = @uap)
+    GROUP BY
+        year_number, week_number, MchNumber, MchLoc, UAP, MchDesc, MchTon
+    ORDER BY
+        year_number, week_number
+
+    `;
+    return await queryDatabase(sqlQuery, { date_from, date_to, uap });
+}
+
 export async function getTrendStream(c: Context, date_from: string, date_to: string) {
     const encoder = new TextEncoder();
     let first = true;

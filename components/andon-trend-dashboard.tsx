@@ -24,7 +24,7 @@ import { toast } from "react-hot-toast";
 import { Badge } from "./ui/badge";
 import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from "./ui/table";
 import { getMqttClient, closeMqttClient } from '@/lib/mqtt';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis } from "recharts"
 import {
   ChartConfig,
   ChartContainer,
@@ -33,6 +33,12 @@ import {
 } from "@/components/ui/chart"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import oboe from 'oboe';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 // import * as trendData from '@/api/controllers/trend.json'
 
 interface Trend {
@@ -51,6 +57,26 @@ interface Trend {
   orange_minutes: number;
   blue_minutes: number;
   grey_minutes: number;
+}
+
+interface WeeklyTrend {
+  week: string;
+  MchNumber: string;
+  MchLoc: string;
+  MchDesc: string;
+  MchTon: string;
+  UAP: string;
+  OEE: number;
+  OOE: number;
+  NonOOE: number;
+  PlannedStoppage: number;
+  Breakdown: number;
+  MicroStop: number;
+  NonQuality: number;
+  OrgDisfunction: number;
+  SMED: number;
+  Other: number;
+
 }
 const chartConfig: ChartConfig = {
   green_minutes: {
@@ -93,12 +119,40 @@ const chartConfig: ChartConfig = {
     label: 'Total Below Target Machines',
     color: 'var(--color-desktop)',
   },
+  Breakdown: {
+    label: 'Breakdown',
+    color: 'var(--color-desktop)',
+  },
+  PlannedStoppage: {
+    label: 'Planned Stoppage',
+    color: 'var(--color-desktop)',
+  },
+  MicroStop: {
+    label: 'Micro Stop',
+    color: 'var(--color-desktop)',
+  },
+  NonQuality: {
+    label: 'Non Quality', 
+    color: 'var(--color-desktop)',
+  },
+  OrgDisfunction: {
+    label: 'Org Disfunction',
+    color: 'var(--color-desktop)',
+  },
+  SMED: {
+    label: 'SMED',
+    color: 'var(--color-desktop)',
+  },
+  Other: {
+    label: 'Unclassified',
+    color: 'var(--color-desktop)',
+  }
 }
 export default function AndonTrendDashboard() {
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(2025, 7, 1),
-    to: new Date(2025, 7, 8),
+    from: new Date(new Date().setDate(new Date().getDate() - 7)),
+    to: new Date(),
   })
 
   const [selectedCard, setSelectedCard] = useState<Trend[] | undefined>(undefined);
@@ -113,11 +167,63 @@ export default function AndonTrendDashboard() {
   const [tolerance, setTolerance] = useState(30);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [rawAndon, setRawAndon] = useState<Trend[]>([]);
+  const [weeklyAndon, setWeeklyAndon] = useState<WeeklyTrend[]>([]);
+  const [uap, setUap] = useState('ALL');
+  const [selectedTabs, setSelectedTabs] = useState('weekly');
+  const [selectedWeeklyDetail, setSelectedWeeklyDetail] = useState<{ week: string, color: string } | null>(null);
+
+  const fetchWeeklyAndon = async () => {
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/trend/weekly?date_from=${dateRange?.from?.toISOString().replace('T', ' ').replace('Z', '').substring(0, 10)}&date_to=${dateRange?.to?.toISOString().replace('T', ' ').replace('Z', '').substring(0, 10 )}&uap=${uap}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if(data.length > 0) {
+      setWeeklyAndon(data);
+    } else {
+      setWeeklyAndon([]);
+    }
+  }
+
+useEffect(() => {
+  if (!dateRange) return;
+  if (selectedTabs != 'weekly') return;
+  fetchWeeklyAndon();
+}, [dateRange, uap, selectedTabs]);
+
+const weeklyChartData = useMemo(() => {
+  // Group by week
+  const weekMap: Record<string, any> = {};
+  weeklyAndon.forEach(item => {
+    if (!weekMap[item.week]) {
+      weekMap[item.week] = {
+        week: item.week,
+        Breakdown: 0,
+        PlannedStoppage: 0,
+        MicroStop: 0,
+        NonQuality: 0,
+        OrgDisfunction: 0,
+        SMED: 0,
+        Unclassified: 0,
+        machines: [],
+      };
+    }
+    // Sum up each color
+    weekMap[item.week].Breakdown += item.Breakdown;
+    weekMap[item.week].PlannedStoppage += item.PlannedStoppage;
+    weekMap[item.week].MicroStop += item.MicroStop;
+    weekMap[item.week].NonQuality += item.NonQuality;
+    weekMap[item.week].OrgDisfunction += item.OrgDisfunction;
+    weekMap[item.week].SMED += item.SMED;
+    weekMap[item.week].Unclassified += item.Other;
+    weekMap[item.week].machines.push(item);
+  });
+  return Object.values(weekMap);
+}, [weeklyAndon]);
 
 
 useEffect(() => {
   if (!dateRange) return;
-  const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/trend?date_from=${dateRange?.from?.toISOString()}&date_to=${dateRange?.to?.toISOString()}`;
+  if (selectedTabs != 'daily') return;
+  const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/trend?date_from=${dateRange?.from?.toISOString().replace('T', ' ').replace('Z', '').substring(0, 10)}&date_to=${dateRange?.to?.toISOString().replace('T', ' ').replace('Z', '').substring(0, 10)}`;
 
   toast.loading("Fetching large machine data...");
 
@@ -136,7 +242,7 @@ useEffect(() => {
     });
 
   return () => stream.abort();
-}, [dateRange]);
+}, [dateRange, selectedTabs]);
 // useEffect(() => {
 //   setRawAndon((trendData as any).default as Trend[])
 // }, [])
@@ -320,9 +426,21 @@ const consistentlyGrey = useMemo(() => {
     <div className="w-full ">
       <div className="flex items-center justify-between mb-4">
         <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle bg-white"/>
-        <h1 className="text-4xl font-bold mr-4">ANDON TREND DASHBOARD</h1>
+        <div className="flex flex-col items-center justify-center flex-1">
+          <h1 className="text-4xl font-bold mb-2 text-center">ANDON TREND DASHBOARD</h1>
+          {/* Tabs header only, tabs content is below and shares the same value */}
+          <Tabs value={selectedTabs} className="w-full flex flex-col items-center" id="andon-tabs">
+            <TabsList className="flex items-center justify-center mb-0">
+              <TabsTrigger value="daily" onClick={() => setSelectedTabs('daily')}>Daily</TabsTrigger>
+              <TabsTrigger value="weekly" onClick={() => setSelectedTabs('weekly')}>Weekly</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        
         <div>
           <h1 className="text-4xl font-bold mr-4">TECHPACK ASIA</h1>
+          <div className="w-full flex justify-center">
+            </div>
             <div className="flex items-center gap-2">
               <Popover>
                 <PopoverTrigger className="flex items-center text-nowrap gap-2 border border-gray-250 rounded-lg px-2 py-2">
@@ -332,6 +450,14 @@ const consistentlyGrey = useMemo(() => {
                 <PopoverContent>
                   <Calendar
                     mode="range"
+                    // Limit the selectable date range to a maximum of 14 days
+                    disabled={(date) => {
+                      if (!dateRange?.from) return false;
+                      const from = dateRange.from;
+                      // If selecting a "to" date, ensure it's within 14 days of "from"
+                      const maxRange = 13 * 24 * 60 * 60 * 1000; // 13 days in ms (from + 13 = 14 days inclusive)
+                      return Math.abs(date.getTime() - from.getTime()) > maxRange;
+                    }}
                     defaultMonth={dateRange?.from}
                     selected={dateRange}
                     onSelect={setDateRange}
@@ -352,50 +478,9 @@ const consistentlyGrey = useMemo(() => {
         </div>
       </div>
       <div className="p-0 space-y-3">
-          {/* Summary Cards */}
-          {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <Card className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Running Machines</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {chartData.reduce((sum, item) => sum + item.total_running_machines, 0)}
-                  </p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Below Target</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {chartData.reduce((sum, item) => sum + item.total_below_target_machines, 0)}
-                  </p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Tolerance</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {tolerance}%
-                  </p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Threshold</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {Math.round((tolerance / 100) * 24 * 60)} min
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </div> */}
-
+        <Tabs value={selectedTabs} className="w-full" id="andon-tabs">
+            
+            <TabsContent value="daily">
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Running vs Below Target Chart */}
@@ -988,6 +1073,123 @@ const consistentlyGrey = useMemo(() => {
             </CardContent>
           </Card>
         </div> */}
+                    </TabsContent>
+                    <TabsContent value="weekly">
+                      <div className="w-full">
+                        <Card>
+                          <CardContent>
+                            <div className="flex justify-end mb-4 w-48 mt-4">
+                              <Select onValueChange={(value) => setUap(value)}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select UAP" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ALL">ALL</SelectItem>
+                                  <SelectItem value="BASIC">BASIC</SelectItem>
+                                  <SelectItem value="PREMIUM">PREMIUM</SelectItem>
+                                  <SelectItem value="LEAN">LEAN</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="mt-6">
+                              {/* Chart */}
+                              <ChartContainer
+                                config={chartConfig}
+                                className="h-[250px] w-full aspect-auto"
+                              >
+
+                              <BarChart
+                                accessibilityLayer
+                                data={weeklyChartData}
+                                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                                barCategoryGap={80}
+                              >
+                                <CartesianGrid strokeDasharray="3 3" strokeLinecap="butt" />
+                                <XAxis dataKey="week" tickFormatter={(value) => {
+                                  return value.split(' ')[0];
+                                }} />
+                                <YAxis />
+                                <ChartTooltip
+                                      cursor={true}
+                                      content={<ChartTooltipContent indicator="dashed" />}
+                                      formatter={(value, name, item, index, payload) => {
+                                        return <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></div>
+                                          <span>{(item.value as number).toFixed(1)+'%'}</span>
+                                        </div>
+                                      }}
+                                      />
+                                <Legend />
+                                <Bar dataKey="Breakdown" fill="#f59e42" className="cursor-pointer" onClick={(data, index) => setSelectedWeeklyDetail({ week: data.week, color: 'Breakdown' })} />
+                                <Bar dataKey="PlannedStoppage" fill="#d1d5db" className="cursor-pointer" onClick={(data, index) => setSelectedWeeklyDetail({ week: data.week, color: 'PlannedStoppage' })}/>
+                                <Bar dataKey="MicroStop" fill="#fde047" className="cursor-pointer" onClick={(data, index) => setSelectedWeeklyDetail({ week: data.week, color: 'MicroStop' })}/>
+                                <Bar dataKey="NonQuality" fill="#f43f5e" className="cursor-pointer" onClick={(data, index) => setSelectedWeeklyDetail({ week: data.week, color: 'NonQuality' })}/>
+                                <Bar dataKey="OrgDisfunction" fill="#a78bfa" className="cursor-pointer" onClick={(data, index) => setSelectedWeeklyDetail({ week: data.week, color: 'OrgDisfunction' })}/>
+                                <Bar dataKey="SMED" fill="#38bdf8" className="cursor-pointer" onClick={(data, index) => setSelectedWeeklyDetail({ week: data.week, color: 'SMED' })}/>
+                                <Bar dataKey="Unclassified" fill="#6b7280" className="cursor-pointer" onClick={(data, index) => setSelectedWeeklyDetail({ week: data.week, color: 'Other' })}/>
+                              </BarChart>
+                              </ChartContainer>
+                            </div>
+                            {/* Machine List */}
+                            {selectedWeeklyDetail && (
+                              <Card className="mt-4">
+                                <CardHeader>
+                                  <CardTitle>
+                                    Machines for {selectedWeeklyDetail.color === 'Other' ? 'Unclassified' : selectedWeeklyDetail.color} in week {selectedWeeklyDetail.week}
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent className="h-[250px] overflow-auto">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>Machine Number</TableHead>
+                                        <TableHead>Description</TableHead>
+                                        <TableHead>Tonage</TableHead>
+                                        <TableHead>Location</TableHead>
+                                        <TableHead>UAP</TableHead>
+                                        <TableHead>{selectedWeeklyDetail.color === 'Other' ? 'Unclassified' : selectedWeeklyDetail.color} %</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {weeklyAndon
+                                        .filter(
+                                          m =>
+                                            m.week === selectedWeeklyDetail.week &&
+                                            Number(m[selectedWeeklyDetail.color as keyof WeeklyTrend]) > 0
+                                        )
+                                        .sort((a, b) => {
+                                          if(a[selectedWeeklyDetail.color as keyof WeeklyTrend] < b[selectedWeeklyDetail.color as keyof WeeklyTrend]) return 1;
+                                          if(a[selectedWeeklyDetail.color as keyof WeeklyTrend] > b[selectedWeeklyDetail.color as keyof WeeklyTrend]) return -1;
+                                          if(a.MchLoc < b.MchLoc) return -1;
+                                          if(a.MchLoc > b.MchLoc) return 1;
+                                          if(a.MchNumber < b.MchNumber) return -1;
+                                          if(a.MchNumber > b.MchNumber) return 1;
+                                          return 0;
+                                        })
+                                        .map(m => (
+                                          <TableRow key={m.MchNumber+m.MchLoc+ selectedWeeklyDetail.week + selectedWeeklyDetail.color}>
+                                            <TableCell>{m.MchNumber}</TableCell>
+                                            <TableCell>{m.MchDesc}</TableCell>
+                                            <TableCell>{m.MchTon}</TableCell>
+                                            <TableCell>{m.MchLoc}</TableCell>
+                                            <TableCell>{m.UAP}</TableCell>
+                                            <TableCell>
+                                              {((m[selectedWeeklyDetail.color as keyof WeeklyTrend] as number) * 100).toFixed(1)}%
+                                            </TableCell>
+                                          </TableRow>
+                                        ))
+                                      }
+                                    </TableBody>
+                                  </Table>
+                                </CardContent>
+                              </Card>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                    </TabsContent>
+          </Tabs>
         </div>
       </div>
   );
