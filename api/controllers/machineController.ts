@@ -1,4 +1,5 @@
-import { queryDatabase } from '../utils/queryDatabase';
+import { Context } from 'hono';
+import { queryDatabase, streamQuery } from '../utils/queryDatabase';
 
 export async function updateMachine(machineId: string, machineDescription: string, machineTonage: string, machineLocation: string, machineProcess: string, machineUap: string, machineEquipment: string, position: string, rotation: string, energyBudget: number) {
 let sqlQuery = `
@@ -117,7 +118,6 @@ export async function getChangeState(machine_name: string, date: string | null, 
             order by StatusDate DESC
         ) as LastStatus
         `;
-        console.log(sqlQuery);
         return await queryDatabase(sqlQuery, { date_from, date_to });
     }
     else {
@@ -2193,4 +2193,211 @@ export async function removeOverride(machineId: string) {
     SELECT @statusLightBefore as statusLightBefore;
   `;
     return await queryDatabase(sqlQuery, { machineId });
+}
+
+export async function getTrendStream(c: Context, date_from: string, date_to: string) {
+    const encoder = new TextEncoder();
+    let first = true;
+    const sqlQuery = `
+    WITH AllMachines AS (
+        SELECT DISTINCT MchID
+        FROM MachineMST
+        WHERE Active = 1
+        AND UAP in ('BASIC','PREMIUM','LEAN')
+    ),
+    DateRange AS (
+        SELECT DATEADD(DAY, number, @date_from) AS ReportDate
+        FROM master.dbo.spt_values
+        WHERE type = 'P'
+        AND number BETWEEN 0 AND DATEDIFF(DAY, @date_from, @date_to)
+    ),
+    MachinesByDate AS (
+        -- Cross join to get all machines for each date
+        SELECT
+            dr.ReportDate AS created_at_day,
+            am.MchID
+        FROM DateRange dr
+        CROSS JOIN AllMachines am
+    ),
+    -- Get the last status before start date for each machine
+    LastStatusBeforeStart AS (
+        SELECT
+            MchID,
+            StatusDate,
+            StatusLight
+        FROM (
+            SELECT
+                MchID,
+                StatusDate,
+                StatusLight,
+                ROW_NUMBER() OVER(PARTITION BY MchID ORDER BY StatusDate DESC) AS rn
+            FROM MchStatusTRX
+            WHERE Active = 1
+            AND StatusDate < @date_from
+        ) x
+        WHERE rn = 1
+    ),
+    -- Combine with statuses within date range
+    CombinedStatuses AS (
+        -- Include last status before start date
+        SELECT
+            MchID,
+            StatusDate,
+            StatusLight,
+            1 AS IsBeforeStart
+        FROM LastStatusBeforeStart
+
+        UNION ALL
+
+        -- Include all statuses within date range
+        SELECT
+            MchID,
+            StatusDate,
+            StatusLight,
+            0 AS IsBeforeStart
+        FROM MchStatusTRX
+        WHERE Active = 1
+        AND StatusDate BETWEEN @date_from AND @date_to
+    ),
+    StatusData AS (
+        SELECT
+            s.MchID,
+            s.StatusDate,
+            s.StatusLight,
+            LEAD(s.StatusDate) OVER (PARTITION BY s.MchID ORDER BY s.StatusDate) AS todate,
+            s.IsBeforeStart
+        FROM CombinedStatuses s
+    ),
+    -- This CTE creates day-by-day status records by splitting records that cross day boundaries
+    CrossDayStatusRecords AS (
+        -- Status records that start before the period
+        SELECT
+            s.MchID,
+            s.StatusLight,
+            d.dt AS StatusDay,
+            CASE
+                WHEN s.IsBeforeStart = 1 THEN @date_from
+                ELSE
+                    CASE
+                        WHEN s.StatusDate > d.dt THEN s.StatusDate
+                        ELSE d.dt
+                    END
+            END AS DayStart,
+            CASE
+                WHEN COALESCE(s.todate, @date_to) < DATEADD(DAY, 1, d.dt) THEN COALESCE(s.todate, @date_to)
+                ELSE DATEADD(DAY, 1, d.dt)
+            END AS DayEnd
+        FROM StatusData s
+        CROSS APPLY (
+            -- Generate a series of dates that this status record spans
+            SELECT DATEADD(DAY, n.number,
+                CASE
+                    WHEN s.IsBeforeStart = 1 THEN @date_from
+                    ELSE CAST(s.StatusDate AS DATE)
+                END) AS dt
+            FROM master.dbo.spt_values n
+            WHERE n.type = 'P'
+            AND n.number BETWEEN 0 AND
+                DATEDIFF(DAY,
+                    CASE
+                        WHEN s.IsBeforeStart = 1 THEN @date_from
+                        ELSE CAST(s.StatusDate AS DATE)
+                    END,
+                    CAST(COALESCE(s.todate, @date_to) AS DATE))
+        ) d
+        WHERE d.dt BETWEEN @date_from AND @date_to
+    ),
+    StatusHoursPerDay AS (
+        SELECT
+            CAST(StatusDay AS DATE) AS StatusDay,
+            MchID,
+            StatusLight,
+            -- Calculate hours within each day
+            DATEDIFF(SECOND, DayStart, DayEnd) / 3600.0 AS hours
+        FROM CrossDayStatusRecords
+    ),
+    DailyCalculations AS (
+        SELECT
+            StatusDay AS status_date,
+            MchID,
+            SUM(CASE WHEN StatusLight = 'GREEN' THEN hours ELSE 0 END) AS green,
+            SUM(CASE WHEN StatusLight = 'YELLOW' THEN hours ELSE 0 END) AS yellow,
+            SUM(CASE WHEN StatusLight = 'RED' THEN hours ELSE 0 END) AS red,
+            SUM(CASE WHEN StatusLight = 'WHITE' THEN hours ELSE 0 END) AS white,
+            SUM(CASE WHEN StatusLight = 'PURPLE' THEN hours ELSE 0 END) AS purple,
+            SUM(CASE WHEN StatusLight = 'GREY' THEN hours ELSE 0 END) AS grey,
+            SUM(CASE WHEN StatusLight = 'ORANGE' THEN hours ELSE 0 END) AS orange,
+            SUM(CASE WHEN StatusLight = 'BLUE' THEN hours ELSE 0 END) AS blue
+        FROM StatusHoursPerDay
+        GROUP BY StatusDay, MchID
+    ),
+    MachineStatusByDate AS (
+        SELECT
+            mbd.created_at_day,
+            mbd.MchID,
+            COALESCE(dc.green, 0) AS green,
+            COALESCE(dc.yellow, 0) AS yellow,
+            COALESCE(dc.red, 0) AS red,
+            COALESCE(dc.white, 0) AS white,
+            COALESCE(dc.purple, 0) AS purple,
+            COALESCE(dc.grey, 0) AS grey,
+            COALESCE(dc.orange, 0) AS orange,
+            COALESCE(dc.blue, 0) AS blue
+        FROM MachinesByDate mbd
+        LEFT JOIN DailyCalculations dc ON mbd.created_at_day = dc.status_date AND mbd.MchID = dc.MchID
+    ),
+    -- Cap total hours per machine per day to 24 hours if needed
+    CappedMachineStatus AS (
+        SELECT
+            created_at_day,
+            MchID,
+            green,
+            yellow, red, white, purple, grey, orange, blue
+        FROM MachineStatusByDate
+    )
+    SELECT
+        CAST(c.created_at_day AS DATE) AS report_date,
+        CAST(c.MchID AS NVARCHAR(100)) AS MchID,
+        CAST(m.MchDesc AS NVARCHAR(100)) AS mchdesc,
+        CAST(m.MchTon AS NVARCHAR(100)) AS mchtonage,
+        CAST(m.UAP AS NVARCHAR(100)) AS mchuap,
+        CAST(m.MchLoc AS NVARCHAR(100)) AS mchloc,
+        CAST(m.MchNumber AS NVARCHAR(100)) AS mchnumber,
+        CAST(ISNULL(CAST(c.green AS FLOAT) * 60, 0.0) AS FLOAT) AS green_minutes,
+        CAST(ISNULL(CAST(c.yellow AS FLOAT) * 60, 0.0) AS FLOAT) AS yellow_minutes,
+        CAST(ISNULL(CAST(c.red AS FLOAT) * 60, 0.0) AS FLOAT) AS red_minutes,
+        CAST(ISNULL(CAST(c.white AS FLOAT) * 60, 0.0) AS FLOAT) AS white_minutes,
+        CAST(ISNULL(CAST(c.purple AS FLOAT) * 60, 0.0) AS FLOAT) AS purple_minutes,
+        CAST(ISNULL(CAST(c.grey AS FLOAT) * 60, 0.0) AS FLOAT) AS grey_minutes,
+        CAST(ISNULL(CAST(c.orange AS FLOAT) * 60, 0.0) AS FLOAT) AS orange_minutes,
+        CAST(ISNULL(CAST(c.blue AS FLOAT) * 60, 0.0) AS FLOAT) AS blue_minutes
+    FROM CappedMachineStatus c
+    LEFT JOIN MachineMST m ON m.MchID = c.MchID
+    WHERE c.created_at_day BETWEEN @date_from AND @date_to
+    ORDER BY c.created_at_day, c.MchID;
+    `;
+    const stream = new ReadableStream({
+        async start(controller) {
+            controller.enqueue(encoder.encode('[')); // Start JSON array
+
+            await streamQuery(
+                sqlQuery,
+                { date_from, date_to },
+                (row) => {
+                    const chunk = encoder.encode((first ? '' : ',') + JSON.stringify(row));
+                    controller.enqueue(chunk);
+                    first = false;
+                }
+            );
+
+            controller.enqueue(encoder.encode(']')); // End JSON array
+            controller.close();
+        }
+    });
+
+    return new Response(stream, {
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
 }

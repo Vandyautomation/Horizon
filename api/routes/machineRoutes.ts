@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { addMachine, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, makeMachineGrey, makeMachineTAO, removeOverride, removeOverrideTAO, updateMachine } from '../controllers/machineController';
+import { addMachine, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, getTrendStream, makeMachineGrey, makeMachineTAO, removeOverride, removeOverrideTAO, updateMachine } from '../controllers/machineController';
 import { getTask } from '../controllers/scaleTaskController';
 import { cache } from 'hono/cache'
-
+import * as trendData from '../controllers/trend.json';
 
 const machineRoutes = new Hono();
 
@@ -44,6 +44,21 @@ machineRoutes.get('/state/:machineId', async (c) => {
     return c.json({ error: (error as Error).message }, 500);
   }
 });
+
+machineRoutes.get('/trend', async (c) => {
+  try {
+    const date_from = c.req.query('date_from') || '2025-06-01';
+    const date_to = c.req.query('date_to') || '2025-06-30';
+
+    // Return a streamed response
+    // return await getTrendStream(c, date_from, date_to);
+    return c.json(trendData);
+
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
 
 machineRoutes.get('/spindle/:machineId', async (c) => {
   try {
