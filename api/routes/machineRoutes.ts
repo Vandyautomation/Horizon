@@ -52,7 +52,7 @@ machineRoutes.get('/trend', async (c) => {
 
     // Return a streamed response
     // return await getTrendStream(c, date_from, date_to);
-    return c.json(trendData);
+    return c.json((trendData as any).default);
 
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
