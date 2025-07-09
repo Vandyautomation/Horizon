@@ -44,6 +44,7 @@ import { Switch } from "./ui/switch"
 import ChangeState from "./change-state"
 import { CameraFeed } from "./uv-scrap/camera-feed"
 import Link from "next/link"
+import { Badge } from "./ui/badge"
 import { GearIcon } from "@radix-ui/react-icons"
 
 
@@ -56,6 +57,7 @@ type MachineDetail = {
   locationId: number;
   locationName: string;
   machineStatus: string;
+  machineType: string;
 };
 
 type HourlyData = {
@@ -80,6 +82,8 @@ type HourlyData = {
   reject_e: number | 0;
   causes: string;
   comments: string;
+  problem: string;
+  action: string;
   reject_a_name: string ;
   reject_b_name: string ;
   reject_c_name: string ;
@@ -89,6 +93,8 @@ type HourlyData = {
 };
 
 type OoeData = {
+  targetYearly: number;
+  targetTolerance: number;
   timea: number;
   pmidle: number;
   timeb: number;
@@ -105,6 +111,7 @@ type OoeData = {
   orange: number;
   purple: number;
   grey: number;
+
 };
 
 type TaskData = {
@@ -1183,82 +1190,82 @@ export default function CountboardDashboardUv() {
 
 
   return (
-    <div className="p-2 space-y-2 w-full">
-      <div className="flex flex-wrap gap-2">
-        {isLoading ? (
-          <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
-          Loading ...
-        </Label>
-        ) : (
-          <Select value={selectedLocation} onValueChange={handleLocationChange} >
-            <SelectTrigger className="w-[110px]">
-              <SelectValue placeholder="Building" />
-            </SelectTrigger>
-            <SelectContent>
-              {uniqueLocations?.map(locationName => (
-                <SelectItem key={locationName} value={locationName}>
-                  {locationName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+    <div className="p-0 space-y-2 w-full">
+      <div className="flex gap-4 justify-between items-center">
+        {/* Left side - Logo and Building selection */}
+        <div className="flex flex-col gap-4">
+          <Image 
+            src={albeaLogo} 
+            alt="Albea" 
+            width={150} 
+            height={100} 
+            className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"
+          />
+        </div>
 
-      {isLoading ? (
-          <div></div>
-        ) : (
+        {/* Right side - Machine info and controls */}
+        <div className="flex flex-col gap-2 flex-1">
+          {/* First row - Machine info */}
+          <div className="flex flex-wrap gap-2">
+            {isLoading ? (
+              <div></div>
+            ) : (
+          <div className="flex items-center gap-2">
+                <Select value={selectedLocation} onValueChange={handleLocationChange}>
+              <SelectTrigger className="w-[80px] h-[43px] text-lg text-nowrap">
+                <SelectValue placeholder="Building" />
+              </SelectTrigger>
+              <SelectContent>
+                {uniqueLocations?.map(locationName => (
+                  <SelectItem key={locationName} value={locationName} className="text-lg text-nowrap">
+                    {locationName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
         <Select value={selectedMachineNumber} onValueChange={handleMachineNumberChange}>
-          <SelectTrigger className="w-[60px]">
+          <SelectTrigger className="w-[60px] h-[43px] text-lg text-nowrap">
             <SelectValue placeholder="MchNumber" />
           </SelectTrigger>
           <SelectContent>
             {filteredMachines?.map(machine => (
-              <SelectItem key={machine.machineNumber} value={machine.machineNumber}>
+              <SelectItem key={machine.machineNumber} value={machine.machineNumber} className="text-lg text-nowrap">
                 {machine.machineNumber}
               </SelectItem>
             ))} 
           </SelectContent>
-        </Select>)}
-
-        <Label className=" px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
-          {selectedMachine?.machineDescription || "MchDesc"}
-        </Label>
-        <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
-          {Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
-        </Label>
-        <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle">
-         PO{taskData && taskData.length > 0 ? taskData[taskData.length - 1].po_name : " Number"}
-        </Label>
-        
-        <Select value={selectedRefreshRate} onValueChange={handleRefreshRateChange}>
-          <SelectTrigger className="w-[80px]">
-            <SelectValue placeholder="Refresh Rate">
-              <div className="flex gap-1 align-middle items-center">
-              <RefreshCw size={15}/>
-              {Number(selectedRefreshRate)/1000} s
-              </div>
-              </SelectValue>
-          </SelectTrigger>
-          <SelectContent >
-            {refreshRateList?.map(refreshRate => (
-                <SelectItem key={refreshRate} value={refreshRate}>
-                  {Number(refreshRate) / 1000} s
-                </SelectItem>
-              ))} 
-          </SelectContent>
         </Select>
-        <Button
-          onClick={() => handleRefreshButton()}
-          disabled={isLoadingRefresh}
-          variant="default"
-        >
-            <RefreshCw className="w-4 h-4" style={{ animation: isLoadingRefresh ? "spin 2s linear infinite" : "none" }} />
-        </Button>
-        <Button onClick={() => setIsPODialogOpen(true)} variant="default">
+        </div>)}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
+                    {selectedMachine?.machineDescription || "MchDesc"} {selectedMachine?.machineStatus == 'TRIAL' ? <Badge variant="secondary" className="ml-2">TRIAL</Badge> : null } {selectedMachine?.machineStatus == 'TAO' ? <Badge variant="secondary" className="ml-2">TAO</Badge> : null }
+                  </Label>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p> {selectedMachine?.machineName || "MchID"}</p>
+                </TooltipContent>
+              </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base min-w-[390px]">
+                  {Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}
+                </Label>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="">{Array.isArray(hourlyData) && hourlyData && hourlyData.filter(data => data?.itemDesc !== null).length > 0 ? hourlyData.filter(data => data?.itemDesc !== null).slice(-1)[0].itemDesc : "Material Description"}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
+              PO{taskData && taskData.length > 0 ? taskData[taskData.length - 1].po_name : " Number"}
+            </Label>
+        
+        <Button onClick={() => setIsPODialogOpen(true)} variant="default" className="h-[43px]" >
             <FilePlus2 className="w-4 h-4 mr-2"  />
             PO
         </Button>
-        <Button onClick={() => {setIsTopScrapDialogOpen(true), mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/rejects`)}} variant="default">
+        <Button onClick={() => {setIsTopScrapDialogOpen(true), mutate(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/rejects`)}} variant="default" className="h-[43px]">
             <Pencil className="w-4 h-4 mr-2" />
             Top Scrap
         </Button>
@@ -1437,82 +1444,87 @@ export default function CountboardDashboardUv() {
                 </div>
               </DialogContent>
             </Dialog>
+            </div>
+          </div>
 
       </div>
       {selectedMachine === null && isLoading == false ? (
         <div className="text-center">Please select machine...</div>
       ) : (
-      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-24">
+      <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-32 w-full mb-2">
         {/* <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/> */}
-        <Card>
-          <CardHeader className="py-2 text-sm font-medium">Production Status</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-6 px-2">
+        <Card className="p-0">
+          <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Production Output 
+            <p className="text-lg font-bold text-green-500">OOE = {(oeeData?.[0]?.targetTolerance || 0) * 100}%</p></CardHeader>
+          <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
+            
             <div>
-            <div className="text-2xl font-bold text-green-600">{totalActual}</div>
-              <div className="text-sm text-muted-foreground">Actual</div>
+              <div className="text-4xl font-bold text-black">{Math.floor(totalTarget)}</div>
+              <div className="text-lg ">Target</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-600">{totalTarget}</div>
-              <div className="text-sm text-muted-foreground">Target</div>
+            <div className={`text-4xl font-bold text-black`}>{totalActual}</div>
+              <div className="text-lg ">Actual</div>
             </div>
+            
             <div>
-              <div className={`text-2xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{totalGap}</div>
-              <div className="text-sm text-muted-foreground">Gap</div>
+              <div className={`text-4xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{Math.abs(totalGap).toFixed(0)}</div>
+              <div className="text-lg ">Delta</div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="py-2 text-sm font-medium">Sensor Product Status</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-6 px-2">
+          <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Sensor Product Status</CardHeader>
+          <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
             <div>
-                <div className={`text-2xl font-bold`}>
+                <div className={`text-4xl font-bold`}>
                 {totalActualIn}
                 </div>
-              <div className="text-sm text-muted-foreground">Input</div>
+              <div className="text-lg">Input</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{totalActual}</div>
-              <div className="text-sm text-muted-foreground">Output</div>
+              <div className="text-4xl font-bold">{totalActual}</div>
+              <div className="text-lg ">Output</div>
             </div>
             <div>
-              <div className={`text-2xl font-bold ${totalActualIn - totalActual > 0 ? 'text-red-500': 'text-green-500'}`}>
+              <div className={`text-4xl font-bold ${totalActualIn - totalActual > 0 ? 'text-red-500': 'text-green-500'}`}>
                 {Math.abs(totalActualIn - totalActual)}
                 </div>
-              <div className="text-sm text-muted-foreground">Gap</div>
+              <div className="text-lg">Gap</div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="py-2 text-sm font-medium">Scrap Status</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4 px-2">
+          <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Scrap Status</CardHeader>
+          <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
             <div>
-                <div className={`text-2xl font-bold`}>
+                <div className={`text-4xl font-bold`}>
                 {totalRejectOverall}
                 </div>
-              <div className="text-sm text-muted-foreground">Total</div>
+              <div className="text-lg">Total</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{(rejectPercentage * 100).toFixed(0)}%</div>
-              <div className="text-sm text-muted-foreground">%Target</div>
+              <div className="text-4xl font-bold">{(rejectPercentage * 100).toFixed(0)}%</div>
+              <div className="text-lg">Target</div>
             </div>
             <div>
-              <div className={`text-2xl font-bold ${totalRejectOverall / totalActual > rejectPercentage ? 'text-red-500': 'text-green-500'}`}>
-                {((totalRejectOverall / totalActual)*100).toFixed(2)}%
+              <div className={`text-4xl font-bold ${totalRejectOverall / totalActual > rejectPercentage ? 'text-red-500': 'text-green-500'}`}>
+                {((totalRejectOverall / totalActual)*100).toFixed(0)}%
                 </div>
-              <div className="text-sm text-muted-foreground">%Actual</div>
+              <div className="text-lg">Actual</div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="py-2 text-sm font-medium">Spindles</CardHeader>
-          <CardContent className="grid grid-cols-3 gap-6 px-2">
+          <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Spindles</CardHeader>
+          <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
             <div>
               <Tooltip>
               <TooltipTrigger asChild>
-                <div className={`text-2xl font-bold ${getSpindleColor(spindleData?.[spindleData.length -1 ]?.SpindleACT ?? 0, spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0)}`}>
+                <div className={`text-4xl font-bold ${getSpindleColor(spindleData?.[spindleData.length -1 ]?.SpindleACT ?? 0, spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0)}`}>
                 {spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0}
                 </div>
               </TooltipTrigger>
@@ -1520,60 +1532,122 @@ export default function CountboardDashboardUv() {
                 <p>Highest count cycle sebelumnya</p>
               </TooltipContent>
               </Tooltip>
-              <div className="text-sm text-muted-foreground">Actual</div>
+              <div className="text-lg">Actual</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0}</div>
-              <div className="text-sm text-muted-foreground">Target</div>
+              <div className="text-4xl font-bold">{spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0}</div>
+              <div className="text-lg">Target</div>
             </div>
             <div>
-              <div className={`text-2xl font-bold ${getSpindleColor(spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0, spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 0)}`}>{(((spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0) / (spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 1)) * 100).toFixed(2)}%</div>
-              <div className="text-sm text-muted-foreground">Achieve</div>
+              <div className={`text-4xl font-bold ${getSpindleColor(spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0, spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 0)}`}>{(((spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0) / (spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 1)) * 100).toFixed(0)}%</div>
+              <div className="text-lg">Achieve</div>
             </div>
           </CardContent>
         </Card>
 
 
-        <Card>
-         <CardHeader className="py-2 text-xs font-medium text-red-500">Non O.O.E</CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4">
+        <Card className="w-1/2 pb-0">
+          <CardHeader className="py-2 text-lg font-bold p-0 pb-4 flex">Downtime (in minutes)</CardHeader>
+          <CardContent className="grid grid-cols-7 p-2 pb-0 pt-0 w-full">
             <div>
-              <div className="text-xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(1)}%</div>
+               <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                <div className="text-4xl font-bold">{((oeeData?.[0]?.white || 0) * 60.0).toFixed(0) || 0}'</div>
+                <div className="text-xl text-black bg-white border border-black  px-2 pt-1 pb-0 rounded-l-md">PS</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="">Planned Stoppage</p>
+              </TooltipContent>
+             </Tooltip>
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                  <div className="text-4xl font-bold text-[#118DFF]">{((oeeData?.[0]?.blue || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-white bg-[#118DFF] border border-black  px-2 pt-1 pb-0">C/O</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="">Change Over</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                  <div className="text-4xl font-bold text-[#FF0000] px-0">{((oeeData?.[0]?.red || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-white bg-[#FF0000] border border-black  px-2 pt-1 pb-0">NQ</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="">Non Quality</p>
+                </TooltipContent>
+                </Tooltip>
+            </div>
 
-        <Card className="">
-          <CardHeader className="py-2 text-sm font-medium">Performance Metrics</CardHeader>
-          <CardContent className="grid grid-cols-7 gap-4">
-            <div>
-              <div className="text-xl font-bold text-green-600">{((oeeData?.[0]?.ooe || 0) * 100).toFixed(1)}%</div>
-              <div className="text-sm text-muted-foreground">OK</div>
+             <div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                  <div className="text-4xl font-bold text-[#FF7400]">{((oeeData?.[0]?.orange || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-white bg-[#FF7400] border border-black  px-2 pt-1 pb-0">BD</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="">Breakdown</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
+
             <div>
-              <div className="text-xl font-bold text-red-600">{oeeData?.[0]?.red.toFixed(1) || 0}</div>
-              <div className="text-sm text-muted-foreground">NQ</div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                  <div className="text-4xl font-bold text-[#6A4C93]">{((oeeData?.[0]?.purple || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-white bg-[#6A4C93] border border-black  px-2 pt-1 pb-0">OP</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="">Organizational Disfunction</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
+
             <div>
-              <div className="text-xl font-bold text-yellow-600">{oeeData?.[0]?.yellow.toFixed(1) || 0}</div>
-              <div className="text-sm text-muted-foreground">SD</div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="">
+                  <div className="text-4xl font-bold text-black px-0">{((oeeData?.[0]?.yellow || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-black bg-[#FFFF00] border border-black  px-2 pt-1 pb-0">SD</div>
+
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="">Slow Down</p>
+                </TooltipContent>
+                </Tooltip>
             </div>
+
             <div>
-              <div className="text-xl font-bold">{oeeData?.[0]?.white.toFixed(1) || 0}</div>
-              <div className="text-sm text-muted-foreground">PS</div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="">
+                  <div className="text-4xl font-bold text-[#AAAAAA] px-0">{((oeeData?.[0]?.grey || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-xl text-white bg-[#AAAAAA] border border-black  px-2 pt-1 pb-0 rounded-r-md">UC</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="">Unclassified</p>
+                </TooltipContent>
+                </Tooltip>
             </div>
-            <div>
-              <div className="text-xl font-bold text-blue-400">{oeeData?.[0]?.blue.toFixed(1) || 0}</div>
-              <div className="text-sm text-muted-foreground">C/O</div>
-            </div>
-            <div>
-              <div className="text-xl font-bold text-orange-600">{oeeData?.[0]?.orange.toFixed(1) || 0}</div>
-              <div className="text-sm text-muted-foreground">BD</div>
-            </div>
-            <div>
-              <div className="text-xl font-bold text-purple-600">{oeeData?.[0]?.purple.toFixed(1) || 0}</div>
-              <div className="text-sm text-muted-foreground">OP</div>
-            </div>
+            
+           
+            
           </CardContent>
         </Card>
       </div> 
