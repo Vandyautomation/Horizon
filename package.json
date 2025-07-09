@@ -11,6 +11,7 @@
       "build-be": "tsc && tsc-alias",
       "start-be": "NODE_ENV=production bun run api/index.ts",
       "start-be-qco": "NODE_ENV=production bun run api/index_qco.ts",
+      "start-be2": "NODE_ENV=production bun run api/index_be2.ts",
       "build": "next build",
       "start": "next start",
       "lint": "next lint",
