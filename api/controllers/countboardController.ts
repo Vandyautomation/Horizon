@@ -156,6 +156,8 @@ export async function editProcess(hourlyId: number, process: string) {
   UPDATE IoT.dbo.Reject_Machine_Relationship
       set process = @process
       where mchid = (select machine_id from IoT.dbo.hourly_uv where id = @hourlyId)
+
+  INSERT INTO IoT.dbo.UvProcessTrx (hourly_id, process) VALUES (@hourlyId, @process)
   `;
   try {
     return await queryDatabase(sqlQuery, { hourlyId, process });
