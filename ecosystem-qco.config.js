@@ -1,11 +1,12 @@
+
 module.exports = {
     apps: [
         {
-            name: 'countboard-api',
+            name: 'qco-api',
             script: 'bun',
             // script: 'C:/Users/Information-systemD/.bun/bin/bun.exe',
             cwd: 'D:/Countboard/next-hono-admin-ui',
-            args: 'api/index.ts',
+            args: 'api/index_qco.ts',
             env: {
                 DB_DRIVER: 'sqlserver',
                 DB_HOST: '10.160.50.15',

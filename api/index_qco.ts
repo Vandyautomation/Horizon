@@ -5,11 +5,13 @@ const PORT = process.env.BE_QCO_PORT || 9996;
 // Catch async rejections
 process.on('unhandledRejection', (reason) => {
   console.error('⚠️ Unhandled Rejection:', reason);
+  process.exit(1);
 });
 
 // Catch uncaught exceptions
 process.on('uncaughtException', (err) => {
   console.error('🔥 Uncaught Exception:', err);
+  process.exit(1);
 });
 
 // Start the Bun server
