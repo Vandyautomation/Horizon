@@ -94,7 +94,7 @@ type HourlyData = {
 
 type OoeData = {
   targetYearly: number;
-  targetTolerance: number;
+  targetToleranceUv: number;
   timea: number;
   pmidle: number;
   timeb: number;
@@ -1455,7 +1455,7 @@ export default function CountboardDashboardUv() {
         {/* <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/> */}
         <Card className="p-0">
           <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Production Output 
-            <p className="text-lg font-bold text-green-500">OOE = {(oeeData?.[0]?.targetTolerance || 0) * 100}%</p></CardHeader>
+            <p className="text-lg font-bold text-green-500">OOE = {(oeeData?.[0]?.targetToleranceUv || 0) * 100}%</p></CardHeader>
           <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
             
             <div>

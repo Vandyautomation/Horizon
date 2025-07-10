@@ -910,7 +910,8 @@ export async function getOeeMachine(machine_id: string, date: string | null, shi
           totalpurple AS purple,
           totalgrey AS grey,
           (select top 1 value from IoT.dbo.parameter_setting where name = 'target_oee_yearly' order by id desc) as targetYearly,
-          (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance' order by id desc) as targetTolerance
+          (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance' order by id desc) as targetTolerance,
+          (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance_uv' order by id desc) as targetToleranceUv
       FROM TimeCalculations
     `
     return await queryDatabase(sqlQuery, {machine_id, date, shift})
@@ -919,7 +920,8 @@ export async function getOeeMachine(machine_id: string, date: string | null, shi
     const sqlQuery = `
     SELECT MchID, timea, pmidle, timeb, breakdown, timee, ooe, oee, breakdownperc, green, red, yellow, white, blue, orange, purple, grey,
     (select top 1 value from IoT.dbo.parameter_setting where name = 'target_oee_yearly' order by id desc) as targetYearly,
-    (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance' order by id desc) as targetTolerance
+    (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance' order by id desc) as targetTolerance,
+    (select top 1 value from IoT.dbo.parameter_setting where name = 'target_tolerance_uv' order by id desc) as targetToleranceUv
     FROM MachineData where MchID = @machine_id
     `;
     return await queryDatabase(sqlQuery, { machine_id });
