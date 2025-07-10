@@ -69,6 +69,7 @@ type HourlyData = {
   itemDesc: string;
   target: number;
   target_tolerance: number;
+  target_final: number;
   actual: number;
   actual_in: number;
   delta: number;
@@ -851,9 +852,26 @@ export default function CountboardDashboardUv() {
 
   const totalActual = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0), 0) || 0
   const totalActualIn = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual_in || 0), 0) || 0
-  const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.target || 0), 0) || 0
-  const totalGap = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.actual || 0) - (item.target || 0), 0) || 0
-
+  const totalTarget = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => {
+    const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" });
+    const nowDate = new Date(now);
+    const itemFromTime = new Date(new Date(item.from_datetime).getTime() - 6 * 60 * 60 * 1000).getTime();
+    const nowTime = nowDate.getTime();
+    const remainingSeconds = nowDate.getSeconds();
+    const remainingMinutes = nowDate.getMinutes() * 60;
+    return (
+      total +
+      (
+        itemFromTime < nowTime
+          ? item.target_final * (oeeData?.[0]?.targetToleranceUv || 1)
+          : Math.floor(
+              (item.target_final * (remainingMinutes + remainingSeconds) / 3600) *
+              (oeeData?.[0]?.targetToleranceUv || 1)
+            )
+      )
+    ) || 0;
+  }, 0) || 0;
+  const totalGap = totalActual - totalTarget;
   const totalGapSpindle = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.gap), 0) || 0
 
   const totalRejectA = Array.isArray(hourlyData) && hourlyData?.reduce((total, item) => total + (item.reject_a || 0), 0) || 0
@@ -1707,18 +1725,45 @@ export default function CountboardDashboardUv() {
                     <TableCell colSpan={17} className="text-center">No data available</TableCell>
                   </TableRow>
                 ) : (
-                  (Array.isArray(hourlyData) ? hourlyData : []).map((row, index) => (
+                    hourlyData?.map((row, index) => {
+                    const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"});
+                    const nowDate = new Date(now);
+                    const remainingSeconds = nowDate.getSeconds();
+                    const remainingMinutes = nowDate.getMinutes() * 60;
+                    const to_datetime = new Date( new Date(row.from_datetime).getTime() - 6 * 60 * 60 * 1000);
+                    let textAnimation = 'animate-pulse'
+                    var target_show = 0;
+                    var target_show_100 = 0;
+                    if(to_datetime < nowDate || row.target == 0){
+                      console.log('to_datetime < nowDate', to_datetime, nowDate);
+                      target_show = Math.floor(row.target_final * (oeeData?.[0]?.targetToleranceUv || 1));
+                      target_show_100 = row.target_final;
+                      textAnimation = ''
+                    } else {
+                      console.log('to_datetime > nowDate', to_datetime, nowDate);
+                      textAnimation = 'animate-pulse'
+                      target_show = Math.floor((row.target_final * (remainingMinutes + remainingSeconds) / 3600) * (oeeData?.[0]?.targetToleranceUv || 1));
+                      target_show_100 = Math.floor((row.target_final * (remainingMinutes + remainingSeconds) / 3600));
+                    }
+
+                    var delta = row.actual - target_show;
+                    // if(delta < 0){
+                    //   delta = 0;
+                    // }
+                    return(
                     <TableRow className="h-12" key={row.time}>
                       <TableCell className="h-full">{row.time}</TableCell>
                       <TableCell className="h-full">{row.itemNo}</TableCell>
-                      <TableCell className="text-center h-full">{row.target}</TableCell>
+                      <TableCell className={`text-center h-full text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0 ${textAnimation}`}>{target_show}</TableCell>
                       <TableCell className="relative overflow-hidden h-full">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                       <div className="flex items-center h-full w-full">
                         {(() => {
                           const maxValue = hourlyData?.reduce((max, item) => {
                             // Only consider items with process 'Base Coat' for this view
                             if (item.process === null || item.process === 'Base Coat') {
-                              return Math.max(max, item.actual, item.target);
+                              return Math.max(max, item.actual, target_show_100*1.1);
                             }
                             return max;
                           }, 0) || 100;
@@ -1730,23 +1775,24 @@ export default function CountboardDashboardUv() {
                           
                           return (
                             <>
+
                               <div
-                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
+                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, target_show)}`}
                                 style={{
                                   width: `${Math.min((row.actual / maxValue) * 100, 100)}%`,
                                   maxWidth: "250px",
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-px bg-green-600"
+                                className="absolute inset-0 h-full w-[1px] border-dashed border-r-4 border-green-600"
                                 style={{
-                                  left: `${Math.min((row.target / maxValue) * 100, 100)}%`,
+                                  left: `${Math.min((target_show / maxValue) * 100, 100)}%`, // Accurate tolerance position
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-px bg-yellow-500"
+                                className="absolute inset-0 h-full w-[1px] border-r-4 border-green-600"
                                 style={{
-                                  left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`,
+                                  left: `${Math.min((target_show_100 / maxValue) * 100, 100)}%`, // Accurate target position
                                 }}
                               />
                             </>
@@ -1754,19 +1800,27 @@ export default function CountboardDashboardUv() {
                         })()}
                         <span className="relative z-10 ml-2">{row.process === 'Base Coat' || row.process !== 'Top Coat' ? row.actual : "N/A"} </span>
                       </div>
-                    </TableCell>
+                      </TooltipTrigger>
+                        <TooltipContent>
+                          <p>- - - Target : {target_show}</p>
+                          <p>⸺ Target : {target_show_100}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      </TableCell>
 
                       <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.process === 'Base Coat' ? row.delta : 0}</TableCell>
                      
                      { (selectedMachine.locationName == "E" || selectedMachine.locationName == "K")  &&   
                      <>
+                     <Tooltip>
+                      <TooltipTrigger asChild>
                      <TableCell className="relative overflow-hidden h-full">
                       <div className="flex items-center h-full w-full">
                         {(() => {
                           const maxValue = hourlyData?.reduce((max, item) => {
                             // Only consider items with process 'Base Coat' for this view
                             if (item.process === 'Top Coat') {
-                              return Math.max(max, item.actual, item.target);
+                              return Math.max(max, item.actual, target_show_100*1.1);
                             }
                             return max;
                           }, 0) || 100;
@@ -1778,22 +1832,22 @@ export default function CountboardDashboardUv() {
                           return (
                             <>
                               <div
-                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, row.target_tolerance)}`}
+                                className={`absolute inset-0 h-full rounded ${getBarColor(row.actual, row.target, target_show)}`}
                                 style={{
                                   width: `${Math.min((row.actual / maxValue) * 100, 100)}%`, // Ensure accurate scaling
                                   maxWidth: "250px",
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-px bg-green-600"
+                                className="absolute inset-0 h-full w-[1px] border-dashed border-r-4 border-green-600"
                                 style={{
-                                  left: `${Math.min((row.target / maxValue) * 100, 100)}%`, // Accurate target position
+                                  left: `${Math.min((target_show / maxValue) * 100, 100)}%`, // Accurate tolerance position
                                 }}
                               />
                               <div
-                                className="absolute inset-0 h-full w-px bg-yellow-500"
+                                className="absolute inset-0 h-full w-[1px] border-r-4 border-green-600"
                                 style={{
-                                  left: `${Math.min((row.target_tolerance / maxValue) * 100, 100)}%`, // Accurate tolerance position
+                                  left: `${Math.min((target_show_100 / maxValue) * 100, 100)}%`, // Accurate target position
                                 }}
                               />
                             </>
@@ -1802,7 +1856,13 @@ export default function CountboardDashboardUv() {
                         <span className="relative z-10 ml-2">{row.process === 'Top Coat' ? row.actual : "N/A"} </span>
                       </div>
                     </TableCell>
-                    
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>- - - Target : {target_show}</p>
+                        <p>⸺ Target : {target_show_100}</p>
+                      </TooltipContent>
+                      </Tooltip>
+
                       <TableCell className={row.delta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{row.process === 'Top Coat' ? row.delta : 0}</TableCell>
                   </>}
 
@@ -1881,7 +1941,7 @@ export default function CountboardDashboardUv() {
                         </Tooltip>
                       </TableCell>
                     </TableRow>
-                  ))
+                  )})
                 )}
 
                   <TableRow>
