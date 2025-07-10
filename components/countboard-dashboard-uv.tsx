@@ -1257,7 +1257,7 @@ export default function CountboardDashboardUv() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
-                    {selectedMachine?.machineDescription || "MchDesc"} {selectedMachine?.machineStatus == 'TRIAL' ? <Badge variant="secondary" className="ml-2">TRIAL</Badge> : null } {selectedMachine?.machineStatus == 'TAO' ? <Badge variant="secondary" className="ml-2">TAO</Badge> : null }
+                    {selectedMachine?.machineDescription || "MchDesc"} {selectedMachine?.machineStatus == 'TRIAL' ? <Badge variant="secondary" className="ml-2">TRIAL/PM</Badge> : null } {selectedMachine?.machineStatus == 'TAO' ? <Badge variant="secondary" className="ml-2">TAO</Badge> : null }
                   </Label>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -1689,7 +1689,7 @@ export default function CountboardDashboardUv() {
                   <TableHead></TableHead>
                   <TableHead></TableHead>
                   <TableHead></TableHead>
-                  <TableHead colSpan={5} className="text-center">Scrap Actual</TableHead>
+                  <TableHead colSpan={5} className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Scrap Actual</TableHead>
                   <TableHead></TableHead>
                   <TableHead></TableHead>
                   <TableHead></TableHead>
@@ -1697,26 +1697,26 @@ export default function CountboardDashboardUv() {
                   <TableHead className="w-[125px] truncate text-center"></TableHead>
                 </TableRow>
                 <TableRow>
-                  <TableHead className="w-[60px]">Time</TableHead>
-                  <TableHead className="w-[60px]">ItemNo</TableHead>
-                  <TableHead className="w-[60px]">Target</TableHead>
-                  <TableHead className="w-[250px] text-center">Actual Qty Base Coat</TableHead>
-                  <TableHead className="w-[60px] text-center">Gap</TableHead>
+                  <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Time</TableHead>
+                  <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">ItemNo</TableHead>
+                  <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Target</TableHead>
+                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Actual Qty Base Coat</TableHead>
+                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Gap</TableHead>
                   { (selectedMachine.locationName == "E" || selectedMachine.locationName == "K")  &&   
                   (<>
-                    <TableHead className="w-[250px] text-center">Actual Qty Top Coat</TableHead>
-                    <TableHead className="w-[60px] text-center">Gap</TableHead>
+                    <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Actual Qty Top Coat</TableHead>
+                    <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Gap</TableHead>
                   </>) }
-                  <TableHead className="w-[50px] text-center">SCRAP TOTAL</TableHead>
-                  <TableHead className="w-[50px] text-center">% SCRAP</TableHead>
-                  <TableHead className="w-[50px] text-center">A</TableHead>
-                  <TableHead className="w-[50px] text-center">B</TableHead>
-                  <TableHead className="w-[50px] text-center">C</TableHead>
-                  <TableHead className="w-[50px] text-center">D</TableHead>
-                  <TableHead className="w-[50px] text-center">E</TableHead>
-                  <TableHead className="w-[100px] text-center border border-r-1 border-l-1 border-t-0 border-b-0">NOOE</TableHead>
-                  <TableHead className="w-[125px] truncate text-center">Causes</TableHead>
-                  <TableHead className="w-[125px] truncate text-center">Comments/Actions</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">Scrap Actual</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">% SCRAP</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">A</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">B</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">C</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">D</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">E</TableHead>
+                  <TableHead className="w-[100px] text-center text-lg font-bold text-black border border-r-1 border-l-1 border-t-0 border-b-0 ">NOOE</TableHead>
+                  <TableHead className="w-[125px] truncate text-center text-lg font-bold text-black">Causes</TableHead>
+                  <TableHead className="w-[125px] truncate text-center text-lg font-bold text-black">Comments/Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
