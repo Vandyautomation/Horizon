@@ -1708,13 +1708,23 @@ export default function CountboardDashboardUv() {
                     <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Gap</TableHead>
                   </>) }
                   <TableHead className="w-[50px] text-center text-lg font-bold text-black">Scrap Actual</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">% SCRAP</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">% Scrap</TableHead>
                   <TableHead className="w-[50px] text-center text-lg font-bold text-black">A</TableHead>
                   <TableHead className="w-[50px] text-center text-lg font-bold text-black">B</TableHead>
                   <TableHead className="w-[50px] text-center text-lg font-bold text-black">C</TableHead>
                   <TableHead className="w-[50px] text-center text-lg font-bold text-black">D</TableHead>
                   <TableHead className="w-[50px] text-center text-lg font-bold text-black">E</TableHead>
-                  <TableHead className="w-[100px] text-center text-lg font-bold text-black border border-r-1 border-l-1 border-t-0 border-b-0 ">NOOE</TableHead>
+                  <TableHead className="text-center border border-r-1 border-l-1 border-t-0 border-b-0 text-lg text-nowrap font-bold text-black px-0 gap-0 mx-0">NOOE
+                    <div className="flex grid-cols-7 items-center justify-center gap-0 mx-0 px-0">
+                    <div className="bg-gray-100 w-[10px] h-[5px] mb-0"/>
+                    <div className="bg-[#118DFF] w-[10px] h-[5px] mb-0"/>
+                    <div className="bg-[#FF0000] w-[10px] h-[5px] mb-0"/>
+                    <div className="bg-[#FF7400] w-[10px] h-[5px] mb-0"/>
+                    <div className="bg-[#6A4C93] w-[10px] h-[5px] mb-0"/>
+                    <div className="bg-[#FFFF00] w-[10px] h-[5px] mb-0"/>
+                    <div className="bg-[#AAAAAA] w-[10px] h-[5px] mb-0"/>
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[125px] truncate text-center text-lg font-bold text-black">Causes</TableHead>
                   <TableHead className="w-[125px] truncate text-center text-lg font-bold text-black">Comments/Actions</TableHead>
                 </TableRow>
