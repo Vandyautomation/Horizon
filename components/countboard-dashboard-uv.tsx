@@ -1477,11 +1477,11 @@ export default function CountboardDashboardUv() {
           <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
             
             <div>
-              <div className="text-4xl font-bold text-black">{Math.floor(totalTarget)}</div>
+              <div className="text-4xl font-bold">{Math.floor(totalTarget)}</div>
               <div className="text-lg ">Target</div>
             </div>
             <div>
-            <div className={`text-4xl font-bold text-black`}>{totalActual}</div>
+            <div className={`text-4xl font-bold`}>{totalActual}</div>
               <div className="text-lg ">Actual</div>
             </div>
             
@@ -1697,24 +1697,24 @@ export default function CountboardDashboardUv() {
                   <TableHead className="w-[125px] truncate text-center"></TableHead>
                 </TableRow>
                 <TableRow>
-                  <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Time</TableHead>
-                  <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">ItemNo</TableHead>
-                  <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">Target</TableHead>
-                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Actual Qty Base Coat</TableHead>
-                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Gap</TableHead>
+                  <TableHead className="w-[60px] text-lg text-nowrap font-bold">Time</TableHead>
+                  <TableHead className="w-[60px] text-lg text-nowrap font-bold">ItemNo</TableHead>
+                  <TableHead className="w-[60px] text-lg text-nowrap font-bold">Target</TableHead>
+                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold">Actual Qty Base Coat</TableHead>
+                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold">Gap</TableHead>
                   { (selectedMachine.locationName == "E" || selectedMachine.locationName == "K")  &&   
                   (<>
-                    <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Actual Qty Top Coat</TableHead>
-                    <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Gap</TableHead>
+                    <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold">Actual Qty Top Coat</TableHead>
+                    <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold">Gap</TableHead>
                   </>) }
-                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">Scrap Actual</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">% Scrap</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">A</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">B</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">C</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">D</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold text-black">E</TableHead>
-                  <TableHead className="text-center border border-r-1 border-l-1 border-t-0 border-b-0 text-lg text-nowrap font-bold text-black px-0 gap-0 mx-0">NOOE
+                  <TableHead className="w-[50px] text-center text-lg font-bold">Scrap Actual</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold">% Scrap</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold">A</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold">B</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold">C</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold">D</TableHead>
+                  <TableHead className="w-[50px] text-center text-lg font-bold">E</TableHead>
+                  <TableHead className="text-center border border-r-1 border-l-1 border-t-0 border-b-0 text-lg text-nowrap font-bold px-0 gap-0 mx-0">NOOE
                     <div className="flex grid-cols-7 items-center justify-center gap-0 mx-0 px-0">
                     <div className="bg-gray-100 w-[10px] h-[5px] mb-0"/>
                     <div className="bg-[#118DFF] w-[10px] h-[5px] mb-0"/>
