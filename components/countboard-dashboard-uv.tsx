@@ -1547,7 +1547,7 @@ export default function CountboardDashboardUv() {
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Highest count cycle sebelumnya</p>
+                <p>Highest count</p>
               </TooltipContent>
               </Tooltip>
               <div className="text-lg">Actual</div>
@@ -1689,7 +1689,7 @@ export default function CountboardDashboardUv() {
                   <TableHead></TableHead>
                   <TableHead></TableHead>
                   <TableHead></TableHead>
-                  <TableHead colSpan={5} className="w-[60px] text-center text-lg text-nowrap font-bold text-black">Scrap Actual</TableHead>
+                  <TableHead colSpan={5} className="w-[60px] text-center text-lg text-nowrap font-bold">Scrap Actual</TableHead>
                   <TableHead></TableHead>
                   <TableHead></TableHead>
                   <TableHead></TableHead>
@@ -1725,8 +1725,8 @@ export default function CountboardDashboardUv() {
                     <div className="bg-[#AAAAAA] w-[10px] h-[5px] mb-0"/>
                     </div>
                   </TableHead>
-                  <TableHead className="w-[125px] truncate text-center text-lg font-bold text-black">Causes</TableHead>
-                  <TableHead className="w-[125px] truncate text-center text-lg font-bold text-black">Comments/Actions</TableHead>
+                  <TableHead className="w-[125px] truncate text-center text-lg font-bold">Causes</TableHead>
+                  <TableHead className="w-[125px] truncate text-center text-lg font-bold">Comments/Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1764,7 +1764,7 @@ export default function CountboardDashboardUv() {
                     <TableRow className="h-12" key={row.time}>
                       <TableCell className="h-full">{row.time}</TableCell>
                       <TableCell className="h-full">{row.itemNo}</TableCell>
-                      <TableCell className={`text-center h-full text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0 ${textAnimation}`}>{target_show}</TableCell>
+                      <TableCell className={`text-center h-full text-nowrap border border-r-0 border-l-1 border-t-0 border-b-0 ${textAnimation}`}>{target_show}</TableCell>
                       <TableCell className="relative overflow-hidden h-full">
                     <Tooltip>
                       <TooltipTrigger asChild>
