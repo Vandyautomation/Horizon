@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { createUser, deleteUser, fetchUserById, fetchUserByNik, fetchUserByUsername, fetchUsers, updateUser } from '../controllers/userController';
-import { getAuthToken } from '../utils/cookieUtils';
 import { authMiddleware } from '../middleware/authMiddleware';
 
 const userRoutes = new Hono();
@@ -39,6 +38,7 @@ userRoutes.get('/:id', async (c) => {
     return c.json({ success: false, message: (error as Error).message }, 500);
   }
 });
+
 userRoutes.post('/', async (c) => {
   try {
     const body = await c.req.json() as {
@@ -54,6 +54,12 @@ userRoutes.post('/', async (c) => {
 
     if (!body.UserName || !body.password || !body.UserRFID || !body.role_id) {
       return c.json({ success: false, message: 'UserName, password, UserRFID, and role_id are required' }, 400);
+    }
+
+    const existingUser = await fetchUserByUsername(body.UserName);
+
+    if (existingUser.length > 0) {
+      return c.json({ success: false, message: 'User already exists' }, 400);
     }
 
     const existingUser2 = await fetchUserByNik(body.UserRFID);

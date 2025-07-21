@@ -1477,16 +1477,16 @@ export default function CountboardDashboardUv() {
           <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
             
             <div>
-              <div className="text-4xl font-bold">{Math.floor(totalTarget)}</div>
+              <div className="text-3xl font-bold">{Math.floor(totalTarget)}</div>
               <div className="text-lg ">Target</div>
             </div>
             <div>
-            <div className={`text-4xl font-bold`}>{totalActual}</div>
+            <div className={`text-3xl font-bold`}>{totalActual}</div>
               <div className="text-lg ">Actual</div>
             </div>
             
             <div>
-              <div className={`text-4xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{Math.abs(totalGap).toFixed(0)}</div>
+              <div className={`text-3xl font-bold ${totalGap < 0 ? "text-red-600" : "text-green-600"}`}>{Math.abs(totalGap).toFixed(0)}</div>
               <div className="text-lg ">Delta</div>
             </div>
           </CardContent>
@@ -1496,17 +1496,17 @@ export default function CountboardDashboardUv() {
           <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Sensor Product Status</CardHeader>
           <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
             <div>
-                <div className={`text-4xl font-bold`}>
+                <div className={`text-3xl font-bold`}>
                 {totalActualIn}
                 </div>
               <div className="text-lg">Input</div>
             </div>
             <div>
-              <div className="text-4xl font-bold">{totalActual}</div>
+              <div className="text-3xl font-bold">{totalActual}</div>
               <div className="text-lg ">Output</div>
             </div>
             <div>
-              <div className={`text-4xl font-bold ${totalActualIn - totalActual > 0 ? 'text-red-500': 'text-green-500'}`}>
+              <div className={`text-3xl font-bold ${totalActualIn - totalActual > 0 ? 'text-red-500': 'text-green-500'}`}>
                 {Math.abs(totalActualIn - totalActual)}
                 </div>
               <div className="text-lg">Gap</div>
@@ -1518,17 +1518,17 @@ export default function CountboardDashboardUv() {
           <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Scrap Status</CardHeader>
           <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
             <div>
-                <div className={`text-4xl font-bold`}>
+                <div className={`text-3xl font-bold`}>
                 {totalRejectOverall}
                 </div>
               <div className="text-lg">Total</div>
             </div>
             <div>
-              <div className="text-4xl font-bold">{(rejectPercentage * 100).toFixed(0)}%</div>
+              <div className="text-3xl font-bold">{(rejectPercentage * 100).toFixed(0)}%</div>
               <div className="text-lg">Target</div>
             </div>
             <div>
-              <div className={`text-4xl font-bold ${totalRejectOverall / totalActual > rejectPercentage ? 'text-red-500': 'text-green-500'}`}>
+              <div className={`text-3xl font-bold ${totalRejectOverall / totalActual > rejectPercentage ? 'text-red-500': 'text-green-500'}`}>
                 {((totalRejectOverall / totalActual)*100).toFixed(0)}%
                 </div>
               <div className="text-lg">Actual</div>
@@ -1542,7 +1542,7 @@ export default function CountboardDashboardUv() {
             <div>
               <Tooltip>
               <TooltipTrigger asChild>
-                <div className={`text-4xl font-bold ${getSpindleColor(spindleData?.[spindleData.length -1 ]?.SpindleACT ?? 0, spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0)}`}>
+                <div className={`text-3xl font-bold ${getSpindleColor(spindleData?.[spindleData.length -1 ]?.SpindleACT ?? 0, spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0)}`}>
                 {spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0}
                 </div>
               </TooltipTrigger>
@@ -1553,16 +1553,34 @@ export default function CountboardDashboardUv() {
               <div className="text-lg">Actual</div>
             </div>
             <div>
-              <div className="text-4xl font-bold">{spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0}</div>
+              <div className="text-3xl font-bold">{spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0}</div>
               <div className="text-lg">Target</div>
             </div>
             <div>
-              <div className={`text-4xl font-bold ${getSpindleColor(spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0, spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 0)}`}>{(((spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0) / (spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 1)) * 100).toFixed(0)}%</div>
+              <div className={`text-3xl font-bold ${getSpindleColor(spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0, spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 0)}`}>{(((spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0) / (spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 1)) * 100).toFixed(0)}%</div>
               <div className="text-lg">Achieve</div>
             </div>
           </CardContent>
         </Card>
 
+        <Card>
+         <CardHeader className="py-2 text-lg font-bold text-black text-nowrap p-0 pb-1">
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-bold text-red-500 px-8">Non O.O.E</div>
+            <div className="text-lg font-bold text-black px-2 mr-8 pt-1 bg-green-500 rounded-md">OK</div>
+          </div>
+         </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4 p-2 pb-0">
+            <div>
+              <div className="text-3xl font-bold text-red-500">{((oeeData?.[0]?.breakdownperc || 0) * 100.0).toFixed(1)}%</div>
+            </div>
+            <div>
+              <div className={`text-3xl font-bold ${((oeeData?.[0]?.ooe || 0) * 100.0) > (oeeData?.[0]?.targetTolerance || 0) * 100.0 ? "text-green-500" : "text-red-500"}`}>{((oeeData?.[0]?.ooe || 0) * 100.0).toFixed(1)}%</div>
+            </div>
+          </CardContent>
+          {/* <div className="text-lg text-right pr-4">
+            Target {(oeeData?.[0]?.targetYearly || 0).toFixed(1)}%</div> */}
+        </Card>
 
         <Card className="w-1/2 pb-0">
           <CardHeader className="py-2 text-lg font-bold p-0 pb-4 flex">Downtime (in minutes)</CardHeader>
@@ -1571,7 +1589,7 @@ export default function CountboardDashboardUv() {
                <Tooltip>
               <TooltipTrigger asChild>
                 <div>
-                <div className="text-4xl font-bold">{((oeeData?.[0]?.white || 0) * 60.0).toFixed(0) || 0}'</div>
+                <div className="text-3xl font-bold">{((oeeData?.[0]?.white || 0) * 60.0).toFixed(0) || 0}'</div>
                 <div className="text-xl text-black bg-white border border-black  px-2 pt-1 pb-0 rounded-l-md">PS</div>
                 </div>
               </TooltipTrigger>
@@ -1584,7 +1602,7 @@ export default function CountboardDashboardUv() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-[#118DFF]">{((oeeData?.[0]?.blue || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-3xl font-bold text-[#118DFF]">{((oeeData?.[0]?.blue || 0) * 60.0).toFixed(0) || 0}'</div>
                   <div className="text-xl text-white bg-[#118DFF] border border-black  px-2 pt-1 pb-0">C/O</div>
                   </div>
                 </TooltipTrigger>
@@ -1597,7 +1615,7 @@ export default function CountboardDashboardUv() {
             <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-[#FF0000] px-0">{((oeeData?.[0]?.red || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-3xl font-bold text-[#FF0000] px-0">{((oeeData?.[0]?.red || 0) * 60.0).toFixed(0) || 0}'</div>
                   <div className="text-xl text-white bg-[#FF0000] border border-black  px-2 pt-1 pb-0">NQ</div>
                   </div>
                 </TooltipTrigger>
@@ -1611,7 +1629,7 @@ export default function CountboardDashboardUv() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-[#FF7400]">{((oeeData?.[0]?.orange || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-3xl font-bold text-[#FF7400]">{((oeeData?.[0]?.orange || 0) * 60.0).toFixed(0) || 0}'</div>
                   <div className="text-xl text-white bg-[#FF7400] border border-black  px-2 pt-1 pb-0">BD</div>
                   </div>
                 </TooltipTrigger>
@@ -1625,7 +1643,7 @@ export default function CountboardDashboardUv() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                  <div className="text-4xl font-bold text-[#6A4C93]">{((oeeData?.[0]?.purple || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-3xl font-bold text-[#6A4C93]">{((oeeData?.[0]?.purple || 0) * 60.0).toFixed(0) || 0}'</div>
                   <div className="text-xl text-white bg-[#6A4C93] border border-black  px-2 pt-1 pb-0">OP</div>
                   </div>
                 </TooltipTrigger>
@@ -1639,7 +1657,7 @@ export default function CountboardDashboardUv() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="">
-                  <div className="text-4xl font-bold text-black px-0">{((oeeData?.[0]?.yellow || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-3xl font-bold text-black px-0">{((oeeData?.[0]?.yellow || 0) * 60.0).toFixed(0) || 0}'</div>
                   <div className="text-xl text-black bg-[#FFFF00] border border-black  px-2 pt-1 pb-0">SD</div>
 
                   </div>
@@ -1654,7 +1672,7 @@ export default function CountboardDashboardUv() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="">
-                  <div className="text-4xl font-bold text-[#AAAAAA] px-0">{((oeeData?.[0]?.grey || 0) * 60.0).toFixed(0) || 0}'</div>
+                  <div className="text-3xl font-bold text-[#AAAAAA] px-0">{((oeeData?.[0]?.grey || 0) * 60.0).toFixed(0) || 0}'</div>
                   <div className="text-xl text-white bg-[#AAAAAA] border border-black  px-2 pt-1 pb-0 rounded-r-md">UC</div>
                   </div>
                 </TooltipTrigger>

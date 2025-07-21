@@ -21,6 +21,7 @@ export async function fetchUsers() {
     left join roles r on r.id = u.role_id
     where u.active = 1
   `;
+  
   const result = await queryDatabase(query);
   delete result[0].UserHashedPassword;
   return result
@@ -67,7 +68,7 @@ export async function deleteUser(id: string) {
 export async function fetchUserByUsername(username: string) {
   const query = `
     SELECT * FROM useraccessmst WHERE username = @username AND active = 1
-  `;
+ c `;
   const result = await queryDatabase(query, { username });
   return result;
 }
