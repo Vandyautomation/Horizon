@@ -909,13 +909,13 @@ export default function CountboardDashboardUv() {
     if (nooeForTime.length === 0) return null;
 
     const colorMap = {
-      blue: 'bg-blue-500 ml-0',
-      orange: 'bg-orange-500 ml-1',
-      purple: 'bg-purple-500 ml-2',
-      grey: 'bg-gray-500 ml-3',
-      yellow: 'bg-yellow-500 ml-3',
-      white: 'bg-white border border-gray-300 ml-4',
-      red: 'bg-red-500 ml-4',
+      white: 'bg-gray-100 ml-[0px]',
+      blue: 'bg-[#118DFF] ml-[10px]',
+      red: 'bg-[#FF0000] ml-[20px]',
+      orange: 'bg-[#FF7400] ml-[30px]',
+      purple: 'bg-[#6A4C93] ml-[40px]',
+      yellow: 'bg-[#FFFF00] ml-[50px]',
+      grey: 'bg-[#AAAAAA] ml-[60px]',
     };
 
     return (
