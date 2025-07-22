@@ -116,10 +116,14 @@ userRoutes.delete('/:id', async (c) => {
     if (!id) {
       return c.json({ success: false, message: 'User ID is required' }, 400);
     }
+
     const result = await deleteUser(id);
-    if (!result) {
-      return c.json({ success: false, message: 'User not found' }, 404);
+
+    // Cek apakah ada row yang terupdate
+    if (!result || result.rowsAffected[0] === 0) {
+      return c.json({ success: false, message: 'User already deleted' }, 404);
     }
+
     return c.json({
       success: true,
       message: 'User deleted successfully'
@@ -131,5 +135,6 @@ userRoutes.delete('/:id', async (c) => {
     }, 500);
   }
 });
+
 
 export default userRoutes;

@@ -17,7 +17,7 @@ export async function fetchUsers() {
   //   WHERE u.deletedAt IS NULL;
   // `;
   const query = `
-    select u.UserRFID, u.UserName, u.UserGroup, u.UserLoc, u.UserDept, u.UserUAP, u.UserTitle, r.name as role_name, r.display_name as role_display_name from useraccessmst u
+    select u.UserRFID, u.role_id, u.id, u.UserName, u.UserGroup, u.UserLoc, u.UserDept, u.UserUAP, u.UserTitle, r.name as role_name, r.display_name as role_display_name from useraccessmst u
     left join roles r on r.id = u.role_id
     where u.active = 1
   `;
@@ -66,6 +66,7 @@ export async function deleteUser(id: string) {
 }
 
 export async function fetchUserByUsername(username: string) {
+  if (!username) throw new Error("Username is required");
   const query = `
     SELECT * FROM useraccessmst WHERE username = @username AND active = 1
   `;
