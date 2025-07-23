@@ -59,7 +59,7 @@ export async function deleteUser(id: string) {
   const query = `
     UPDATE useraccessmst
     SET active = 0
-    WHERE id = @id
+    WHERE id = @id and active = 1
   `;
   const result = await queryDatabase(query, { id });
   return result;

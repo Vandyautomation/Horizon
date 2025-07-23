@@ -923,11 +923,11 @@ const refetchStateData = () => mutate(stateDataKey);
               </TooltipContent>
             </Tooltip>
             <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base">
-              PO{taskData && taskData.length > 0 ? taskData[taskData.length - 1].po_name : " Number"}
+              PRO{taskData && taskData.length > 0 ? taskData[taskData.length - 1].po_name : " Number"}
             </Label>
             <Button onClick={() => setIsPODialogOpen(true)} variant="default" className="h-[43px]">
               <FilePlus2 className="w-4 h-4 mr-2" />
-              PO
+              PRO
             </Button>
             <Button onClick={() => setIsCVTDialogOpen(true)} variant="default" className="h-[43px]">
               <Pencil className="w-4 h-4 mr-2" />

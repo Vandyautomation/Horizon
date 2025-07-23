@@ -120,8 +120,15 @@ userRoutes.delete('/:id', async (c) => {
     const result = await deleteUser(id);
 
     // Cek apakah ada row yang terupdate
+    //if (!result || result.rowsAffected[0] === 0) {
+      //return c.json({ success: false, message: 'User already deleted' }, 404);
+    //}
+
     if (!result || result.rowsAffected[0] === 0) {
-      return c.json({ success: false, message: 'User already deleted' }, 404);
+      return c.json({
+        success: true, // ✅ agar ditampilkan dengan centang hijau
+        message: 'User already deleted'
+      }, 200);
     }
 
     return c.json({
