@@ -274,8 +274,12 @@ function InjectionMoldingMachine({
             backgroundColor: statusColors[machine?.status],
             boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
             border: machine.status === 'WHITE' ? '1px solid black' : 'none',
+            width: '70px', height: '30px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
-          className={`bg-opacity-50 ${machine.status === 'WHITE' ? 'text-black' : 'text-white'} p-1 rounded ${
+          className={`bg-opacity-50 ${machine.status === 'WHITE' ? 'text-black' : 'text-white'} p-1 rounded text-xs text-nowrap${
             isSelected ? 'font-bold' : ''
           }`}
         >
@@ -295,19 +299,20 @@ function InjectionMoldingMachine({
           ⚡️{machine.consumption} { machine.consumption != null ? 'kWh': '-'}
         </div>
       </Html>
-      <Html position={[0, 4.7, 0]} center>
+      <Html position={[0, 5, 0]} center>
         <div
           style={{
-            backgroundColor: 'black',
-            boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
+            backgroundColor: 'white',
+            boxShadow: isSelected ? '0 0 0 3px black' : '0 0 0 1px black',
+            width: '70px', height: '45px',
           }}
-          className={`bg-opacity-50 ${machine.cycletime > machine.target_cycletime ? 'text-red-400' : 'text-white'} p-1 rounded text-xs text-nowrap ${
+          className={`bg-opacity-50 ${machine.cycletime > machine.target_cycletime ? 'text-red-400' : 'text-black'} p-1 rounded text-xs text-nowrap ${
             isSelected ? 'font-bold' : ''
           }`}
         >
           🕑{machine.cycletime} { machine.cycletime != null ? 's': '-'}
-          <p className={`text-xs flex items-center text-white pt-1`}><LayoutGrid className="w-4 h-4" /> 
-            <p className={`${machine.cavity < machine.target_cavity ? 'text-red-400' : machine.cavity > machine.target_cavity ? 'text-green-400' : 'text-white'}`}>{machine.cavity}</p>
+          <p className={`text-xs flex items-center text-black pt-1`}><LayoutGrid className="w-4 h-4" /> 
+            <p className={`${machine.cavity < machine.target_cavity ? 'text-red-400' : machine.cavity > machine.target_cavity ? 'text-green-400' : 'text-black'}`}>{machine.cavity}</p>
             /{machine.target_cavity}</p>
         </div>
       </Html>
