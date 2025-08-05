@@ -1491,8 +1491,32 @@ export default function CountboardDashboardUv() {
             </div>
           </CardContent>
         </Card>
-
         <Card>
+          <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Sensor Product Status</CardHeader>
+          <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
+            <div>
+                <div className={`text-3xl font-bold`}>
+                {totalActual > totalActualIn ? totalActual : totalActualIn}
+                </div>
+              <div className="text-lg">Input</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">
+                {/* {totalActual} */}
+                {totalActual > totalActualIn ?  totalActual : totalActualIn}
+                </div>
+              <div className="text-lg ">Output</div>
+            </div>
+            <div>
+              <div className={`text-3xl font-bold ${totalActualIn - totalActual > 0 ? 'text-red-500': 'text-green-500'}`}>
+                {/* {Math.abs(totalActualIn - totalActual)} */}
+                {totalActual > totalActualIn ? 0 : Math.abs(totalActualIn - totalActual)}
+                </div>
+              <div className="text-lg">Gap</div>
+            </div>
+          </CardContent>
+        </Card>
+        {/* <Card>
           <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Sensor Product Status</CardHeader>
           <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
             <div>
@@ -1512,7 +1536,7 @@ export default function CountboardDashboardUv() {
               <div className="text-lg">Gap</div>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         <Card>
           <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">Scrap Status</CardHeader>
@@ -1543,7 +1567,10 @@ export default function CountboardDashboardUv() {
               <Tooltip>
               <TooltipTrigger asChild>
                 <div className={`text-3xl font-bold ${getSpindleColor(spindleData?.[spindleData.length -1 ]?.SpindleACT ?? 0, spindleData?.[spindleData.length -1 ]?.SpindleSTD ?? 0)}`}>
-                {spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0}
+                {/* {spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0} */}
+                {spindleData?.[spindleData.length - 1]?.SpindleACT > spindleData?.[spindleData.length - 1]?.SpindleSTD 
+                ? spindleData?.[spindleData.length - 1]?.SpindleSTD 
+                : spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0}
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -1557,7 +1584,12 @@ export default function CountboardDashboardUv() {
               <div className="text-lg">Target</div>
             </div>
             <div>
-              <div className={`text-3xl font-bold ${getSpindleColor(spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0, spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 0)}`}>{(((spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0) / (spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 1)) * 100).toFixed(0)}%</div>
+              <div className={`text-3xl font-bold ${getSpindleColor(spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0, spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 0)}`}>
+                {/* {(((spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0) / (spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 1)) * 100).toFixed(0)}% */}
+                {spindleData?.[spindleData.length - 1]?.SpindleACT > spindleData?.[spindleData.length - 1]?.SpindleSTD 
+                ? '100%' 
+                : `${(((spindleData?.[spindleData.length - 1]?.SpindleACT ?? 0) / (spindleData?.[spindleData.length - 1]?.SpindleSTD ?? 1)) * 100).toFixed(0)}%`}
+                </div>
               <div className="text-lg">Achieve</div>
             </div>
           </CardContent>

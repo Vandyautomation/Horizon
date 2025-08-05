@@ -644,10 +644,10 @@ export default function ShopfloorUvDashboard() {
                   {selectedMachine?.status}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                 <span className="font-semibold">Energy</span>{' '}
                 {selectedMachine?.consumption} kWh
-              </div>
+              </div> */}
                 <div className="flex items-center justify-between">
                   <span className="font-semibold">Cycle Time</span>{' '}
                   <div>

@@ -274,12 +274,12 @@ function InjectionMoldingMachine({
             backgroundColor: statusColors[machine?.status],
             boxShadow: isSelected ? '0 0 0 3px white' : '0 0 0 1px white',
             border: machine.status === 'WHITE' ? '1px solid black' : 'none',
-            width: '70px', height: '30px',
+            width: '70px', height: '35px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
-          className={`bg-opacity-50 ${machine.status === 'WHITE' ? 'text-black' : 'text-white'} p-1 rounded text-xs text-nowrap${
+          className={`bg-opacity-50 ${machine.status === 'WHITE' ? 'text-black' : 'text-white'} p-1 rounded text-xl text-nowrap${
             isSelected ? 'font-bold' : ''
           }`}
         >
