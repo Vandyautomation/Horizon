@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Bot, Calculator, Clock, Database, Lightbulb, SprayCan, Zap } from "lucide-react";
+import { Bot, Calculator, Clock, Database, Lightbulb, SprayCan, Zap, Container} from "lucide-react";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -155,6 +155,26 @@ export default function Welcome() {
               </CardContent>
             </Card>
           </a>
+
+          <Link href="/hrz" passHref legacyBehavior>
+              <a className="w-full">
+                <Card className="flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer h-full">
+                  <CardContent className="text-center pt-6">
+                    <Label
+                      style={{
+                        cursor: 'pointer',
+                        fontFamily: 'sans-serif',
+                        fontWeight: 'bold',
+                      }}
+                      className="flex items-center justify-center gap-4"
+                    >
+                      <Container />
+                      Horizon
+                    </Label>
+                  </CardContent>
+                </Card>
+              </a>
+            </Link>
 
           {!user ? null : (
             <Link href="/master-data" passHref legacyBehavior>

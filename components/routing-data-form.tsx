@@ -112,6 +112,46 @@ export function RoutingDataForm() {
                         className="h-8 w-[150px] lg:w-[150px]"
                     />
                     </div>
+                    <div class name="ml-auto px-3 space-x-3">                  
+                        <dialog>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    + Add
+                                </Button>
+                            </DialogTrigger>
+                        </dialog>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                                <DialogTitle>Add Routing Data</DialogTitle>
+                                <DialogDescription>
+                                    Enter the details of the routing data you want to add.
+                                </DialogDescription>
+                            </DialogHeader>
+                            
+                            <form onSubmit={(e) => {
+                                e.preventDefault()
+                                const formData = new FormData(e.currentTarget)
+                                // check password and confirm password
+                                const password = formData.get('password') as string
+                                const confirmPassword = formData.get('confirm-password') as string
+                                if (password !== confirmPassword) {
+                                toast.error("Password and Confirm Password do not match")
+                                return
+                                }
+                                const newRoutingData = {
+                                materialId: formData.get('materialId') as string,
+                                materialName: formData.get('materialName') as string,
+                                cavity: formData.get('cavity') as string,
+                                cycleTime: formData.get('cycleTime') as string,
+                                scheduler: formData.get('scheduler') as string,
+                                uploadedAt: new Date().toISOString(),
+                                }
+                                addRoutingData(newRoutingData)
+                                e.currentTarget.reset()
+                            }}></form>
+                        </DialogContent>
+                    </div>
                     <div className="flex items-center space-x-2">
                         <Button onClick={() => setPage(page - 1)} disabled={page === 1}>Previous</Button>
                         <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>

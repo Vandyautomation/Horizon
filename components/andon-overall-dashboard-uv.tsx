@@ -101,7 +101,7 @@ function groupByBuilding(machines: Machine[]) {
 
 // Count statuses for a group of machines
 function countStatuses(machines: Machine[]) {
-  const statusTypes = ['GREEN', 'WHITE', 'BLUE', 'ORANGE', 'RED', 'PURPLE', 'YELLOW'];
+  const statusTypes = ['GREEN', 'WHITE', 'BLUE', 'ORANGE', 'RED', 'PURPLE', 'YELLOW', 'GREY'];
   const counts: Record<string, number> = {};
   statusTypes.forEach(status => counts[status] = 0);
   machines.forEach(m => {

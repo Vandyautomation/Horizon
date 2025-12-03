@@ -1347,13 +1347,13 @@ export default function CountboardDashboardUv() {
           <Camera/>Camera Status</Button>
 
         <Dialog open={IsCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
-          <DialogContent className="w-[1100px]">
+          <DialogContent className="w-[2100px]">
             <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Camera Live View</CardTitle>
             </CardHeader>
             <CardContent className="w-full h-full">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   {cameras.length > 0 ? cameras.map((camera) => (
                     <CameraFeed
                       camerasVisible={IsCameraDialogOpen}

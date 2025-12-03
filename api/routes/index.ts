@@ -15,6 +15,7 @@ import cooisDataRouter from './cooisDataRoutes';
 import routingDataRouter from './routingDataRoutes';
 import parameterSettingDataRouter from './parameterSettingDataRoutes';
 import problemMasterDataRouter from './problemMasterRoutes';
+import hrzRoutes from './hrzRoutes';
 
 
 
@@ -34,6 +35,7 @@ router.route('/uaps', uapRoutes);
 
 router.route('/qco/api', qcoRouter);
 router.route('/detection/api', detectionRouter);
+router.route('/hrz', hrzRoutes);
 router.route('/coois-data', cooisDataRouter);
 router.route('/routing-data', routingDataRouter);
 router.route('/parameter-setting', parameterSettingDataRouter);
