@@ -137,6 +137,28 @@ type PoNumber = {
   materialName: string
 }
 
+type ProblemGroup = {
+  id: number
+  name: string
+}
+
+type Problem = {
+  id: number
+  name: string
+  problem_group_id: number
+  color?: string
+  process?: string
+}
+
+type Todo = {
+  id: number
+  name: string
+  problem_id: number
+  pic?: string
+  is_escalated?: boolean
+}
+
+
 const refreshRateList = [
   '5000','15000','30000','60000'
 ]
@@ -164,10 +186,63 @@ export default function CountboardDashboard() {
   const [isLoadingRefresh, setIsLoadingRefresh] = useState(false); 
   const [isLiveMode, setIsLiveMode] = useState(true); 
 
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
+  const [selectedProblemId, setSelectedProblemId] = useState<string | undefined>();
+  const [selectedSolutionId, setSelectedSolutionId] = useState<string | undefined>();
+  const [selectedStateChange, setSelectedStateChange] = useState<StateData | null>(null);
+  const [isStateDialogOpen, setIsStateDialogOpen] = useState(false);
+  // const [ticketIdMap, setTicketIdMap] = useState<{ [stateId: string]: number | undefined }>({});
+
   const [userData, setUserData] = useState<any>(null);
 
   const pathname = usePathname()
   const router = useRouter()
+
+  const { data: categoryRes } = useSWR(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem-group/all`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    },
+  );
+
+  const categoryOrder = [2, 3, 4, 5, 6, 7, 8, 1];
+
+  const rawCategories = categoryRes as ProblemGroup[] | undefined;
+  const categories: ProblemGroup[] = Array.isArray(rawCategories)
+    ? rawCategories
+        .filter((c) => categoryOrder.includes(c.id))
+        .sort((a, b) => categoryOrder.indexOf(a.id) - categoryOrder.indexOf(b.id))
+    : [];
+
+  const { data: problemRes } = useSWR(
+    selectedCategoryId
+      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem/by-group?groupId=${selectedCategoryId}`
+      : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    },
+  );
+
+  const rawProblems = problemRes as Problem[] | undefined;
+  const problems: Problem[] = Array.isArray(rawProblems) ? rawProblems : [];
+
+  const { data: todoRes } = useSWR(
+    selectedProblemId
+      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/todo/by-problem?problemId=${selectedProblemId}`
+      : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    },
+  );
+
+  const rawSolutions = todoRes as Todo[] | undefined;
+  const solutions: Todo[] = Array.isArray(rawSolutions) ? rawSolutions : [];
 
   const checkUser = async () => {
     const user = localStorage.getItem("user");
@@ -278,13 +353,218 @@ export default function CountboardDashboard() {
   : null;
 
 const { data: stateData } = useSWR<StateData[]>(stateDataKey, fetcher, {
-  revalidateOnMount: false,
-  revalidateOnFocus: false,
-  revalidateOnReconnect: false,
-  refreshInterval: Number(selectedRefreshRate),
-});
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: Number(selectedRefreshRate),
+  });
+  
+  const refetchStateData = () => mutate(stateDataKey);
+  
+  const ticketRows =
+  Array.isArray(stateData) && selectedStateChange
+    ? (() => {
+        const sorted = [...stateData].sort(
+          (a, b) =>
+            new Date(a.AdjustedStatusDate).getTime() -
+            new Date(b.AdjustedStatusDate).getTime(),
+        );
 
-const refetchStateData = () => mutate(stateDataKey);
+        // 1) cari index state yang diklik
+        const idx = sorted.findIndex(
+          (s) => s.ID === selectedStateChange.ID,
+        );
+        if (idx === -1) return [];
+
+        const curr = sorted[idx]; // ORANGE yang diklik
+
+        // 2) cari perubahan warna pertama setelahnya yang bukan ORANGE
+        let nextChange: StateData | undefined;
+        for (let j = idx + 1; j < sorted.length; j++) {
+          if (sorted[j].Color !== 'ORANGE') {
+            nextChange = sorted[j];
+            break;
+          }
+        }
+
+        // 3) tentukan Actual Finish (boleh ke warna apa saja)
+        const to = nextChange ? nextChange.AdjustedStatusDate : null;
+
+        // 4) kembalikan SATU baris saja
+        return [
+          {
+            from: curr.AdjustedStatusDate,
+            to,
+          },
+        ];
+      })()
+    : [];
+
+    // const ticketRows =
+    //   Array.isArray(stateData) 
+    //     ? (() => {
+    //         const sorted = [...stateData].sort(
+    //           (a, b) =>
+    //             new Date(a.AdjustedStatusDate).getTime() -
+    //             new Date(b.AdjustedStatusDate).getTime(),
+    //         );
+    //         const rows: { from: string; to: string | null }[] = [];
+
+    //         for (let i = 0; i < sorted.length; i++) {
+    //           const curr = sorted[i];
+    //           if (curr.Color !== 'ORANGE') continue;
+
+    //           // Cari perubahan status pertama setelah ORANGE ini
+    //           let nextChange: StateData | undefined;
+    //           for (let j = i + 1; j < sorted.length; j++) {
+    //             if (sorted[j].Color !== 'ORANGE') {
+    //               nextChange = sorted[j];
+    //               break;
+    //             }
+    //           }
+    //           //ganti changeState Orange ke semua warna 
+    //           //const to =
+    //           //  nextChange && nextChange.Color === 'GREEN'
+    //           //    ? nextChange.AdjustedStatusDate
+    //           //    : null;
+
+    //           // diganti jadi:
+    //           const to = nextChange ? nextChange.AdjustedStatusDate : null;
+
+    //           rows.push({
+    //             from: curr.AdjustedStatusDate,
+    //             to,
+    //           });
+
+    //           // Skip ke setelah blok ORANGE ini supaya tidak duplikat
+    //           while (i + 1 < sorted.length && sorted[i + 1].Color === 'ORANGE') {
+    //             i++;
+    //           }
+    //         }
+
+    //         return rows;
+    //       })()
+    //     : [];
+
+    const handleOrangeTicketSubmit = useCallback(
+      async () => {
+        if (!selectedMachine || !selectedStateChange) {
+          toast.error("Pilih mesin dan state ORANGE terlebih dahulu");
+          return;
+        }
+
+        if (!selectedProblemId || !selectedSolutionId) {
+          toast.error("Pilih Problem dan Solution terlebih dahulu");
+          return;
+        }
+
+        const problemObj = problems.find(
+          (p) => String(p.id) === String(selectedProblemId),
+        );
+        const solutionObj = solutions.find(
+          (s) => String(s.id) === String(selectedSolutionId),
+        );
+
+        if (!problemObj || !solutionObj) {
+          toast.error("Problem atau Solution tidak ditemukan");
+          return;
+        }
+
+        setIsLoading(true);
+        try {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/ticket`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                machineId: selectedMachine.machineName,
+                ticketDate: selectedStateChange.AdjustedStatusDate,
+                problem: problemObj.name,
+                actionPlan: solutionObj.name,
+              }),
+            },
+          );
+
+          const text = await response.text();
+          let data: any = {};
+          if (text) {
+            try {
+              data = JSON.parse(text);
+            } catch {
+              data = { message: text };
+            }
+          }
+
+          if (!response.ok) {
+            const msg = data.error || data.message || "Gagal submit ticket";
+            throw new Error(msg);
+          }
+
+            if (data.affected === 0) {
+              toast.error(
+                "TicketTRX dengan TicketDate ini tidak ditemukan / sudah terisi",
+              );
+            } else {
+              toast.success("TicketTRX berhasil di-update");
+
+            // Refresh hourly table supaya Problem/Action di per jam ikut update dari TicketTRX
+            if (selectedMachine) {
+              const search = new URLSearchParams(window.location.search);
+              const extraParams =
+                !isLiveMode && search.get("date") !== null
+                  ? `&date=${search.get("date")}&shift=${search.get("shift")}`
+                  : "";
+
+              const hourlyKey = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}?type=injection${extraParams}`;
+              await mutate(hourlyKey);
+            }
+
+              // Jika CATEGORY yang dipilih adalah Non Quality / Scrap, ubah state ORANGE yang diklik menjadi RED di database
+              const selectedCategory = categories.find(
+                (c) => String(c.id) === String(selectedCategoryId),
+              );
+              const isNonQualityOrScrapCategory =
+                selectedCategory &&
+                (selectedCategory.name.toLowerCase().includes("non quality") ||
+                  selectedCategory.name.toLowerCase().includes("scrap"));
+
+              if (isNonQualityOrScrapCategory && selectedStateChange) {
+                await fetch(
+                  `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      stateId: selectedStateChange.ID,
+                      color: "RED",
+                    }),
+                  },
+                );
+
+                refetchStateData();
+                setIsStateDialogOpen(false);
+              }
+          }
+        } catch (error) {
+          toast.error((error as Error).message);
+          console.error("Failed to submit ticket or update state:", error);
+        } finally {
+          setIsLoading(false);
+        }
+        },
+        [
+          selectedMachine,
+          selectedStateChange,
+          selectedProblemId,
+          selectedSolutionId,
+          problems,
+          solutions,
+          categories,
+          selectedCategoryId,
+          refetchStateData,
+        ],
+      );
 
   // const refetchMachine = async () => {
   //   setIsLoading(true);
@@ -480,8 +760,21 @@ const refetchStateData = () => mutate(stateDataKey);
   }
 
   const handleCellClick = (index: number, hourlyId: number, type: 'causes' | 'comments', content: string, content2: string) => {
+    setSelectedCategoryId(undefined);
+    setSelectedProblemId(undefined);
+    setSelectedSolutionId(undefined);
     setSelectedComment({ index, hourlyId, type, content, content2 });
     setIsDialogOpen(true);
+  };
+
+  const handleStateClick = (change: StateData) => {
+    if (change.Color === 'ORANGE') {
+      setSelectedCategoryId(undefined);
+      setSelectedProblemId(undefined);
+      setSelectedSolutionId(undefined);
+      setSelectedStateChange(change);
+      setIsStateDialogOpen(true);
+    }
   };
 
 
@@ -1449,7 +1742,7 @@ const refetchStateData = () => mutate(stateDataKey);
         {selectedMachine?.machineName ? (
           stateData != undefined && stateData.length > 0 && hourlyData != undefined && hourlyData.length > 0 ? (
           <div className="w-full  rounded-xl shadow-md border-2 border-gray-250">
-              <ChangeState data={stateData} isLive={isLiveMode} />
+              <ChangeState data={stateData} isLive={isLiveMode} onStateClick={handleStateClick} />
           </div>
 
           ) : (
@@ -1463,12 +1756,169 @@ const refetchStateData = () => mutate(stateDataKey);
         ) : (
           <></>
         )}
+
+        <Dialog open={isStateDialogOpen} onOpenChange={setIsStateDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Causes for Orange State</DialogTitle>
+              </DialogHeader>
+            <DialogDescription className="p-0 m-0">
+              {selectedStateChange
+                ? `State: ${selectedStateChange.Color} at ${selectedStateChange.AdjustedStatusDate}`
+                : ''}
+            </DialogDescription>
+
+            <div className="mt-2 space-y-3">
+              <div className="flex flex-col space-y-1">
+                <Label>Category</Label>
+                <Select
+                  value={selectedCategoryId}
+                  onValueChange={(value) => {
+                    setSelectedCategoryId(value);
+                    setSelectedProblemId(undefined);
+                    setSelectedSolutionId(undefined);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={String(cat.id)}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <Label>Problem</Label>
+                <Select
+                  value={selectedProblemId}
+                  onValueChange={(value) => {
+                    setSelectedProblemId(value);
+                    setSelectedSolutionId(undefined);
+                  }}
+                  disabled={!selectedCategoryId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih problem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {problems.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <Label>Solution</Label>
+                <Select
+                  value={selectedSolutionId}
+                  onValueChange={(value) => {
+                    setSelectedSolutionId(value);
+                  }}
+                  disabled={!selectedProblemId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih solution" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {solutions.map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">
+                  Ticket dari TicketTRX
+                </Label>
+                <div className="mt-2 border rounded-md max-h-48 overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Ticket Date</TableHead>
+                        <TableHead>Actual Finish</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                      <TableBody>
+                        {ticketRows.map((t, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>
+                              {t.from
+                                ? format(
+                                    new Date(
+                                      new Date(t.from).getTime() -
+                                        7 * 60 * 60 * 1000,
+                                    ),
+                                    "dd-MM-yyyy HH:mm:ss",
+                                  )
+                                : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {t.to
+                                ? format(
+                                    new Date(
+                                      new Date(t.to).getTime() -
+                                        7 * 60 * 60 * 1000,
+                                    ),
+                                    "dd-MM-yyyy HH:mm:ss",
+                                  )
+                                : "Belum selesai (masih ORANGE)"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                </div>
+
+                {/* Textarea cause untuk periode ORANGE (belum digunakan, jadi di-hide dulu)
+                <Textarea
+                  placeholder="Masukkan cause untuk periode orange ini (trial, belum disimpan ke database)"
+                  className="min-h-[100px]"
+                />
+                */}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsStateDialogOpen(false)}
+                  disabled={isLoading}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={handleOrangeTicketSubmit}
+                  disabled={isLoading || !selectedProblemId || !selectedSolutionId}
+                >
+                  {isLoading ? "Submitting..." : "Submit ke TicketTRX"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{selectedComment.type === 'causes' ? 'Edit Causes' : 'Edit Comments/Actions'}</DialogTitle>
             </DialogHeader>
-            <DialogDescription className="p-0 m-0">Provide your message here</DialogDescription>
+
+            {/* Dropdown hanya dipakai di dialog Orange sekarang */}
+
+            <DialogDescription className="p-0 m-0">
+              {selectedComment.type === 'causes'
+                ? 'Catatan tambahan (opsional)'
+                : 'Provide your message here'}
+            </DialogDescription>
             <Textarea
               value={selectedComment.content}
               onChange={(e) => setSelectedComment({ ...selectedComment, content: e.target.value })}

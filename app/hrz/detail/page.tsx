@@ -15,8 +15,6 @@ export default function SalesOrderDetailPage() {
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="mb-4">
         <h1 className="text-3xl font-bold text-gray-800">Sales Order Detail</h1>
-        <p className="text-sm text-gray-600 mt-1">SO: {so} | Customer: {customer}</p>
-        <p className="text-sm text-gray-600">Item No: {itemNo} | {description}</p>
       </div>
 
       {/* Planning Component */}

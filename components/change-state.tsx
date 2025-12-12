@@ -20,9 +20,10 @@ interface TooltipInfo {
 interface ChangeStateProps {
   data: StateChange[] | undefined
   isLive: boolean
+  onStateClick?: (change: StateChange) => void
 }
 
-export default function ChangeState({ data, isLive }: ChangeStateProps) {
+export default function ChangeState({ data, isLive, onStateClick }: ChangeStateProps) {
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null)
 
   // Sort data by date
@@ -180,6 +181,11 @@ export default function ChangeState({ data, isLive }: ChangeStateProps) {
             : new Date(new Date(endTime).getTime() + 7 * 60 * 60 * 1000).toISOString()
         })}
         onMouseLeave={() => setTooltip(null)}
+        onClick={() => {
+          if (change.Color === "ORANGE" && onStateClick) {
+            onStateClick(change)
+          }
+        }}
       >
       </div>
     )

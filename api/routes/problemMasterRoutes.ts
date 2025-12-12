@@ -12,7 +12,10 @@ import {
   deleteProblem,
   createTodo,
   updateTodo,
-  deleteTodo
+  deleteTodo,
+  getAllProblemGroups,
+  getProblemsByGroupForProcess,
+  getTodosByProblem,
 } from '../controllers/problemMasterController';
 
 const problemMasterDataRouter = new Hono();
@@ -27,6 +30,15 @@ problemMasterDataRouter.get('/problem-group', async (c) => {
       pic = undefined;
     }
     const data = await getProblemGroup(name, page, pic);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+problemMasterDataRouter.get('/problem-group/all', async (c) => {
+  try {
+    const data = await getAllProblemGroups();
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
@@ -88,6 +100,22 @@ problemMasterDataRouter.get('/problem', async (c) => {
   }
 });
 
+problemMasterDataRouter.get('/problem/by-group', async (c) => {
+  try {
+    const groupId = c.req.query('groupId');
+    const process = c.req.query('process');
+
+    if (!groupId) {
+      return c.json({ error: 'groupId is required' }, 400);
+    }
+
+    const data = await getProblemsByGroupForProcess(groupId, process);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
 problemMasterDataRouter.post('/problem', async (c) => {
   try {
     const { name, problem_group_id, color, process } = await c.req.json();
@@ -136,6 +164,21 @@ problemMasterDataRouter.get('/todo', async (c) => {
       pic = undefined;
     }
     const data = await getTodo(name, problemId, page, pic);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+problemMasterDataRouter.get('/todo/by-problem', async (c) => {
+  try {
+    const problemId = c.req.query('problemId');
+
+    if (!problemId) {
+      return c.json({ error: 'problemId is required' }, 400);
+    }
+
+    const data = await getTodosByProblem(problemId);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);

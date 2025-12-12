@@ -299,6 +299,79 @@ export async function attachPo(poName: string, machineName: string) {
     throw new Error(`Failed to attach PO: ${error.message}`);
   }
 }
+// menambahkan untuk ticketdate dan actual finish
+// menambahkan get ticket untuk fill start tiket dan finish ketika hijau
+// Menggunakan view yang sudah meng-convert datetime ke varchar agar aman untuk driver SQL.
+// Jika terjadi error (misalnya masalah tipe data), untuk saat ini kita kembalikan array kosong
+// supaya tidak menjatuhkan halaman utama.
+export async function getTickets() {
+  // NOTE:
+  // Saat ini query ke SQL Server untuk view vw_TicketTRX_ForDashboard
+  // memicu error driver `tedious` ("Unknown type: 48"), yang sifatnya
+  // low‑level di protokol TDS dan di luar kontrol query biasa.
+  // Untuk mencegah backend crash sementara, endpoint ini dikembalikan
+  // sebagai stub kosong sampai driver/konfigurasi SQL diperbaiki.
+  //
+  // Begitu masalah driver sudah beres, blok di bawah bisa diaktifkan lagi:
+  //
+  // const sqlQuery = `
+  //   SELECT 
+  //     TicketDate,
+  //     ActualFinish
+  //   FROM dbo.vw_TicketTRX_ForDashboard
+  //   ORDER BY TicketDate DESC
+  // `;
+  // try {
+  //   return await queryDatabase(sqlQuery);
+  // } catch (error) {
+  //   console.error('Error getting tickets from vw_TicketTRX_ForDashboard:', error);
+  //   return [];
+  // }
+
+  return [];
+}
+
+// NOTE: versi tanpa ticketId (fallback berdasarkan MchID + ORANGE + tanggal terdekat)
+export async function submitOrangeTicket(
+    machineId: string,
+    ticketDate: string,
+    problem: string,
+    actionPlan: string,
+  ) {
+    const sqlQuery = `
+      DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
+  
+      UPDATE T
+      SET 
+        Problem = @problem,
+        ActionPlan = @actionPlan
+      FROM (
+        SELECT TOP (1) *
+        FROM IoT.dbo.TicketTRX
+        WHERE 
+          MchID = @machineId
+          AND ColorID = 'ORANGE'
+          AND CAST(TicketDate AS date) = CAST(@ticketDateParam AS date)
+        ORDER BY ABS(DATEDIFF(SECOND, TicketDate, @ticketDateParam))
+      ) AS T;
+
+    SELECT @@ROWCOUNT AS affected;
+  `;
+
+  try {
+    const result = await queryDatabase(sqlQuery, {
+      machineId,
+      ticketDate,
+      problem,
+      actionPlan,
+    });
+    return result?.[0] ?? { affected: 0 };
+  } catch (error: any) {
+    console.error('Error submitting orange ticket:', error);
+    throw new Error(`Failed to submit ticket: ${error.message}`);
+  }
+}
+
 
 export async function updateCVT(taskId: number, newCvt: number) {
     const sqlQuery = `
@@ -361,4 +434,3 @@ export async function updateCVT(taskId: number, newCvt: number) {
       }
     }    
   }
-

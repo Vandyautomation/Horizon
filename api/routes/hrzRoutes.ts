@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { getHRZData, getHRZColumns, getTableColumns } from '../controllers/hrzController';
+import { getPlannerData } from '../controllers/hrzPlannerController';
 
 const hrzRoutes = new Hono();
 
@@ -33,6 +34,18 @@ hrzRoutes.get('/columns', async (c) => {
     }
     const cols = await getHRZColumns();
     return c.json({ table: 'SalesOrderMST', columns: cols });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+// Planner data for Sales Order detail
+hrzRoutes.get('/planner', async (c) => {
+  try {
+    const so = c.req.query('so') || undefined;
+    const itemNo = c.req.query('itemNo') || undefined;
+    const data = await getPlannerData({ so, itemNo });
+    return c.json(data);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
   }
