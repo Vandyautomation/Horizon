@@ -25,11 +25,26 @@ interface Item {
   description: string;
   openOrder: number;
   std: number;
+  // remaining DSPT that will decrease as loading is scheduled
   dspt: number;
+  // initial DSPT from backend, used as base for remaining calculation
+  initialDspt: number;
   process: string;
   uap: string;
   group: string;
   pro: string; // PRO_name from backend, used in level 3
+  weeks: Record<number, WeekData>;
+}
+
+interface Level3Detail {
+  process: string;
+  itemNo: string;
+  openOrder: number;
+  std: number;
+  // remaining DSPT for this PRO
+  dspt: number;
+  // initial DSPT from backend, used as base for remaining calculation
+  initialDspt: number;
   weeks: Record<number, WeekData>;
 }
 
@@ -38,6 +53,7 @@ interface DragMeta {
   fromWeek: number | null;
   field: string;
   value: number;
+  detailIndex?: number | null;
 }
 
 interface EditModalState {
@@ -45,6 +61,7 @@ interface EditModalState {
   itemId: number | null;
   week: number | null;
   last: number;
+  detailIndex: number | null;
 }
 
 interface SalesOrderDetailPlannerProps {
@@ -61,6 +78,7 @@ export default function SalesOrderDetailPlanner({
   description,
 }: SalesOrderDetailPlannerProps) {
   const currentWeek = getCurrentWeek();
+  const currentYear = new Date().getFullYear();
   const visibleCount = 8;
 
   const [fromWeek, setFromWeek] = useState(Math.max(1, currentWeek - 3));
@@ -76,6 +94,7 @@ export default function SalesOrderDetailPlanner({
       openOrder: 12000,
       std: 800,
       dspt: 43,
+      initialDspt: 43,
       process: "FG",
       uap: "2.1",
       group: "FG",
@@ -94,12 +113,15 @@ export default function SalesOrderDetailPlanner({
   const [detailExpanded, setDetailExpanded] = useState<Record<number, boolean>>({});
   // Level 3: extend proses
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
+  // Track level 3 detail per item (list of unique PRO_name)
+  const [level3Details, setLevel3Details] = useState<Record<number, Level3Detail[]>>({});
 
   const [editModal, setEditModal] = useState<EditModalState>({
     open: false,
     itemId: null,
     week: null,
     last: 0,
+    detailIndex: null,
   });
 
   const leftTableRef = useRef<HTMLDivElement>(null);
@@ -146,8 +168,124 @@ export default function SalesOrderDetailPlanner({
   const toggleExpand = (itemId: number) =>
     setExpandedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
 
+  const loadLevel3Detail = async (item: Item) => {
+    try {
+      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9999").replace(/\/$/, "");
+      const params = new URLSearchParams();
+      if (so) params.append("so", so);
+      params.append("materialId", String(item.fg));
+      params.append("year", String(currentYear));
+      params.append("fromWeek", String(fromWeek));
+      params.append("toWeek", String(toWeek));
+      const url = `${base}/api/hrz/planner-process?${params.toString()}`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Planner process fetch failed: ${res.status}`);
+      const data = await res.json();
+      const rows: Level3Detail[] = Array.isArray(data)
+        ? data.map((r: any) => ({
+            process: r.process,
+            itemNo: r.itemNo,
+            openOrder: Number(r.openOrder) || 0,
+            std: Number(r.std) || 0,
+            dspt: Number(r.dspt) || 0,
+            initialDspt: Number(r.dspt) || 0,
+            weeks: ALL_WEEKS.reduce((acc, w) => {
+              acc[w] = { capacity: 2160, loading: 0 };
+              return acc;
+            }, {} as Record<number, WeekData>),
+          }))
+        : [];
+
+      // Deduplicate by itemNo (PRO_name): ambil satu per PRO_name
+      const uniqueMap = new Map<string, Level3Detail>();
+      rows.forEach((row) => {
+        if (!uniqueMap.has(row.itemNo)) {
+          uniqueMap.set(row.itemNo, row);
+        }
+      });
+      const unique = Array.from(uniqueMap.values());
+      if (!unique.length) return;
+
+      setLevel3Details((prev) => ({ ...prev, [item.id]: unique }));
+
+      // Sinkronkan Level 2 (STD/H & DSPT) dengan penjumlahan dari PRO (Level 3)
+      setItems((prevItems) =>
+        prevItems.map((it) =>
+          it.id === item.id ? recomputeItemDspt(it, unique) : it
+        )
+      );
+    } catch (err) {
+      console.error("Failed to load level 3 detail", err);
+    }
+  };
+
+  // When a row is expanded to level 3, lazy-load its detailed data once
+  useEffect(() => {
+    items.forEach((it) => {
+      if (expandedItems[it.id] && !level3Details[it.id]) {
+        loadLevel3Detail(it);
+      }
+    });
+  }, [expandedItems, items, level3Details]);
+
   const getAvailable = (it: Item, week: number) =>
     Number(it.weeks[week].capacity) - Number(it.weeks[week].loading || 0);
+
+  const computeTotalLoading = (weeks: Record<number, WeekData>) =>
+    ALL_WEEKS.reduce((sum, w) => sum + Number(weeks[w]?.loading || 0), 0);
+
+  // Recalculate Level 2 (FG) STD/H & DSPT.
+  // - Jika sudah ada detail PRO (level 3), ambil hasil penjumlahan dari PRO.
+  // - Jika belum ada detail, gunakan logika awal: DSPT = initialDspt - total loading.
+  const recomputeItemDspt = (item: Item, details?: Level3Detail[]): Item => {
+    if (details && details.length) {
+      const totalStd = details.reduce((s, d) => s + Number(d.std || 0), 0);
+      const totalInitialDspt = details.reduce(
+        (s, d) => s + Number(d.initialDspt ?? d.dspt ?? 0),
+        0
+      );
+      const totalRemainingDspt = details.reduce((s, d) => s + Number(d.dspt || 0), 0);
+
+      return {
+        ...item,
+        std: totalStd,
+        initialDspt: totalInitialDspt,
+        dspt: totalRemainingDspt,
+      };
+    }
+
+    const totalLoading = computeTotalLoading(item.weeks);
+    const base = Number(item.initialDspt ?? item.dspt ?? 0);
+    const remaining = Math.max(0, base - totalLoading);
+    return { ...item, dspt: remaining };
+  };
+
+  const recomputeDetailDspt = (detail: Level3Detail): Level3Detail => {
+    const totalLoading = computeTotalLoading(detail.weeks);
+    const base = Number(detail.initialDspt ?? detail.dspt ?? 0);
+    const remaining = Math.max(0, base - totalLoading);
+    return { ...detail, dspt: remaining };
+  };
+
+  const postDispatchUpdate = async (body: any) => {
+    try {
+      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9999").replace(
+        /\/$/,
+        ""
+      );
+      const res = await fetch(`${base}/api/hrz/planner-dispatch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        console.error("Dispatch update failed", await res.text());
+      }
+    } catch (err) {
+      console.error("Failed to update dispatch backend", err);
+    }
+  };
 
   const totals = useMemo(() => {
     const t: Record<number, number> = {};
@@ -168,54 +306,219 @@ export default function SalesOrderDetailPlanner({
     itemId: number,
     fromWeek: number | null,
     field: string,
-    value: number
+    value: number,
+    detailIndex: number | null = null
   ) => {
-    e.dataTransfer?.setData("text/plain", JSON.stringify({ itemId, fromWeek, field, value }));
-    setDragMeta({ itemId, fromWeek, field, value });
+    e.dataTransfer?.setData(
+      "text/plain",
+      JSON.stringify({ itemId, fromWeek, field, value, detailIndex })
+    );
+    setDragMeta({ itemId, fromWeek, field, value, detailIndex });
   };
 
-  const handleDrop = (toItemId: number, toWeek: number) => {
+  const handleDrop = (toItemId: number, toWeek: number, detailIndex: number | null = null) => {
     if (!dragMeta) return;
-    setItems((prev) =>
-      prev.map((it) => {
-        if (it.id !== dragMeta.itemId) return it;
-        const nw = { ...it.weeks };
-        const val = Number(dragMeta.value);
 
-        if (dragMeta.fromWeek) {
-          nw[dragMeta.fromWeek] = {
-            ...nw[dragMeta.fromWeek],
-            loading: Math.max(0, (nw[dragMeta.fromWeek].loading || 0) - val),
+    // Jika drag berasal dari / ditujukan ke level 3 (detailIndex terisi),
+    // update hanya weeks milik PRO tersebut.
+    const effectiveDetailIndex = detailIndex ?? dragMeta.detailIndex ?? null;
+
+    if (effectiveDetailIndex !== null && effectiveDetailIndex >= 0) {
+      const val = Number(dragMeta.value);
+
+      setLevel3Details((prev) => {
+        const list = prev[dragMeta.itemId];
+        if (!list || !list[effectiveDetailIndex]) return prev;
+
+        const updatedList = list.map((d, idx) => {
+          if (idx !== effectiveDetailIndex) return d;
+          const weeks = { ...d.weeks };
+
+          if (dragMeta.fromWeek !== null) {
+            weeks[dragMeta.fromWeek] = {
+              ...weeks[dragMeta.fromWeek],
+              loading: Math.max(0, (weeks[dragMeta.fromWeek].loading || 0) - val),
+            };
+          }
+
+          weeks[toWeek] = {
+            ...weeks[toWeek],
+            loading: (weeks[toWeek].loading || 0) + val,
           };
+
+          const updatedDetail: Level3Detail = { ...d, weeks };
+          return recomputeDetailDspt(updatedDetail);
+        });
+
+        // Aggregate kembali ke Item.weeks (sum semua detail)
+        const aggregatedWeeks: Record<number, WeekData> = ALL_WEEKS.reduce(
+          (acc, w) => {
+            const loadingSum = updatedList.reduce(
+              (s, d) => s + Number(d.weeks[w]?.loading || 0),
+              0
+            );
+            const capacity =
+              updatedList[0]?.weeks[w]?.capacity ?? prev[dragMeta.itemId]?.[0]?.weeks[w]?.capacity ??
+              2160;
+            acc[w] = { capacity, loading: loadingSum };
+            return acc;
+          },
+          {} as Record<number, WeekData>
+        );
+
+        setItems((prevItems) =>
+          prevItems.map((it) =>
+            it.id === dragMeta.itemId
+              ? recomputeItemDspt({ ...it, weeks: aggregatedWeeks }, updatedList)
+              : it
+          )
+        );
+
+        // Update backend dispatch untuk perpindahan loading level 3
+        if (dragMeta.fromWeek !== null) {
+          const item = items.find((it) => it.id === dragMeta.itemId);
+          const detail = updatedList[effectiveDetailIndex];
+          const dsptTotal =
+            (detail && Number(detail.initialDspt ?? detail.dspt ?? 0)) || 0;
+          void postDispatchUpdate({
+            mode: "move",
+            so,
+            materialId: item ? Number(item.fg) || 0 : dragMeta.itemId,
+            process: (detail && detail.process) || (item && item.process) || "",
+            year: currentYear,
+            fromWeek: dragMeta.fromWeek,
+            toWeek,
+            qty: val,
+            proName: (detail && detail.itemNo) || "",
+            dsptTotal,
+          });
         }
 
-        nw[toWeek] = { ...nw[toWeek], loading: (nw[toWeek].loading || 0) + val };
+        return { ...prev, [dragMeta.itemId]: updatedList };
+      });
+    } else {
+      // Drag dari level 2 (FG) – gunakan weeks agregat di Item
+      setItems((prev) =>
+        prev.map((it) => {
+          if (it.id !== dragMeta.itemId) return it;
+          const nw = { ...it.weeks };
+          const val = Number(dragMeta.value);
 
-        return { ...it, weeks: nw };
-      })
-    );
+          if (dragMeta.fromWeek) {
+            nw[dragMeta.fromWeek] = {
+              ...nw[dragMeta.fromWeek],
+              loading: Math.max(0, (nw[dragMeta.fromWeek].loading || 0) - val),
+            };
+          }
+
+          nw[toWeek] = { ...nw[toWeek], loading: (nw[toWeek].loading || 0) + val };
+
+          const updatedItem: Item = { ...it, weeks: nw };
+          return recomputeItemDspt(updatedItem);
+        })
+      );
+    }
+
     setDragMeta(null);
   };
 
   // Edit modal
-  const openEditModal = (itemId: number, week: number) => {
-    const last = items.find((it) => it.id === itemId)?.weeks[week].loading || 0;
-    setEditModal({ open: true, itemId, week, last });
+  const openEditModal = (itemId: number, week: number, detailIndex: number | null = null) => {
+    let last = 0;
+    if (detailIndex !== null && level3Details[itemId]?.[detailIndex]) {
+      last = level3Details[itemId]![detailIndex].weeks[week]?.loading || 0;
+    } else {
+      last = items.find((it) => it.id === itemId)?.weeks[week].loading || 0;
+    }
+    setEditModal({ open: true, itemId, week, last, detailIndex });
   };
 
   const applyEditModal = (value: string) => {
     const num = Number(value) || 0;
-    setItems((prev) =>
-      prev.map((it) => {
-        if (it.id !== editModal.itemId) return it;
-        const nw = { ...it.weeks };
-        if (editModal.week !== null) {
-          nw[editModal.week] = { ...nw[editModal.week], loading: num };
-        }
-        return { ...it, weeks: nw };
-      })
-    );
-    setEditModal({ open: false, itemId: null, week: null, last: 0 });
+
+    // Edit per PRO (level 3)
+    if (
+      editModal.detailIndex !== null &&
+      editModal.itemId !== null &&
+      editModal.week !== null
+    ) {
+      const itemId = editModal.itemId;
+      const week = editModal.week;
+      const detailIdx = editModal.detailIndex;
+
+      setLevel3Details((prev) => {
+        const list = prev[itemId];
+        if (!list || !list[detailIdx]) return prev;
+
+        const updatedList = list.map((d, idx) => {
+          if (idx !== detailIdx) return d;
+          const weeks = { ...d.weeks };
+          weeks[week] = { ...weeks[week], loading: num };
+          const updatedDetail: Level3Detail = { ...d, weeks };
+          return recomputeDetailDspt(updatedDetail);
+        });
+
+        // Aggregate ke Item.weeks (sum semua PRO)
+        const aggregatedWeeks: Record<number, WeekData> = ALL_WEEKS.reduce(
+          (acc, w) => {
+            const loading = updatedList.reduce(
+              (s, d) => s + (d.weeks[w]?.loading || 0),
+              0
+            );
+            const capacity = updatedList[0]?.weeks[w]?.capacity ?? 2160;
+            acc[w] = { capacity, loading };
+            return acc;
+          },
+          {} as Record<number, WeekData>
+        );
+
+        setItems((prevItems) =>
+          prevItems.map((it) =>
+            it.id === itemId
+              ? recomputeItemDspt({ ...it, weeks: aggregatedWeeks }, updatedList)
+              : it
+          )
+        );
+
+        return { ...prev, [itemId]: updatedList };
+      });
+
+      // Sinkron ke backend (dispatch per PRO via modal)
+      const item = items.find((it) => it.id === itemId);
+      const details = level3Details[itemId];
+      const detail = details && details[detailIdx];
+      const dsptTotal =
+        (detail && Number(detail.initialDspt ?? detail.dspt ?? 0)) || 0;
+      const oldQty = editModal.last || 0;
+
+      void postDispatchUpdate({
+        mode: "modal",
+        so,
+        materialId: item ? Number(item.fg) || 0 : itemId,
+        process: (detail && detail.process) || (item && item.process) || "",
+        year: currentYear,
+        week,
+        oldQty,
+        newQty: num,
+        proName: (detail && detail.itemNo) || "",
+        dsptTotal,
+      });
+    } else {
+      // Edit di level 2 (FG) – langsung set ke Item.weeks (total)
+      setItems((prev) =>
+        prev.map((it) => {
+          if (it.id !== editModal.itemId) return it;
+          const nw = { ...it.weeks };
+          if (editModal.week !== null) {
+            nw[editModal.week] = { ...nw[editModal.week], loading: num };
+          }
+          const updatedItem: Item = { ...it, weeks: nw };
+          return recomputeItemDspt(updatedItem);
+        })
+      );
+    }
+
+    setEditModal({ open: false, itemId: null, week: null, last: 0, detailIndex: null });
   };
 
   // Fetch planner data dari backend
@@ -225,6 +528,9 @@ export default function SalesOrderDetailPlanner({
       const base = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9999").replace(/\/$/, "");
       const params = new URLSearchParams();
       if (so) params.append("so", so);
+      params.append("year", String(currentYear));
+      params.append("fromWeek", String(fromWeek));
+      params.append("toWeek", String(toWeek));
       // jangan filter per itemNo di sini supaya semua MaterialID dalam SO yang sama ikut muncul
       const url = `${base}/api/hrz/planner?${params.toString()}`;
 
@@ -232,13 +538,14 @@ export default function SalesOrderDetailPlanner({
         const res = await fetch(url);
         if (!res.ok) throw new Error(`Planner fetch failed: ${res.status}`);
         const data = await res.json();
-        const mapped: Item[] = (Array.isArray(data) ? data : []).map((row: any, idx: number) => ({
+        const raw: Item[] = (Array.isArray(data) ? data : []).map((row: any, idx: number) => ({
           id: idx + 1,
           fg: row.itemNo || itemNo || "FG-01",
           description: row.description || description || "Product Description",
           openOrder: Number(row.openOrder) || 0,
           std: Number(row.std) || 0,
           dspt: Number(row.dspt) || 0,
+          initialDspt: Number(row.dspt) || 0,
           process: row.process || "FG",
           uap: row.uap || "0",
           group: row.group || "FG",
@@ -248,6 +555,17 @@ export default function SalesOrderDetailPlanner({
             return acc;
           }, {} as Record<number, WeekData>),
         }));
+
+        // Cek duplikat: jika Process + Item No + Description sama,
+        // tampilkan hanya satu baris (misalnya untuk week 49–51).
+        const dedupMap = new Map<string, Item>();
+        raw.forEach((it) => {
+          const key = `${it.process}||${it.fg}||${it.description}`;
+          if (!dedupMap.has(key)) {
+            dedupMap.set(key, it);
+          }
+        });
+        const mapped = Array.from(dedupMap.values());
 
         if (!cancelled) {
           setItems(mapped.length ? mapped : buildDefaultItems());
@@ -262,7 +580,7 @@ export default function SalesOrderDetailPlanner({
     return () => {
       cancelled = true;
     };
-  }, [so, itemNo, description]);
+  }, [so, itemNo, description, fromWeek, toWeek, currentYear]);
 
   return (
     <div className="bg-white rounded-lg shadow p-4">
@@ -349,6 +667,7 @@ export default function SalesOrderDetailPlanner({
                       <td className="text-center"></td>
                       <td className="text-center"></td>
                       <td className="text-center"></td>
+                      <td className="text-center"></td>
                       <td className="text-center text-[10px]"></td>
                     </tr>
 
@@ -381,26 +700,62 @@ export default function SalesOrderDetailPlanner({
                         </tr>
 
                         {/* LEVEL 3 – extend proses: Process, Item No, Open Order, STD/H, DSPT */}
+                        {/* LEVEL 3 – satu baris per PRO_name unik */}
                         {isProcessOpen && (
-                          <tr className="bg-gray-100">
-                            <td></td>
-                            <td className="text-center">{it.process}</td>
-                            <td className="text-center">{it.pro}</td>
-                            <td></td>
-                            <td className="text-center">{it.openOrder}</td>
-                            <td className="text-center rounded">{it.std}</td>
-                            <td
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, it.id, null, "dspt", it.dspt)}
-                              className="cursor-grab bg-blue-50 text-center rounded"
-                            >
-                              {it.dspt}
-                            </td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                          </tr>
+                          <>
+                            {(level3Details[it.id] || []).map((d, idx) => (
+                              <tr key={idx} className="bg-gray-100">
+                                <td></td>
+                                <td className="text-center">{d.process || it.process}</td>
+                                <td className="text-center">{d.itemNo || it.pro}</td>
+                                <td></td>
+                                <td className="text-center">{d.openOrder || it.openOrder}</td>
+                                <td className="text-center rounded">{d.std}</td>
+                                <td
+                                  draggable
+                                  onDragStart={(e) =>
+                                    handleDragStart(
+                                      e,
+                                      it.id,
+                                      null,
+                                      "dspt",
+                                      Number(d.dspt ?? 0)
+                                    )
+                                  }
+                                  className="cursor-grab bg-blue-50 text-center rounded"
+                                >
+                                  {d.dspt}
+                                </td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                              </tr>
+                            ))}
+                            {(!level3Details[it.id] || level3Details[it.id].length === 0) && (
+                              <tr className="bg-gray-100">
+                                <td></td>
+                                <td className="text-center">{it.process}</td>
+                                <td className="text-center">{it.pro}</td>
+                                <td></td>
+                                <td className="text-center">{it.openOrder}</td>
+                                <td className="text-center rounded">{it.std}</td>
+                                <td
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, it.id, null, "dspt", it.dspt)}
+                                  className="cursor-grab bg-blue-50 text-center rounded"
+                                >
+                                  {it.dspt}
+                                </td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                              </tr>
+                            )}
+                          </>
                         )}
+
                       </>
                     )}
                   </React.Fragment>
@@ -454,9 +809,9 @@ export default function SalesOrderDetailPlanner({
                               key={w}
                               className="px-1 border-l text-center text-xs group"
                               onDragOver={(e) => e.preventDefault()}
-                              onDrop={() => handleDrop(it.id, w)}
+                            onDrop={() => handleDrop(it.id, w)}
                             >
-                              <div className="flex flex-col gap-0.5 text-[10px] w-full">
+                              <div className="flex flex-col gap-0.5 text-[10px] w-full mt-2">
                                 <div className="p-0.5 bg-yellow-100 rounded text-[11px]">{avail}</div>
                                 <div
                                   draggable
@@ -478,33 +833,51 @@ export default function SalesOrderDetailPlanner({
                     )}
 
                     {/* LEVEL 3 – extend proses: hanya Loading, linked ke data yang sama */}
-                    {isDetailOpen && isProcessOpen && (
-                      <tr className="bg-gray-100">
-                        {visibleWeeks.map((w) => {
-                          const slot = it.weeks[w];
-                          return (
-                            <td
-                              key={w}
-                              className="px-1 border-l text-center bg-white cursor-pointer hover:bg-blue-50"
-                              onDragOver={(e) => e.preventDefault()}
-                              onDrop={() => handleDrop(it.id, w)}
-                            >
-                              <div className="flex flex-col gap-0.5 text-[10px] w-full">
-                                <div
-                                  draggable
-                                  className="p-0.5 bg-blue-100 rounded text-[11px] cursor-grab"
-                                  onDragStart={(e) => handleDragStart(e, it.id, w, "loading", slot.loading)}
-                                  onClick={() => openEditModal(it.id, w)}
-                                >
-                                  {slot.loading}
+                    {isDetailOpen &&
+                      isProcessOpen &&
+                      (level3Details[it.id] && level3Details[it.id]!.length > 0
+                        ? level3Details[it.id]
+                        : [null]
+                      ).map((d, idx) => (
+                        <tr key={idx} className="bg-gray-100">
+                          {visibleWeeks.map((w) => {
+                            const slot =
+                              d && "weeks" in d && (d as Level3Detail).weeks
+                                ? (d as Level3Detail).weeks[w]
+                                : it.weeks[w];
+                            return (
+                              <td
+                                key={w}
+                                className="px-1 border-l text-center bg-white cursor-pointer hover:bg-blue-50"
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={() => handleDrop(it.id, w, d ? idx : null)}
+                              >
+                                <div className="flex flex-col gap-0.5 text-[10px] w-full">
+                                  <div
+                                    draggable
+                                    className="p-0.5 bg-blue-100 rounded text-[11px] cursor-grab"
+                                    onDragStart={(e) =>
+                                      handleDragStart(
+                                        e,
+                                        it.id,
+                                        w,
+                                        "loading",
+                                        slot.loading,
+                                        d ? idx : null
+                                      )
+                                    }
+                                    onClick={() => openEditModal(it.id, w, d ? idx : null)}
+                                  >
+                                    {slot.loading}
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                          );
-                        })}
-                        <td></td>
-                      </tr>
-                    )}
+                              </td>
+                            );
+                          })}
+                          <td></td>
+                        </tr>
+                      ))}
+
                   </React.Fragment>
                 );
               })}
@@ -542,7 +915,9 @@ export default function SalesOrderDetailPlanner({
             <div className="flex gap-2">
               <button
                 className="flex-1 bg-gray-200 px-3 py-1 rounded"
-                onClick={() => setEditModal({ open: false, itemId: null, week: null, last: 0 })}
+                onClick={() =>
+                  setEditModal({ open: false, itemId: null, week: null, last: 0, detailIndex: null })
+                }
               >
                 Cancel
               </button>

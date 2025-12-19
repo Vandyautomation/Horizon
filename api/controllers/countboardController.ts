@@ -340,7 +340,7 @@ export async function submitOrangeTicket(
   ) {
     const sqlQuery = `
       DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
-  
+
       UPDATE T
       SET 
         Problem = @problem,
@@ -355,22 +355,22 @@ export async function submitOrangeTicket(
         ORDER BY ABS(DATEDIFF(SECOND, TicketDate, @ticketDateParam))
       ) AS T;
 
-    SELECT @@ROWCOUNT AS affected;
-  `;
+      SELECT @@ROWCOUNT AS affected;
+    `;
 
-  try {
-    const result = await queryDatabase(sqlQuery, {
-      machineId,
-      ticketDate,
-      problem,
-      actionPlan,
-    });
-    return result?.[0] ?? { affected: 0 };
-  } catch (error: any) {
-    console.error('Error submitting orange ticket:', error);
-    throw new Error(`Failed to submit ticket: ${error.message}`);
+    try {
+      const result = await queryDatabase(sqlQuery, {
+        machineId,
+        ticketDate,
+        problem,
+        actionPlan,
+      });
+      return result?.[0] ?? { affected: 0 };
+    } catch (error: any) {
+      console.error('Error submitting orange ticket:', error);
+      throw new Error(`Failed to submit ticket: ${error.message}`);
+    }
   }
-}
 
 
 export async function updateCVT(taskId: number, newCvt: number) {
