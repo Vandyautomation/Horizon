@@ -17,29 +17,40 @@ export async function getPlannerData(filters: {
 }) {
   const sql = `
     SELECT DISTINCT
-      MchProcess,
-      MaterialID,
-      MaterialDesc,
-      OpenOrder,
-      loaddspt,
-      availdspt,
-      UAP,
-      GroupName,
-      InitScheduleWeek,
-      Years,
-      WeekNum,
-      SORef2
-    FROM vw_Hrz_SalesOrder_CapacityPlanning
-    WHERE (@so IS NULL OR SORef2 = @so)
-      AND (@itemNo IS NULL OR MaterialID = @itemNo)
-      AND (@year IS NULL OR Years = @year)
+      v.MchProcess,
+      v.MaterialID,
+      v.MaterialDesc,
+      v.OpenOrder,
+      v.loaddspt,
+      v.availdspt,
+      v.UAP,
+      v.GroupName,
+      v.InitScheduleWeek,
+      v.Years,
+      v.WeekNum,
+      v.SORef2,
+      cap.Capacity,
+      cap.AvailCapacity
+    FROM vw_Hrz_SalesOrder_CapacityPlanning v
+    LEFT JOIN iot.dbo.Hrz_GroupCapacity grp
+      ON v.GroupName = grp.GroupName
+    LEFT JOIN iot.dbo.hrz_capacitymch cap
+      ON cap.GroupID = grp.GrupId
+      AND cap.MchProcess = v.MchProcess
+      AND cap.UAP = v.UAP
+      AND cap.Years = v.Years
+      AND cap.WeekNum = v.WeekNum
+      AND cap.Active = 1
+    WHERE (@so IS NULL OR v.SORef2 = @so)
+      AND (@itemNo IS NULL OR v.MaterialID = @itemNo)
+      AND (@year IS NULL OR v.Years = @year)
       AND (
         @fromWeek IS NULL
-        OR TRY_CAST(RIGHT(WeekNum, 2) AS INT) >= @fromWeek
+        OR TRY_CAST(RIGHT(v.WeekNum, 2) AS INT) >= @fromWeek
       )
       AND (
         @toWeek IS NULL
-        OR TRY_CAST(RIGHT(WeekNum, 2) AS INT) <= @toWeek
+        OR TRY_CAST(RIGHT(v.WeekNum, 2) AS INT) <= @toWeek
       );
   `;
 
@@ -69,6 +80,9 @@ export async function getPlannerData(filters: {
     group: r.GroupName,
     // PRO_name tidak ada di view, jadi kosong dulu
     pro: "",
+    weekNum: r.WeekNum,
+    capacity: Number(r.Capacity),
+    availCapacity: Number(r.AvailCapacity),
   }));
 }
 
@@ -125,6 +139,53 @@ export async function getPlannerProcessDetail(filters: {
 }
 
 // ---------------------------------------------------------------------------
+// PLANNER DISPATCH DATA (AMBIL DARI Hrz_DispatchPlan)
+// ---------------------------------------------------------------------------
+
+export async function getPlannerDispatchSlots(filters: {
+  so: string;
+  materialId: number;
+  year: number;
+  fromWeek?: number;
+  toWeek?: number;
+}) {
+  const sql = `
+    SELECT
+      PRO_name      AS proName,
+      MchProcess    AS process,
+      TRY_CAST(RIGHT(WeekNum, 2) AS INT) AS week,
+      Dispatch      AS dispatch
+    FROM Hrz_DispatchPlan
+    WHERE SORef2     = @so
+      AND MaterialID = @materialId
+      AND Years      = @year
+      AND (
+        @fromWeek IS NULL
+        OR TRY_CAST(RIGHT(WeekNum, 2) AS INT) >= @fromWeek
+      )
+      AND (
+        @toWeek IS NULL
+        OR TRY_CAST(RIGHT(WeekNum, 2) AS INT) <= @toWeek
+      );
+  `;
+
+  const rows = await queryDatabase(sql, {
+    so: filters.so,
+    materialId: filters.materialId,
+    year: filters.year,
+    fromWeek: filters.fromWeek ?? null,
+    toWeek: filters.toWeek ?? null,
+  });
+
+  return rows.map((r: any) => ({
+    proName: r.proName,
+    process: r.process,
+    week: Number(r.week) || 0,
+    dispatch: Number(r.dispatch) || 0,
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // PLANNER DISPATCH UPDATE (LEVEL 3 -> SIMPAN PER MINGGU DI Hrz_DispatchPlan)
 // ---------------------------------------------------------------------------
 
@@ -157,6 +218,52 @@ export type PlannerDispatchUpdateBody =
     };
 
 const formatWeek = (w: number) => `W${String(w).padStart(2, "0")}`;
+
+// ---------------------------------------------------------------------------
+// Helper: validasi WeekNum terhadap view kapasitas
+// ---------------------------------------------------------------------------
+
+// Cek apakah kombinasi SO + Material + Process + Year + WeekNum
+// memang ada di vw_Hrz_SalesOrder_CapacityPlanning.
+// Jika tidak ada, lempar error supaya FE tahu week tersebut tidak valid
+// untuk proses yang dimaksud.
+async function ensureWeekExistsInView(params: {
+  so: string;
+  materialId: number;
+  process: string;
+  year: number;
+  weekNum: string; // format 'Wxx'
+}) {
+  const { so, materialId, process, year, weekNum } = params;
+
+  const sql = `
+    SELECT TOP 1 1 AS found
+    FROM vw_Hrz_SalesOrder_CapacityPlanning
+    WHERE SORef2     = @so
+      AND MaterialID = @materialId
+      AND MchProcess = @process
+      AND Years      = @year
+      AND WeekNum    = @weekNum;
+  `;
+
+  const rows = await queryDatabase(sql, {
+    so,
+    materialId,
+    process,
+    year,
+    weekNum,
+  });
+
+  if (!rows.length) {
+    // Catatan: sebelum validasi ini ditambahkan, backend langsung
+    // menyimpan ke Hrz_DispatchPlan tanpa mengecek view sama sekali.
+    // Jika ingin kembali ke perilaku lama, cukup comment throw ini
+    // dan/atau pemanggilan ensureWeekExistsInView.
+    throw new Error(
+      `Week ${weekNum} tidak tersedia untuk proses ${process} (SO ${so}, Material ${materialId}).`
+    );
+  }
+}
 
 // Hitung ulang availdspt di Hrz_SalesOrderTRX berdasarkan total Dispatch
 // yang tersimpan di Hrz_DispatchPlan untuk kombinasi SO + Material + PRO_name.
@@ -216,6 +323,10 @@ export async function updatePlannerDispatch(body: PlannerDispatchUpdateBody) {
     // Set nilai dispatch di satu minggu (overwrite)
     const weekStr = formatWeek(body.week);
     const newQty = Number(body.newQty) || 0;
+
+    // Validasi: hanya izinkan week yang benar-benar ada di view kapasitas
+    // Sebelum penambahan ini, kode langsung menyimpan ke Hrz_DispatchPlan tanpa cek.
+    await ensureWeekExistsInView({ so, materialId, process, year, weekNum: weekStr });
 
     const selectSql = `
       SELECT Dispatch
@@ -281,6 +392,10 @@ export async function updatePlannerDispatch(body: PlannerDispatchUpdateBody) {
   if (qty <= 0) {
     return { mode: "move", ignored: true };
   }
+
+  // Validasi week tujuan: hanya izinkan week yang ada di view
+  // (week asal diasumsikan valid karena datanya sudah tersimpan sebelumnya).
+  await ensureWeekExistsInView({ so, materialId, process, year, weekNum: toWeekStr });
 
   // 1) Kurangi dari week asal (kalau ada)
   const selectFromSql = `

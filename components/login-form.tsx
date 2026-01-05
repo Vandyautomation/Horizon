@@ -47,7 +47,8 @@ export function LoginForm() {
 
       // Handle successful login
       // Store token, redirect, etc.
-      document.cookie = `authToken=${data.data.token}; Path=/; SameSite=Strict; Secure;`;
+      const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+      document.cookie = `authToken=${data.data.token}; Path=/; SameSite=Strict${secureFlag};`;
       if (typeof window !== 'undefined' && window.localStorage) {
         // Access localStorage here
         localStorage.setItem('user', data.data.UserName);

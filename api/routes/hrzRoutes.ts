@@ -3,6 +3,7 @@ import { getHRZData, getHRZColumns, getTableColumns } from '../controllers/hrzCo
 import {
   getPlannerData,
   getPlannerProcessDetail,
+  getPlannerDispatchSlots,
   updatePlannerDispatch,
   PlannerDispatchUpdateBody,
 } from '../controllers/hrzPlannerController';
@@ -84,6 +85,31 @@ hrzRoutes.get('/planner-process', async (c) => {
     const toWeek = toWeekParam ? Number(toWeekParam) : undefined;
 
     const data = await getPlannerProcessDetail({ so, materialId, year, fromWeek, toWeek });
+    return c.json(data);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+// Ambil slot dispatch yang sudah disimpan di Hrz_DispatchPlan
+hrzRoutes.get('/planner-dispatch-slots', async (c) => {
+  try {
+    const so = c.req.query('so');
+    const materialIdParam = c.req.query('materialId');
+    const yearParam = c.req.query('year');
+    if (!so || !materialIdParam || !yearParam) {
+      return c.json({ error: 'Missing so, materialId, or year' }, 400);
+    }
+
+    const fromWeekParam = c.req.query('fromWeek');
+    const toWeekParam = c.req.query('toWeek');
+
+    const materialId = Number(materialIdParam);
+    const year = Number(yearParam);
+    const fromWeek = fromWeekParam ? Number(fromWeekParam) : undefined;
+    const toWeek = toWeekParam ? Number(toWeekParam) : undefined;
+
+    const data = await getPlannerDispatchSlots({ so, materialId, year, fromWeek, toWeek });
     return c.json(data);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);

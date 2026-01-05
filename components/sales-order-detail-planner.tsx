@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 
 const ALL_WEEKS = Array.from({ length: 52 }, (_, i) => i + 1);
 
@@ -14,9 +14,13 @@ const getCurrentWeek = () => {
   return weekNo;
 };
 
+const formatNumber = (value: number, digits: number = 2) =>
+  Number.isFinite(value) ? Number(value.toFixed(digits)) : value;
+
 interface WeekData {
   capacity: number;
   loading: number;
+  available?: number;
 }
 
 interface Item {
@@ -71,6 +75,63 @@ interface SalesOrderDetailPlannerProps {
   description: string;
 }
 
+// Struktur baris terpusat untuk menyamakan urutan row kiri & kanan.
+// Saat ini baru dipakai untuk membangun array rows, render masih memakai items.map.
+type PlannerRow =
+  | { kind: "L1"; itemId: number }
+  | { kind: "L2"; itemId: number }
+  | { kind: "L3"; itemId: number; detailIndex: number | null }
+  | { kind: "TOTAL" };
+// ---------------------------------------------------------------------------
+// Catatan konsep (belum dipakai, hanya referensi)
+// ---------------------------------------------------------------------------
+// Ide ke depan supaya tabel kiri/kanan punya struktur baris yang 100% identik,
+// terutama untuk Level 3 yang jumlah barisnya dinamis per item:
+//
+// 1) Definisikan struktur baris terpusat:
+// type PlannerRow =
+//   | { kind: "L1"; itemId: number }
+//   | { kind: "L2"; itemId: number }
+//   | { kind: "L3"; itemId: number; detailIndex: number | null }
+//   | { kind: "TOTAL" };
+//
+// 2) Bangun array rows sekali, lalu render kiri & kanan dari array ini:
+// const rows: PlannerRow[] = useMemo(() => {
+//   const result: PlannerRow[] = [];
+//   items.forEach((it) => {
+//     const isDetailOpen = !!detailExpanded[it.id];
+//     const isProcessOpen = !!expandedItems[it.id];
+//
+//     result.push({ kind: "L1", itemId: it.id });
+//
+//     if (isDetailOpen) {
+//       result.push({ kind: "L2", itemId: it.id });
+//
+//       if (isProcessOpen) {
+//         const details = level3Details[it.id];
+//         if (details && details.length > 0) {
+//           details.forEach((_, idx) => {
+//             result.push({ kind: "L3", itemId: it.id, detailIndex: idx });
+//           });
+//         } else {
+//           result.push({ kind: "L3", itemId: it.id, detailIndex: null });
+//         }
+//       }
+//     }
+//   });
+//
+//   if (items.some((it) => detailExpanded[it.id])) {
+//     result.push({ kind: "TOTAL" });
+//   }
+//
+//   return result;
+// }, [items, detailExpanded, expandedItems, level3Details]);
+//
+// 3) Di tbody kiri & kanan, ganti items.map(...) menjadi rows.map(row => ...)
+//    dan render <tr> berdasarkan row.kind (L1/L2/L3/TOTAL) dengan className
+//    tinggi yang sama di kiri dan kanan. Dengan begitu alignment vertikal
+//    akan selalu pas walaupun jumlah PRO per item berbeda-beda.
+
 export default function SalesOrderDetailPlanner({
   so,
   customer,
@@ -78,36 +139,40 @@ export default function SalesOrderDetailPlanner({
   description,
 }: SalesOrderDetailPlannerProps) {
   const currentWeek = getCurrentWeek();
-  const currentYear = new Date().getFullYear();
+  const initialYear = new Date().getFullYear();
   const visibleCount = 8;
 
+  const [year, setYear] = useState<number>(initialYear);
   const [fromWeek, setFromWeek] = useState(Math.max(1, currentWeek - 3));
   const [toWeek, setToWeek] = useState(Math.min(52, fromWeek + visibleCount - 1));
 
   const visibleWeeks = useMemo(() => ALL_WEEKS.slice(fromWeek - 1, toWeek), [fromWeek, toWeek]);
 
+  // Default item sebelumnya berisi data dummy untuk tampilan awal.
+  // Sekarang dikosongkan supaya planner hanya menampilkan data asli dari backend.
   const buildDefaultItems = (): Item[] => [
-    {
-      id: 1,
-      fg: itemNo || "FG-01",
-      description: description || "Product Description",
-      openOrder: 12000,
-      std: 800,
-      dspt: 43,
-      initialDspt: 43,
-      process: "FG",
-      uap: "2.1",
-      group: "FG",
-      pro: "1001",
-      weeks: ALL_WEEKS.reduce((acc, w) => {
-        acc[w] = { capacity: 2160, loading: 0 };
-        return acc;
-      }, {} as Record<number, WeekData>),
-    },
+    // {
+    //   id: 1,
+    //   fg: itemNo || "FG-01",
+    //   description: description || "Product Description",
+    //   openOrder: 12000,
+    //   std: 800,
+    //   dspt: 43,
+    //   initialDspt: 43,
+    //   process: "FG",
+    //   uap: "2.1",
+    //   group: "FG",
+    //   pro: "1001",
+    //   weeks: ALL_WEEKS.reduce((acc, w) => {
+    //     acc[w] = { capacity: 2160, loading: 0 };
+    //     return acc;
+    //   }, {} as Record<number, WeekData>),
+    // },
   ];
 
   const [items, setItems] = useState<Item[]>(buildDefaultItems());
   const [dragMeta, setDragMeta] = useState<DragMeta | null>(null);
+  const [userData, setUserData] = useState<any>(null);
 
   // Level 2: detail FG
   const [detailExpanded, setDetailExpanded] = useState<Record<number, boolean>>({});
@@ -124,25 +189,28 @@ export default function SalesOrderDetailPlanner({
     detailIndex: null,
   });
 
+  const buildRowKey = (processValue?: string, fgValue?: string, descValue?: string) =>
+    `${processValue || "FG"}||${fgValue || itemNo || "FG-01"}||${
+      descValue || description || "Product Description"
+    }`;
+
+  const isAdmin = useMemo(() => {
+    const roleName = String(userData?.role_name ?? userData?.role?.name ?? "").toLowerCase();
+    return roleName.includes("admin");
+  }, [userData]);
+
   const leftTableRef = useRef<HTMLDivElement>(null);
   const rightTableRef = useRef<HTMLDivElement>(null);
+  const leftRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+  const rightRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
-  // Sinkron scroll kiri-kanan
+  // Sinkron scroll kiri-kanan, tapi hanya scrollbar kanan yang aktif.
   useEffect(() => {
     const left = leftTableRef.current;
     const right = rightTableRef.current;
     if (!left || !right) return;
 
     let syncing = false;
-
-    const syncFromLeft = (e: Event) => {
-      if (syncing) return;
-      syncing = true;
-      right.scrollTop = (e.target as HTMLDivElement).scrollTop;
-      requestAnimationFrame(() => {
-        syncing = false;
-      });
-    };
 
     const syncFromRight = (e: Event) => {
       if (syncing) return;
@@ -153,13 +221,49 @@ export default function SalesOrderDetailPlanner({
       });
     };
 
-    left.addEventListener("scroll", syncFromLeft);
     right.addEventListener("scroll", syncFromRight);
 
     return () => {
-      left.removeEventListener("scroll", syncFromLeft);
       right.removeEventListener("scroll", syncFromRight);
     };
+  }, []);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const user = localStorage.getItem("user");
+      if (!user) {
+        setUserData(null);
+        return;
+      }
+
+      const token = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("authToken="))
+        ?.split("=")[1];
+
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/check`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) {
+          setUserData(null);
+          return;
+        }
+        const json = await res.json();
+        const payloadUser = json?.data?.payload?.user;
+        const directUser = json?.data?.user;
+        setUserData(payloadUser ?? directUser ?? null);
+      } catch (err) {
+        console.error("Failed to check user", err);
+        setUserData(null);
+      }
+    };
+
+    checkUser();
   }, []);
 
   const toggleDetail = (itemId: number) =>
@@ -174,27 +278,57 @@ export default function SalesOrderDetailPlanner({
       const params = new URLSearchParams();
       if (so) params.append("so", so);
       params.append("materialId", String(item.fg));
-      params.append("year", String(currentYear));
+      params.append("year", String(year));
       params.append("fromWeek", String(fromWeek));
       params.append("toWeek", String(toWeek));
-      const url = `${base}/api/hrz/planner-process?${params.toString()}`;
+      const processUrl = `${base}/api/hrz/planner-process?${params.toString()}`;
+      const slotsUrl = `${base}/api/hrz/planner-dispatch-slots?${params.toString()}`;
 
-      const res = await fetch(url);
+      // 1) Detail proses (STD/H, DSPT per PRO)
+      const res = await fetch(processUrl);
       if (!res.ok) throw new Error(`Planner process fetch failed: ${res.status}`);
       const data = await res.json();
+
+      // 2) Slot dispatch yang tersimpan di DB (per PRO per week)
+      const slotsRes = await fetch(slotsUrl);
+      if (!slotsRes.ok) throw new Error(`Planner dispatch slots fetch failed: ${slotsRes.status}`);
+      const slotsData = await slotsRes.json();
+
+      const dispatchByProAndWeek: Record<string, Record<number, number>> = {};
+      if (Array.isArray(slotsData)) {
+        slotsData.forEach((s: any) => {
+          const proName = String(s.proName ?? s.itemNo ?? "");
+          const week = Number(s.week) || 0;
+          const dispatch = Number(s.dispatch) || 0;
+          if (!proName || week <= 0) return;
+          if (!dispatchByProAndWeek[proName]) dispatchByProAndWeek[proName] = {};
+          dispatchByProAndWeek[proName][week] = dispatch;
+        });
+      }
+
       const rows: Level3Detail[] = Array.isArray(data)
-        ? data.map((r: any) => ({
-            process: r.process,
-            itemNo: r.itemNo,
-            openOrder: Number(r.openOrder) || 0,
-            std: Number(r.std) || 0,
-            dspt: Number(r.dspt) || 0,
-            initialDspt: Number(r.dspt) || 0,
-            weeks: ALL_WEEKS.reduce((acc, w) => {
-              acc[w] = { capacity: 2160, loading: 0 };
+        ? data.map((r: any) => {
+            const proName = r.itemNo;
+            const perWeek = dispatchByProAndWeek[proName] || {};
+            const weeks = ALL_WEEKS.reduce((acc, w) => {
+              acc[w] = {
+                capacity: item.weeks[w]?.capacity ?? 0,
+                loading: Number(perWeek[w] || 0),
+                available: item.weeks[w]?.available,
+              };
               return acc;
-            }, {} as Record<number, WeekData>),
-          }))
+            }, {} as Record<number, WeekData>);
+
+            return {
+              process: r.process,
+              itemNo: proName,
+              openOrder: Number(r.openOrder) || 0,
+              std: Number(r.std) || 0,
+              dspt: Number(r.dspt) || 0,
+              initialDspt: Number(r.dspt) || 0,
+              weeks,
+            };
+          })
         : [];
 
       // Deduplicate by itemNo (PRO_name): ambil satu per PRO_name
@@ -209,11 +343,34 @@ export default function SalesOrderDetailPlanner({
 
       setLevel3Details((prev) => ({ ...prev, [item.id]: unique }));
 
-      // Sinkronkan Level 2 (STD/H & DSPT) dengan penjumlahan dari PRO (Level 3)
+      // Hitung total loading per minggu untuk Level 2 dari penjumlahan semua PRO
+      const aggregatedWeeks: Record<number, WeekData> = ALL_WEEKS.reduce(
+        (acc, w) => {
+          const totalLoading = unique.reduce(
+            (sum, d) => sum + Number(d.weeks[w]?.loading || 0),
+            0
+          );
+          acc[w] = {
+            capacity: item.weeks[w]?.capacity ?? 0,
+            loading: totalLoading,
+            available: item.weeks[w]?.available,
+          };
+          return acc;
+        },
+        {} as Record<number, WeekData>
+      );
+
+      // Sinkronkan Level 2: weeks (loading) + std/dspt dari detail PRO
       setItems((prevItems) =>
-        prevItems.map((it) =>
-          it.id === item.id ? recomputeItemDspt(it, unique) : it
-        )
+        prevItems.map((it) => {
+          if (it.id !== item.id) return it;
+          const mergedWeeks = ALL_WEEKS.reduce((acc, w) => {
+            acc[w] = { ...aggregatedWeeks[w], available: it.weeks[w]?.available };
+            return acc;
+          }, {} as Record<number, WeekData>);
+          const updated: Item = { ...it, weeks: mergedWeeks };
+          return recomputeItemDspt(updated, unique);
+        })
       );
     } catch (err) {
       console.error("Failed to load level 3 detail", err);
@@ -229,8 +386,13 @@ export default function SalesOrderDetailPlanner({
     });
   }, [expandedItems, items, level3Details]);
 
-  const getAvailable = (it: Item, week: number) =>
-    Number(it.weeks[week].capacity) - Number(it.weeks[week].loading || 0);
+  const getAvailable = (it: Item, week: number) => {
+    const available = it.weeks[week].available;
+    if (typeof available === "number" && Number.isFinite(available)) {
+      return available;
+    }
+    return Number(it.weeks[week].capacity) - Number(it.weeks[week].loading || 0);
+  };
 
   const computeTotalLoading = (weeks: Record<number, WeekData>) =>
     ALL_WEEKS.reduce((sum, w) => sum + Number(weeks[w]?.loading || 0), 0);
@@ -300,6 +462,88 @@ export default function SalesOrderDetailPlanner({
     [items, detailExpanded]
   );
 
+  // Bangun array rows sekali, dipakai untuk render kiri & kanan.
+  const rows: PlannerRow[] = useMemo(() => {
+    const result: PlannerRow[] = [];
+
+    items.forEach((it) => {
+      const isDetailOpen = !!detailExpanded[it.id];
+      const isProcessOpen = !!expandedItems[it.id];
+
+      result.push({ kind: "L1", itemId: it.id });
+
+      if (isDetailOpen) {
+        result.push({ kind: "L2", itemId: it.id });
+
+        if (isProcessOpen) {
+          const details = level3Details[it.id];
+          if (details && details.length > 0) {
+            details.forEach((_, idx) => {
+              result.push({ kind: "L3", itemId: it.id, detailIndex: idx });
+            });
+          } else {
+            result.push({ kind: "L3", itemId: it.id, detailIndex: null });
+          }
+        }
+      }
+    });
+
+    if (anyDetailOpen) {
+      result.push({ kind: "TOTAL" });
+    }
+
+    return result;
+  }, [items, detailExpanded, expandedItems, level3Details, anyDetailOpen]);
+
+  const itemById = useMemo(() => {
+    const map = new Map<number, Item>();
+    items.forEach((it) => map.set(it.id, it));
+    return map;
+  }, [items]);
+
+  useLayoutEffect(() => {
+    const leftMap = leftRowRefs.current;
+    const rightMap = rightRowRefs.current;
+
+    const updateHeight = (key: string) => {
+      const leftRow = leftMap[key];
+      const rightRow = rightMap[key];
+      if (!leftRow || !rightRow) return;
+      leftRow.style.height = "auto";
+      rightRow.style.height = "auto";
+      const leftHeight = leftRow.getBoundingClientRect().height;
+      const rightHeight = rightRow.getBoundingClientRect().height;
+      const height = Math.max(leftHeight, rightHeight);
+      leftRow.style.height = `${height}px`;
+      rightRow.style.height = `${height}px`;
+    };
+
+    const observer = new ResizeObserver((entries) => {
+      entries.forEach((entry) => {
+        const key = (entry.target as HTMLElement).dataset.rowKey;
+        if (key) updateHeight(key);
+      });
+    });
+
+    Object.keys(leftMap).forEach((key) => {
+      const row = leftMap[key];
+      if (!row) return;
+      observer.observe(row);
+      updateHeight(key);
+    });
+
+    Object.keys(rightMap).forEach((key) => {
+      const row = rightMap[key];
+      if (!row) return;
+      observer.observe(row);
+      updateHeight(key);
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [rows, visibleWeeks]);
+
   // Drag & Drop
   const handleDragStart = (
     e: React.DragEvent<HTMLDivElement>,
@@ -309,6 +553,7 @@ export default function SalesOrderDetailPlanner({
     value: number,
     detailIndex: number | null = null
   ) => {
+    if (!isAdmin) return;
     e.dataTransfer?.setData(
       "text/plain",
       JSON.stringify({ itemId, fromWeek, field, value, detailIndex })
@@ -317,6 +562,7 @@ export default function SalesOrderDetailPlanner({
   };
 
   const handleDrop = (toItemId: number, toWeek: number, detailIndex: number | null = null) => {
+    if (!isAdmin) return;
     if (!dragMeta) return;
 
     // Jika drag berasal dari / ditujukan ke level 3 (detailIndex terisi),
@@ -358,8 +604,9 @@ export default function SalesOrderDetailPlanner({
               0
             );
             const capacity =
-              updatedList[0]?.weeks[w]?.capacity ?? prev[dragMeta.itemId]?.[0]?.weeks[w]?.capacity ??
-              2160;
+              updatedList[0]?.weeks[w]?.capacity ??
+              prev[dragMeta.itemId]?.[0]?.weeks[w]?.capacity ??
+              0;
             acc[w] = { capacity, loading: loadingSum };
             return acc;
           },
@@ -369,7 +616,16 @@ export default function SalesOrderDetailPlanner({
         setItems((prevItems) =>
           prevItems.map((it) =>
             it.id === dragMeta.itemId
-              ? recomputeItemDspt({ ...it, weeks: aggregatedWeeks }, updatedList)
+              ? recomputeItemDspt(
+                  {
+                    ...it,
+                    weeks: ALL_WEEKS.reduce((acc, w) => {
+                      acc[w] = { ...aggregatedWeeks[w], available: it.weeks[w]?.available };
+                      return acc;
+                    }, {} as Record<number, WeekData>),
+                  },
+                  updatedList
+                )
               : it
           )
         );
@@ -385,7 +641,7 @@ export default function SalesOrderDetailPlanner({
             so,
             materialId: item ? Number(item.fg) || 0 : dragMeta.itemId,
             process: (detail && detail.process) || (item && item.process) || "",
-            year: currentYear,
+            year,
             fromWeek: dragMeta.fromWeek,
             toWeek,
             qty: val,
@@ -397,7 +653,7 @@ export default function SalesOrderDetailPlanner({
         return { ...prev, [dragMeta.itemId]: updatedList };
       });
     } else {
-      // Drag dari level 2 (FG) – gunakan weeks agregat di Item
+      // Drag dari level 2 (FG) — gunakan weeks agregat di Item
       setItems((prev) =>
         prev.map((it) => {
           if (it.id !== dragMeta.itemId) return it;
@@ -424,6 +680,7 @@ export default function SalesOrderDetailPlanner({
 
   // Edit modal
   const openEditModal = (itemId: number, week: number, detailIndex: number | null = null) => {
+    if (!isAdmin) return;
     let last = 0;
     if (detailIndex !== null && level3Details[itemId]?.[detailIndex]) {
       last = level3Details[itemId]![detailIndex].weeks[week]?.loading || 0;
@@ -434,6 +691,7 @@ export default function SalesOrderDetailPlanner({
   };
 
   const applyEditModal = (value: string) => {
+    if (!isAdmin) return;
     const num = Number(value) || 0;
 
     // Edit per PRO (level 3)
@@ -465,7 +723,7 @@ export default function SalesOrderDetailPlanner({
               (s, d) => s + (d.weeks[w]?.loading || 0),
               0
             );
-            const capacity = updatedList[0]?.weeks[w]?.capacity ?? 2160;
+            const capacity = updatedList[0]?.weeks[w]?.capacity ?? 0;
             acc[w] = { capacity, loading };
             return acc;
           },
@@ -475,7 +733,16 @@ export default function SalesOrderDetailPlanner({
         setItems((prevItems) =>
           prevItems.map((it) =>
             it.id === itemId
-              ? recomputeItemDspt({ ...it, weeks: aggregatedWeeks }, updatedList)
+              ? recomputeItemDspt(
+                  {
+                    ...it,
+                    weeks: ALL_WEEKS.reduce((acc, w) => {
+                      acc[w] = { ...aggregatedWeeks[w], available: it.weeks[w]?.available };
+                      return acc;
+                    }, {} as Record<number, WeekData>),
+                  },
+                  updatedList
+                )
               : it
           )
         );
@@ -496,7 +763,7 @@ export default function SalesOrderDetailPlanner({
         so,
         materialId: item ? Number(item.fg) || 0 : itemId,
         process: (detail && detail.process) || (item && item.process) || "",
-        year: currentYear,
+        year,
         week,
         oldQty,
         newQty: num,
@@ -504,7 +771,7 @@ export default function SalesOrderDetailPlanner({
         dsptTotal,
       });
     } else {
-      // Edit di level 2 (FG) – langsung set ke Item.weeks (total)
+      // Edit di level 2 (FG) — langsung set ke Item.weeks (total)
       setItems((prev) =>
         prev.map((it) => {
           if (it.id !== editModal.itemId) return it;
@@ -524,11 +791,12 @@ export default function SalesOrderDetailPlanner({
   // Fetch planner data dari backend
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
+    const load = async (options?: { weeksOnly?: boolean }) => {
+      if (cancelled) return;
       const base = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9999").replace(/\/$/, "");
       const params = new URLSearchParams();
       if (so) params.append("so", so);
-      params.append("year", String(currentYear));
+      params.append("year", String(year));
       params.append("fromWeek", String(fromWeek));
       params.append("toWeek", String(toWeek));
       // jangan filter per itemNo di sini supaya semua MaterialID dalam SO yang sama ikut muncul
@@ -538,34 +806,133 @@ export default function SalesOrderDetailPlanner({
         const res = await fetch(url);
         if (!res.ok) throw new Error(`Planner fetch failed: ${res.status}`);
         const data = await res.json();
-        const raw: Item[] = (Array.isArray(data) ? data : []).map((row: any, idx: number) => ({
-          id: idx + 1,
-          fg: row.itemNo || itemNo || "FG-01",
-          description: row.description || description || "Product Description",
-          openOrder: Number(row.openOrder) || 0,
-          std: Number(row.std) || 0,
-          dspt: Number(row.dspt) || 0,
-          initialDspt: Number(row.dspt) || 0,
-          process: row.process || "FG",
-          uap: row.uap || "0",
-          group: row.group || "FG",
-          pro: row.pro || row.PRO_name || "",
-          weeks: ALL_WEEKS.reduce((acc, w) => {
-            acc[w] = { capacity: 2160, loading: 0 };
-            return acc;
-          }, {} as Record<number, WeekData>),
-        }));
+        const rows = Array.isArray(data) ? data : [];
 
-        // Cek duplikat: jika Process + Item No + Description sama,
-        // tampilkan hanya satu baris (misalnya untuk week 49–51).
-        const dedupMap = new Map<string, Item>();
-        raw.forEach((it) => {
-          const key = `${it.process}||${it.fg}||${it.description}`;
-          if (!dedupMap.has(key)) {
-            dedupMap.set(key, it);
+        if (options?.weeksOnly) {
+          const weekUpdates = new Map<
+            string,
+            Record<number, { capacity?: number; available?: number }>
+          >();
+
+          rows.forEach((row: any) => {
+            const key = buildRowKey(row.process, row.itemNo, row.description);
+            const weekNum = Number(String(row.weekNum ?? "").replace(/[^\d]/g, "")) || 0;
+            if (weekNum < 1 || weekNum > 52) return;
+
+            const capacity = Number(row.capacity);
+            const available = Number(row.availCapacity);
+            const existing = weekUpdates.get(key) || {};
+
+            existing[weekNum] = {
+              capacity: Number.isFinite(capacity) ? capacity : existing[weekNum]?.capacity,
+              available: Number.isFinite(available) ? available : existing[weekNum]?.available,
+            };
+            weekUpdates.set(key, existing);
+          });
+
+          let nextItems: Item[] = [];
+
+          setItems((prevItems) => {
+            nextItems = prevItems.map((it) => {
+              const key = buildRowKey(it.process, it.fg, it.description);
+              const updates = weekUpdates.get(key);
+              if (!updates) return it;
+
+              const weeks = { ...it.weeks };
+              Object.entries(updates).forEach(([weekKey, update]) => {
+                const w = Number(weekKey);
+                if (!weeks[w]) return;
+                weeks[w] = {
+                  ...weeks[w],
+                  capacity:
+                    typeof update.capacity === "number" && Number.isFinite(update.capacity)
+                      ? update.capacity
+                      : weeks[w].capacity,
+                  available:
+                    typeof update.available === "number" && Number.isFinite(update.available)
+                      ? update.available
+                      : weeks[w].available,
+                };
+              });
+
+              return { ...it, weeks };
+            });
+
+            return nextItems;
+          });
+
+          setLevel3Details((prev) => {
+            if (!nextItems.length) return prev;
+            const itemMap = new Map<number, Item>();
+            nextItems.forEach((it) => itemMap.set(it.id, it));
+
+            const updatedEntries = Object.entries(prev).map(([id, details]) => {
+              const item = itemMap.get(Number(id));
+              if (!item || !details) return [id, details];
+
+              const updatedDetails = details.map((detail) => {
+                const weeks = { ...detail.weeks };
+                ALL_WEEKS.forEach((w) => {
+                  const itemWeek = item.weeks[w];
+                  if (!itemWeek) return;
+                  weeks[w] = {
+                    ...weeks[w],
+                    capacity: itemWeek.capacity,
+                    available: itemWeek.available,
+                  };
+                });
+                return { ...detail, weeks };
+              });
+
+              return [id, updatedDetails];
+            });
+
+            return Object.fromEntries(updatedEntries) as Record<number, Level3Detail[]>;
+          });
+
+          return;
+        }
+
+        const itemsMap = new Map<string, Item>();
+
+        rows.forEach((row: any) => {
+          const key = buildRowKey(row.process, row.itemNo, row.description);
+
+          let item = itemsMap.get(key);
+          if (!item) {
+            item = {
+              id: itemsMap.size + 1,
+              fg: row.itemNo || itemNo || "FG-01",
+              description: row.description || description || "Product Description",
+              openOrder: Number(row.openOrder) || 0,
+              std: Number(row.std) || 0,
+              dspt: Number(row.dspt) || 0,
+              initialDspt: Number(row.dspt) || 0,
+              process: row.process || "FG",
+              uap: row.uap || "0",
+              group: row.group || "FG",
+              pro: row.pro || row.PRO_name || "",
+              weeks: ALL_WEEKS.reduce((acc, w) => {
+                acc[w] = { capacity: 0, loading: 0 };
+                return acc;
+              }, {} as Record<number, WeekData>),
+            };
+            itemsMap.set(key, item);
+          }
+
+          const weekNum = Number(String(row.weekNum ?? "").replace(/[^\d]/g, "")) || 0;
+          if (weekNum >= 1 && weekNum <= 52) {
+            const capacity = Number(row.capacity);
+            const available = Number(row.availCapacity);
+            item.weeks[weekNum] = {
+              ...item.weeks[weekNum],
+              capacity: Number.isFinite(capacity) ? capacity : item.weeks[weekNum].capacity,
+              available: Number.isFinite(available) ? available : item.weeks[weekNum].available,
+            };
           }
         });
-        const mapped = Array.from(dedupMap.values());
+
+        const mapped = Array.from(itemsMap.values());
 
         if (!cancelled) {
           setItems(mapped.length ? mapped : buildDefaultItems());
@@ -577,17 +944,20 @@ export default function SalesOrderDetailPlanner({
     };
 
     load();
+    const intervalId = setInterval(() => load({ weeksOnly: true }), 60 * 60 * 1000);
     return () => {
       cancelled = true;
+      clearInterval(intervalId);
     };
-  }, [so, itemNo, description, fromWeek, toWeek, currentYear]);
+  }, [so, itemNo, description, fromWeek, toWeek, year]);
 
   return (
     <div className="bg-white rounded-lg shadow p-4">
       {/* Header info */}
       <div className="mb-4 flex flex-col gap-3">
         <div className="flex flex-wrap items-end gap-3 text-sm">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
             <label className="text-[11px] uppercase tracking-wide text-gray-500">From</label>
             <input
               type="number"
@@ -598,13 +968,13 @@ export default function SalesOrderDetailPlanner({
               className="border rounded px-2 py-1 w-20 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          <div className="flex flex-col gap-1 items-start">
+            <div className="flex flex-col gap-1 items-start">
             <label className="text-[11px] uppercase tracking-wide text-gray-500">Today</label>
             <span className="inline-flex items-center justify-center rounded-full bg-yellow-100 text-yellow-800 font-semibold px-3 py-1 text-sm">
               W{currentWeek}
             </span>
           </div>
-          <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1">
             <label className="text-[11px] uppercase tracking-wide text-gray-500">To</label>
             <input
               type="number"
@@ -615,23 +985,40 @@ export default function SalesOrderDetailPlanner({
               className="border rounded px-2 py-1 w-20 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 text-sm text-gray-800">
-          <div className="px-3 py-2 border rounded bg-gray-50">
+        <div className="flex flex-wrap gap-2 justify-between text-sm text-gray-800">
+          <div className="flex flex-wrap gap-2">
+            <div className="px-3 py-2 border rounded bg-gray-50">
             <div className="text-[10px] uppercase tracking-wide text-gray-500">Customer</div>
             <div className="font-semibold">{customer || "-"}</div>
           </div>
-          <div className="px-3 py-2 border rounded bg-gray-50">
+            <div className="px-3 py-2 border rounded bg-gray-50">
             <div className="text-[10px] uppercase tracking-wide text-gray-500">SO</div>
             <div className="font-semibold">{so || "-"}</div>
+          </div>
+          </div>
+
+          {/* Year di baris yang sama dengan Customer & SO */}
+          <div className="px-3 py-2 border rounded bg-gray-50">
+            <div className="text-[10px] uppercase tracking-wide text-gray-500 text-right">Year</div>
+            <input
+              type="number"
+              className="border rounded px-2 py-1 w-24 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-right mt-1"
+              value={year}
+              onChange={(e) => {
+                const val = Number(e.target.value) || initialYear;
+                setYear(val);
+              }}
+            />
           </div>
         </div>
       </div>
 
       <div className="flex border rounded-lg shadow-sm bg-white overflow-hidden">
         {/* Left Fixed Table */}
-        <div ref={leftTableRef} className="overflow-y-auto max-h-[400px]">
+        <div ref={leftTableRef} className="overflow-y-auto max-h-[400px] hide-scrollbar">
           <table className="table-fixed border-r min-w-[600px]">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
@@ -648,16 +1035,43 @@ export default function SalesOrderDetailPlanner({
               </tr>
             </thead>
             <tbody>
-              {items.map((it) => {
+              {rows.map((row, rowIndex) => {
+                if (row.kind === "TOTAL") {
+                  const key = "TOTAL";
+                  return (
+                    <tr
+                      key={`${key}-${rowIndex}`}
+                      data-row-key={key}
+                      ref={(el) => {
+                        leftRowRefs.current[key] = el;
+                      }}
+                      className="bg-gray-50 h-10"
+                    >
+                      <td colSpan={11}></td>
+                    </tr>
+                  );
+                }
+                const it = itemById.get(row.itemId);
+                if (!it) return null;
                 const isDetailOpen = !!detailExpanded[it.id];
                 const isProcessOpen = !!expandedItems[it.id];
-
-                return (
-                  <React.Fragment key={it.id}>
-                    {/* LEVEL 1 – ringkasan: hanya Process, Item No, Description */}
-                    <tr className="hover:bg-gray-50 h-14">
+                const detail =
+                  row.kind === "L3" && row.detailIndex !== null
+                    ? level3Details[it.id]?.[row.detailIndex]
+                    : null;
+                const rowKey = `${row.kind}-${it.id}-${row.kind === "L3" ? row.detailIndex : "x"}`;
+                if (row.kind === "L1") {
+                  return (
+                    <tr
+                      key={rowKey}
+                      data-row-key={rowKey}
+                      ref={(el) => {
+                        leftRowRefs.current[rowKey] = el;
+                      }}
+                      className="hover:bg-gray-50 h-14"
+                    >
                       <td className="cursor-pointer text-center" onClick={() => toggleDetail(it.id)}>
-                        {isDetailOpen ? "−" : "+"}
+                        {isDetailOpen ? "v" : "+"}
                       </td>
                       <td className="text-center">{it.process}</td>
                       <td className="text-center">{it.fg}</td>
@@ -670,95 +1084,70 @@ export default function SalesOrderDetailPlanner({
                       <td className="text-center"></td>
                       <td className="text-center text-[10px]"></td>
                     </tr>
-
-                    {/* LEVEL 2 – detail FG: isi lengkap */}
-                    {isDetailOpen && (
-                      <>
-                        <tr className="hover:bg-gray-50 h-14">
-                          <td className="cursor-pointer text-center" onClick={() => toggleExpand(it.id)}>
-                            {isProcessOpen ? "−" : "+"}
-                          </td>
-                          <td className="text-center">{it.process}</td>
-                          <td className="text-center">{it.fg}</td>
-                          <td className="text-center">{it.description}</td>
-                          <td className="text-center">{it.openOrder}</td>
-                          <td className="text-center rounded">{it.std}</td>
-                          <td
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, it.id, null, "dspt", it.dspt)}
-                            className="cursor-grab bg-blue-50 text-center rounded"
-                          >
-                            {it.dspt}
-                          </td>
-                          <td className="text-center">{it.uap}</td>
-                          <td className="text-center">{it.group}</td>
-                          <td className="flex flex-col gap-0.5 text-[10px] text-center">
-                            <div className="p-0.5 bg-yellow-100 rounded">Available</div>
-                            <div className="p-0.5 bg-blue-100 rounded">Loading</div>
-                            <div className="p-0.5 bg-red-100 rounded">Capacity</div>
-                          </td>
-                        </tr>
-
-                        {/* LEVEL 3 – extend proses: Process, Item No, Open Order, STD/H, DSPT */}
-                        {/* LEVEL 3 – satu baris per PRO_name unik */}
-                        {isProcessOpen && (
-                          <>
-                            {(level3Details[it.id] || []).map((d, idx) => (
-                              <tr key={idx} className="bg-gray-100">
-                                <td></td>
-                                <td className="text-center">{d.process || it.process}</td>
-                                <td className="text-center">{d.itemNo || it.pro}</td>
-                                <td></td>
-                                <td className="text-center">{d.openOrder || it.openOrder}</td>
-                                <td className="text-center rounded">{d.std}</td>
-                                <td
-                                  draggable
-                                  onDragStart={(e) =>
-                                    handleDragStart(
-                                      e,
-                                      it.id,
-                                      null,
-                                      "dspt",
-                                      Number(d.dspt ?? 0)
-                                    )
-                                  }
-                                  className="cursor-grab bg-blue-50 text-center rounded"
-                                >
-                                  {d.dspt}
-                                </td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                              </tr>
-                            ))}
-                            {(!level3Details[it.id] || level3Details[it.id].length === 0) && (
-                              <tr className="bg-gray-100">
-                                <td></td>
-                                <td className="text-center">{it.process}</td>
-                                <td className="text-center">{it.pro}</td>
-                                <td></td>
-                                <td className="text-center">{it.openOrder}</td>
-                                <td className="text-center rounded">{it.std}</td>
-                                <td
-                                  draggable
-                                  onDragStart={(e) => handleDragStart(e, it.id, null, "dspt", it.dspt)}
-                                  className="cursor-grab bg-blue-50 text-center rounded"
-                                >
-                                  {it.dspt}
-                                </td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                              </tr>
-                            )}
-                          </>
-                        )}
-
-                      </>
-                    )}
-                  </React.Fragment>
+                  );
+                }
+                if (row.kind === "L2") {
+                  return (
+                    <tr
+                      key={rowKey}
+                      data-row-key={rowKey}
+                      ref={(el) => {
+                        leftRowRefs.current[rowKey] = el;
+                      }}
+                      className="hover:bg-gray-50 h-14"
+                    >
+                      <td className="cursor-pointer text-center" onClick={() => toggleExpand(it.id)}>
+                        {isProcessOpen ? "v" : "+"}
+                      </td>
+                      <td className="text-center">{it.process}</td>
+                      <td className="text-center">{it.fg}</td>
+                      <td className="text-center">{it.description}</td>
+                      <td className="text-center">{it.openOrder}</td>
+                      <td className="text-center rounded">{formatNumber(it.std, 2)}</td>
+                      <td className="bg-blue-50 text-center rounded">
+                        {formatNumber(it.dspt, 2)}
+                      </td>
+                      <td className="text-center">{it.uap}</td>
+                      <td className="text-center">{it.group}</td>
+                      <td className="flex flex-col gap-0.5 text-[10px] text-center">
+                        <div className="p-0.5 bg-yellow-100 rounded">Available</div>
+                        <div className="p-0.5 bg-blue-100 rounded">Loading</div>
+                        <div className="p-0.5 bg-red-100 rounded">Capacity</div>
+                      </td>
+                    </tr>
+                  );
+                }
+                return (
+                  <tr
+                    key={rowKey}
+                    data-row-key={rowKey}
+                    ref={(el) => {
+                      leftRowRefs.current[rowKey] = el;
+                    }}
+                    className="bg-gray-100"
+                  >
+                    <td></td>
+                    <td className="text-center">{detail?.process || it.process}</td>
+                    <td className="text-center">{detail?.itemNo || it.pro}</td>
+                    <td></td>
+                    <td className="text-center">{detail?.openOrder || it.openOrder}</td>
+                    <td className="text-center rounded">
+                      {formatNumber(detail?.std ?? it.std, 2)}
+                    </td>
+                    <td
+                      draggable={isAdmin}
+                      onDragStart={(e) =>
+                        handleDragStart(e, it.id, null, "dspt", Number(detail?.dspt ?? it.dspt))
+                      }
+                      className="cursor-grab bg-blue-50 text-center rounded"
+                    >
+                      {formatNumber(detail?.dspt ?? it.dspt, 2)}
+                    </td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
                 );
               })}
             </tbody>
@@ -784,117 +1173,131 @@ export default function SalesOrderDetailPlanner({
               </tr>
             </thead>
             <tbody>
-              {items.map((it) => {
-                const isDetailOpen = !!detailExpanded[it.id];
-                const isProcessOpen = !!expandedItems[it.id];
-
-                return (
-                  <React.Fragment key={it.id}>
-                    {/* LEVEL 1 – ringkasan FG: kanan kosong */}
-                    <tr className="hover:bg-gray-50 h-14">
+              {rows.map((row, rowIndex) => {
+                if (row.kind === "TOTAL") {
+                  const key = "TOTAL";
+                  return (
+                    <tr
+                      key={`${key}-${rowIndex}`}
+                      data-row-key={key}
+                      ref={(el) => {
+                        rightRowRefs.current[key] = el;
+                      }}
+                      className="bg-gray-50 font-medium"
+                    >
+                      {visibleWeeks.map((w) => (
+                        <td key={w} className="px-1 border-l text-center">
+                          {totals[w]}
+                        </td>
+                      ))}
+                      <td className="text-center">
+                        {visibleWeeks.reduce((s, w) => s + (totals[w] || 0), 0)}
+                      </td>
+                    </tr>
+                  );
+                }
+                const it = itemById.get(row.itemId);
+                if (!it) return null;
+                const detail =
+                  row.kind === "L3" && row.detailIndex !== null
+                    ? level3Details[it.id]?.[row.detailIndex]
+                    : null;
+                const rowKey = `${row.kind}-${it.id}-${row.kind === "L3" ? row.detailIndex : "x"}`;
+                if (row.kind === "L1") {
+                  return (
+                    <tr
+                      key={rowKey}
+                      data-row-key={rowKey}
+                      ref={(el) => {
+                        rightRowRefs.current[rowKey] = el;
+                      }}
+                      className="hover:bg-gray-50 h-14"
+                    >
                       {visibleWeeks.map((w) => (
                         <td key={w} className="px-1 border-l text-center text-xs bg-white" />
                       ))}
                       <td className="text-center font-semibold" />
                     </tr>
-
-                    {/* LEVEL 2 – detail FG: Available / Loading / Capacity */}
-                    {isDetailOpen && (
-                      <tr className="hover:bg-gray-50 h-14">
-                        {visibleWeeks.map((w) => {
-                          const slot = it.weeks[w];
-                          const avail = getAvailable(it, w);
-                          return (
-                            <td
-                              key={w}
-                              className="px-1 border-l text-center text-xs group"
-                              onDragOver={(e) => e.preventDefault()}
-                            onDrop={() => handleDrop(it.id, w)}
-                            >
-                              <div className="flex flex-col gap-0.5 text-[10px] w-full mt-2">
-                                <div className="p-0.5 bg-yellow-100 rounded text-[11px]">{avail}</div>
-                                <div
-                                  draggable
-                                  className="p-0.5 bg-blue-100 rounded text-[11px] cursor-grab"
-                                  onDragStart={(e) => handleDragStart(e, it.id, w, "loading", slot.loading)}
-                                  onClick={() => openEditModal(it.id, w)}
-                                >
-                                  {slot.loading}
-                                </div>
-                                <div className="p-0.5 bg-red-100 rounded text-[11px]">{slot.capacity}</div>
-                              </div>
-                            </td>
-                          );
-                        })}
-                        <td className="text-center font-semibold">
-                          {visibleWeeks.reduce((s, w) => s + Number(it.weeks[w].loading || 0), 0)}
-                        </td>
-                      </tr>
-                    )}
-
-                    {/* LEVEL 3 – extend proses: hanya Loading, linked ke data yang sama */}
-                    {isDetailOpen &&
-                      isProcessOpen &&
-                      (level3Details[it.id] && level3Details[it.id]!.length > 0
-                        ? level3Details[it.id]
-                        : [null]
-                      ).map((d, idx) => (
-                        <tr key={idx} className="bg-gray-100">
-                          {visibleWeeks.map((w) => {
-                            const slot =
-                              d && "weeks" in d && (d as Level3Detail).weeks
-                                ? (d as Level3Detail).weeks[w]
-                                : it.weeks[w];
-                            return (
-                              <td
-                                key={w}
-                                className="px-1 border-l text-center bg-white cursor-pointer hover:bg-blue-50"
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={() => handleDrop(it.id, w, d ? idx : null)}
+                  );
+                }
+                if (row.kind === "L2") {
+                  return (
+                    <tr
+                      key={rowKey}
+                      data-row-key={rowKey}
+                      ref={(el) => {
+                        rightRowRefs.current[rowKey] = el;
+                      }}
+                      className="hover:bg-gray-50 h-14"
+                    >
+                      {visibleWeeks.map((w) => {
+                        const slot = it.weeks[w];
+                        const avail = getAvailable(it, w);
+                        return (
+                          <td key={w} className="px-1 border-l text-center text-xs group">
+                            <div className="flex flex-col gap-0.5 text-[10px] w-full mt-2">
+                              <div className="p-0.5 bg-yellow-100 rounded text-[11px]">{avail}</div>
+                              <div
+                                className="p-0.5 bg-blue-100 rounded text-[11px]"
+                                onClick={() => openEditModal(it.id, w)}
                               >
-                                <div className="flex flex-col gap-0.5 text-[10px] w-full">
-                                  <div
-                                    draggable
-                                    className="p-0.5 bg-blue-100 rounded text-[11px] cursor-grab"
-                                    onDragStart={(e) =>
-                                      handleDragStart(
-                                        e,
-                                        it.id,
-                                        w,
-                                        "loading",
-                                        slot.loading,
-                                        d ? idx : null
-                                      )
-                                    }
-                                    onClick={() => openEditModal(it.id, w, d ? idx : null)}
-                                  >
-                                    {slot.loading}
-                                  </div>
-                                </div>
-                              </td>
-                            );
-                          })}
-                          <td></td>
-                        </tr>
-                      ))}
-
-                  </React.Fragment>
+                                {slot.loading}
+                              </div>
+                              <div className="p-0.5 bg-red-100 rounded text-[11px]">{slot.capacity}</div>
+                            </div>
+                          </td>
+                        );
+                      })}
+                      <td className="text-center font-semibold">
+                        {visibleWeeks.reduce((s, w) => s + Number(it.weeks[w].loading || 0), 0)}
+                      </td>
+                    </tr>
+                  );
+                }
+                return (
+                  <tr
+                    key={rowKey}
+                    data-row-key={rowKey}
+                    ref={(el) => {
+                      rightRowRefs.current[rowKey] = el;
+                    }}
+                    className="bg-gray-100"
+                  >
+                    {visibleWeeks.map((w) => {
+                      const slot = detail?.weeks ? detail.weeks[w] : it.weeks[w];
+                      return (
+                        <td
+                          key={w}
+                          className="px-1 border-l text-center bg-white cursor-pointer hover:bg-blue-50"
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => handleDrop(it.id, w, row.detailIndex)}
+                        >
+                          <div className="flex flex-col gap-0.5 text-[10px] w-full">
+                              <div
+                                draggable={isAdmin}
+                              className="p-0.5 bg-blue-100 rounded text-[11px] cursor-grab"
+                              onDragStart={(e) =>
+                                handleDragStart(
+                                  e,
+                                  it.id,
+                                  w,
+                                  "loading",
+                                  slot.loading,
+                                  row.detailIndex
+                                )
+                              }
+                              onClick={() => openEditModal(it.id, w, row.detailIndex)}
+                            >
+                              {slot.loading}
+                            </div>
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td></td>
+                  </tr>
                 );
               })}
-
-              {/* Total per minggu – hanya muncul kalau minimal Level 2 terbuka */}
-              {anyDetailOpen && (
-                <tr className="bg-gray-50 font-medium">
-                  {visibleWeeks.map((w) => (
-                    <td key={w} className="px-1 border-l text-center">
-                      {totals[w]}
-                    </td>
-                  ))}
-                  <td className="text-center">
-                    {visibleWeeks.reduce((s, w) => s + (totals[w] || 0), 0)}
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -934,6 +1337,15 @@ export default function SalesOrderDetailPlanner({
           </div>
         </div>
       )}
+      <style jsx>{`
+        .hide-scrollbar {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }

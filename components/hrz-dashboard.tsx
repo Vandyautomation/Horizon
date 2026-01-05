@@ -126,7 +126,7 @@ export default function HRZDashboard() {
             placeholder={`Search ${searchBy}...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-300 p-2 rounded w-48 placeholder:text-gray-400 focus:ring-1 focus:ring-blue-500"
+            className="border border-gray-300 p-2 rounded w-64 placeholder:text-gray-400 focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
@@ -184,7 +184,7 @@ export default function HRZDashboard() {
                   <td className="border px-3 py-2 text-blue-600 underline w-56 break-words text-sm md:text-base text-left">{d.salesOrder}</td>
                   <td className="border px-3 py-2 w-44 break-words text-sm md:text-base text-left">{d.itemNo}</td>
                 <td className="border px-3 py-2">{d.description}</td>
-                <td className="border px-3 py-2 text-center text-blue-600">
+                <td className="border px-3 py-2 text-center text-blue-600 text-xl leading-none">
                   {d.project ? "★" : ""}
                 </td>
                 <td className="border px-3 py-2">{d.customer}</td>
