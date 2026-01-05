@@ -1,14 +1,22 @@
 import { Hono } from 'hono';
-import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
+import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, submitOrangeTicket, updateComment, updateCVT, getTickets,getUsers } from '../controllers/countboardController';
+//import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
 const countboardRoutes = new Hono();
-
-
 countboardRoutes.get('/rejects', async (c) => {
 
 
   try {
     const data = await getRejectLists();
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+//menambahkan tiket 
+countboardRoutes.get('/tickets', async (c) => {
+  try {
+    const data = await getTickets();
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500);
@@ -139,6 +147,43 @@ countboardRoutes.put('/comment', async (c) => {
   }
 });
 
+countboardRoutes.post('/ticket', async (c) => {
+  const { machineId, ticketDate, problem, actionPlan } = await c.req.json();
+
+  if (!machineId || !ticketDate || !problem || !actionPlan) {
+    return c.json({ error: 'machineId, ticketDate, problem, and actionPlan are required' }, 400);
+  }
+
+  try {
+    const result = await submitOrangeTicket(
+      machineId,
+      ticketDate,
+      problem,
+      actionPlan,
+    );
+
+    if (!result.affected) {
+      return c.json({ message: 'No matching TicketTRX found for given machine and ticket date' }, 404);
+    }
+
+    return c.json({
+      message: 'TicketTRX updated successfully',
+      affected: result.affected,
+    });
+  } catch (error) {
+    console.error('Error submitting orange ticket:', error);
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
 
 
+//get user
+countboardRoutes.get('/users', async (c) => {
+  try {
+    const data = await getUsers();
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
 export default countboardRoutes;

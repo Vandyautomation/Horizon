@@ -2147,11 +2147,11 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
   }
 
 export async function makeMachineGrey(machineId: string) {
-    const sqlQuery = `
-      UPDATE IoT.dbo.MachineMST SET is_override = 1, MchStatus = 'TRIAL' WHERE MchID = @machineId;
-
-      INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
-      VALUES (@machineId, GETDATE(), 'GREY', 1);
+      const sqlQuery = `
+        UPDATE IoT.dbo.MachineMST SET is_override = 1, MchStatus = 'TRIAL' WHERE MchID = @machineId;
+  
+        INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
+        VALUES (@machineId, GETDATE(), 'GREY', 1);
     `;
     return await queryDatabase(sqlQuery, { machineId });
 }
@@ -2176,10 +2176,27 @@ export async function removeOverrideTAO(machineId: string) {
     INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
     VALUES (@machineId, GETDATE(), @statusLightBefore, 1);
 
-    SELECT @statusLightBefore as statusLightBefore;
-  `;
-    return await queryDatabase(sqlQuery, { machineId });
-}
+      SELECT @statusLightBefore as statusLightBefore;
+    `;
+      return await queryDatabase(sqlQuery, { machineId });
+  }
+
+  export async function addMachineState(machineId: string, color: string, statusDate?: string | null) {
+        const sqlQuery = `
+          INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
+          VALUES (@machineId, COALESCE(@statusDate, GETDATE()), @color, 1);
+        `;
+        return await queryDatabase(sqlQuery, { machineId, color, statusDate });
+    }
+
+  export async function updateMachineStateColorById(stateId: string, color: string) {
+        const sqlQuery = `
+          UPDATE IoT.dbo.MchStatusTRX
+          SET StatusLight = @color
+          WHERE ID = @stateId;
+        `;
+        return await queryDatabase(sqlQuery, { stateId, color });
+    }
 
 export async function removeOverride(machineId: string) {
     const sqlQuery = `

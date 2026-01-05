@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { addMachine, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, getTrendStream, getTrendWeekly, makeMachineGrey, makeMachineTAO, removeOverride, removeOverrideTAO, updateMachine } from '../controllers/machineController';
+import { addMachine, addMachineState, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, getTrendStream, getTrendWeekly, makeMachineGrey, makeMachineTAO, removeOverride, removeOverrideTAO, updateMachine, updateMachineStateColorById } from '../controllers/machineController';
 import { getTask } from '../controllers/scaleTaskController';
 import { cache } from 'hono/cache'
 import * as trendData from '../controllers/trend.json';
@@ -277,6 +277,29 @@ machineRoutes.post('/tao/:machineId', async (c) => {
     } else {
       return c.json({ error: 'Failed to update UNS' }, 500);
     }
+  }
+});
+
+machineRoutes.post('/state', async (c) => {
+  try {
+    const { machineName, color, stateId, statusDate } = await c.req.json();
+    if (!color) {
+      return c.json({ error: 'color is required' }, 400);
+    }
+
+    if (stateId) {
+      await updateMachineStateColorById(stateId, color);
+      return c.json({ message: 'State updated successfully' });
+    }
+
+    if (!machineName) {
+      return c.json({ error: 'machineName or stateId is required' }, 400);
+    }
+  
+    await addMachineState(machineName, color, statusDate ?? null);
+    return c.json({ message: 'State added successfully' });
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
   }
 });
 

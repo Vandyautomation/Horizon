@@ -30,6 +30,20 @@ export async function getProblemGroup(name: string | undefined, page: number, pi
     }
 }
 
+export async function getAllProblemGroups() {
+    try {
+        const sqlQuery = `
+            SELECT id, name
+            FROM IoT.dbo.problem_problem_group
+            ORDER BY id ASC
+        `;
+        return await queryDatabase(sqlQuery);
+    } catch (error: any) {
+        console.error('Error getting all problem groups:', error);
+        throw new Error(`Failed to get all problem groups: ${error.message}`);
+    }
+}
+
 export async function createProblemGroup(name: string) {
     try {
         const sqlQuery = `
@@ -135,6 +149,21 @@ export async function getProblem(name: string | undefined, groupId: string | und
     }
 }
 
+export async function getProblemsByGroupForProcess(groupId: string, process: string | undefined) {
+    try {
+        const sqlQuery = `
+            SELECT p.id, p.name, p.problem_group_id, p.color
+            FROM IoT.dbo.problem_problem p
+            WHERE p.problem_group_id = @groupId
+            ORDER BY p.id ASC
+        `;
+        return await queryDatabase(sqlQuery, { groupId });
+    } catch (error: any) {
+        console.error('Error getting problems for group:', error);
+        throw new Error(`Failed to get problems for group: ${error.message}`);
+    }
+}
+
 export async function createProblem(name: string, problem_group_id: string, color: string, process: string) {
     try {
         const sqlQuery = `
@@ -213,6 +242,22 @@ export async function getTodo(name: string | undefined, problemId: string | unde
     } catch (error: any) {
         console.error('Error getting todo:', error);
         throw new Error(`Failed to get todo: ${error.message}`);
+    }
+}
+
+export async function getTodosByProblem(problemId: string) {
+    try {
+        const sqlQuery = `
+            SELECT pt.id, pt.name, pt.problem_id, pt.pic, pt.is_escalated
+            FROM IoT.dbo.problem_todo pt
+            WHERE pt.problem_id = @problemId
+              AND ISNULL(pt.is_deleted, 0) = 0
+            ORDER BY pt.id ASC
+        `;
+        return await queryDatabase(sqlQuery, { problemId });
+    } catch (error: any) {
+        console.error('Error getting todos for problem:', error);
+        throw new Error(`Failed to get todos for problem: ${error.message}`);
     }
 }
 
