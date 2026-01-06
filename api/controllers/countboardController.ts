@@ -9,12 +9,30 @@ SELECT id, name from RejectMST where active = 1
 }
 export async function getUsers() {
   const sqlQuery = `
-  SELECT *I
+  SELECT *
     FROM IoT.dbo.UsersOpt
   `;
 
   const result = await queryDatabase(sqlQuery);
   return result.map((row: any) => row.name);
+}
+// console.log('Users:', getUsers());
+export async function editScrap(hourlyId: number, scrap: number) {
+  const sqlQuery = `
+    UPDATE IoT.dbo.hourly
+    SET scrap = @scrap
+    WHERE id = @hourlyId;
+  `;
+
+  try {
+    return await queryDatabase(sqlQuery, {
+      hourlyId,
+      scrap,
+    });
+  } catch (error: any) {
+    console.error('Error updating scrap:', error);
+    throw new Error(`Failed to update scrap: ${error.message}`);
+  }
 }
 export async function addRouting(data: any[][]) {
     const validData = data.slice(1).filter((row) => {

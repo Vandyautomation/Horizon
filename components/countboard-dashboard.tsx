@@ -204,7 +204,7 @@ export default function CountboardDashboard() {
   const filteredUsers = users.filter((u) =>
     u.toLowerCase().includes(search.toLowerCase())
   )
-  console.log('usersRes:', usersRes)
+  // console.log('usersRes:', usersRes)
   const [selectedLocation, setSelectedLocation] = useState<string>('')
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -218,6 +218,9 @@ export default function CountboardDashboard() {
     content2: '',
   })
   const [currentCVT, setCurrentCVT] = useState<number | 0>(0)
+  const [editedScrap, setEditedScrap] = useState<number>(0)
+  const [selectedHourlyId, setSelectedHourlyId] = useState<number | null>(null)
+  const [currentScrap, setCurrentScrap] = useState<number>(0)
   const [isPODialogOpen, setIsPODialogOpen] = useState(false)
   const [isCVTDialogOpen, setIsCVTDialogOpen] = useState(false)
   const [isSCRAPDialogOpen, setIsSCRAPDialogOpen] = useState(false)
@@ -932,6 +935,37 @@ export default function CountboardDashboard() {
     refetchHourlyData()
     setSelectedComment(selectedComment)
   }, [selectedComment, refetchHourlyData])
+  //scrap update
+  const handleScrapUpdate = useCallback(async () => {
+    if (!selectedHourlyId) return
+
+    setIsLoading(true)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/scrap`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hourlyId: selectedHourlyId,
+            scrap: editedScrap,
+          }),
+        }
+      )
+      if (!response.ok) {
+        throw new Error('Failed to update Scrap')
+      }
+      toast.success('Update Scrap successfully!')
+      setCurrentScrap(editedScrap)
+      refetchHourlyData()
+      setIsSCRAPDialogOpen(false)
+    } catch (error) {
+      toast.error((error as Error).message)
+      console.error('Failed to update Scrap:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [editedScrap, selectedHourlyId, refetchHourlyData])
 
   const handleCVTUpdate = useCallback(async () => {
     setIsLoading(true)
@@ -2259,7 +2293,12 @@ export default function CountboardDashboard() {
                               </TableCell>
                               <TableCell
                                 className="h-[43px] text-center text-xl text-nowrap text-black cursor-pointer"
-                                onClick={() => setIsSCRAPDialogOpen(true)}
+                                onClick={() => {
+                                  setSelectedHourlyId(row.hourlyId)
+                                  setCurrentScrap(row.scrap)
+                                  setEditedScrap(row.scrap)
+                                  setIsSCRAPDialogOpen(true)
+                                }}
                               >
                                 {row.scrap}
                               </TableCell>
@@ -2864,34 +2903,35 @@ export default function CountboardDashboard() {
               </DialogDescription> */}
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="">Current Scrap</Label>
-                  <Input id="" value={0} disabled />
+                  <Label>Current Scrap</Label>
+                  <Input value={currentScrap} disabled />
                 </div>
                 <div>
-                  <Label htmlFor="">New Scrap</Label>
+                  <Label>New Scrap</Label>
                   <Input
                     autoFocus
-                    id="Scrap"
                     type="number"
                     min={0}
                     step={1}
+                    value={editedScrap}
                     onChange={(e) => {
                       const value = e.target.value
-                      if (value === '') return
-                      if (Number(value) < 0) {
-                        e.target.value = '0'
+
+                      if (value === '') {
+                        setEditedScrap('')
+                        return
+                      }
+
+                      const num = Number(value)
+                      if (!isNaN(num) && num >= 0) {
+                        setEditedScrap(num)
                       }
                     }}
-                    // onChange={(e) => {
-                    //   const value =
-                    //     e.target.value === '' ? 0 : Number(e.target.value)
-                    //   setEditedCVT(value)
-                    // }}
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button disabled={isLoading}>
+                <Button onClick={handleScrapUpdate} disabled={isLoading}>
                   {isLoading ? 'Loading...' : 'Update Scrap'}
                 </Button>
               </DialogFooter>
