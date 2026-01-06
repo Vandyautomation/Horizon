@@ -219,8 +219,10 @@ export default function CountboardDashboard() {
   })
   const [currentCVT, setCurrentCVT] = useState<number | 0>(0)
   const [editedScrap, setEditedScrap] = useState<number>(0)
+  const [editedRework, setEditedRework] = useState<number>(0)
   const [selectedHourlyId, setSelectedHourlyId] = useState<number | null>(null)
   const [currentScrap, setCurrentScrap] = useState<number>(0)
+  const [currentRework, setCurrentRework] = useState<number>(0)
   const [isPODialogOpen, setIsPODialogOpen] = useState(false)
   const [isCVTDialogOpen, setIsCVTDialogOpen] = useState(false)
   const [isSCRAPDialogOpen, setIsSCRAPDialogOpen] = useState(false)
@@ -953,7 +955,8 @@ export default function CountboardDashboard() {
         }
       )
       if (!response.ok) {
-        throw new Error('Failed to update Scrap')
+        const text = await response.text()
+        throw new Error(text || 'Failed to update Scrap')
       }
       toast.success('Update Scrap successfully!')
       setCurrentScrap(editedScrap)
@@ -966,7 +969,37 @@ export default function CountboardDashboard() {
       setIsLoading(false)
     }
   }, [editedScrap, selectedHourlyId, refetchHourlyData])
+  const handleReworkUpdate = useCallback(async () => {
+    if (!selectedHourlyId) return
 
+    setIsLoading(true)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/rework`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hourlyId: selectedHourlyId,
+            rework: editedRework,
+          }),
+        }
+      )
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(text || 'Failed to update Rework')
+      }
+      toast.success('Update Rework successfully!')
+      setCurrentRework(editedRework)
+      refetchHourlyData()
+      setIsREWORKDialogOpen(false)
+    } catch (error) {
+      toast.error((error as Error).message)
+      console.error('Failed to update Rework:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [editedRework, selectedHourlyId, refetchHourlyData])
   const handleCVTUpdate = useCallback(async () => {
     setIsLoading(true)
     try {
@@ -2304,7 +2337,12 @@ export default function CountboardDashboard() {
                               </TableCell>
                               <TableCell
                                 className="h-[43px] text-center text-xl text-nowrap text-black cursor-pointer"
-                                onClick={() => setIsREWORKDialogOpen(true)}
+                                onClick={() => {
+                                  setSelectedHourlyId(row.hourlyId)
+                                  setCurrentRework(row.rework)
+                                  setEditedRework(row.rework)
+                                  setIsREWORKDialogOpen(true)
+                                }}
                               >
                                 {row.rework}
                               </TableCell>
@@ -2951,33 +2989,34 @@ export default function CountboardDashboard() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="">Current Rework</Label>
-                  <Input id="" value={0} disabled />
+                  <Input value={currentRework} disabled />
                 </div>
                 <div>
                   <Label htmlFor="">New Rework</Label>
                   <Input
                     autoFocus
-                    id="Rework"
                     type="number"
                     min={0}
                     step={1}
+                    value={editedRework}
                     onChange={(e) => {
                       const value = e.target.value
-                      if (value === '') return
-                      if (Number(value) < 0) {
-                        e.target.value = '0'
+
+                      if (value === '') {
+                        setEditedRework('')
+                        return
+                      }
+
+                      const num = Number(value)
+                      if (!isNaN(num) && num >= 0) {
+                        setEditedRework(num)
                       }
                     }}
-                    // onChange={(e) => {
-                    //   const value =
-                    //     e.target.value === '' ? 0 : Number(e.target.value)
-                    //   setEditedCVT(value)
-                    // }}
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button disabled={isLoading}>
+                <Button onClick={handleReworkUpdate} disabled={isLoading}>
                   {isLoading ? 'Loading...' : 'Update Rework'}
                 </Button>
               </DialogFooter>

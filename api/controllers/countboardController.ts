@@ -34,6 +34,23 @@ export async function editScrap(hourlyId: number, scrap: number) {
     throw new Error(`Failed to update scrap: ${error.message}`);
   }
 }
+export async function editRework(hourlyId: number, rework: number) {
+  const sqlQuery = `
+    UPDATE IoT.dbo.hourly
+    SET rework = @rework
+    WHERE id = @hourlyId;
+  `;
+
+  try {
+    return await queryDatabase(sqlQuery, {
+      hourlyId,
+      rework,
+    });
+  } catch (error: any) {
+    console.error('Error updating rework:', error);
+    throw new Error(`Failed to update rework: ${error.message}`);
+  }
+}
 export async function addRouting(data: any[][]) {
     const validData = data.slice(1).filter((row) => {
       const [Scheduler, , MRPController, OldMaterialNo, Material, MaterialDescription, GrC, BaseQuantity, Un1, Un2, OpAc, WorkCtr, WorkCenterDescription, Machine, Unit1, Labor, Unit2, NoEmpl, CycleTime, CtrK, Cavities] = row;
