@@ -19,8 +19,19 @@ export async function getUsers() {
 // console.log('Users:', getUsers());
 export async function editScrap(hourlyId: number, scrap: number) {
   const sqlQuery = `
+    DECLARE @oldScrap INT;
+    DECLARE @deltaScrap INT;
+
+    SELECT @oldScrap = ISNULL(scrap, 0)
+    FROM IoT.dbo.hourly
+    WHERE id = @hourlyId;
+
+    SET @deltaScrap = @scrap - @oldScrap;
+
     UPDATE IoT.dbo.hourly
-    SET scrap = @scrap
+    SET
+      scrap = @scrap,
+      running_actual_qty = running_actual_qty - @deltaScrap
     WHERE id = @hourlyId;
   `;
 
@@ -34,10 +45,22 @@ export async function editScrap(hourlyId: number, scrap: number) {
     throw new Error(`Failed to update scrap: ${error.message}`);
   }
 }
+
 export async function editRework(hourlyId: number, rework: number) {
   const sqlQuery = `
+    DECLARE @oldRework INT;
+    DECLARE @deltaRework INT;
+
+    SELECT @oldRework = ISNULL(rework, 0)
+    FROM IoT.dbo.hourly
+    WHERE id = @hourlyId;
+
+    SET @deltaRework = @rework - @oldRework;
+
     UPDATE IoT.dbo.hourly
-    SET rework = @rework
+    SET
+      rework = @rework,
+      running_actual_qty = running_actual_qty - @deltaRework
     WHERE id = @hourlyId;
   `;
 
@@ -51,6 +74,7 @@ export async function editRework(hourlyId: number, rework: number) {
     throw new Error(`Failed to update rework: ${error.message}`);
   }
 }
+
 export async function addRouting(data: any[][]) {
     const validData = data.slice(1).filter((row) => {
       const [Scheduler, , MRPController, OldMaterialNo, Material, MaterialDescription, GrC, BaseQuantity, Un1, Un2, OpAc, WorkCtr, WorkCenterDescription, Machine, Unit1, Labor, Unit2, NoEmpl, CycleTime, CtrK, Cavities] = row;

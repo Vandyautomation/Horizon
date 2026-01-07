@@ -969,6 +969,7 @@ export default function CountboardDashboard() {
       setIsLoading(false)
     }
   }, [editedScrap, selectedHourlyId, refetchHourlyData])
+  //rework update
   const handleReworkUpdate = useCallback(async () => {
     if (!selectedHourlyId) return
 
@@ -1283,9 +1284,16 @@ export default function CountboardDashboard() {
   }, [queryShift])
 
   const totalActual =
-    (Array.isArray(hourlyData) &&
-      hourlyData?.reduce((total, item) => total + (item.actual || 0), 0)) ||
-    0
+  (Array.isArray(hourlyData) &&
+    hourlyData.reduce((total, item) => {
+      const actual = item.actual ?? 0
+      const scrap = item.scrap ?? 0
+      const rework = item.rework ?? 0
+
+      return total + (actual - scrap - rework)
+    }, 0)) ||
+  0
+
   const totalTarget =
     (Array.isArray(hourlyData) &&
       hourlyData?.reduce((total, item) => {
