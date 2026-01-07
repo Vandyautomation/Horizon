@@ -1283,16 +1283,13 @@ export default function CountboardDashboard() {
     }
   }, [queryShift])
 
-  const totalActual =
+ const totalActual =
   (Array.isArray(hourlyData) &&
     hourlyData.reduce((total, item) => {
-      const actual = item.actual ?? 0
-      const scrap = item.scrap ?? 0
-      const rework = item.rework ?? 0
-
-      return total + (actual - scrap - rework)
+      return total + (item.actual ?? 0)
     }, 0)) ||
   0
+
 
   const totalTarget =
     (Array.isArray(hourlyData) &&
