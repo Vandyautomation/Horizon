@@ -1,6 +1,6 @@
 import sql from 'mssql';
 
-let timeout = 90000;
+let timeout = 180000;
 
 const dbConfig = {
   connectionString: process.env.DATABASE_URL,

@@ -15,7 +15,7 @@ hrzRoutes.get('/test-mssql', async (c) => {
   try {
     // perform a simple query to verify DB connectivity
     const data = await getHRZData();
-    return c.json({ status: 'OKE ✅ Koneksi MSSQL berhasil', sample: data.slice(0, 1) });
+    return c.json({ status: 'OKE ✅ Koneksi MSSQL berhasil', sample: data.data?.slice(0, 1) ?? [] });
   } catch (err: any) {
     return c.json({ status: 'GAGAL ❌', message: err.message }, 500);
   }
@@ -25,7 +25,34 @@ hrzRoutes.get('/data', async (c) => {
   try {
     const customer = c.req.query('customer') || undefined;
     const uap = c.req.query('uap') || undefined;
-    const data = await getHRZData({ customer, uap });
+    const pageParam = c.req.query('page');
+    const limitParam = c.req.query('limit');
+    const yearParam = c.req.query('year');
+    const monthParam = c.req.query('month');
+    const dayParam = c.req.query('day');
+    const page = pageParam ? Number(pageParam) : undefined;
+    const limit = limitParam ? Number(limitParam) : undefined;
+    const year = yearParam ? Number(yearParam) : undefined;
+    const month = monthParam ? Number(monthParam) : undefined;
+    const day = dayParam ? Number(dayParam) : undefined;
+    const filters: {
+      customer?: string;
+      uap?: string;
+      page?: number;
+      limit?: number;
+      year?: number;
+      month?: number;
+      day?: number;
+    } = {
+      customer,
+      uap,
+      page,
+      limit,
+      year,
+      month,
+      day,
+    };
+    const data = await getHRZData(filters);
     return c.json(data);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
@@ -183,3 +210,5 @@ hrzRoutes.get('/scan-columns', async (c) => {
 });
 
 export default hrzRoutes;
+
+

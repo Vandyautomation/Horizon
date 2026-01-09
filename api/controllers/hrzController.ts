@@ -3,40 +3,57 @@ import { queryDatabase } from '../utils/queryDatabase';
 export interface HRZDataFilters {
   customer?: string;
   uap?: string;
+  page?: number;
+  limit?: number;
+  year?: number;
+  month?: number;
+  day?: number;
 }
 
 export async function getHRZData(filters?: HRZDataFilters) {
   const customer = filters?.customer;
   const uap = filters?.uap;
+  const page = Math.max(1, Number(filters?.page ?? 1));
+  const limit = Math.min(50, Math.max(1, Number(filters?.limit ?? 50)));
+  const offset = (page - 1) * limit;
+  const year = filters?.year ?? null;
+  const month = filters?.month ?? null;
+  const day = filters?.day ?? null;
   // Select only columns that exist on SalesOrderMST (based on /api/hrz/columns)
   // and try to get description from MaterialMST if available.
   const sqlQuery = `
-select sova05.SORef2, 
-       sova05.MaterialID,
-       sova05.DescriptionProduct, 
-       sova05.OrderQty, 
-       sova05.DlvDate, 
-       sova05.Customer, 
-       sova05.OrderVal, 
-       sova05.Stock, 
-       sova05.TBP, 
-       sotrx.QtyUnrest, 
-       sotrx.QtyQuality, 
-       sotrx.QtyBlocked,
-       sova05.UAP,
-       rou.NewProject as NewProjectFlag
+select 
+       CAST(sova05.SORef2 AS NVARCHAR(50)) AS SORef2,
+       CAST(sova05.MaterialID AS NVARCHAR(50)) AS MaterialID,
+       CAST(sova05.DescriptionProduct AS NVARCHAR(255)) AS DescriptionProduct,
+       CAST(sova05.OrderQty AS NVARCHAR(50)) AS OrderQty,
+       CAST(sova05.DlvDate AS NVARCHAR(30)) AS DlvDate,
+       CAST(sova05.Customer AS NVARCHAR(255)) AS Customer,
+       CAST(sova05.OrderVal AS NVARCHAR(50)) AS OrderVal,
+       CAST(sova05.Stock AS NVARCHAR(50)) AS Stock,
+       CAST(sova05.TBP AS NVARCHAR(50)) AS TBP,
+       CAST(sto.QtyUnrest AS NVARCHAR(50)) AS QtyUnrest,
+       CAST(sto.QtyQuality AS NVARCHAR(50)) AS QtyQuality,
+       CAST(sto.QtyBlocked AS NVARCHAR(50)) AS QtyBlocked,
+       CAST(grp.UAP AS NVARCHAR(50)) AS UAP,
+       CAST(rou.newproject AS NVARCHAR(10)) AS newproject,
+       CAST(sova05.active AS NVARCHAR(10)) AS active
 from hrz_salesorderva05trx sova05
-left join (
-  select distinct materialid, QtyUnrest, QtyQuality, QtyBlocked, orderstatus
-  from hrz_salesordertrx
-) sotrx on sova05.MaterialID = sotrx.materialid
-left join (
-  select distinct MaterialID, NewProject
-  from Hrz_ROUTING
-) rou on sova05.MaterialID = rou.MaterialID
-where sotrx.orderstatus is not null
-  AND (@uap IS NULL OR sova05.UAP = @uap)
+left join ( select distinct SORef2, MaterialID, QtyUnrest, QtyQuality, QtyBlocked from hrz_stocktrx ) sto on sova05.soref2 = sto.soref2 and sto.MaterialID = sova05.MaterialID
+left join ( select distinct MaterialID, NewProject, GrupId from Hrz_ROUTING ) rou on sova05.materialid = rou.materialid
+left join ( select distinct GrupId, UAP from Hrz_GroupCapacity) grp on grp.GrupId = rou.GrupId
+where (
+    (@year IS NULL AND @month IS NULL AND @day IS NULL AND CAST(sova05.DlvDate AS date) = CAST(GETDATE() AS date))
+    OR
+    (@year IS NOT NULL AND @month IS NOT NULL AND @day IS NULL AND YEAR(sova05.DlvDate) = @year AND MONTH(sova05.DlvDate) = @month)
+    OR
+    (@year IS NOT NULL AND @month IS NOT NULL AND @day IS NOT NULL
+      AND YEAR(sova05.DlvDate) = @year AND MONTH(sova05.DlvDate) = @month AND DAY(sova05.DlvDate) = @day)
+  )
+  AND (@uap IS NULL OR grp.UAP = @uap)
   AND (@customer IS NULL OR sova05.Customer LIKE '%' + @customer + '%')
+ order by sova05.DlvDate desc, sova05.SORef2
+ offset @offset rows fetch next @limit rows only
   `;
   //SELECT A.SODoc as SODoc,
   //         A.SOLine as SOLine,
@@ -56,10 +73,42 @@ where sotrx.orderstatus is not null
   const rows = await queryDatabase(sqlQuery, {
     uap: uap ?? null,
     customer: customer ?? null,
+    offset,
+    limit,
+    year,
+    month,
+    day,
   });
 
+  const countQuery = `
+  select count(1) as total
+  from hrz_salesorderva05trx sova05
+  left join ( select distinct SORef2, MaterialID, QtyUnrest, QtyQuality, QtyBlocked from hrz_stocktrx ) sto on sova05.soref2 = sto.soref2 and sto.MaterialID = sova05.MaterialID
+  left join ( select distinct MaterialID, NewProject, GrupId from Hrz_ROUTING ) rou on sova05.materialid = rou.materialid
+  left join ( select distinct GrupId, UAP from Hrz_GroupCapacity) grp on grp.GrupId = rou.GrupId
+  where (
+      (@year IS NULL AND @month IS NULL AND @day IS NULL AND CAST(sova05.DlvDate AS date) = CAST(GETDATE() AS date))
+      OR
+      (@year IS NOT NULL AND @month IS NOT NULL AND @day IS NULL AND YEAR(sova05.DlvDate) = @year AND MONTH(sova05.DlvDate) = @month)
+      OR
+      (@year IS NOT NULL AND @month IS NOT NULL AND @day IS NOT NULL
+        AND YEAR(sova05.DlvDate) = @year AND MONTH(sova05.DlvDate) = @month AND DAY(sova05.DlvDate) = @day)
+    )
+    AND (@uap IS NULL OR grp.UAP = @uap)
+    AND (@customer IS NULL OR sova05.Customer LIKE '%' + @customer + '%')
+  `;
+
+  const countRows = await queryDatabase(countQuery, {
+    uap: uap ?? null,
+    customer: customer ?? null,
+    year,
+    month,
+    day,
+  });
+  const total = Number(countRows?.[0]?.total ?? 0);
+
   // Log for debugging - how many rows returned
-  console.log(`getHRZData: fetched ${rows.length} rows`);
+  console.log(`getHRZData: fetched ${rows.length} rows (page ${page})`);
 
   let data = rows.map((row: any) => ({
     SalesOrder: row.SORef2,
@@ -83,7 +132,7 @@ where sotrx.orderstatus is not null
       0,
   }));
 
-  return data;
+  return { data, total, page, limit };
 }
 
 export async function getHRZColumns() {

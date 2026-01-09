@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, submitOrangeTicket, updateComment, updateCVT, getTickets } from '../controllers/countboardController';
+import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, submitOrangeTicket, updateComment, updateCVT, getTickets, editScrap, editRework } from '../controllers/countboardController';
 //import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
 const countboardRoutes = new Hono();
@@ -178,6 +178,34 @@ countboardRoutes.post('/ticket', async (c) => {
   }
 });
 
+//update scrap
+countboardRoutes.put('/scrap', async (c) => {
+  try {
+    const { hourlyId, scrap } = await c.req.json();
 
+    await editScrap(hourlyId, scrap);
+
+    return c.json({ success: true });
+  } catch (error) {
+    return c.json(
+      { error: (error as Error).message },
+      500
+    );
+  }
+});
+//update rework
+countboardRoutes.put('/rework', async (c) => {
+  try {
+    const { hourlyId, rework } = await c.req.json();
+
+    await editRework(hourlyId, rework);
+    return c.json({ success: true });
+  } catch (error) {
+    return c.json(
+      { error: (error as Error).message },
+      500
+    );
+  }
+});
 
 export default countboardRoutes;

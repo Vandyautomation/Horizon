@@ -11,6 +11,41 @@ export async function getBuildings(type?: string) {
     const sqlQuery =
         type === 'ASSEMBLY'
         ? `
+        DECLARE @from datetime;
+        DECLARE @shift int;
+    
+        set @shift = case when DATEPART(HOUR, GETDATE()) between 5 and 13 then 1 when DATEPART(HOUR, GETDATE()) between 14 and 22 then 2 else 3 end
+
+        -- Set @from and @to based on shift_id
+        IF @shift = 1
+        BEGIN
+            SET @from = DATEADD(HOUR, 6, cast(CAST(GETDATE() AS date)as datetime)); 
+        END
+        ELSE IF @shift = 2
+        BEGIN
+            SET @from = DATEADD(HOUR, 14,cast(CAST(GETDATE() AS date)as datetime)) 
+        END
+        ELSE IF @shift = 3
+        BEGIN
+            SET @from = DATEADD(HOUR, 22, cast(CAST(GETDATE() AS date)as datetime))
+        END;
+
+        WITH PowerMeterConsumption AS (
+        SELECT
+            MchID COLLATE SQL_Latin1_General_CP1_CI_AS AS MchID,
+            SUM(Diff) AS consumption
+        FROM (
+            SELECT
+                MchID COLLATE SQL_Latin1_General_CP1_CI_AS AS MchID,
+                PMValue - LAG(PMValue) OVER (PARTITION BY MchID ORDER BY id) AS Diff
+            FROM eEnergy.dbo.PowerMeter
+            WHERE TrxType = 'Automatic'
+            AND PMDT BETWEEN @from AND GETDATE()
+        ) AS DiffCalc
+        WHERE Diff IS NOT NULL
+        GROUP BY MchID
+        )
+
         SELECT
             m.MchNumber AS id,
             m.MchLoc AS building,
@@ -21,7 +56,7 @@ export async function getBuildings(type?: string) {
             m.MchLoc,
             m.MchNumber,
             m.MchTon AS Tonage,
-            NULL AS consumption,
+            pmc.consumption,
             NULL AS cycletime,
             NULL AS target_cycletime,
             NULL AS cavity,
@@ -29,6 +64,8 @@ export async function getBuildings(type?: string) {
             md.oee,
             md.ooe
         FROM IoT.dbo.MachineMST m
+        LEFT JOIN PowerMeterConsumption pmc
+        ON pmc.MchID = m.MchID COLLATE SQL_Latin1_General_CP1_CI_AS
         OUTER APPLY (
             SELECT TOP 1
                 oee, ooe
