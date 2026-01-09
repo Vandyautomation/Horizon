@@ -1,6 +1,6 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,  SidebarHeader, SidebarMenu,  SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import {   Bot, Calculator,  Camera,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Database, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
+import {   Bot, Calculator,  Camera,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Container, Database, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
 import {
     Collapsible,
     CollapsibleContent,
@@ -129,6 +129,12 @@ export default function SidebarLeft({
             url: 'qco/config',
           },
         ],
+      },
+      {
+        title: 'Horizon',
+        url: 'hrz',
+        icon: Container,
+        hidden: false,
       },
       // {
       //   title: 'eScale',

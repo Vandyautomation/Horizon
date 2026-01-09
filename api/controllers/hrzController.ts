@@ -36,6 +36,7 @@ left join (
 ) rou on sova05.MaterialID = rou.MaterialID
 where sotrx.orderstatus is not null
   AND (@uap IS NULL OR sova05.UAP = @uap)
+  AND (@customer IS NULL OR sova05.Customer LIKE '%' + @customer + '%')
   `;
   //SELECT A.SODoc as SODoc,
   //         A.SOLine as SOLine,
@@ -52,7 +53,10 @@ where sotrx.orderstatus is not null
   //  LEFT JOIN StockTRX B on A.ItemNo = B.ItemNo
   //  LEFT JOIN MaterialMST C on A.ItemNo = C.ItemNo
   //  GROUP BY A.SODoc, A.SOLine, A.ItemNo, A.Customer, A.DlvDate, A.OrderQty, A.OrderValue, A.Active
-  const rows = await queryDatabase(sqlQuery, { uap: uap ?? null });
+  const rows = await queryDatabase(sqlQuery, {
+    uap: uap ?? null,
+    customer: customer ?? null,
+  });
 
   // Log for debugging - how many rows returned
   console.log(`getHRZData: fetched ${rows.length} rows`);
@@ -78,11 +82,6 @@ where sotrx.orderstatus is not null
       row.newproject ??
       0,
   }));
-
-  if (customer) {
-    const keyword = String(customer).toLowerCase();
-    data = data.filter((d: any) => d.Customer?.toLowerCase().includes(keyword));
-  }
 
   return data;
 }

@@ -517,6 +517,34 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
+          {currentPage === 'hrz' && !currentSubPage && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('hrz', 'Dashboard 1', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+
+          {currentPage === 'hrz' && currentSubPage === 'detail' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('hrz', 'Dashboard 1')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('hrz/detail', 'Dashboard 2', true)}
+              </BreadcrumbItem>
+            </>
+          )}
+
           {currentPage === 'users' && !currentSubPage && (
             <>
               <BreadcrumbItem>

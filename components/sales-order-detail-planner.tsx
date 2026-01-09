@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 
 const ALL_WEEKS = Array.from({ length: 52 }, (_, i) => i + 1);
 
@@ -140,13 +147,16 @@ export default function SalesOrderDetailPlanner({
 }: SalesOrderDetailPlannerProps) {
   const currentWeek = getCurrentWeek();
   const initialYear = new Date().getFullYear();
-  const visibleCount = 8;
+  const visibleCount = 12;
 
   const [year, setYear] = useState<number>(initialYear);
   const [fromWeek, setFromWeek] = useState(Math.max(1, currentWeek - 3));
   const [toWeek, setToWeek] = useState(Math.min(52, fromWeek + visibleCount - 1));
+  const [pageSize, setPageSize] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const visibleWeeks = useMemo(() => ALL_WEEKS.slice(fromWeek - 1, toWeek), [fromWeek, toWeek]);
+
 
   // Default item sebelumnya berisi data dummy untuk tampilan awal.
   // Sekarang dikosongkan supaya planner hanya menampilkan data asli dari backend.
@@ -171,8 +181,28 @@ export default function SalesOrderDetailPlanner({
   ];
 
   const [items, setItems] = useState<Item[]>(buildDefaultItems());
+  const itemsRef = useRef<Item[]>([]);
+  const detailPrefetchRef = useRef<Set<number>>(new Set());
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const pagedItems = useMemo(() => {
+    const safePage = Math.min(Math.max(currentPage, 1), totalPages);
+    const start = (safePage - 1) * pageSize;
+    return items.slice(start, start + pageSize);
+  }, [items, currentPage, pageSize, totalPages]);
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [fromWeek, toWeek, year, so, itemNo, pageSize]);
   const [dragMeta, setDragMeta] = useState<DragMeta | null>(null);
   const [userData, setUserData] = useState<any>(null);
+  const pausePollingUntilRef = useRef(0);
+  const isUnmountedRef = useRef(false);
 
   // Level 2: detail FG
   const [detailExpanded, setDetailExpanded] = useState<Record<number, boolean>>({});
@@ -193,6 +223,7 @@ export default function SalesOrderDetailPlanner({
     `${processValue || "FG"}||${fgValue || itemNo || "FG-01"}||${
       descValue || description || "Product Description"
     }`;
+
 
   const isAdmin = useMemo(() => {
     const roleName = String(userData?.role_name ?? userData?.role?.name ?? "").toLowerCase();
@@ -266,11 +297,24 @@ export default function SalesOrderDetailPlanner({
     checkUser();
   }, []);
 
-  const toggleDetail = (itemId: number) =>
-    setDetailExpanded((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
+  useEffect(() => {
+    return () => {
+      isUnmountedRef.current = true;
+    };
+  }, []);
 
-  const toggleExpand = (itemId: number) =>
-    setExpandedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    detailPrefetchRef.current = new Set();
+    pausePollingUntilRef.current = 0;
+    setItems(buildDefaultItems());
+    setDetailExpanded({});
+    setExpandedItems({});
+    setLevel3Details({});
+  }, [so, itemNo, description]);
 
   const loadLevel3Detail = async (item: Item) => {
     try {
@@ -325,7 +369,7 @@ export default function SalesOrderDetailPlanner({
               openOrder: Number(r.openOrder) || 0,
               std: Number(r.std) || 0,
               dspt: Number(r.dspt) || 0,
-              initialDspt: Number(r.dspt) || 0,
+              initialDspt: Number(r.std) || Number(r.dspt) || 0,
               weeks,
             };
           })
@@ -394,6 +438,12 @@ export default function SalesOrderDetailPlanner({
     return Number(it.weeks[week].capacity) - Number(it.weeks[week].loading || 0);
   };
 
+  const computeAvailableValue = (capacity: number, loading: number, fallback?: number) => {
+    const capNum = Number(capacity);
+    if (!Number.isFinite(capNum)) return fallback;
+    return capNum - Number(loading || 0);
+  };
+
   const computeTotalLoading = (weeks: Record<number, WeekData>) =>
     ALL_WEEKS.reduce((sum, w) => sum + Number(weeks[w]?.loading || 0), 0);
 
@@ -452,21 +502,38 @@ export default function SalesOrderDetailPlanner({
   const totals = useMemo(() => {
     const t: Record<number, number> = {};
     visibleWeeks.forEach((w) => {
-      t[w] = items.reduce((sum, it) => sum + Number(it.weeks[w].loading || 0), 0);
+      t[w] = pagedItems.reduce((sum, it) => sum + Number(it.weeks[w].loading || 0), 0);
     });
     return t;
-  }, [items, visibleWeeks]);
+  }, [pagedItems, visibleWeeks]);
+
+  const visibleTotalsSum = useMemo(
+    () => visibleWeeks.reduce((sum, w) => sum + Number(totals[w] || 0), 0),
+    [totals, visibleWeeks]
+  );
+
+  const itemTotalsById = useMemo(() => {
+    const map = new Map<number, number>();
+    pagedItems.forEach((it) => {
+      let sum = 0;
+      visibleWeeks.forEach((w) => {
+        sum += Number(it.weeks[w].loading || 0);
+      });
+      map.set(it.id, sum);
+    });
+    return map;
+  }, [pagedItems, visibleWeeks]);
 
   const anyDetailOpen = useMemo(
-    () => items.some((it) => detailExpanded[it.id]),
-    [items, detailExpanded]
+    () => pagedItems.some((it) => detailExpanded[it.id]),
+    [pagedItems, detailExpanded]
   );
 
   // Bangun array rows sekali, dipakai untuk render kiri & kanan.
   const rows: PlannerRow[] = useMemo(() => {
     const result: PlannerRow[] = [];
 
-    items.forEach((it) => {
+    pagedItems.forEach((it) => {
       const isDetailOpen = !!detailExpanded[it.id];
       const isProcessOpen = !!expandedItems[it.id];
 
@@ -493,7 +560,7 @@ export default function SalesOrderDetailPlanner({
     }
 
     return result;
-  }, [items, detailExpanded, expandedItems, level3Details, anyDetailOpen]);
+  }, [pagedItems, detailExpanded, expandedItems, level3Details, anyDetailOpen]);
 
   const itemById = useMemo(() => {
     const map = new Map<number, Item>();
@@ -571,6 +638,7 @@ export default function SalesOrderDetailPlanner({
 
     if (effectiveDetailIndex !== null && effectiveDetailIndex >= 0) {
       const val = Number(dragMeta.value);
+      const sourceItem = items.find((it) => it.id === dragMeta.itemId);
 
       setLevel3Details((prev) => {
         const list = prev[dragMeta.itemId];
@@ -584,12 +652,22 @@ export default function SalesOrderDetailPlanner({
             weeks[dragMeta.fromWeek] = {
               ...weeks[dragMeta.fromWeek],
               loading: Math.max(0, (weeks[dragMeta.fromWeek].loading || 0) - val),
+              available: computeAvailableValue(
+                weeks[dragMeta.fromWeek].capacity,
+                Math.max(0, (weeks[dragMeta.fromWeek].loading || 0) - val),
+                weeks[dragMeta.fromWeek].available
+              ),
             };
           }
 
           weeks[toWeek] = {
             ...weeks[toWeek],
             loading: (weeks[toWeek].loading || 0) + val,
+            available: computeAvailableValue(
+              weeks[toWeek].capacity,
+              (weeks[toWeek].loading || 0) + val,
+              weeks[toWeek].available
+            ),
           };
 
           const updatedDetail: Level3Detail = { ...d, weeks };
@@ -607,7 +685,15 @@ export default function SalesOrderDetailPlanner({
               updatedList[0]?.weeks[w]?.capacity ??
               prev[dragMeta.itemId]?.[0]?.weeks[w]?.capacity ??
               0;
-            acc[w] = { capacity, loading: loadingSum };
+            acc[w] = {
+              capacity,
+              loading: loadingSum,
+              available: computeAvailableValue(
+                capacity,
+                loadingSum,
+                sourceItem?.weeks[w]?.available
+              ),
+            };
             return acc;
           },
           {} as Record<number, WeekData>
@@ -620,7 +706,16 @@ export default function SalesOrderDetailPlanner({
                   {
                     ...it,
                     weeks: ALL_WEEKS.reduce((acc, w) => {
-                      acc[w] = { ...aggregatedWeeks[w], available: it.weeks[w]?.available };
+                      acc[w] = {
+                        ...aggregatedWeeks[w],
+                        available:
+                          aggregatedWeeks[w]?.available ??
+                          computeAvailableValue(
+                            aggregatedWeeks[w]?.capacity ?? it.weeks[w]?.capacity ?? 0,
+                            aggregatedWeeks[w]?.loading ?? it.weeks[w]?.loading ?? 0,
+                            it.weeks[w]?.available
+                          ),
+                      };
                       return acc;
                     }, {} as Record<number, WeekData>),
                   },
@@ -629,6 +724,8 @@ export default function SalesOrderDetailPlanner({
               : it
           )
         );
+
+        pausePollingUntilRef.current = Date.now() + 30000;
 
         // Update backend dispatch untuk perpindahan loading level 3
         if (dragMeta.fromWeek !== null) {
@@ -664,15 +761,29 @@ export default function SalesOrderDetailPlanner({
             nw[dragMeta.fromWeek] = {
               ...nw[dragMeta.fromWeek],
               loading: Math.max(0, (nw[dragMeta.fromWeek].loading || 0) - val),
+              available: computeAvailableValue(
+                nw[dragMeta.fromWeek].capacity,
+                Math.max(0, (nw[dragMeta.fromWeek].loading || 0) - val),
+                nw[dragMeta.fromWeek].available
+              ),
             };
           }
 
-          nw[toWeek] = { ...nw[toWeek], loading: (nw[toWeek].loading || 0) + val };
+          nw[toWeek] = {
+            ...nw[toWeek],
+            loading: (nw[toWeek].loading || 0) + val,
+            available: computeAvailableValue(
+              nw[toWeek].capacity,
+              (nw[toWeek].loading || 0) + val,
+              nw[toWeek].available
+            ),
+          };
 
           const updatedItem: Item = { ...it, weeks: nw };
           return recomputeItemDspt(updatedItem);
         })
       );
+      pausePollingUntilRef.current = Date.now() + 30000;
     }
 
     setDragMeta(null);
@@ -703,6 +814,7 @@ export default function SalesOrderDetailPlanner({
       const itemId = editModal.itemId;
       const week = editModal.week;
       const detailIdx = editModal.detailIndex;
+      const sourceItem = items.find((it) => it.id === itemId);
 
       setLevel3Details((prev) => {
         const list = prev[itemId];
@@ -711,7 +823,11 @@ export default function SalesOrderDetailPlanner({
         const updatedList = list.map((d, idx) => {
           if (idx !== detailIdx) return d;
           const weeks = { ...d.weeks };
-          weeks[week] = { ...weeks[week], loading: num };
+          weeks[week] = {
+            ...weeks[week],
+            loading: num,
+            available: computeAvailableValue(weeks[week].capacity, num, weeks[week].available),
+          };
           const updatedDetail: Level3Detail = { ...d, weeks };
           return recomputeDetailDspt(updatedDetail);
         });
@@ -724,7 +840,15 @@ export default function SalesOrderDetailPlanner({
               0
             );
             const capacity = updatedList[0]?.weeks[w]?.capacity ?? 0;
-            acc[w] = { capacity, loading };
+            acc[w] = {
+              capacity,
+              loading,
+              available: computeAvailableValue(
+                capacity,
+                loading,
+                sourceItem?.weeks[w]?.available
+              ),
+            };
             return acc;
           },
           {} as Record<number, WeekData>
@@ -737,7 +861,16 @@ export default function SalesOrderDetailPlanner({
                   {
                     ...it,
                     weeks: ALL_WEEKS.reduce((acc, w) => {
-                      acc[w] = { ...aggregatedWeeks[w], available: it.weeks[w]?.available };
+                      acc[w] = {
+                        ...aggregatedWeeks[w],
+                        available:
+                          aggregatedWeeks[w]?.available ??
+                          computeAvailableValue(
+                            aggregatedWeeks[w]?.capacity ?? it.weeks[w]?.capacity ?? 0,
+                            aggregatedWeeks[w]?.loading ?? it.weeks[w]?.loading ?? 0,
+                            it.weeks[w]?.available
+                          ),
+                      };
                       return acc;
                     }, {} as Record<number, WeekData>),
                   },
@@ -750,8 +883,10 @@ export default function SalesOrderDetailPlanner({
         return { ...prev, [itemId]: updatedList };
       });
 
-      // Sinkron ke backend (dispatch per PRO via modal)
-      const item = items.find((it) => it.id === itemId);
+        pausePollingUntilRef.current = Date.now() + 30000;
+
+        // Sinkron ke backend (dispatch per PRO via modal)
+        const item = items.find((it) => it.id === itemId);
       const details = level3Details[itemId];
       const detail = details && details[detailIdx];
       const dsptTotal =
@@ -777,23 +912,33 @@ export default function SalesOrderDetailPlanner({
           if (it.id !== editModal.itemId) return it;
           const nw = { ...it.weeks };
           if (editModal.week !== null) {
-            nw[editModal.week] = { ...nw[editModal.week], loading: num };
+            nw[editModal.week] = {
+              ...nw[editModal.week],
+              loading: num,
+              available: computeAvailableValue(
+                nw[editModal.week].capacity,
+                num,
+                nw[editModal.week].available
+              ),
+            };
           }
           const updatedItem: Item = { ...it, weeks: nw };
           return recomputeItemDspt(updatedItem);
         })
       );
+      pausePollingUntilRef.current = Date.now() + 30000;
     }
 
     setEditModal({ open: false, itemId: null, week: null, last: 0, detailIndex: null });
   };
 
-  // Fetch planner data dari backend
-  useEffect(() => {
-    let cancelled = false;
-    const load = async (options?: { weeksOnly?: boolean }) => {
-      if (cancelled) return;
-      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9999").replace(/\/$/, "");
+  const loadPlannerData = useCallback(
+    async (options?: { weeksOnly?: boolean }) => {
+      if (isUnmountedRef.current) return;
+      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9999").replace(
+        /\/$/,
+        ""
+      );
       const params = new URLSearchParams();
       if (so) params.append("so", so);
       params.append("year", String(year));
@@ -801,32 +946,56 @@ export default function SalesOrderDetailPlanner({
       params.append("toWeek", String(toWeek));
       // jangan filter per itemNo di sini supaya semua MaterialID dalam SO yang sama ikut muncul
       const url = `${base}/api/hrz/planner?${params.toString()}`;
+      const capacityUrl = `${base}/api/hrz/planner-capacity?${params.toString()}`;
 
       try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Planner fetch failed: ${res.status}`);
-        const data = await res.json();
-        const rows = Array.isArray(data) ? data : [];
-
         if (options?.weeksOnly) {
+          if (Date.now() < pausePollingUntilRef.current) return;
+          const capRes = await fetch(capacityUrl);
+          if (!capRes.ok) throw new Error(`Planner capacity fetch failed: ${capRes.status}`);
+          const capData = await capRes.json();
+          const capRows = Array.isArray(capData) ? capData : [];
+          const capacityMap = new Map<string, { capacity?: number; available?: number }>();
+
+          capRows.forEach((row: any) => {
+            const group = String(row.GroupName ?? "");
+            const uap = String(row.UAP ?? "");
+            const process = String(row.MchProcess ?? "");
+            const weekNum = Number(String(row.WeekNum ?? "").replace(/[^\d]/g, "")) || 0;
+            if (!group || !uap || !process || weekNum < 1 || weekNum > 52) return;
+            const capacity =
+              row.Capacity === null || row.Capacity === undefined
+                ? undefined
+                : Number(row.Capacity);
+            const available =
+              row.AvailCapacity === null || row.AvailCapacity === undefined
+                ? undefined
+                : Number(row.AvailCapacity);
+            const key = `${group}||${uap}||${process}||${weekNum}`;
+            capacityMap.set(key, {
+              capacity: Number.isFinite(capacity) ? capacity : undefined,
+              available: Number.isFinite(available) ? available : undefined,
+            });
+          });
+
           const weekUpdates = new Map<
             string,
             Record<number, { capacity?: number; available?: number }>
           >();
 
-          rows.forEach((row: any) => {
-            const key = buildRowKey(row.process, row.itemNo, row.description);
-            const weekNum = Number(String(row.weekNum ?? "").replace(/[^\d]/g, "")) || 0;
-            if (weekNum < 1 || weekNum > 52) return;
-
-            const capacity = Number(row.capacity);
-            const available = Number(row.availCapacity);
+          itemsRef.current.forEach((it) => {
+            if (!it.group || !it.uap || !it.process) return;
+            const key = buildRowKey(it.process, it.fg, it.description);
             const existing = weekUpdates.get(key) || {};
-
-            existing[weekNum] = {
-              capacity: Number.isFinite(capacity) ? capacity : existing[weekNum]?.capacity,
-              available: Number.isFinite(available) ? available : existing[weekNum]?.available,
-            };
+            ALL_WEEKS.forEach((w) => {
+              const capKey = `${it.group}||${it.uap}||${it.process}||${w}`;
+              const cap = capacityMap.get(capKey);
+              if (!cap) return;
+              existing[w] = {
+                capacity: typeof cap.capacity === "number" ? cap.capacity : existing[w]?.capacity,
+                available: typeof cap.available === "number" ? cap.available : existing[w]?.available,
+              };
+            });
             weekUpdates.set(key, existing);
           });
 
@@ -893,6 +1062,36 @@ export default function SalesOrderDetailPlanner({
           return;
         }
 
+        const [res, capRes] = await Promise.all([fetch(url), fetch(capacityUrl)]);
+        if (!res.ok) throw new Error(`Planner fetch failed: ${res.status}`);
+        if (!capRes.ok) throw new Error(`Planner capacity fetch failed: ${capRes.status}`);
+        const data = await res.json();
+        const capData = await capRes.json();
+        const rows = Array.isArray(data) ? data : [];
+        const capRows = Array.isArray(capData) ? capData : [];
+        const capacityMap = new Map<string, { capacity?: number; available?: number }>();
+
+        capRows.forEach((row: any) => {
+          const group = String(row.GroupName ?? "");
+          const uap = String(row.UAP ?? "");
+          const process = String(row.MchProcess ?? "");
+          const weekNum = Number(String(row.WeekNum ?? "").replace(/[^\d]/g, "")) || 0;
+          if (!group || !uap || !process || weekNum < 1 || weekNum > 52) return;
+          const capacity =
+            row.Capacity === null || row.Capacity === undefined
+              ? undefined
+              : Number(row.Capacity);
+          const available =
+            row.AvailCapacity === null || row.AvailCapacity === undefined
+              ? undefined
+              : Number(row.AvailCapacity);
+          const key = `${group}||${uap}||${process}||${weekNum}`;
+          capacityMap.set(key, {
+            capacity: Number.isFinite(capacity) ? capacity : undefined,
+            available: Number.isFinite(available) ? available : undefined,
+          });
+        });
+
         const itemsMap = new Map<string, Item>();
 
         rows.forEach((row: any) => {
@@ -907,7 +1106,7 @@ export default function SalesOrderDetailPlanner({
               openOrder: Number(row.openOrder) || 0,
               std: Number(row.std) || 0,
               dspt: Number(row.dspt) || 0,
-              initialDspt: Number(row.dspt) || 0,
+              initialDspt: Number(row.std) || Number(row.dspt) || 0,
               process: row.process || "FG",
               uap: row.uap || "0",
               group: row.group || "FG",
@@ -922,34 +1121,218 @@ export default function SalesOrderDetailPlanner({
 
           const weekNum = Number(String(row.weekNum ?? "").replace(/[^\d]/g, "")) || 0;
           if (weekNum >= 1 && weekNum <= 52) {
-            const capacity = Number(row.capacity);
-            const available = Number(row.availCapacity);
+            const capKey = `${item.group}||${item.uap}||${item.process}||${weekNum}`;
+            const cap = capacityMap.get(capKey);
+            const capacity =
+              typeof cap?.capacity === "number" ? cap.capacity : item.weeks[weekNum].capacity;
+            const available =
+              typeof cap?.available === "number" ? cap.available : item.weeks[weekNum].available;
             item.weeks[weekNum] = {
               ...item.weeks[weekNum],
-              capacity: Number.isFinite(capacity) ? capacity : item.weeks[weekNum].capacity,
-              available: Number.isFinite(available) ? available : item.weeks[weekNum].available,
+              capacity,
+              available,
             };
           }
         });
 
         const mapped = Array.from(itemsMap.values());
 
-        if (!cancelled) {
-          setItems(mapped.length ? mapped : buildDefaultItems());
+        if (!isUnmountedRef.current) {
+          const next = mapped.length ? mapped : buildDefaultItems();
+          setItems(next);
         }
       } catch (err) {
         console.error("Failed to load planner data", err);
-        if (!cancelled) setItems(buildDefaultItems());
+        if (!isUnmountedRef.current) setItems(buildDefaultItems());
       }
-    };
+    },
+    [so, year, fromWeek, toWeek, itemNo, description]
+  );
 
-    load();
-    const intervalId = setInterval(() => load({ weeksOnly: true }), 60 * 60 * 1000);
+  const loadLevel1List = useCallback(async () => {
+    if (isUnmountedRef.current) return;
+    const base = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9999").replace(/\/$/, "");
+    const params = new URLSearchParams();
+    if (so) params.append("so", so);
+    params.append("mode", "level1");
+    const url = `${base}/api/hrz/planner?${params.toString()}`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Planner level1 fetch failed: ${res.status}`);
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : [];
+      const itemsMap = new Map<string, Item>();
+
+      rows.forEach((row: any) => {
+        const key = buildRowKey(row.process, row.itemNo, row.description);
+        if (itemsMap.has(key)) return;
+        const item: Item = {
+          id: itemsMap.size + 1,
+          fg: row.itemNo || itemNo || "FG-01",
+          description: row.description || description || "Product Description",
+          openOrder: 0,
+          std: 0,
+          dspt: 0,
+          initialDspt: 0,
+          process: row.process || "FG",
+          uap: "",
+          group: "",
+          pro: "",
+          weeks: ALL_WEEKS.reduce((acc, w) => {
+            acc[w] = { capacity: 0, loading: 0 };
+            return acc;
+          }, {} as Record<number, WeekData>),
+        };
+        itemsMap.set(key, item);
+      });
+
+      if (!isUnmountedRef.current) {
+        const mapped = Array.from(itemsMap.values());
+        setItems(mapped.length ? mapped : buildDefaultItems());
+      }
+    } catch (err) {
+      console.error("Failed to load level 1 planner data", err);
+      if (!isUnmountedRef.current) setItems(buildDefaultItems());
+    }
+  }, [so, itemNo, description]);
+
+  const loadPlannerItemDetail = useCallback(
+    async (item: Item) => {
+      if (isUnmountedRef.current) return;
+      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9999").replace(
+        /\/$/,
+        ""
+      );
+      const params = new URLSearchParams();
+      if (so) params.append("so", so);
+      params.append("itemNo", String(item.fg));
+      params.append("year", String(year));
+      params.append("fromWeek", String(fromWeek));
+      params.append("toWeek", String(toWeek));
+      const url = `${base}/api/hrz/planner?${params.toString()}`;
+      const capacityUrl = `${base}/api/hrz/planner-capacity?${params.toString()}`;
+
+      try {
+        const [res, capRes] = await Promise.all([fetch(url), fetch(capacityUrl)]);
+        if (!res.ok) throw new Error(`Planner fetch failed: ${res.status}`);
+        if (!capRes.ok) throw new Error(`Planner capacity fetch failed: ${capRes.status}`);
+        const data = await res.json();
+        const capData = await capRes.json();
+        const rows = Array.isArray(data) ? data : [];
+        const capRows = Array.isArray(capData) ? capData : [];
+        const capacityMap = new Map<string, { capacity?: number; available?: number }>();
+
+        capRows.forEach((row: any) => {
+          const group = String(row.GroupName ?? "");
+          const uap = String(row.UAP ?? "");
+          const process = String(row.MchProcess ?? "");
+          const weekNum = Number(String(row.WeekNum ?? "").replace(/[^\d]/g, "")) || 0;
+          if (!group || !uap || !process || weekNum < 1 || weekNum > 52) return;
+          const capacity =
+            row.Capacity === null || row.Capacity === undefined
+              ? undefined
+              : Number(row.Capacity);
+          const available =
+            row.AvailCapacity === null || row.AvailCapacity === undefined
+              ? undefined
+              : Number(row.AvailCapacity);
+          const key = `${group}||${uap}||${process}||${weekNum}`;
+          capacityMap.set(key, {
+            capacity: Number.isFinite(capacity) ? capacity : undefined,
+            available: Number.isFinite(available) ? available : undefined,
+          });
+        });
+
+        const updatedItemBase = rows[0];
+        const updatedItem: Item = {
+          ...item,
+          fg: updatedItemBase?.itemNo || item.fg,
+          description: updatedItemBase?.description || item.description,
+          openOrder: Number(updatedItemBase?.openOrder) || 0,
+          std: Number(updatedItemBase?.std) || 0,
+          dspt: Number(updatedItemBase?.dspt) || 0,
+          initialDspt:
+            Number(updatedItemBase?.std) || Number(updatedItemBase?.dspt) || 0,
+          process: updatedItemBase?.process || item.process,
+          uap: updatedItemBase?.uap || item.uap,
+          group: updatedItemBase?.group || item.group,
+          pro: updatedItemBase?.pro || item.pro,
+          weeks: ALL_WEEKS.reduce((acc, w) => {
+            acc[w] = { capacity: 0, loading: 0 };
+            return acc;
+          }, {} as Record<number, WeekData>),
+        };
+
+        rows.forEach((row: any) => {
+          const weekNum = Number(String(row.weekNum ?? "").replace(/[^\d]/g, "")) || 0;
+          if (weekNum < 1 || weekNum > 52) return;
+          const capKey = `${updatedItem.group}||${updatedItem.uap}||${updatedItem.process}||${weekNum}`;
+          const cap = capacityMap.get(capKey);
+          updatedItem.weeks[weekNum] = {
+            ...updatedItem.weeks[weekNum],
+            capacity:
+              typeof cap?.capacity === "number"
+                ? cap.capacity
+                : updatedItem.weeks[weekNum].capacity,
+            available:
+              typeof cap?.available === "number"
+                ? cap.available
+                : updatedItem.weeks[weekNum].available,
+          };
+        });
+
+        setItems((prevItems) =>
+          prevItems.map((it) => (it.id === item.id ? updatedItem : it))
+        );
+      } catch (err) {
+        console.error("Failed to load planner item detail", err);
+      }
+    },
+    [so, year, fromWeek, toWeek]
+  );
+
+  useEffect(() => {
+    if (!so || !items.length) return;
+    items.forEach((it) => {
+      if (detailPrefetchRef.current.has(it.id)) return;
+      detailPrefetchRef.current.add(it.id);
+      void loadPlannerItemDetail(it);
+    });
+  }, [items, loadPlannerItemDetail, so]);
+
+  const toggleDetail = (itemId: number) =>
+    setDetailExpanded((prev) => {
+      const next = !prev[itemId];
+      if (next) {
+        const item = items.find((it) => it.id === itemId);
+        if (item) {
+          void loadPlannerItemDetail(item);
+        }
+        loadPlannerData({ weeksOnly: true });
+      }
+      return { ...prev, [itemId]: next };
+    });
+
+  const toggleExpand = (itemId: number) =>
+    setExpandedItems((prev) => {
+      const next = !prev[itemId];
+      if (next) {
+        loadPlannerData({ weeksOnly: true });
+      }
+      return { ...prev, [itemId]: next };
+    });
+
+  // Fetch level 1 data dari backend + polling capacity
+  useEffect(() => {
+    loadLevel1List();
+    const intervalId = setInterval(() => {
+      loadPlannerData({ weeksOnly: true });
+    }, 30 * 1000);
     return () => {
-      cancelled = true;
       clearInterval(intervalId);
     };
-  }, [so, itemNo, description, fromWeek, toWeek, year]);
+  }, [loadLevel1List, loadPlannerData]);
 
   return (
     <div className="bg-white rounded-lg shadow p-4">
@@ -964,7 +1347,11 @@ export default function SalesOrderDetailPlanner({
               min={1}
               max={52}
               value={fromWeek}
-              onChange={(e) => setFromWeek(Math.min(Number(e.target.value), toWeek))}
+              onChange={(e) => {
+                const nextFrom = Math.min(Number(e.target.value), 52);
+                setFromWeek(nextFrom);
+                setToWeek(Math.min(52, nextFrom + visibleCount - 1));
+              }}
               className="border rounded px-2 py-1 w-20 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
@@ -979,9 +1366,12 @@ export default function SalesOrderDetailPlanner({
             <input
               type="number"
               min={fromWeek}
-              max={52}
+              max={Math.min(52, fromWeek + visibleCount - 1)}
               value={toWeek}
-              onChange={(e) => setToWeek(Math.max(Number(e.target.value), fromWeek))}
+              onChange={(e) => {
+                const nextTo = Math.max(Number(e.target.value), fromWeek);
+                setToWeek(Math.min(fromWeek + visibleCount - 1, nextTo));
+              }}
               className="border rounded px-2 py-1 w-20 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
@@ -1014,6 +1404,29 @@ export default function SalesOrderDetailPlanner({
             />
           </div>
         </div>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-2 text-xs text-gray-700">
+        <button
+          type="button"
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+          disabled={currentPage <= 1}
+          className="rounded border px-2 py-1 disabled:opacity-50"
+        >
+          Prev
+        </button>
+        <span>
+          Page {Math.min(currentPage, totalPages)} / {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+          disabled={currentPage >= totalPages}
+          className="rounded border px-2 py-1 disabled:opacity-50"
+        >
+          Next
+        </button>
+        <span className="text-[10px] text-gray-500">Total: {items.length}</span>
       </div>
 
       <div className="flex border rounded-lg shadow-sm bg-white overflow-hidden">
@@ -1114,6 +1527,7 @@ export default function SalesOrderDetailPlanner({
                         <div className="p-0.5 bg-blue-100 rounded">Loading</div>
                         <div className="p-0.5 bg-red-100 rounded">Capacity</div>
                       </td>
+                      <td className="text-center text-[10px]"></td>
                     </tr>
                   );
                 }
@@ -1190,9 +1604,7 @@ export default function SalesOrderDetailPlanner({
                           {totals[w]}
                         </td>
                       ))}
-                      <td className="text-center">
-                        {visibleWeeks.reduce((s, w) => s + (totals[w] || 0), 0)}
-                      </td>
+                      <td className="text-center">{visibleTotalsSum}</td>
                     </tr>
                   );
                 }
@@ -1249,7 +1661,7 @@ export default function SalesOrderDetailPlanner({
                         );
                       })}
                       <td className="text-center font-semibold">
-                        {visibleWeeks.reduce((s, w) => s + Number(it.weeks[w].loading || 0), 0)}
+                        {itemTotalsById.get(it.id) ?? 0}
                       </td>
                     </tr>
                   );
@@ -1303,6 +1715,23 @@ export default function SalesOrderDetailPlanner({
         </div>
       </div>
 
+      <div className="mt-3 flex justify-end">
+        <label className="flex items-center gap-2 text-xs text-gray-700">
+          Rows
+          <select
+            className="border rounded px-2 py-1 text-xs"
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={30}>30</option>
+            <option value={50}>50</option>
+          </select>
+        </label>
+      </div>
+
       {/* Edit Modal */}
       {editModal.open && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
@@ -1349,3 +1778,9 @@ export default function SalesOrderDetailPlanner({
     </div>
   );
 }
+
+
+
+
+
+

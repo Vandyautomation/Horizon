@@ -95,7 +95,8 @@ export default function HRZDashboard() {
     )}&customer=${encodeURIComponent(d.customer)}`;
 
     console.log("Opening detail page with URL:", url);
-    router.push(url);
+    const basePath = "/admin";
+    window.location.href = `${window.location.origin}${basePath}${url}`;
   };
 
   return (

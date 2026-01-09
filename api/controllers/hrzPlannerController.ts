@@ -14,7 +14,39 @@ export async function getPlannerData(filters: {
   year?: number;
   fromWeek?: number;
   toWeek?: number;
+  mode?: string;
 }) {
+  if (filters.mode === "level1") {
+    const sql = `
+      SELECT DISTINCT
+        rou.MchProcess,
+        bom.PartID,
+        bom.Part
+      FROM iot.dbo.Hrz_BOMStd bom
+      LEFT JOIN (
+        SELECT MaterialID, MchProcess
+        FROM iot.dbo.Hrz_ROUTING
+      ) AS rou
+        ON rou.MaterialID = bom.PartID
+      LEFT JOIN (
+        SELECT SODoc, SOItem, SORef2, MaterialID
+        FROM iot.dbo.Hrz_SalesOrderVA05Trx
+      ) AS so
+        ON so.MaterialID = bom.ProdukID OR so.MaterialID = bom.PartID
+      WHERE so.SORef2 = @so;
+    `;
+
+    const rows = await queryDatabase(sql, {
+      so: filters.so ?? null,
+    });
+
+    return rows.map((r: any) => ({
+      process: r.MchProcess,
+      itemNo: r.PartID,
+      description: r.Part,
+    }));
+  }
+
   const sql = `
     SELECT DISTINCT
       v.MchProcess,
@@ -151,10 +183,10 @@ export async function getPlannerDispatchSlots(filters: {
 }) {
   const sql = `
     SELECT
-      PRO_name      AS proName,
-      MchProcess    AS process,
+      PRO_name AS proName,
+      MchProcess AS process,
       TRY_CAST(RIGHT(WeekNum, 2) AS INT) AS week,
-      Dispatch      AS dispatch
+      Dispatch AS dispatch
     FROM Hrz_DispatchPlan
     WHERE SORef2     = @so
       AND MaterialID = @materialId
@@ -183,6 +215,53 @@ export async function getPlannerDispatchSlots(filters: {
     week: Number(r.week) || 0,
     dispatch: Number(r.dispatch) || 0,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// CAPACITY DATA (GROUP/UAP/PROCESS)
+// ---------------------------------------------------------------------------
+
+export async function getPlannerCapacity(filters: {
+  year: number;
+  fromWeek?: number;
+  toWeek?: number;
+  process?: string;
+  uap?: string;
+  group?: string;
+}) {
+  const sql = `
+    SELECT
+      cap.GroupName,
+      cap.UAP,
+      cap.MchProcess,
+      cap.Years,
+      cap.WeekNum,
+      cap.Capacity,
+      cap.AvailCapacity
+    FROM iot.dbo.hrz_capacitymch cap
+    WHERE cap.Active = 1
+      AND cap.Years = @year
+      AND (@process IS NULL OR cap.MchProcess = @process)
+      AND (@uap IS NULL OR cap.UAP = @uap)
+      AND (@group IS NULL OR cap.GroupName = @group)
+      AND (
+        @fromWeek IS NULL
+        OR TRY_CAST(RIGHT(cap.WeekNum, 2) AS INT) >= @fromWeek
+      )
+      AND (
+        @toWeek IS NULL
+        OR TRY_CAST(RIGHT(cap.WeekNum, 2) AS INT) <= @toWeek
+      );
+  `;
+
+  return await queryDatabase(sql, {
+    year: filters.year,
+    fromWeek: filters.fromWeek ?? null,
+    toWeek: filters.toWeek ?? null,
+    process: filters.process ?? null,
+    uap: filters.uap ?? null,
+    group: filters.group ?? null,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +381,41 @@ async function recomputeAvailDspt(params: {
 
   await queryDatabase(updateSql, { so, materialId, proName, totalDispatch });
 }
+
+// Update loading & available capacity for all groups/weeks (full refresh)
+// async function updateAllCapacity() {
+//   const sql = `
+//     WITH LoadingSummary AS (
+//       SELECT
+//         rou.GrupId,
+//         dplan.WeekNum,
+//         SUM(dplan.Dispatch) AS TotalLoading
+//       FROM iot.dbo.Hrz_DispatchPlan dplan
+//       LEFT JOIN (
+//         SELECT DISTINCT MaterialID, GrupId
+//         FROM iot.dbo.Hrz_ROUTING
+//       ) rou
+//         ON dplan.MaterialID = rou.MaterialID
+//       GROUP BY rou.GrupId, dplan.WeekNum
+//     )
+//     UPDATE cap
+//     SET
+//       cap.LoadingCapacity = ls.TotalLoading,
+//       cap.AvailCapacity = cap.Capacity - ls.TotalLoading
+//     FROM iot.dbo.Hrz_CapacityMch cap
+//     INNER JOIN LoadingSummary ls
+//       ON cap.GroupID = ls.GrupId
+//       AND cap.WeekNum = ls.WeekNum;
+//   `;
+//
+//   try {
+//     await queryDatabase(sql, {});
+//   } catch (error: any) {
+//     console.error("Failed to update capacity (full refresh):", {
+//       message: error?.message ?? error,
+//     });
+//   }
+// }
 
 export async function updatePlannerDispatch(body: PlannerDispatchUpdateBody) {
   const { so, materialId, process, year, proName } = body;
@@ -519,3 +633,4 @@ export async function updatePlannerDispatch(body: PlannerDispatchUpdateBody) {
     qty,
   };
 }
+

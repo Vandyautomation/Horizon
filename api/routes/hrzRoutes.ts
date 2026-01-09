@@ -4,6 +4,7 @@ import {
   getPlannerData,
   getPlannerProcessDetail,
   getPlannerDispatchSlots,
+  getPlannerCapacity,
   updatePlannerDispatch,
   PlannerDispatchUpdateBody,
 } from '../controllers/hrzPlannerController';
@@ -54,12 +55,13 @@ hrzRoutes.get('/planner', async (c) => {
     const yearParam = c.req.query('year');
     const fromWeekParam = c.req.query('fromWeek');
     const toWeekParam = c.req.query('toWeek');
+    const mode = c.req.query('mode') || undefined;
 
     const year = yearParam ? Number(yearParam) : undefined;
     const fromWeek = fromWeekParam ? Number(fromWeekParam) : undefined;
     const toWeek = toWeekParam ? Number(toWeekParam) : undefined;
 
-    const data = await getPlannerData({ so, itemNo, year, fromWeek, toWeek });
+    const data = await getPlannerData({ so, itemNo, year, fromWeek, toWeek, mode });
     return c.json(data);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
@@ -110,6 +112,31 @@ hrzRoutes.get('/planner-dispatch-slots', async (c) => {
     const toWeek = toWeekParam ? Number(toWeekParam) : undefined;
 
     const data = await getPlannerDispatchSlots({ so, materialId, year, fromWeek, toWeek });
+    return c.json(data);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+// Capacity data for planner (Group/UAP/Process)
+hrzRoutes.get('/planner-capacity', async (c) => {
+  try {
+    const yearParam = c.req.query('year');
+    if (!yearParam) {
+      return c.json({ error: 'Missing year' }, 400);
+    }
+
+    const fromWeekParam = c.req.query('fromWeek');
+    const toWeekParam = c.req.query('toWeek');
+    const process = c.req.query('process') || undefined;
+    const uap = c.req.query('uap') || undefined;
+    const group = c.req.query('group') || undefined;
+
+    const year = Number(yearParam);
+    const fromWeek = fromWeekParam ? Number(fromWeekParam) : undefined;
+    const toWeek = toWeekParam ? Number(toWeekParam) : undefined;
+
+    const data = await getPlannerCapacity({ year, fromWeek, toWeek, process, uap, group });
     return c.json(data);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);

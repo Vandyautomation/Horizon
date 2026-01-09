@@ -113,6 +113,26 @@ export default function Welcome() {
             </a>
           </Link>
 
+          <Link href="/assembly" passHref legacyBehavior>
+            <a className="w-full">
+              <Card className="flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer h-full">
+                <CardContent className="text-center pt-6">
+                  <Label
+                    style={{
+                      cursor: 'pointer',
+                      fontFamily: 'sans-serif',
+                      fontWeight: 'bold',
+                    }}
+                    className="flex items-center justify-center gap-4"
+                  >
+                    <Lightbulb />
+                    Andon Assembly
+                  </Label>
+                </CardContent>
+              </Card>
+            </a>
+          </Link>
+
 
             <Link href="/qco" passHref legacyBehavior>
               <a className="w-full">

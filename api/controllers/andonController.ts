@@ -2,9 +2,45 @@ import { Context } from 'hono';
 import { queryDatabase } from '../utils/queryDatabase';
 
 export async function getBuildings(type?: string) {
-    const listBuilding = (type == 'injection' ? `'INJ Bld G', 'INJ Bld H', 'INJ Bld J', 'INJ Bld Q', 'INJ Bld R', 'INJ Bld S'` : `'E', 'K', 'M', 'SP'`)
+    const listBuilding =
+        type === 'injection'
+            ? `'INJ Bld G', 'INJ Bld H', 'INJ Bld J', 'INJ Bld Q', 'INJ Bld R', 'INJ Bld S'`
+            : type === 'ASSEMBLY'
+                ? `'ASSY Bld J'`
+                : `'E', 'K', 'M', 'SP'`;
     const sqlQuery =
+        type === 'ASSEMBLY'
+        ? `
+        SELECT
+            m.MchNumber AS id,
+            m.MchLoc AS building,
+            m.[position],
+            m.rotation,
+            m.MchID,
+            m.MchDesc,
+            m.MchLoc,
+            m.MchNumber,
+            m.MchTon AS Tonage,
+            NULL AS consumption,
+            NULL AS cycletime,
+            NULL AS target_cycletime,
+            NULL AS cavity,
+            NULL AS target_cavity,
+            md.oee,
+            md.ooe
+        FROM IoT.dbo.MachineMST m
+        OUTER APPLY (
+            SELECT TOP 1
+                oee, ooe
+            FROM MachineData md
+            WHERE LTRIM(RTRIM(md.MchID)) = LTRIM(RTRIM(m.MchID)) COLLATE SQL_Latin1_General_CP1_CI_AS
+            
+        ) AS md
+        WHERE m.MchProcess = 'ASSEMBLY'
+        AND m.Active = 1
+        ORDER BY m.MchLoc, TRY_CAST(m.MchNumber AS INT);
         `
+        : `
         DECLARE @from datetime;
         DECLARE @shift int;
     
@@ -66,14 +102,14 @@ export async function getBuildings(type?: string) {
             actual_ct, ct, actual_cvt, cvt
         FROM countboard_tasks t
         WHERE t.machine_name = m.MchDesc COLLATE SQL_Latin1_General_CP1_CI_AS
-        ORDER BY id DESC
+        
     ) AS ct
 
     OUTER APPLY (
         SELECT TOP 1
             oee, ooe
         FROM MachineData md
-        WHERE md.MchID = m.MchID COLLATE SQL_Latin1_General_CP1_CI_AS
+        WHERE LTRIM(RTRIM(md.MchID)) = LTRIM(RTRIM(m.MchID)) COLLATE SQL_Latin1_General_CP1_CI_AS
         ORDER BY id DESC
     ) AS md
 
@@ -81,7 +117,7 @@ export async function getBuildings(type?: string) {
     AND m.Active = 1
 
     ORDER BY m.MchLoc, TRY_CAST(m.MchNumber AS INT);
-    `
+    `;
     // console.log(sqlQuery)
 
     const machines = await queryDatabase(sqlQuery, {});
@@ -100,7 +136,7 @@ export async function getBuildings(type?: string) {
     const buildingGroups: { [key: string]: any[] } = {};
 
 
-    if (type === 'injection') {
+    if (type === 'injection' || type === 'ASSEMBLY') {
         formattedMachines.forEach((machine: any) => {
             const building = machine.building;
             if (!buildingGroups[building]) {

@@ -18,7 +18,13 @@ export default function SalesOrderDetailPage() {
       </div>
 
       {/* Planning Component */}
-      <SalesOrderDetailPlanner so={so} customer={customer} itemNo={itemNo} description={description} />
+      <SalesOrderDetailPlanner
+        key={`${so}-${itemNo}`}
+        so={so}
+        customer={customer}
+        itemNo={itemNo}
+        description={description}
+      />
     </div>
   );
 }
