@@ -3,6 +3,7 @@ import { queryDatabase } from '../utils/queryDatabase';
 export interface HRZDataFilters {
   customer?: string;
   uap?: string;
+  itemPrefix?: string;
   page?: number;
   limit?: number;
   year?: number;
@@ -13,6 +14,7 @@ export interface HRZDataFilters {
 export async function getHRZData(filters?: HRZDataFilters) {
   const customer = filters?.customer;
   const uap = filters?.uap;
+  const itemPrefix = filters?.itemPrefix ?? null;
   const page = Math.max(1, Number(filters?.page ?? 1));
   const limit = Math.min(50, Math.max(1, Number(filters?.limit ?? 50)));
   const offset = (page - 1) * limit;
@@ -51,6 +53,7 @@ where (
       AND YEAR(sova05.DlvDate) = @year AND MONTH(sova05.DlvDate) = @month AND DAY(sova05.DlvDate) = @day)
   )
   AND (@uap IS NULL OR grp.UAP = @uap)
+  AND (@itemPrefix IS NULL OR sova05.MaterialID LIKE @itemPrefix + '%')
   AND (@customer IS NULL OR sova05.Customer LIKE '%' + @customer + '%')
  order by sova05.DlvDate desc, sova05.SORef2
  offset @offset rows fetch next @limit rows only
@@ -72,6 +75,7 @@ where (
   //  GROUP BY A.SODoc, A.SOLine, A.ItemNo, A.Customer, A.DlvDate, A.OrderQty, A.OrderValue, A.Active
   const rows = await queryDatabase(sqlQuery, {
     uap: uap ?? null,
+    itemPrefix,
     customer: customer ?? null,
     offset,
     limit,
@@ -95,11 +99,13 @@ where (
         AND YEAR(sova05.DlvDate) = @year AND MONTH(sova05.DlvDate) = @month AND DAY(sova05.DlvDate) = @day)
     )
     AND (@uap IS NULL OR grp.UAP = @uap)
+    AND (@itemPrefix IS NULL OR sova05.MaterialID LIKE @itemPrefix + '%')
     AND (@customer IS NULL OR sova05.Customer LIKE '%' + @customer + '%')
   `;
 
   const countRows = await queryDatabase(countQuery, {
     uap: uap ?? null,
+    itemPrefix,
     customer: customer ?? null,
     year,
     month,

@@ -25,6 +25,7 @@ hrzRoutes.get('/data', async (c) => {
   try {
     const customer = c.req.query('customer') || undefined;
     const uap = c.req.query('uap') || undefined;
+    const itemPrefix = c.req.query('itemPrefix') || undefined;
     const pageParam = c.req.query('page');
     const limitParam = c.req.query('limit');
     const yearParam = c.req.query('year');
@@ -38,6 +39,7 @@ hrzRoutes.get('/data', async (c) => {
     const filters: {
       customer?: string;
       uap?: string;
+      itemPrefix?: string;
       page?: number;
       limit?: number;
       year?: number;
@@ -46,6 +48,7 @@ hrzRoutes.get('/data', async (c) => {
     } = {
       customer,
       uap,
+      itemPrefix,
       page,
       limit,
       year,

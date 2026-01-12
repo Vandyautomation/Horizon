@@ -78,8 +78,8 @@ export default function HRZDashboard() {
         }`;
         const endpoint =
           uapFilter && uapFilter !== "ALL"
-            ? `${base}/api/hrz/data?uap=${encodeURIComponent(uapFilter)}&${baseParams}`
-            : `${base}/api/hrz/data?${baseParams}`;
+            ? `${base}/api/hrz/data?uap=${encodeURIComponent(uapFilter)}&itemPrefix=1&${baseParams}`
+            : `${base}/api/hrz/data?itemPrefix=1&${baseParams}`;
         const res = await fetch(endpoint);
         const json = await res.json();
         const rows = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
