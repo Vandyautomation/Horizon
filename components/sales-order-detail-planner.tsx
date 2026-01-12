@@ -1431,7 +1431,7 @@ export default function SalesOrderDetailPlanner({
 
       <div className="flex border rounded-lg shadow-sm bg-white overflow-hidden">
         {/* Left Fixed Table */}
-        <div ref={leftTableRef} className="overflow-y-auto max-h-[400px] hide-scrollbar">
+        <div ref={leftTableRef} className="overflow-y-hidden max-h-[400px] hide-scrollbar bg-gray-50">
           <table className="table-fixed border-r min-w-[600px]">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
@@ -1569,7 +1569,7 @@ export default function SalesOrderDetailPlanner({
         </div>
 
         {/* Right Dynamic Table */}
-        <div ref={rightTableRef} className="overflow-x-auto overflow-y-auto max-h-[400px] flex-1">
+        <div ref={rightTableRef} className="overflow-x-auto overflow-y-auto max-h-[400px] flex-1 bg-gray-50">
           <table className="table-fixed min-w-max">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>

@@ -26,6 +26,8 @@ hrzRoutes.get('/data', async (c) => {
     const customer = c.req.query('customer') || undefined;
     const uap = c.req.query('uap') || undefined;
     const itemPrefix = c.req.query('itemPrefix') || undefined;
+    const search = c.req.query('search') || undefined;
+    const searchByParam = c.req.query('searchBy') || undefined;
     const pageParam = c.req.query('page');
     const limitParam = c.req.query('limit');
     const yearParam = c.req.query('year');
@@ -34,21 +36,27 @@ hrzRoutes.get('/data', async (c) => {
     const page = pageParam ? Number(pageParam) : undefined;
     const limit = limitParam ? Number(limitParam) : undefined;
     const year = yearParam ? Number(yearParam) : undefined;
-    const month = monthParam ? Number(monthParam) : undefined;
+    const month = monthParam ? Number(monthParam) : null;
     const day = dayParam ? Number(dayParam) : undefined;
+    const allowedSearchBy = new Set(['salesOrder', 'itemNo', 'description', 'customer']);
+    const searchBy = searchByParam && allowedSearchBy.has(searchByParam) ? searchByParam : undefined;
     const filters: {
       customer?: string;
       uap?: string;
       itemPrefix?: string;
+      search?: string;
+      searchBy?: 'salesOrder' | 'itemNo' | 'description' | 'customer';
       page?: number;
       limit?: number;
       year?: number;
-      month?: number;
+      month?: number | null;
       day?: number;
     } = {
       customer,
       uap,
       itemPrefix,
+      search,
+      searchBy,
       page,
       limit,
       year,

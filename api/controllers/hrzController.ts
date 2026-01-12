@@ -4,6 +4,8 @@ export interface HRZDataFilters {
   customer?: string;
   uap?: string;
   itemPrefix?: string;
+  search?: string;
+  searchBy?: 'salesOrder' | 'itemNo' | 'description' | 'customer';
   page?: number;
   limit?: number;
   year?: number;
@@ -15,6 +17,8 @@ export async function getHRZData(filters?: HRZDataFilters) {
   const customer = filters?.customer;
   const uap = filters?.uap;
   const itemPrefix = filters?.itemPrefix ?? null;
+  const search = filters?.search?.trim() || null;
+  const searchBy = filters?.searchBy ?? null;
   const page = Math.max(1, Number(filters?.page ?? 1));
   const limit = Math.min(50, Math.max(1, Number(filters?.limit ?? 50)));
   const offset = (page - 1) * limit;
@@ -47,6 +51,8 @@ left join ( select distinct GrupId, UAP from Hrz_GroupCapacity) grp on grp.GrupI
 where (
     (@year IS NULL AND @month IS NULL AND @day IS NULL AND CAST(sova05.DlvDate AS date) = CAST(GETDATE() AS date))
     OR
+    (@year IS NOT NULL AND @month IS NULL AND @day IS NULL AND YEAR(sova05.DlvDate) = @year)
+    OR
     (@year IS NOT NULL AND @month IS NOT NULL AND @day IS NULL AND YEAR(sova05.DlvDate) = @year AND MONTH(sova05.DlvDate) = @month)
     OR
     (@year IS NOT NULL AND @month IS NOT NULL AND @day IS NOT NULL
@@ -54,6 +60,14 @@ where (
   )
   AND (@uap IS NULL OR grp.UAP = @uap)
   AND (@itemPrefix IS NULL OR sova05.MaterialID LIKE @itemPrefix + '%')
+  AND (
+    @search IS NULL OR (
+      (@searchBy = 'salesOrder' AND (CAST(sova05.SORef2 AS NVARCHAR(50)) LIKE @search + '%' OR CAST(sova05.SORef2 AS NVARCHAR(50)) LIKE '%' + @search)) OR
+      (@searchBy = 'itemNo' AND (CAST(sova05.MaterialID AS NVARCHAR(50)) LIKE @search + '%' OR CAST(sova05.MaterialID AS NVARCHAR(50)) LIKE '%' + @search)) OR
+      (@searchBy = 'description' AND (CAST(sova05.DescriptionProduct AS NVARCHAR(255)) LIKE @search + '%' OR CAST(sova05.DescriptionProduct AS NVARCHAR(255)) LIKE '%' + @search)) OR
+      (@searchBy = 'customer' AND (CAST(sova05.Customer AS NVARCHAR(255)) LIKE @search + '%' OR CAST(sova05.Customer AS NVARCHAR(255)) LIKE '%' + @search))
+    )
+  )
   AND (@customer IS NULL OR sova05.Customer LIKE '%' + @customer + '%')
  order by sova05.DlvDate desc, sova05.SORef2
  offset @offset rows fetch next @limit rows only
@@ -76,6 +90,8 @@ where (
   const rows = await queryDatabase(sqlQuery, {
     uap: uap ?? null,
     itemPrefix,
+    search,
+    searchBy,
     customer: customer ?? null,
     offset,
     limit,
@@ -93,6 +109,8 @@ where (
   where (
       (@year IS NULL AND @month IS NULL AND @day IS NULL AND CAST(sova05.DlvDate AS date) = CAST(GETDATE() AS date))
       OR
+      (@year IS NOT NULL AND @month IS NULL AND @day IS NULL AND YEAR(sova05.DlvDate) = @year)
+      OR
       (@year IS NOT NULL AND @month IS NOT NULL AND @day IS NULL AND YEAR(sova05.DlvDate) = @year AND MONTH(sova05.DlvDate) = @month)
       OR
       (@year IS NOT NULL AND @month IS NOT NULL AND @day IS NOT NULL
@@ -100,12 +118,22 @@ where (
     )
     AND (@uap IS NULL OR grp.UAP = @uap)
     AND (@itemPrefix IS NULL OR sova05.MaterialID LIKE @itemPrefix + '%')
+    AND (
+      @search IS NULL OR (
+        (@searchBy = 'salesOrder' AND (CAST(sova05.SORef2 AS NVARCHAR(50)) LIKE @search + '%' OR CAST(sova05.SORef2 AS NVARCHAR(50)) LIKE '%' + @search)) OR
+        (@searchBy = 'itemNo' AND (CAST(sova05.MaterialID AS NVARCHAR(50)) LIKE @search + '%' OR CAST(sova05.MaterialID AS NVARCHAR(50)) LIKE '%' + @search)) OR
+        (@searchBy = 'description' AND (CAST(sova05.DescriptionProduct AS NVARCHAR(255)) LIKE @search + '%' OR CAST(sova05.DescriptionProduct AS NVARCHAR(255)) LIKE '%' + @search)) OR
+        (@searchBy = 'customer' AND (CAST(sova05.Customer AS NVARCHAR(255)) LIKE @search + '%' OR CAST(sova05.Customer AS NVARCHAR(255)) LIKE '%' + @search))
+      )
+    )
     AND (@customer IS NULL OR sova05.Customer LIKE '%' + @customer + '%')
   `;
 
   const countRows = await queryDatabase(countQuery, {
     uap: uap ?? null,
     itemPrefix,
+    search,
+    searchBy,
     customer: customer ?? null,
     year,
     month,

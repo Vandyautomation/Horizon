@@ -32,7 +32,9 @@ export default function HRZDashboard() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(
+    new Date().getMonth() + 1
+  );
   const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
 
   const formatDlvDate = (raw: unknown) => {
@@ -73,13 +75,18 @@ export default function HRZDashboard() {
       try {
         const base = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:9999').replace(/\/$/, '');
         // backend routes are mounted under /api/hrz in this project
-        const baseParams = `page=${currentPage}&limit=${pageSize}&year=${selectedYear}&month=${selectedMonth}${
+        const monthParam = selectedMonth ? `&month=${selectedMonth}` : "";
+        const baseParams = `page=${currentPage}&limit=${pageSize}&year=${selectedYear}${monthParam}${
           selectedDay ? `&day=${selectedDay}` : ""
         }`;
+        const searchTerm = search.trim();
+        const searchParams = searchTerm
+          ? `&search=${encodeURIComponent(searchTerm)}&searchBy=${encodeURIComponent(searchBy)}`
+          : "";
         const endpoint =
           uapFilter && uapFilter !== "ALL"
-            ? `${base}/api/hrz/data?uap=${encodeURIComponent(uapFilter)}&itemPrefix=1&${baseParams}`
-            : `${base}/api/hrz/data?itemPrefix=1&${baseParams}`;
+            ? `${base}/api/hrz/data?uap=${encodeURIComponent(uapFilter)}&itemPrefix=1&${baseParams}${searchParams}`
+            : `${base}/api/hrz/data?itemPrefix=1&${baseParams}${searchParams}`;
         const res = await fetch(endpoint);
         const json = await res.json();
         const rows = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
@@ -121,7 +128,7 @@ export default function HRZDashboard() {
     }
 
     fetchData();
-  }, [uapFilter, currentPage, pageSize, selectedYear, selectedMonth, selectedDay]);
+  }, [uapFilter, currentPage, pageSize, selectedYear, selectedMonth, selectedDay, search, searchBy]);
 
   const staticUapOptions = ["BASIC", "PREMIUM", "LEAN"];
   const uapOptions = Array.from(
@@ -131,11 +138,7 @@ export default function HRZDashboard() {
     ])
   ).sort();
 
-  const filteredData = data.filter((d) =>
-    String(d[searchBy] ?? "").toLowerCase().includes(search.toLowerCase())
-  );
-
-  const sortedData = [...filteredData].sort((a, b) =>
+  const sortedData = [...data].sort((a, b) =>
     sortAsc
       ? new Date(a.dlvDate).getTime() - new Date(b.dlvDate).getTime()
       : new Date(b.dlvDate).getTime() - new Date(a.dlvDate).getTime()
@@ -238,10 +241,21 @@ export default function HRZDashboard() {
             ))}
           </select>
           <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            value={selectedMonth ?? ""}
+            onChange={(e) =>
+              (() => {
+                const value = e.target.value;
+                if (value) {
+                  setSelectedMonth(Number(value));
+                } else {
+                  setSelectedMonth(null);
+                  setSelectedDay(null);
+                }
+              })()
+            }
             className="border p-2 rounded"
           >
+            <option value="">All months</option>
             <option value={1}>Jan</option>
             <option value={2}>Feb</option>
             <option value={3}>Mar</option>
