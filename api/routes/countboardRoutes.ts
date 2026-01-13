@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, submitOrangeTicket, updateComment, updateCVT, getTickets,getUsers,editScrap,editRework } from '../controllers/countboardController';
+import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, submitOrangeTicket, updateComment, updateCVT, getTickets,getUsers,editScrap,editRework, getOperatorandMecanic, getSPV } from '../controllers/countboardController';
 //import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
 const countboardRoutes = new Hono();
@@ -148,7 +148,7 @@ countboardRoutes.put('/comment', async (c) => {
 });
 
 countboardRoutes.post('/ticket', async (c) => {
-  const { machineId, ticketDate, problem, actionPlan } = await c.req.json();
+  const { machineId, ticketDate, problem, actionPlan, assignToId, assignById } = await c.req.json();
 
   if (!machineId || !ticketDate || !problem || !actionPlan) {
     return c.json({ error: 'machineId, ticketDate, problem, and actionPlan are required' }, 400);
@@ -160,6 +160,8 @@ countboardRoutes.post('/ticket', async (c) => {
       ticketDate,
       problem,
       actionPlan,
+       assignToId,
+       assignById,
     );
 
     if (!result.affected) {
@@ -183,6 +185,27 @@ countboardRoutes.get('/users', async (c) => {
     const data = await getUsers();
     return c.json(data);
   } catch (error) {
+    console.error('Error fetching users:', error);
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+//get user
+countboardRoutes.get('/operator-and-mechanic', async (c) => {
+  try {
+    const data = await getOperatorandMecanic();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+//get user
+countboardRoutes.get('/spv', async (c) => {
+  try {
+    const data = await getSPV();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error fetching users:', error);
     return c.json({ error: (error as Error).message }, 500);
   }
 });

@@ -191,11 +191,13 @@ export default function CountboardDashboard() {
   )
   /*Operator */
   const { data: usersRes } = useSWR(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL}/countboard/users`,
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/users`,
     fetcher
   )
 
-  const users: string[] = usersRes?.data ?? []
+  const users: string[] = Array.isArray(usersRes)
+    ? usersRes.map((u: { Nama: string; NIK: string }) => `${u.NIK} - ${u.Nama}`)
+    : []
 
   const [openCell, setOpenCell] = useState<string | null>(null)
   const [selectedUsers, setSelectedUsers] = useState<Record<string, string>>({})
@@ -204,7 +206,62 @@ export default function CountboardDashboard() {
   const filteredUsers = users.filter((u) =>
     u.toLowerCase().includes(search.toLowerCase())
   )
-  // console.log('usersRes:', usersRes)
+  /*OperatorMekanik */
+  const { data: operatorAndMechanicRes } = useSWR(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/operator-and-mechanic`,
+    fetcher
+  )
+
+  type UserOption = {
+    id: number
+    name: string
+    dept: string
+  }
+
+  const usersOP: UserOption[] = Array.isArray(operatorAndMechanicRes)
+    ? operatorAndMechanicRes.map((u) => ({
+        id: u.UserRFID,
+        name: u.UserName,
+        dept: u.UserDept,
+      }))
+    : []
+
+  const [openCellOP, setOpenCellOP] = useState<string | null>(null)
+  const [selectedAssignTo, setSelectedAssignTo] = useState<string | null>(null)
+  const [searchOP, setSearchOP] = useState('')
+
+  const filteredUsersOP = usersOP.filter((u) =>
+    `${u.dept} ${u.name}`.toLowerCase().includes(searchOP.toLowerCase())
+  )
+  console.log('usersOP:', usersOP)
+  /*SPV */
+  const { data: spvRes } = useSWR(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/spv`,
+    fetcher
+  )
+
+  type UserSPV = {
+    id: number
+    name: string
+    dept: string
+  }
+
+  const usersSPV: UserSPV[] = Array.isArray(spvRes)
+    ? spvRes.map((u) => ({
+        id: u.UserRFID,
+        name: u.UserName,
+        dept: u.UserDept,
+      }))
+    : []
+
+  const [openCellSPV, setOpenCellSPV] = useState<string | null>(null)
+  const [selectedAssignBy, setSelectedAssignBy] = useState<string | null>(null)
+  const [searchSPV, setSearchSPV] = useState('')
+  const filteredUsersSPV = usersSPV.filter((u) =>
+    `${u.dept} ${u.name}`.toLowerCase().includes(searchSPV.toLowerCase())
+  )
+  console.log('spvRes:', spvRes)
+  
   const [selectedLocation, setSelectedLocation] = useState<string>('')
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -530,8 +587,46 @@ export default function CountboardDashboard() {
   //         return rows;
   //       })()
   //     : [];
+  // const handleOrangeTicketNext = () => {
+  //   if (!selectedMachine || !selectedStateChange) {
+  //     toast.error('Pilih mesin dan state ORANGE terlebih dahulu')
+  //     return
+  //   }
+
+  //   if (!selectedProblemId || !selectedSolutionId) {
+  //     toast.error('Pilih Problem dan Solution terlebih dahulu')
+  //     return
+  //   }
+
+  //   const problemObj = problems.find(
+  //     (p) => String(p.id) === String(selectedProblemId)
+  //   )
+  //   const solutionObj = solutions.find(
+  //     (s) => String(s.id) === String(selectedSolutionId)
+  //   )
+
+  //   if (!problemObj || !solutionObj) {
+  //     toast.error('Problem atau Solution tidak ditemukan')
+  //     return
+  //   }
+
+  //   //  SIMPAN SEMENTARA
+  //   setTicketDraft({
+  //     machineId: selectedMachine.machineName,
+  //     ticketDate: selectedStateChange.AdjustedStatusDate,
+  //     problem: problemObj.name,
+  //     actionPlan: solutionObj.name,
+  //   })
+
+  //   //  BUKA MODAL KE-2
+  //   setIsSecondModalOpen(true)
+  // }
 
   const handleOrangeTicketSubmit = useCallback(async () => {
+    if (!selectedAssignTo || !selectedAssignBy) {
+      toast.error('Pilih Assign To (Operator/Mekanik) dan Assign By (SPV)')
+      return
+    }
     if (!selectedMachine || !selectedStateChange) {
       toast.error('Pilih mesin dan state ORANGE terlebih dahulu')
       return
@@ -566,6 +661,8 @@ export default function CountboardDashboard() {
             ticketDate: selectedStateChange.AdjustedStatusDate,
             problem: problemObj.name,
             actionPlan: solutionObj.name,
+            assignToId: selectedAssignTo,
+            assignById: selectedAssignBy,
           }),
         }
       )
@@ -641,12 +738,131 @@ export default function CountboardDashboard() {
     selectedStateChange,
     selectedProblemId,
     selectedSolutionId,
+    selectedAssignTo,
+    selectedAssignBy,
     problems,
     solutions,
     categories,
     selectedCategoryId,
     refetchStateData,
   ])
+
+  // const handleFinalOrangeTicketSubmit = useCallback(async () => {
+  //   if (!selectedMachine || !selectedStateChange) {
+  //     toast.error('Pilih mesin dan state ORANGE terlebih dahulu')
+  //     return
+  //   }
+
+  //   if (!selectedProblemId || !selectedSolutionId) {
+  //     toast.error('Pilih Problem dan Solution terlebih dahulu')
+  //     return
+  //   }
+
+  //   const problemObj = problems.find(
+  //     (p) => String(p.id) === String(selectedProblemId)
+  //   )
+  //   const solutionObj = solutions.find(
+  //     (s) => String(s.id) === String(selectedSolutionId)
+  //   )
+
+  //   if (!problemObj || !solutionObj) {
+  //     toast.error('Problem atau Solution tidak ditemukan')
+  //     return
+  //   }
+
+  //   setIsLoading(true)
+  //   try {
+  //     const response = await fetch(
+  //       `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/ticket`,
+  //       {
+  //         method: 'POST',
+  //         headers: { 'Content-Type': 'application/json' },
+  //         body: JSON.stringify({
+  //           machineId: selectedMachine.machineName,
+  //           ticketDate: selectedStateChange.AdjustedStatusDate,
+  //           problem: problemObj.name,
+  //           actionPlan: solutionObj.name,
+  //         }),
+  //       }
+  //     )
+
+  //     const text = await response.text()
+  //     let data: any = {}
+  //     if (text) {
+  //       try {
+  //         data = JSON.parse(text)
+  //       } catch {
+  //         data = { message: text }
+  //       }
+  //     }
+
+  //     if (!response.ok) {
+  //       const msg = data.error || data.message || 'Gagal submit ticket'
+  //       throw new Error(msg)
+  //     }
+
+  //     if (data.affected === 0) {
+  //       toast.error(
+  //         'TicketTRX dengan TicketDate ini tidak ditemukan / sudah terisi'
+  //       )
+  //     } else {
+  //       toast.success('TicketTRX berhasil di-update')
+
+  //       // Refresh hourly table supaya Problem/Action di per jam ikut update dari TicketTRX
+  //       if (selectedMachine) {
+  //         const search = new URLSearchParams(window.location.search)
+  //         const extraParams =
+  //           !isLiveMode && search.get('date') !== null
+  //             ? `&date=${search.get('date')}&shift=${search.get('shift')}`
+  //             : ''
+
+  //         const hourlyKey = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}?type=injection${extraParams}`
+  //         await mutate(hourlyKey)
+  //       }
+
+  //       // Jika CATEGORY yang dipilih adalah Non Quality / Scrap, ubah state ORANGE yang diklik menjadi RED di database
+  //       const selectedCategory = categories.find(
+  //         (c) => String(c.id) === String(selectedCategoryId)
+  //       )
+  //       const isNonQualityOrScrapCategory =
+  //         selectedCategory &&
+  //         (selectedCategory.name.toLowerCase().includes('non quality') ||
+  //           selectedCategory.name.toLowerCase().includes('scrap'))
+
+  //       if (isNonQualityOrScrapCategory && selectedStateChange) {
+  //         await fetch(
+  //           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state`,
+  //           {
+  //             method: 'POST',
+  //             headers: { 'Content-Type': 'application/json' },
+  //             body: JSON.stringify({
+  //               stateId: selectedStateChange.ID,
+  //               color: 'RED',
+  //             }),
+  //           }
+  //         )
+
+  //         refetchStateData()
+  //         setIsStateDialogOpen(false)
+  //       }
+  //     }
+  //   } catch (error) {
+  //     toast.error((error as Error).message)
+  //     console.error('Failed to submit ticket or update state:', error)
+  //   } finally {
+  //     setIsLoading(false)
+  //   }
+  // }, [
+  //   selectedMachine,
+  //   selectedStateChange,
+  //   selectedProblemId,
+  //   selectedSolutionId,
+  //   problems,
+  //   solutions,
+  //   categories,
+  //   selectedCategoryId,
+  //   refetchStateData,
+  // ])
 
   // const refetchMachine = async () => {
   //   setIsLoading(true);
@@ -1283,13 +1499,12 @@ export default function CountboardDashboard() {
     }
   }, [queryShift])
 
- const totalActual =
-  (Array.isArray(hourlyData) &&
-    hourlyData.reduce((total, item) => {
-      return total + (item.actual ?? 0)
-    }, 0)) ||
-  0
-
+  const totalActual =
+    (Array.isArray(hourlyData) &&
+      hourlyData.reduce((total, item) => {
+        return total + (item.actual ?? 0)
+      }, 0)) ||
+    0
 
   const totalTarget =
     (Array.isArray(hourlyData) &&
@@ -1768,8 +1983,8 @@ export default function CountboardDashboard() {
                   setOpenCell(openCell === 'row1-col2' ? null : 'row1-col2')
                 }
                 className={`h-[43px] px-4 bg-black text-white flex items-center justify-between w-full
-      ${openCell === 'row1-col2' ? 'rounded-t-md' : 'rounded-md'}
-    `}
+          ${openCell === 'row1-col2' ? 'rounded-t-md' : 'rounded-md'}
+        `}
               >
                 <div className="flex items-center">
                   <User className="w-4 h-4 mr-2" />
@@ -1777,8 +1992,8 @@ export default function CountboardDashboard() {
                 </div>
                 <ChevronDown
                   className={`w-4 h-4 transition-transform duration-200
-        ${openCell === 'row1-col2' ? 'rotate-180' : ''}
-      `}
+                  ${openCell === 'row1-col2' ? 'rotate-180' : ''}
+                `}
                 />
               </button>
 
@@ -2670,115 +2885,139 @@ export default function CountboardDashboard() {
                           <TableCell className="relative">
                             <div
                               onClick={() =>
-                                setOpenCell(
-                                  openCell === 'row1-col1' ? null : 'row1-col1'
+                                setOpenCellOP(
+                                  openCellOP === 'row1-col1'
+                                    ? null
+                                    : 'row1-col1'
                                 )
                               }
                               className="cursor-pointer flex items-center justify-between px-2 py-1"
                             >
-                              {selectedUsers['row1-col1'] || 'Operator'}
+                              {selectedAssignTo
+                                ? usersOP.find((u) => u.id === selectedAssignTo)
+                                  ? `${
+                                      usersOP.find(
+                                        (u) => u.id === selectedAssignTo
+                                      )?.dept
+                                    } - ${
+                                      usersOP.find(
+                                        (u) => u.id === selectedAssignTo
+                                      )?.name
+                                    }`
+                                  : 'Operator / Mekanik'
+                                : 'Operator / Mekanik'}
                               <ChevronDown
-                                className={`w-4 h-4 ml-2 transition-transform
-                                  ${
-                                    openCell === 'row1-col1' ? 'rotate-180' : ''
-                                  }
-                                `}
+                                className={`w-4 h-4 ml-2 transition-transform ${
+                                  openCellOP === 'row1-col1' ? 'rotate-180' : ''
+                                }`}
                               />
                             </div>
 
-                            {openCell === 'row1-col1' && (
-                              <div className="absolute top-full left-0 w-48 bg-white text-black rounded-md shadow-lg z-20 border">
+                            {openCellOP === 'row1-col1' && (
+                              <div className="absolute top-full left-0 w-56 bg-white text-black rounded-md shadow-lg z-20 border">
                                 {/* Search */}
                                 <input
                                   className="w-full px-3 py-2 text-sm border-b outline-none"
                                   placeholder="Cari user..."
-                                  value={search}
-                                  onChange={(e) => setSearch(e.target.value)}
-                                />{' '}
+                                  value={searchOP}
+                                  onChange={(e) => setSearchOP(e.target.value)}
+                                />
+
                                 <div className="max-h-40 overflow-y-auto">
-                                  {search.length === 0 ? (
-                                    <div className="px-3 py-2 text-gray-400 text-sm"></div>
-                                  ) : filteredUsers.length > 0 ? (
-                                    filteredUsers.slice(0, 10).map((u) => (
-                                      <div
-                                        key={u}
-                                        onClick={() => {
-                                          setSelectedUsers((prev) => ({
-                                            ...prev,
-                                            ['row1-col1']: u,
-                                          }))
-                                          setOpenCell(null)
-                                          setSearch('')
-                                        }}
-                                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 flex items-center"
-                                      >
-                                        <User className="w-4 h-4 mr-2 text-gray-400" />
-                                        {u}
+                                  {searchOP.length > 0 &&
+                                    (filteredUsersOP.length > 0 ? (
+                                      filteredUsersOP.slice(0, 10).map((u) => (
+                                        <div
+                                          key={u.id}
+                                          onClick={() => {
+                                            setSelectedAssignTo(u.id)
+                                            setOpenCellOP(null)
+                                            setSearchOP('')
+                                          }}
+                                          className="px-3 py-2 cursor-pointer hover:bg-gray-100 flex items-center"
+                                        >
+                                          <User className="w-4 h-4 mr-2 text-gray-400" />
+                                          {u.dept} - {u.name}
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="px-3 py-2 text-gray-400 text-sm">
+                                        User tidak ditemukan
                                       </div>
-                                    ))
-                                  ) : (
-                                    <div className="px-3 py-2 text-gray-400 text-sm">
-                                      User tidak ditemukan
-                                    </div>
-                                  )}
+                                    ))}
                                 </div>
                               </div>
                             )}
                           </TableCell>
+
                           <TableCell className="relative">
                             <div
                               onClick={() =>
-                                setOpenCell(
-                                  openCell === 'row1-col2' ? null : 'row1-col2'
+                                setOpenCellSPV(
+                                  openCellSPV === 'row1-col2'
+                                    ? null
+                                    : 'row1-col2'
                                 )
                               }
                               className="cursor-pointer flex items-center justify-between px-2 py-1"
                             >
-                              {selectedUsers['row1-col2'] || 'Operator'}
+                              {selectedAssignBy
+                                ? usersSPV.find(
+                                    (u) => u.id === selectedAssignBy
+                                  )
+                                  ? `${
+                                      usersSPV.find(
+                                        (u) => u.id === selectedAssignBy
+                                      )?.dept
+                                    } - ${
+                                      usersSPV.find(
+                                        (u) => u.id === selectedAssignBy
+                                      )?.name
+                                    }`
+                                  : 'SPV'
+                                : 'SPV'}
+
                               <ChevronDown
-                                className={`w-4 h-4 ml-2 transition-transform
-                                  ${
-                                    openCell === 'row1-col2' ? 'rotate-180' : ''
-                                  }
-                                `}
+                                className={`w-4 h-4 ml-2 transition-transform ${
+                                  openCellSPV === 'row1-col2'
+                                    ? 'rotate-180'
+                                    : ''
+                                }`}
                               />
                             </div>
 
-                            {openCell === 'row1-col2' && (
-                              <div className="absolute top-full left-0 w-48 bg-white text-black rounded-md shadow-lg z-20 border">
+                            {openCellSPV === 'row1-col2' && (
+                              <div className="absolute top-full left-0 w-56 bg-white text-black rounded-md shadow-lg z-20 border">
                                 {/* Search */}
                                 <input
                                   className="w-full px-3 py-2 text-sm border-b outline-none"
                                   placeholder="Cari user..."
-                                  value={search}
-                                  onChange={(e) => setSearch(e.target.value)}
-                                />{' '}
+                                  value={searchSPV}
+                                  onChange={(e) => setSearchSPV(e.target.value)}
+                                />
+
                                 <div className="max-h-40 overflow-y-auto">
-                                  {search.length === 0 ? (
-                                    <div className="px-3 py-2 text-gray-400 text-sm"></div>
-                                  ) : filteredUsers.length > 0 ? (
-                                    filteredUsers.slice(0, 10).map((u) => (
-                                      <div
-                                        key={u}
-                                        onClick={() => {
-                                          setSelectedUsers((prev) => ({
-                                            ...prev,
-                                            ['row1-col1']: u,
-                                          }))
-                                          setOpenCell(null)
-                                          setSearch('')
-                                        }}
-                                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 flex items-center"
-                                      >
-                                        <User className="w-4 h-4 mr-2 text-gray-400" />
-                                        {u}
+                                  {searchSPV.length > 0 &&
+                                    (filteredUsersSPV.length > 0 ? (
+                                      filteredUsersSPV.slice(0, 10).map((u) => (
+                                        <div
+                                          key={u.id}
+                                          onClick={() => {
+                                            setSelectedAssignBy(u.id)
+                                            setOpenCellSPV(null)
+                                            setSearchSPV('')
+                                          }}
+                                          className="px-3 py-2 cursor-pointer hover:bg-gray-100 flex items-center"
+                                        >
+                                          <User className="w-4 h-4 mr-2 text-gray-400" />
+                                          {u.dept} - {u.name}
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="px-3 py-2 text-gray-400 text-sm">
+                                        User tidak ditemukan
                                       </div>
-                                    ))
-                                  ) : (
-                                    <div className="px-3 py-2 text-gray-400 text-sm">
-                                      User tidak ditemukan
-                                    </div>
-                                  )}
+                                    ))}
                                 </div>
                               </div>
                             )}
