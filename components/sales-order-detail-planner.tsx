@@ -183,6 +183,10 @@ export default function SalesOrderDetailPlanner({
   const [items, setItems] = useState<Item[]>(buildDefaultItems());
   const itemsRef = useRef<Item[]>([]);
   const detailPrefetchRef = useRef<Set<number>>(new Set());
+  const level3PrefetchRef = useRef<Set<number>>(new Set());
+  const fitWrapRef = useRef<HTMLDivElement>(null);
+  const fitContentRef = useRef<HTMLDivElement>(null);
+  const [fitScale, setFitScale] = useState(1);
 
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const pagedItems = useMemo(() => {
@@ -307,8 +311,43 @@ export default function SalesOrderDetailPlanner({
     itemsRef.current = items;
   }, [items]);
 
+  const updateFitScale = useCallback(() => {
+    const wrap = fitWrapRef.current;
+    const content = fitContentRef.current;
+    if (!wrap || !content) return;
+    const wrapWidth = wrap.getBoundingClientRect().width;
+    const contentWidth = content.scrollWidth;
+    if (!wrapWidth || !contentWidth) return;
+    const nextScale = Math.min(1, wrapWidth / contentWidth);
+    setFitScale((prev) => (Math.abs(prev - nextScale) > 0.01 ? nextScale : prev));
+  }, []);
+
+  useLayoutEffect(() => {
+    updateFitScale();
+    const wrap = fitWrapRef.current;
+    const content = fitContentRef.current;
+    if (!wrap || !content) return;
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateFitScale);
+      return () => {
+        window.removeEventListener("resize", updateFitScale);
+      };
+    }
+
+    const observer = new ResizeObserver(() => {
+      updateFitScale();
+    });
+    observer.observe(wrap);
+    observer.observe(content);
+    return () => {
+      observer.disconnect();
+    };
+  }, [updateFitScale]);
+
   useEffect(() => {
     detailPrefetchRef.current = new Set();
+    level3PrefetchRef.current = new Set();
     pausePollingUntilRef.current = 0;
     setItems(buildDefaultItems());
     setDetailExpanded({});
@@ -452,19 +491,7 @@ export default function SalesOrderDetailPlanner({
   // - Jika belum ada detail, gunakan logika awal: DSPT = initialDspt - total loading.
   const recomputeItemDspt = (item: Item, details?: Level3Detail[]): Item => {
     if (details && details.length) {
-      const totalStd = details.reduce((s, d) => s + Number(d.std || 0), 0);
-      const totalInitialDspt = details.reduce(
-        (s, d) => s + Number(d.initialDspt ?? d.dspt ?? 0),
-        0
-      );
-      const totalRemainingDspt = details.reduce((s, d) => s + Number(d.dspt || 0), 0);
-
-      return {
-        ...item,
-        std: totalStd,
-        initialDspt: totalInitialDspt,
-        dspt: totalRemainingDspt,
-      };
+      return item;
     }
 
     const totalLoading = computeTotalLoading(item.weeks);
@@ -1249,7 +1276,7 @@ export default function SalesOrderDetailPlanner({
           ...item,
           fg: updatedItemBase?.itemNo || item.fg,
           description: updatedItemBase?.description || item.description,
-          openOrder: Number(updatedItemBase?.openOrder) || 0,
+          openOrder: Number(updatedItemBase?.openOrder) || item.openOrder,
           std: Number(updatedItemBase?.std) || 0,
           dspt: Number(updatedItemBase?.dspt) || 0,
           initialDspt:
@@ -1292,6 +1319,45 @@ export default function SalesOrderDetailPlanner({
     [so, year, fromWeek, toWeek]
   );
 
+  const loadPlannerAvail = useCallback(async () => {
+    if (isUnmountedRef.current || !so) return;
+    const base = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9999").replace(
+      /\/$/,
+      ""
+    );
+    const params = new URLSearchParams();
+    params.append("so", so);
+    if (year) params.append("year", String(year));
+    if (fromWeek) params.append("fromWeek", String(fromWeek));
+    if (toWeek) params.append("toWeek", String(toWeek));
+    const url = `${base}/api/hrz/planner-avail?${params.toString()}`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Planner avail fetch failed: ${res.status}`);
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : [];
+      const availMap = new Map<string, number>();
+      rows.forEach((row: any) => {
+        const key = String(row.itemNo ?? row.MaterialID ?? "");
+        if (!key) return;
+        availMap.set(key, Number(row.totalAvail ?? row.TotalAvail ?? 0));
+      });
+
+      setItems((prevItems) =>
+        prevItems.map((it) => {
+          const key = String(it.fg);
+          if (!availMap.has(key)) return it;
+          const nextAvail = availMap.get(key);
+          if (typeof nextAvail !== "number" || !Number.isFinite(nextAvail)) return it;
+          return { ...it, dspt: nextAvail };
+        })
+      );
+    } catch (err) {
+      console.error("Failed to load planner avail", err);
+    }
+  }, [fromWeek, so, toWeek, year]);
+
   useEffect(() => {
     if (!so || !items.length) return;
     items.forEach((it) => {
@@ -1300,6 +1366,27 @@ export default function SalesOrderDetailPlanner({
       void loadPlannerItemDetail(it);
     });
   }, [items, loadPlannerItemDetail, so]);
+
+  useEffect(() => {
+    if (!so) return;
+    void loadPlannerAvail();
+    const intervalId = setInterval(() => {
+      void loadPlannerAvail();
+    }, 14 * 1000);
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [loadPlannerAvail, so]);
+
+  useEffect(() => {
+    if (!so || !pagedItems.length) return;
+    pagedItems.forEach((it) => {
+      if (level3PrefetchRef.current.has(it.id)) return;
+      level3PrefetchRef.current.add(it.id);
+      void loadLevel3Detail(it);
+    });
+  }, [pagedItems, loadLevel3Detail, so]);
+
 
   const toggleDetail = (itemId: number) =>
     setDetailExpanded((prev) => {
@@ -1335,7 +1422,12 @@ export default function SalesOrderDetailPlanner({
   }, [loadLevel1List, loadPlannerData]);
 
   return (
-    <div className="bg-white rounded-lg shadow p-4">
+    <div ref={fitWrapRef} className="fit-view-root bg-white rounded-lg shadow p-4">
+      <div
+        ref={fitContentRef}
+        className="fit-view-content"
+        style={{ transform: `scale(${fitScale})` }}
+      >
       {/* Header info */}
       <div className="mb-4 flex flex-col gap-3">
         <div className="flex flex-wrap items-end gap-3 text-sm">
@@ -1431,20 +1523,20 @@ export default function SalesOrderDetailPlanner({
 
       <div className="flex border rounded-lg shadow-sm bg-white overflow-hidden">
         {/* Left Fixed Table */}
-        <div ref={leftTableRef} className="overflow-y-hidden max-h-[400px] hide-scrollbar bg-gray-50">
-          <table className="table-fixed border-r min-w-[600px]">
+        <div ref={leftTableRef} className="overflow-y-hidden hide-scrollbar bg-gray-50">
+          <table className="planner-left-table table-auto border-r w-auto min-w-[800px]">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
-                <th className="w-6"></th>
-                <th className="w-20">Process</th>
-                <th className="w-20">Item No</th>
-                <th className="w-60">Description</th>
-                <th className="w-16">Order</th>
-                <th className="w-16">STD/H</th>
-                <th className="w-16">DSPT</th>
-                <th className="w-16">UAP</th>
-                <th className="w-16">Group</th>
-                <th className="w-16">Legend</th>
+                <th></th>
+                <th>Process</th>
+                <th>Item No</th>
+                <th>Description</th>
+                <th>Order</th>
+                <th>STD/H</th>
+                <th>DSPT</th>
+                <th>UAP</th>
+                <th>Group</th>
+                <th>Legend</th>
               </tr>
             </thead>
             <tbody>
@@ -1515,7 +1607,9 @@ export default function SalesOrderDetailPlanner({
                       <td className="text-center">{it.process}</td>
                       <td className="text-center">{it.fg}</td>
                       <td className="text-center">{it.description}</td>
-                      <td className="text-center">{it.openOrder}</td>
+                      <td className="text-center">
+                        {level3Details[it.id]?.length ? it.openOrder : ""}
+                      </td>
                       <td className="text-center rounded">{formatNumber(it.std, 2)}</td>
                       <td className="bg-blue-50 text-center rounded">
                         {formatNumber(it.dspt, 2)}
@@ -1544,7 +1638,7 @@ export default function SalesOrderDetailPlanner({
                     <td className="text-center">{detail?.process || it.process}</td>
                     <td className="text-center">{detail?.itemNo || it.pro}</td>
                     <td></td>
-                    <td className="text-center">{detail?.openOrder || it.openOrder}</td>
+                    <td className="text-center">{detail?.openOrder ?? ""}</td>
                     <td className="text-center rounded">
                       {formatNumber(detail?.std ?? it.std, 2)}
                     </td>
@@ -1569,7 +1663,7 @@ export default function SalesOrderDetailPlanner({
         </div>
 
         {/* Right Dynamic Table */}
-        <div ref={rightTableRef} className="overflow-x-auto overflow-y-auto max-h-[400px] flex-1 bg-gray-50">
+        <div ref={rightTableRef} className="overflow-x-auto overflow-y-auto flex-1 bg-gray-50">
           <table className="table-fixed min-w-max">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
@@ -1767,6 +1861,9 @@ export default function SalesOrderDetailPlanner({
         </div>
       )}
       <style jsx>{`
+        .fit-view-content {
+          transform-origin: top left;
+        }
         .hide-scrollbar {
           scrollbar-width: none;
           -ms-overflow-style: none;
@@ -1774,7 +1871,13 @@ export default function SalesOrderDetailPlanner({
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
         }
+        .planner-left-table th,
+        .planner-left-table td {
+          padding-left: 0.75rem;
+          padding-right: 0.75rem;
+        }
       `}</style>
+      </div>
     </div>
   );
 }

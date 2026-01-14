@@ -419,15 +419,23 @@ export default function EmsDashboardOverall() {
     (machine) => machine.locationName === selectedLocation
   );
 
+  const useMachineBudget =
+    new URLSearchParams(window.location.search).get('useMachineBudget') === 'true';
   const additionalDataKey = selectedMachine?.machineDescription
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/energy/additional/${
-        selectedMachine.machineName
-      }${
-        !isLiveMode &&
-        new URLSearchParams(window.location.search).get('date') !== null
-          ? `?date=${new URLSearchParams(window.location.search).get('date')}`
-          : ''
-      }`
+    ? (() => {
+        const params = new URLSearchParams();
+        const dateParam = new URLSearchParams(window.location.search).get('date');
+        if (!isLiveMode && dateParam !== null) {
+          params.set('date', dateParam);
+        }
+        if (useMachineBudget) {
+          params.set('useMachineBudget', 'true');
+        }
+        const suffix = params.toString();
+        return `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/energy/additional/${
+          selectedMachine.machineName
+        }${suffix ? `?${suffix}` : ''}`;
+      })()
     : null;
 
   const { data: additionalData } = useSWR<AdditionalData[]>(

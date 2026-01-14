@@ -1972,7 +1972,13 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
     }
   }
 
-  export async function getEnergyAdditionalData(machine_name: string, date: string | null) {
+export async function getEnergyAdditionalData(machine_name: string, date: string | null) {
+    const hardcodedBudgetCase = `case when @machine_name = 'MT280100' then 7300 
+            when @machine_name = 'JW220004' then 10300
+            when @machine_name = 'BR320109' then 5691
+            else 0
+            end`;
+    const budgetEnergyExpr = `COALESCE(NULLIF(m.energyBudget, 0), ${hardcodedBudgetCase})`;
     if(date){
       const sqlQuery = `
       DECLARE @from DATETIME;
@@ -2044,12 +2050,9 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             statusLight
             ,COALESCE(totalgreen / NULLIF(timea, 0), 1) AS ooe
             ,COALESCE((totalgreen + totalwhite) / NULLIF(timea, 0), 0) AS oee
-            , case when @machine_name = 'MT280100' then 7300 
-            when @machine_name = 'JW220004' then 10300
-            when @machine_name = 'BR320109' then 5691
-            else 0
-            end as budgetEnergyPerJam
+            , ${budgetEnergyExpr} as budgetEnergyPerJam
         FROM IoT.dbo.mchstatustrx t
+        LEFT JOIN IoT.dbo.MachineMST m ON m.MchID = @machine_name
         CROSS JOIN TimeCalculations
         WHERE t.MchID = @machine_name  
         ORDER BY t.ID DESC;
@@ -2131,12 +2134,9 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
             statusLight
             ,COALESCE((totalgreen + totalwhite) / NULLIF(timea, 0), 0) AS oee,
             COALESCE(totalgreen / NULLIF(timea, 0), 1) AS ooe
-            , case when @machine_name = 'MT280100' then 7300 
-            when @machine_name = 'JW220004' then 10300
-            when @machine_name = 'BR320109' then 5691
-            else 0
-            end as budgetEnergyPerJam
+            , ${budgetEnergyExpr} as budgetEnergyPerJam
         FROM IoT.dbo.mchstatustrx t
+        LEFT JOIN IoT.dbo.MachineMST m ON m.MchID = @machine_name
         CROSS JOIN TimeCalculations
         WHERE t.MchID = @machine_name
         ORDER BY t.ID DESC;

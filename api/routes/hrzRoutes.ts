@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { getHRZData, getHRZColumns, getTableColumns } from '../controllers/hrzController';
 import {
   getPlannerData,
+  getPlannerAvailData,
   getPlannerProcessDetail,
   getPlannerDispatchSlots,
   getPlannerCapacity,
@@ -100,6 +101,32 @@ hrzRoutes.get('/planner', async (c) => {
     const toWeek = toWeekParam ? Number(toWeekParam) : undefined;
 
     const data = await getPlannerData({ so, itemNo, year, fromWeek, toWeek, mode });
+    return c.json(data);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+// Total avail data for planner (level 2 only)
+hrzRoutes.get('/planner-avail', async (c) => {
+  try {
+    const so = c.req.query('so') || undefined;
+    const itemNo = c.req.query('itemNo') || undefined;
+    const yearParam = c.req.query('year');
+    const fromWeekParam = c.req.query('fromWeek');
+    const toWeekParam = c.req.query('toWeek');
+
+    const year = yearParam ? Number(yearParam) : undefined;
+    const fromWeek = fromWeekParam ? Number(fromWeekParam) : undefined;
+    const toWeek = toWeekParam ? Number(toWeekParam) : undefined;
+
+    const data = await getPlannerAvailData({
+      so,
+      itemNo,
+      year,
+      fromWeek,
+      toWeek,
+    });
     return c.json(data);
   } catch (err: any) {
     return c.json({ error: err.message }, 500);

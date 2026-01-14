@@ -97,7 +97,7 @@ export default function HRZDashboard() {
           const itemNo = Array.isArray(d.ItemNo) ? d.ItemNo.join(",") : d.ItemNo;
           const dlvDate = formatDlvDate(d.DlvDate);
           const orderQty = Number(d.OrderQty) || 0;
-          const orderValue = Number(d.OrderValue) || 0;
+          const DelQty = Number(d.DelQty) || 0;
           const stockValue = Number(d.Stock) || 0;
 
           return {
@@ -108,7 +108,7 @@ export default function HRZDashboard() {
             customer: String(d.Customer || ""),
             dlvDate,
             order: orderQty,
-            value: Math.round(orderValue * 10) / 10,
+            value: DelQty,
             produceValue: stockValue,
             producePercent: stockValue ? Math.round((stockValue / orderQty) * 100) : 0,
             tbp: Number(d.tbp) || 0,
@@ -303,11 +303,11 @@ export default function HRZDashboard() {
         </div>
       </div>
       <div className="overflow-x-auto border rounded-lg shadow-sm">
-        <table className="min-w-full border-collapse">
+        <table className="w-full table-auto border-collapse">
           <thead>
             <tr className="sticky top-0 bg-blue-100 z-8 text-center text-gray-700">
-              <th rowSpan={2} className="border px-3 py-2 w-44 text-sm md:text-base text-left">Sales Order</th>
-              <th rowSpan={2} className="border px-3 py-2 w-44 text-sm md:text-base text-left">Item No</th>
+              <th rowSpan={2} className="border px-3 py-2 text-sm md:text-base text-left">Sales Order</th>
+              <th rowSpan={2} className="border px-3 py-2 text-sm md:text-base text-left">Item No</th>
               <th rowSpan={2} className="border px-3 py-2">Description</th>
               <th rowSpan={2} className="border px-3 py-2">NP</th>
               <th rowSpan={2} className="border px-3 py-2">Customer</th>
@@ -316,12 +316,13 @@ export default function HRZDashboard() {
                 className="border px-3 py-2 w-40 cursor-pointer text-sm md:text-base"
                 onClick={() => setSortAsc(!sortAsc)}
               >
-                Dlv Date {sortAsc ? "▲" : "▼"}
+                GI Date {sortAsc ? "▲" : "▼"}
               </th>
               <th rowSpan={2} className="border px-3 py-2">Order</th>
-              <th rowSpan={2} className="border px-3 py-2">Value(USD)</th>
-              <th colSpan={2} className="border px-3 py-2 bg-blue-200 font-semibold">Produce</th>
+              {/*<th rowSpan={2} className="border px-3 py-2">Value(USD)</th>*/}
+              <th rowSpan={2} className="border px-3 py-2">Delivery Quantity</th>
               <th rowSpan={2} className="border px-3 py-2">TBP</th>
+              <th colSpan={2} className="border px-3 py-2 bg-blue-200 font-semibold">Produce</th>
               <th rowSpan={2} className="border px-3 py-2">Unrest</th>
               <th rowSpan={2} className="border px-3 py-2">QI</th>
             </tr>
@@ -337,8 +338,8 @@ export default function HRZDashboard() {
                   className="cursor-pointer hover:bg-gray-100"
                   onClick={() => openDetail(d)}
                 >
-                  <td className="border px-3 py-2 text-blue-600 underline w-56 break-words text-sm md:text-base text-left">{d.salesOrder}</td>
-                  <td className="border px-3 py-2 w-44 break-words text-sm md:text-base text-left">{d.itemNo}</td>
+                  <td className="border px-3 py-2 text-blue-600 underline break-words text-sm md:text-base text-left">{d.salesOrder}</td>
+                  <td className="border px-3 py-2 break-words text-sm md:text-base text-left">{d.itemNo}</td>
                 <td className="border px-3 py-2">{d.description}</td>
                 <td className="border px-3 py-2 text-center text-blue-600 text-xl leading-none">
                   {d.project ? "★" : ""}
@@ -347,9 +348,9 @@ export default function HRZDashboard() {
                 <td className="border px-3 py-2">{d.dlvDate}</td>
                 <td className="border px-3 py-2 text-right">{d.order.toLocaleString()}</td>
                 <td className="border px-3 py-2 text-right">{d.value.toLocaleString()}</td>
-                <td className="border px-3 py-2 text-right">{d.produceValue.toLocaleString()}</td>
-                <td className="border px-3 py-2 text-center">{d.producePercent}%</td>
                 <td className="border px-3 py-2 text-center">{d.tbp}</td>
+                <td className="border px-3 py-2 text-right">{d.produceValue.toLocaleString()}</td>
+                <td className="border px-3 py-2 text-center">{d.producePercent.toLocaleString(undefined, { maximumFractionDigits: 2 })}%</td>
                 <td className="border px-3 py-2 text-right">{d.unrest.toLocaleString()}</td>
                 <td className="border px-3 py-2 text-right">{d.qi.toLocaleString()}</td>
               </tr>

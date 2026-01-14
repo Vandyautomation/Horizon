@@ -52,9 +52,9 @@ export async function getPlannerData(filters: {
       v.MchProcess,
       v.MaterialID,
       v.MaterialDesc,
-      v.OpenOrder,
-      v.loaddspt,
-      v.availdspt,
+      v.TotalOpenOrder AS totalOpenOrder,
+      v.TotalLoad,
+      v.TotalAvail,
       v.UAP,
       v.GroupName,
       v.InitScheduleWeek,
@@ -101,13 +101,13 @@ export async function getPlannerData(filters: {
     process: r.MchProcess,
     itemNo: r.MaterialID,
     description: r.MaterialDesc,
-    openOrder: Number(r.OpenOrder) || 0,
+    openOrder: Number(r.totalOpenOrder ?? r.TotalOpenOrder) || 0,
     initScheduleWeek: r.InitScheduleWeek,
     // Untuk saat ini STD/baseQty belum ada di view -> set 0 dulu
-    std: Number(r.loaddspt) || 0,
+    std: Number(r.TotalLoad) || 0,
     baseQty: 0,
     // pakai loaddspt sebagai nilai awal DSPT di level 2
-    dspt: Number(r.availdspt) || 0,
+    dspt: Number(r.TotalAvail) || 0,
     uap: r.UAP,
     group: r.GroupName,
     // PRO_name tidak ada di view, jadi kosong dulu
@@ -115,6 +115,54 @@ export async function getPlannerData(filters: {
     weekNum: r.WeekNum,
     capacity: Number(r.Capacity),
     availCapacity: Number(r.AvailCapacity),
+  }));
+}
+
+export async function getPlannerAvailData(filters?: {
+  so?: string;
+  itemNo?: string;
+  year?: number;
+  fromWeek?: number;
+  toWeek?: number;
+}) {
+  const so = filters?.so ?? null;
+  const itemNo = filters?.itemNo ?? null;
+  const year = filters?.year ?? null;
+  const fromWeek = filters?.fromWeek ?? null;
+  const toWeek = filters?.toWeek ?? null;
+
+  const sqlQuery = `
+    SELECT
+      v.SORef2,
+      v.MaterialID,
+      MAX(v.TotalAvail) AS TotalAvail
+    FROM vw_Hrz_SalesOrder_CapacityPlanning v
+    WHERE (@so IS NULL OR v.SORef2 = @so)
+      AND (@itemNo IS NULL OR v.MaterialID = @itemNo)
+      AND (@year IS NULL OR v.Years = @year)
+      AND (
+        @fromWeek IS NULL
+        OR TRY_CAST(RIGHT(v.WeekNum, 2) AS INT) >= @fromWeek
+      )
+      AND (
+        @toWeek IS NULL
+        OR TRY_CAST(RIGHT(v.WeekNum, 2) AS INT) <= @toWeek
+      )
+    GROUP BY v.SORef2, v.MaterialID;
+  `;
+
+  const rows = await queryDatabase(sqlQuery, {
+    so,
+    itemNo,
+    year,
+    fromWeek,
+    toWeek,
+  });
+
+  return rows.map((r: any) => ({
+    so: r.SORef2,
+    itemNo: r.MaterialID,
+    totalAvail: Number(r.TotalAvail) || 0,
   }));
 }
 
