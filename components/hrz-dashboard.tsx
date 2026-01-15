@@ -110,7 +110,7 @@ export default function HRZDashboard() {
             order: orderQty,
             value: DelQty,
             produceValue: stockValue,
-            producePercent: stockValue ? Math.round((stockValue / orderQty) * 100) : 0,
+            producePercent: stockValue ? Math.round((stockValue / d.tbp) * 100) : 0,
             tbp: Number(d.tbp) || 0,
             unrest: Number(d.QtyUnrest) || 0,
             qi: Number(d.QtyQuality) || 0,
@@ -320,7 +320,7 @@ export default function HRZDashboard() {
               </th>
               <th rowSpan={2} className="border px-3 py-2">Order</th>
               {/*<th rowSpan={2} className="border px-3 py-2">Value(USD)</th>*/}
-              <th rowSpan={2} className="border px-3 py-2">Delivery Quantity</th>
+              <th rowSpan={2} className="border px-3 py-2">Dlv Qty</th>
               <th rowSpan={2} className="border px-3 py-2">TBP</th>
               <th colSpan={2} className="border px-3 py-2 bg-blue-200 font-semibold">Produce</th>
               <th rowSpan={2} className="border px-3 py-2">Unrest</th>
@@ -348,7 +348,7 @@ export default function HRZDashboard() {
                 <td className="border px-3 py-2">{d.dlvDate}</td>
                 <td className="border px-3 py-2 text-right">{d.order.toLocaleString()}</td>
                 <td className="border px-3 py-2 text-right">{d.value.toLocaleString()}</td>
-                <td className="border px-3 py-2 text-center">{d.tbp}</td>
+                <td className="border px-3 py-2 text-center">{d.tbp.toLocaleString()}</td>
                 <td className="border px-3 py-2 text-right">{d.produceValue.toLocaleString()}</td>
                 <td className="border px-3 py-2 text-center">{d.producePercent.toLocaleString(undefined, { maximumFractionDigits: 2 })}%</td>
                 <td className="border px-3 py-2 text-right">{d.unrest.toLocaleString()}</td>

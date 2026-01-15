@@ -1062,17 +1062,11 @@ export default function EmsDashboardOverall() {
                       ]}
                     />
                     <ReferenceLine
-                      y={
-                        (additionalData?.[0]?.budgetEnergyPerJam || 10300) /
-                        1000
-                      }
+                      y={budgetEnergyHourly / 1000}
                       stroke="red"
                       strokeDasharray="5 5"
                       label={{
-                        value: `${(
-                          (additionalData?.[0]?.budgetEnergyPerJam || 10300) /
-                          1000
-                        ).toFixed(2)}kWh`,
+                        value: `${(budgetEnergyHourly / 1000).toFixed(2)}kWh`,
                         position: 'left',
                         fill: 'red',
                         fontSize: 12,

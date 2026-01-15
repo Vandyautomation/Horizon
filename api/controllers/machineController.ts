@@ -1697,6 +1697,11 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
 
 
   export async function getEnergyStatusLightMachineDaily(machine_name: string, date: string | null) {
+    const withNegativeFlag = (rows: any) => {
+      if (!Array.isArray(rows)) return rows;
+      const hasNegativeEnergy = rows.some((row: any) => Number(row?.TotalEnergyUsed) < 0);
+      return rows.map((row: any) => ({ ...row, hasNegativeEnergy }));
+    };
     if(date){
       const sqlQuery = `
       DECLARE @from DATETIME;
@@ -1831,7 +1836,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
 
     
       `
-      return await queryDatabase(sqlQuery, { machine_name, date });
+      return withNegativeFlag(await queryDatabase(sqlQuery, { machine_name, date }));
     }
     else {
       const sqlQuery = `
@@ -1968,7 +1973,7 @@ export async function getEnergyMachineDaily(machine_name: string, date: string |
         END
 
       `;
-      return await queryDatabase(sqlQuery, { machine_name });
+      return withNegativeFlag(await queryDatabase(sqlQuery, { machine_name }));
     }
   }
 
@@ -2540,3 +2545,6 @@ export async function getTrendStream(c: Context, date_from: string, date_to: str
         },
     });
 }
+
+
+
