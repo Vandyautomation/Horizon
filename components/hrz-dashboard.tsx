@@ -125,7 +125,7 @@ export default function HRZDashboard() {
                 className="border px-3 py-2 w-40 cursor-pointer text-sm md:text-base"
                 onClick={() => setSortAsc(!sortAsc)}
               >
-                Dlv Date {sortAsc ? "▲" : "▼"}
+                GI Date {sortAsc ? "▲" : "▼"}
               </th>
               <th rowSpan={2} className="border px-3 py-2">Order</th>
               <th rowSpan={2} className="border px-3 py-2">Value</th>
