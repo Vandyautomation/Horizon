@@ -15,22 +15,24 @@ export async function getUsers() {
 
   return await queryDatabase(sqlQuery);
 }
-export async function getOperatorandMecanic() {
+export async function getAssignUsers() {
   const sqlQuery = `
-  select * from iot.dbo.useraccessmst
-  where UserDept= 'OperatorBahan' Or UserDept= 'Mechanic'
-  `;
+    SELECT 
+      UserRFID,
+      UserName,
+      UserDept,
+      UserUAP
+    FROM IoT.dbo.useraccessmst
+    WHERE UserDept IN (
+      'OperatorBahan',
+      'Mechanic',
+      'SPV Production'
+    )
+  `
 
-  return await queryDatabase(sqlQuery);
+  return await queryDatabase(sqlQuery)
 }
-export async function getSPV() {
-  const sqlQuery = `
-  select * from iot.dbo.useraccessmst
-  where  UserDept= 'SPV Production'
-  `;
 
-  return await queryDatabase(sqlQuery);
-}
 // console.log('Users:', getUsers());
 export async function editScrap(hourlyId: number, scrap: number) {
   const sqlQuery = `
@@ -420,30 +422,45 @@ export async function submitOrangeTicket(
   problem: string,
   actionPlan: string,
   assignToId: string,
-  assignById: string
+  assignById: string,
+   eskalasiFlag: 0 | 1,
+  eskalasiDept: string | null
 ) {
   const sqlQuery = `
-    DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
+   DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
 
     DECLARE @AssignToUserName NVARCHAR(100);
+ 
+    DECLARE @FinalAssignToDept NVARCHAR(100);
     DECLARE @AssignByUserName NVARCHAR(100);
 
-    -- Ambil username Assign To (Operator / Mechanic)
-    SELECT @AssignToUserName = UserName
+    -- Ambil username  To
+    SELECT 
+      @AssignToUserName = UserName
     FROM IoT.dbo.useraccessmst
     WHERE UserRFID = @assignToId;
 
-    -- Ambil username Assign By (SPV)
-    SELECT @AssignByUserName = UserName
+    -- Ambil username Assign By
+    SELECT 
+      @AssignByUserName = UserName
     FROM IoT.dbo.useraccessmst
     WHERE UserRFID = @assignById;
 
+    -- Tentukan AssignToDept FINAL
+    SET @FinalAssignToDept =
+      CASE 
+        WHEN @eskalasiFlag = 1 THEN @eskalasiDept
+   
+      END;
+
     UPDATE T
     SET 
-      Problem   = @problem,
-      ActionPlan = @actionPlan,
-      AssignTo  = @AssignToUserName,
-      AssignBy  = @AssignByUserName
+      Problem        = @problem,
+      ActionPlan     = @actionPlan,
+      AssignTo       = @AssignToUserName,
+      AssignToDept   = @FinalAssignToDept,
+      AssignBy       = @AssignByUserName,
+      EskalasiFlag   = @eskalasiFlag
     FROM (
       SELECT TOP (1) *
       FROM IoT.dbo.TicketTRX
@@ -455,6 +472,7 @@ export async function submitOrangeTicket(
     ) AS T;
 
     SELECT @@ROWCOUNT AS affected;
+
   `;
 
   try {
@@ -465,6 +483,8 @@ export async function submitOrangeTicket(
       actionPlan,
       assignToId,
       assignById,
+        eskalasiFlag,
+  eskalasiDept,
     });
 
     return result?.[0] ?? { affected: 0 };
@@ -473,6 +493,7 @@ export async function submitOrangeTicket(
     throw new Error(`Failed to submit ticket: ${error.message}`);
   }
 }
+
 
 // export async function submitOrangeTicket(
 //     machineId: string,

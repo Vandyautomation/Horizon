@@ -1,4 +1,5 @@
 'use client'
+import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import albeaLogo from '@/public/albea-white.png'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -206,62 +207,80 @@ export default function CountboardDashboard() {
   const filteredUsers = users.filter((u) =>
     u.toLowerCase().includes(search.toLowerCase())
   )
-  /*OperatorMekanik */
-  const { data: operatorAndMechanicRes } = useSWR(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/operator-and-mechanic`,
+  /*  OPERATOR / MEKANIK  */
+  const { data } = useSWR(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/assign-users`,
     fetcher
   )
 
   type UserOption = {
-    id: number
+    id: string
     name: string
     dept: string
+    uap: string
   }
 
-  const usersOP: UserOption[] = Array.isArray(operatorAndMechanicRes)
-    ? operatorAndMechanicRes.map((u) => ({
-        id: u.UserRFID,
-        name: u.UserName,
-        dept: u.UserDept,
-      }))
+  const usersOP: UserOption[] = Array.isArray(data)
+    ? data
+        .filter(
+          (u) => u.UserDept === 'OperatorBahan' || u.UserDept === 'Mechanic'
+        )
+        .map((u) => ({
+          id: u.UserRFID,
+          name: u.UserName,
+          dept: u.UserDept,
+          uap: u.UserUAP,
+        }))
     : []
 
-  const [openCellOP, setOpenCellOP] = useState<string | null>(null)
+  const [openOPPopup, setOpenOPPopup] = useState(false)
   const [selectedAssignTo, setSelectedAssignTo] = useState<string | null>(null)
   const [searchOP, setSearchOP] = useState('')
 
   const filteredUsersOP = usersOP.filter((u) =>
-    `${u.dept} ${u.name}`.toLowerCase().includes(searchOP.toLowerCase())
-  )
-  console.log('usersOP:', usersOP)
-  /*SPV */
-  const { data: spvRes } = useSWR(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/spv`,
-    fetcher
+    `${u.id} ${u.dept} ${u.name}`.toLowerCase().includes(searchOP.toLowerCase())
   )
 
-  type UserSPV = {
-    id: number
-    name: string
-    dept: string
-  }
+  /* ambil operator terpilih + UAP */
+  const selectedOperator = usersOP.find((u) => u.id === selectedAssignTo)
+  const selectedOperatorUAP = selectedOperator?.uap
 
-  const usersSPV: UserSPV[] = Array.isArray(spvRes)
-    ? spvRes.map((u) => ({
-        id: u.UserRFID,
-        name: u.UserName,
-        dept: u.UserDept,
-      }))
+  /*  SPV  */
+  const usersSPV: UserOption[] = Array.isArray(data)
+    ? data
+        .filter((u) => u.UserDept === 'SPV Production')
+        .map((u) => ({
+          id: u.UserRFID,
+          name: u.UserName,
+          dept: u.UserDept,
+          uap: u.UserUAP,
+        }))
     : []
 
-  const [openCellSPV, setOpenCellSPV] = useState<string | null>(null)
+  const [openSPVPopup, setOpenSPVPopup] = useState(false)
   const [selectedAssignBy, setSelectedAssignBy] = useState<string | null>(null)
   const [searchSPV, setSearchSPV] = useState('')
-  const filteredUsersSPV = usersSPV.filter((u) =>
-    `${u.dept} ${u.name}`.toLowerCase().includes(searchSPV.toLowerCase())
-  )
-  console.log('spvRes:', spvRes)
-  
+
+  /* FILTER SPV BERDASARKAN UAP OPERATOR */
+  const filteredUsersSPV = usersSPV
+    .filter((u) => {
+      if (!selectedOperatorUAP) return false
+      return u.uap === selectedOperatorUAP
+    })
+    .filter((u) =>
+      `${u.id} ${u.dept} ${u.name}`
+        .toLowerCase()
+        .includes(searchSPV.toLowerCase())
+    )
+
+  /* RESET SPV JIKA OPERATOR DIGANTI */
+  useEffect(() => {
+    setSelectedAssignBy(null)
+    setSearchSPV('')
+  }, [selectedAssignTo])
+
+  console.log('usersSPV:', usersSPV)
+
   const [selectedLocation, setSelectedLocation] = useState<string>('')
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -292,6 +311,8 @@ export default function CountboardDashboard() {
   const [selectedShift, setSelectedShift] = useState('')
   const [isLoadingRefresh, setIsLoadingRefresh] = useState(false)
   const [isLiveMode, setIsLiveMode] = useState(true)
+  const [isEscalated, setIsEscalated] = useState<0 | 1 | null>(null)
+  const [escalationTarget, setEscalationTarget] = useState<string | null>(null)
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<
     string | undefined
@@ -305,8 +326,27 @@ export default function CountboardDashboard() {
   const [selectedStateChange, setSelectedStateChange] =
     useState<StateData | null>(null)
   const [isStateDialogOpen, setIsStateDialogOpen] = useState(false)
-  // const [ticketIdMap, setTicketIdMap] = useState<{ [stateId: string]: number | undefined }>({});
+  useEffect(() => {
+    if (isStateDialogOpen) {
+      setSelectedAssignTo(null)
+      setSelectedAssignBy(null)
+      setSearchOP('')
+      setSearchSPV('')
+      setOpenOPPopup(false)
+      setOpenSPVPopup(false)
+    }
+  }, [isStateDialogOpen])
+  type OrangeTicketDraft = {
+    categoryId: string
+    problemId: string
+    solutionId: string
+  }
 
+  const [draftTicket, setDraftTicket] = useState<OrangeTicketDraft | null>(null)
+
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+
+  // const [ticketIdMap, setTicketIdMap] = useState<{ [stateId: string]: number | undefined }>({});
   const [userData, setUserData] = useState<any>(null)
 
   const pathname = usePathname()
@@ -621,36 +661,85 @@ export default function CountboardDashboard() {
   //   //  BUKA MODAL KE-2
   //   setIsSecondModalOpen(true)
   // }
+  const handleNextFromOrangeModal = () => {
+    // 1. Validasi form modal pertama
+    if (!selectedCategoryId) {
+      toast.error('Category wajib dipilih')
+      return
+    }
 
+    if (!selectedProblemId) {
+      toast.error('Problem wajib dipilih')
+      return
+    }
+
+    if (!selectedSolutionId) {
+      toast.error('Solution wajib dipilih')
+      return
+    }
+
+    // 2. Simpan ke state sementara (draft)
+    setDraftTicket({
+      categoryId: selectedCategoryId,
+      problemId: selectedProblemId,
+      solutionId: selectedSolutionId,
+    })
+
+    // 3. Tutup modal pertama, buka modal kedua
+    setIsStateDialogOpen(false)
+    setIsConfirmDialogOpen(true)
+  }
   const handleOrangeTicketSubmit = useCallback(async () => {
-    if (!selectedAssignTo || !selectedAssignBy) {
-      toast.error('Pilih Assign To (Operator/Mekanik) dan Assign By (SPV)')
+    // 1. Pastikan draft ada
+    if (!draftTicket) {
+      toast.error('Draft ticket tidak ditemukan')
       return
     }
+
+    // 2. Validasi penginput (MODAL KEDUA)
+    if (!selectedAssignTo) {
+      toast.error('Pilih Operator / Mekanik (Assign To)')
+      return
+    }
+
+    if (!selectedAssignBy) {
+      toast.error('Pilih SPV (Assign By)')
+      return
+    }
+
+    // 3. Validasi mesin & state
     if (!selectedMachine || !selectedStateChange) {
-      toast.error('Pilih mesin dan state ORANGE terlebih dahulu')
+      toast.error('Mesin atau state ORANGE tidak valid')
       return
     }
 
-    if (!selectedProblemId || !selectedSolutionId) {
-      toast.error('Pilih Problem dan Solution terlebih dahulu')
-      return
-    }
-
+    // 4. Ambil problem & solution dari draft
     const problemObj = problems.find(
-      (p) => String(p.id) === String(selectedProblemId)
+      (p) => String(p.id) === String(draftTicket.problemId)
     )
+
     const solutionObj = solutions.find(
-      (s) => String(s.id) === String(selectedSolutionId)
+      (s) => String(s.id) === String(draftTicket.solutionId)
     )
 
     if (!problemObj || !solutionObj) {
-      toast.error('Problem atau Solution tidak ditemukan')
+      toast.error('Problem atau Solution tidak valid')
+      return
+    }
+    if (isEscalated === null) {
+      toast.error('Pilih Eskalasi Ya atau Tidak')
+      return
+    }
+
+    if (isEscalated === 1 && !escalationTarget) {
+      toast.error('Pilih tujuan eskalasi')
       return
     }
 
     setIsLoading(true)
+
     try {
+      // 5. SUBMIT KE BACKEND (FINAL)
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/ticket`,
         {
@@ -663,12 +752,15 @@ export default function CountboardDashboard() {
             actionPlan: solutionObj.name,
             assignToId: selectedAssignTo,
             assignById: selectedAssignBy,
+            eskalasiFlag: isEscalated,
+            eskalasiDept: isEscalated === 1 ? escalationTarget : null,
           }),
         }
       )
 
       const text = await response.text()
       let data: any = {}
+
       if (text) {
         try {
           data = JSON.parse(text)
@@ -678,74 +770,204 @@ export default function CountboardDashboard() {
       }
 
       if (!response.ok) {
-        const msg = data.error || data.message || 'Gagal submit ticket'
-        throw new Error(msg)
+        throw new Error(data.error || data.message || 'Gagal submit ticket')
       }
 
       if (data.affected === 0) {
         toast.error(
           'TicketTRX dengan TicketDate ini tidak ditemukan / sudah terisi'
         )
-      } else {
-        toast.success('TicketTRX berhasil di-update')
-
-        // Refresh hourly table supaya Problem/Action di per jam ikut update dari TicketTRX
-        if (selectedMachine) {
-          const search = new URLSearchParams(window.location.search)
-          const extraParams =
-            !isLiveMode && search.get('date') !== null
-              ? `&date=${search.get('date')}&shift=${search.get('shift')}`
-              : ''
-
-          const hourlyKey = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}?type=injection${extraParams}`
-          await mutate(hourlyKey)
-        }
-
-        // Jika CATEGORY yang dipilih adalah Non Quality / Scrap, ubah state ORANGE yang diklik menjadi RED di database
-        const selectedCategory = categories.find(
-          (c) => String(c.id) === String(selectedCategoryId)
-        )
-        const isNonQualityOrScrapCategory =
-          selectedCategory &&
-          (selectedCategory.name.toLowerCase().includes('non quality') ||
-            selectedCategory.name.toLowerCase().includes('scrap'))
-
-        if (isNonQualityOrScrapCategory && selectedStateChange) {
-          await fetch(
-            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                stateId: selectedStateChange.ID,
-                color: 'RED',
-              }),
-            }
-          )
-
-          refetchStateData()
-          setIsStateDialogOpen(false)
-        }
+        return
       }
+
+      toast.success('TicketTRX berhasil di-update')
+
+      // 6. Refresh hourly table
+      if (selectedMachine) {
+        const search = new URLSearchParams(window.location.search)
+        const extraParams =
+          !isLiveMode && search.get('date') !== null
+            ? `&date=${search.get('date')}&shift=${search.get('shift')}`
+            : ''
+
+        const hourlyKey = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}?type=injection${extraParams}`
+        await mutate(hourlyKey)
+      }
+
+      // 7. Jika Non Quality / Scrap → ORANGE jadi RED
+      const selectedCategory = categories.find(
+        (c) => String(c.id) === String(draftTicket.categoryId)
+      )
+
+      const isNonQualityOrScrap =
+        selectedCategory &&
+        (selectedCategory.name.toLowerCase().includes('non quality') ||
+          selectedCategory.name.toLowerCase().includes('scrap'))
+
+      if (isNonQualityOrScrap && selectedStateChange) {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              stateId: selectedStateChange.ID,
+              color: 'RED',
+            }),
+          }
+        )
+
+        refetchStateData()
+      }
+
+      // 8. RESET STATE (BERSIH)
+      setDraftTicket(null)
+      setSelectedAssignTo(null)
+      setSelectedAssignBy(null)
+      setIsConfirmDialogOpen(false)
+      setIsStateDialogOpen(false)
     } catch (error) {
       toast.error((error as Error).message)
-      console.error('Failed to submit ticket or update state:', error)
+      console.error('Failed to submit ticket:', error)
     } finally {
       setIsLoading(false)
     }
   }, [
-    selectedMachine,
-    selectedStateChange,
-    selectedProblemId,
-    selectedSolutionId,
+    draftTicket,
     selectedAssignTo,
     selectedAssignBy,
+    selectedMachine,
+    selectedStateChange,
     problems,
     solutions,
     categories,
-    selectedCategoryId,
     refetchStateData,
   ])
+
+  // const handleOrangeTicketSubmit = useCallback(async () => {
+  //   if (!selectedAssignTo || !selectedAssignBy) {
+  //     toast.error('Pilih Assign To (Operator/Mekanik) dan Assign By (SPV)')
+  //     return
+  //   }
+  //   if (!selectedMachine || !selectedStateChange) {
+  //     toast.error('Pilih mesin dan state ORANGE terlebih dahulu')
+  //     return
+  //   }
+
+  //   if (!selectedProblemId || !selectedSolutionId) {
+  //     toast.error('Pilih Problem dan Solution terlebih dahulu')
+  //     return
+  //   }
+
+  //   const problemObj = problems.find(
+  //     (p) => String(p.id) === String(selectedProblemId)
+  //   )
+  //   const solutionObj = solutions.find(
+  //     (s) => String(s.id) === String(selectedSolutionId)
+  //   )
+
+  //   if (!problemObj || !solutionObj) {
+  //     toast.error('Problem atau Solution tidak ditemukan')
+  //     return
+  //   }
+
+  //   setIsLoading(true)
+  //   try {
+  //     const response = await fetch(
+  //       `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/ticket`,
+  //       {
+  //         method: 'POST',
+  //         headers: { 'Content-Type': 'application/json' },
+  //         body: JSON.stringify({
+  //           machineId: selectedMachine.machineName,
+  //           ticketDate: selectedStateChange.AdjustedStatusDate,
+  //           problem: problemObj.name,
+  //           actionPlan: solutionObj.name,
+  //           assignToId: selectedAssignTo,
+  //           assignById: selectedAssignBy,
+  //         }),
+  //       }
+  //     )
+
+  //     const text = await response.text()
+  //     let data: any = {}
+  //     if (text) {
+  //       try {
+  //         data = JSON.parse(text)
+  //       } catch {
+  //         data = { message: text }
+  //       }
+  //     }
+
+  //     if (!response.ok) {
+  //       const msg = data.error || data.message || 'Gagal submit ticket'
+  //       throw new Error(msg)
+  //     }
+
+  //     if (data.affected === 0) {
+  //       toast.error(
+  //         'TicketTRX dengan TicketDate ini tidak ditemukan / sudah terisi'
+  //       )
+  //     } else {
+  //       toast.success('TicketTRX berhasil di-update')
+
+  //       // Refresh hourly table supaya Problem/Action di per jam ikut update dari TicketTRX
+  //       if (selectedMachine) {
+  //         const search = new URLSearchParams(window.location.search)
+  //         const extraParams =
+  //           !isLiveMode && search.get('date') !== null
+  //             ? `&date=${search.get('date')}&shift=${search.get('shift')}`
+  //             : ''
+
+  //         const hourlyKey = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName}?type=injection${extraParams}`
+  //         await mutate(hourlyKey)
+  //       }
+
+  //       // Jika CATEGORY yang dipilih adalah Non Quality / Scrap, ubah state ORANGE yang diklik menjadi RED di database
+  //       const selectedCategory = categories.find(
+  //         (c) => String(c.id) === String(selectedCategoryId)
+  //       )
+  //       const isNonQualityOrScrapCategory =
+  //         selectedCategory &&
+  //         (selectedCategory.name.toLowerCase().includes('non quality') ||
+  //           selectedCategory.name.toLowerCase().includes('scrap'))
+
+  //       if (isNonQualityOrScrapCategory && selectedStateChange) {
+  //         await fetch(
+  //           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state`,
+  //           {
+  //             method: 'POST',
+  //             headers: { 'Content-Type': 'application/json' },
+  //             body: JSON.stringify({
+  //               stateId: selectedStateChange.ID,
+  //               color: 'RED',
+  //             }),
+  //           }
+  //         )
+
+  //         refetchStateData()
+  //       }
+  //       setIsStateDialogOpen(false)
+  //     }
+  //   } catch (error) {
+  //     toast.error((error as Error).message)
+  //     console.error('Failed to submit ticket or update state:', error)
+  //   } finally {
+  //     setIsLoading(false)
+  //   }
+  // }, [
+  //   selectedMachine,
+  //   selectedStateChange,
+  //   selectedProblemId,
+  //   selectedSolutionId,
+  //   selectedAssignTo,
+  //   selectedAssignBy,
+  //   problems,
+  //   solutions,
+  //   categories,
+  //   selectedCategoryId,
+  //   refetchStateData,
+  // ])
 
   // const handleFinalOrangeTicketSubmit = useCallback(async () => {
   //   if (!selectedMachine || !selectedStateChange) {
@@ -2338,29 +2560,29 @@ export default function CountboardDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">
+                        <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black border border-r-1 border-l-0 border-t-0 border-gray-300">
                           Time
                         </TableHead>
-                        <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black">
+                        <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black border border-r-1 border-l-0 border-t-0 border-gray-300">
                           ItemNo
                         </TableHead>
-                        <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black border border-r-0 border-l-1 border-t-0">
+                        <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black border border-r-1 border-l-0 border-t-0 border-gray-300">
                           Target
                         </TableHead>
-                        <TableHead className="w-[50px] text-lg text-nowrap font-bold text-black text-right">
+                        <TableHead className="w-[50px] text-lg text-nowrap font-bold text-black text-right border border-r-1 border-l-0 border-t-0 border-gray-300">
                           Actual
                         </TableHead>
-                        <TableHead className="w-[250px] text-left text-lg text-nowrap font-bold text-green-500 flex items-center justify-center">
+                        <TableHead className="w-[250px] text-left text-lg text-nowrap font-bold text-green-500 flex items-center justify-center ">
                           OOE 100% ⸺ /{' '}
                           {(oeeData?.[0]?.targetTolerance || 0) * 100}% - - -
                         </TableHead>
-                        <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black border border-r-1 border-l-0 border-t-0">
+                        <TableHead className="w-[60px] text-lg text-nowrap font-bold text-black border border-r-1 border-l-0 border-t-0 border-gray-300">
                           Delta
                         </TableHead>
-                        <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">
+                        <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black border border-r-1 border-l-0 border-t-0 border-gray-300">
                           Scrap
                         </TableHead>
-                        <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black">
+                        <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold text-black border border-r-1 border-l-0 border-t-0 border-gray-300">
                           Rework
                         </TableHead>
                         <TableHead className="text-center border border-r-1 border-l-1 border-t-0 border-b-0 text-lg text-nowrap font-bold text-black px-0 gap-0 mx-0">
@@ -2375,17 +2597,17 @@ export default function CountboardDashboard() {
                             <div className="bg-[#AAAAAA] w-[10px] h-[5px] mb-0" />
                           </div>
                         </TableHead>
-                        <TableHead className="w-[350px] max-w-[350px] text-lg nowrap font-bold text-black">
+                        <TableHead className="w-[350px] max-w-[350px] border border-r-1 border-l-0 border-t-0 border-gray-300 text-lg nowrap font-bold text-black">
                           Causes
                         </TableHead>
-                        <TableHead className="w-[350px] max-w-[350px] text-lg nowrap font-bold text-black">
+                        <TableHead className="w-[350px] max-w-[350px]  text-lg nowrap font-bold text-black">
                           Comments/Actions
                         </TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody className="pb-0">
+                    <TableBody className="pb-0 ">
                       {Array.isArray(hourlyData) && hourlyData?.length === 0 ? (
-                        <TableRow className="h-12">
+                        <TableRow className="h-12 ">
                           <TableCell
                             colSpan={10}
                             className="text-center text-lg text-nowrap  text-black"
@@ -2460,12 +2682,12 @@ export default function CountboardDashboard() {
                                 {row.itemNo}
                               </TableCell>
                               <TableCell
-                                className={`text-center h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0 ${textAnimation}`}
+                                className={`text-center h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0 border-gray-300${textAnimation}`}
                               >
                                 {target_show}
                               </TableCell>
                               <TableCell
-                                className={`text-center w-[60px] h-full text-xl text-nowrap text-black ${textAnimation} ${
+                                className={`text-center w-[60px] h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0 border-gray-300  ${textAnimation} ${
                                   row.actual >= target_show
                                     ? 'text-green-500'
                                     : 'text-red-500'
@@ -2540,12 +2762,12 @@ export default function CountboardDashboard() {
                               <TableCell
                                 className={`text-xl text-nowrap  text-black ${
                                   delta >= 0 ? 'text-green-600' : 'text-red-600'
-                                } border border-r-1 border-b-0 border-l-0`}
+                                } border border-r-1 border-b-0 border-l-0 border-gray-300`}
                               >
                                 {Math.abs(delta).toFixed(0)}
                               </TableCell>
                               <TableCell
-                                className="h-[43px] text-center text-xl text-nowrap text-black cursor-pointer"
+                                className="h-[43px] border border-r-1 border-b-0 border-l-0 border-gray-300 text-center text-xl text-nowrap text-black cursor-pointer"
                                 onClick={() => {
                                   setSelectedHourlyId(row.hourlyId)
                                   setCurrentScrap(row.scrap)
@@ -2556,7 +2778,7 @@ export default function CountboardDashboard() {
                                 {row.scrap}
                               </TableCell>
                               <TableCell
-                                className="h-[43px] text-center text-xl text-nowrap text-black cursor-pointer"
+                                className="h-[43px] border border-r-1 border-b-0 border-l-0 border-gray-300 text-center text-xl text-nowrap text-black cursor-pointer"
                                 onClick={() => {
                                   setSelectedHourlyId(row.hourlyId)
                                   setCurrentRework(row.rework)
@@ -2597,7 +2819,7 @@ export default function CountboardDashboard() {
                               >
                                 {row.rework}
                               </TableCell> */}
-                              <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-black-250">
+                              <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-gray-300">
                                 {renderNooeIndicators(row.from_datetime)}
                               </TableCell>
                               <TableCell
@@ -2610,18 +2832,18 @@ export default function CountboardDashboard() {
                                     row.problem
                                   )
                                 }
-                                className="w-[350px] max-w-[350px]"
+                                className="w-[350px] max-w-[350px] border border-r border-l border-t-0 border-b-0 border-gray-300 cursor-pointer"
                               >
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">
+                                    <p className="text-2xl overflow-hidden  text-ellipsis whitespace-nowrap text-nowrap">
                                       {row.problem && row.causes
                                         ? row.problem + ' ' + row.causes
                                         : row.causes
                                         ? row.causes
                                         : row.problem
                                         ? row.problem
-                                        : 'N/A'}
+                                        : ''}
                                     </p>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -2647,18 +2869,18 @@ export default function CountboardDashboard() {
                                     row.action
                                   )
                                 }
-                                className="w-[350px] max-w-[350px]"
+                                className="w-[350px] max-w-[350px] border border-r border-1 border-t-0 border-b-0 border-gray-300 cursor-pointer"
                               >
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <p className="text-2xl overflow-hidden text-ellipsis whitespace-nowrap text-nowrap">
+                                    <p className="text-2xl overflow-hidden  text-ellipsis whitespace-nowrap text-nowrap">
                                       {row.action && row.comments
                                         ? row.action + ' ' + row.comments
                                         : row.comments
                                         ? row.comments
                                         : row.action
                                         ? row.action
-                                        : 'N/A'}
+                                        : ''}
                                     </p>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -2868,54 +3090,168 @@ export default function CountboardDashboard() {
                     </Table>
                   </div>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium">
-                    Informasi Penginput
-                  </Label>
-                  <div className="mt-2 border rounded-md max-h-48 overflow-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Diisi oleh : </TableHead>
-                          <TableHead>Di validasi oleh :</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell className="relative">
-                            <div
-                              onClick={() =>
-                                setOpenCellOP(
-                                  openCellOP === 'row1-col1'
-                                    ? null
-                                    : 'row1-col1'
-                                )
-                              }
-                              className="cursor-pointer flex items-center justify-between px-2 py-1"
-                            >
-                              {selectedAssignTo
-                                ? usersOP.find((u) => u.id === selectedAssignTo)
-                                  ? `${
-                                      usersOP.find(
-                                        (u) => u.id === selectedAssignTo
-                                      )?.dept
-                                    } - ${
-                                      usersOP.find(
-                                        (u) => u.id === selectedAssignTo
-                                      )?.name
-                                    }`
-                                  : 'Operator / Mekanik'
-                                : 'Operator / Mekanik'}
-                              <ChevronDown
-                                className={`w-4 h-4 ml-2 transition-transform ${
-                                  openCellOP === 'row1-col1' ? 'rotate-180' : ''
-                                }`}
-                              />
-                            </div>
 
-                            {openCellOP === 'row1-col1' && (
+                {/* Textarea cause untuk periode ORANGE (belum digunakan, jadi di-hide dulu)
+                <Textarea
+                  placeholder="Masukkan cause untuk periode orange ini (trial, belum disimpan ke database)"
+                  className="min-h-[100px]"
+                />
+                */}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsStateDialogOpen(false)}
+                  disabled={isLoading}
+                >
+                  Close
+                </Button>
+                {/* <Button
+                  onClick={handleOrangeTicketSubmit}
+                  disabled={
+                    isLoading || !selectedProblemId || !selectedSolutionId
+                  }
+                >
+                  {isLoading ? 'Submitting...' : 'Submit ke TicketTRX'}
+                </Button> */}
+                <Button
+                  onClick={handleNextFromOrangeModal}
+                  disabled={
+                    !selectedCategoryId ||
+                    !selectedProblemId ||
+                    !selectedSolutionId
+                  }
+                >
+                  Next
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog
+            open={isConfirmDialogOpen}
+            onOpenChange={setIsConfirmDialogOpen}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Konfirmasi Ticket ORANGE</DialogTitle>
+              </DialogHeader>
+
+              {/* Ringkasan draft */}
+              <div className="space-y-2 text-sm">
+                <div>
+                  <b>Category:</b>{' '}
+                  {
+                    categories.find(
+                      (c) => String(c.id) === draftTicket?.categoryId
+                    )?.name
+                  }
+                </div>
+                <div>
+                  <b>Problem:</b>{' '}
+                  {
+                    problems.find(
+                      (p) => String(p.id) === draftTicket?.problemId
+                    )?.name
+                  }
+                </div>
+                <div>
+                  <b>Solution:</b>{' '}
+                  {
+                    solutions.find(
+                      (s) => String(s.id) === draftTicket?.solutionId
+                    )?.name
+                  }
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">
+                  Eskalasi atau Tidak?
+                </Label>
+
+                <div className="mt-2 border rounded-md p-3 space-y-3">
+                  {/* YES */}
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="escalation"
+                      checked={isEscalated === 1}
+                      onChange={() => setIsEscalated(1)}
+                    />
+                    <span>Ya (Eskalasi)</span>
+                  </label>
+
+                  {/* NO */}
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="escalation"
+                      checked={isEscalated === 0}
+                      onChange={() => {
+                        setIsEscalated(0)
+                        setEscalationTarget(null)
+                      }}
+                    />
+                    <span>Tidak</span>
+                  </label>
+                  {isEscalated === 1 && (
+                    <div className="mt-3 border-t pt-3 space-y-2">
+                      <Label className="text-xs text-gray-500">
+                        Eskalasi ke Departemen
+                      </Label>
+
+                      <select
+                        className="w-full border rounded-md px-3 py-2 text-sm"
+                        value={escalationTarget ?? ''}
+                        onChange={(e) => setEscalationTarget(e.target.value)}
+                      >
+                        <option value="">Pilih Departemen</option>
+                        <option value="MTC">MTC</option>
+                        <option value="MISSING">MISSING</option>
+                        <option value="MOLDSHOP">MOLDSHOP</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">
+                  Informasi Penginput
+                </Label>
+                <div className="mt-2 border rounded-md max-h-48 overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Diisi oleh : </TableHead>
+                        <TableHead>Di validasi oleh :</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>
+                          <div
+                            onClick={() => setOpenOPPopup(true)}
+                            className="cursor-pointer flex items-center justify-between px-2 py-1"
+                          >
+                            {selectedAssignTo
+                              ? usersOP.find((u) => u.id === selectedAssignTo)
+                                ? `${
+                                    usersOP.find(
+                                      (u) => u.id === selectedAssignTo
+                                    )?.dept
+                                  } - ${
+                                    usersOP.find(
+                                      (u) => u.id === selectedAssignTo
+                                    )?.name
+                                  }`
+                                : 'Operator / Mekanik'
+                              : 'Operator / Mekanik'}
+
+                            <ChevronDown className="w-4 h-4 ml-2" />
+                          </div>
+
+                          {/* {openCellOP === 'row1-col1' && (
                               <div className="absolute top-full left-0 w-56 bg-white text-black rounded-md shadow-lg z-20 border">
-                                {/* Search */}
+                                Search
                                 <input
                                   className="w-full px-3 py-2 text-sm border-b outline-none"
                                   placeholder="Cari user..."
@@ -2937,7 +3273,7 @@ export default function CountboardDashboard() {
                                           className="px-3 py-2 cursor-pointer hover:bg-gray-100 flex items-center"
                                         >
                                           <User className="w-4 h-4 mr-2 text-gray-400" />
-                                          {u.dept} - {u.name}
+                                          {u.name}
                                         </div>
                                       ))
                                     ) : (
@@ -2947,109 +3283,221 @@ export default function CountboardDashboard() {
                                     ))}
                                 </div>
                               </div>
-                            )}
-                          </TableCell>
+                            )} */}
+                        </TableCell>
 
-                          <TableCell className="relative">
-                            <div
-                              onClick={() =>
-                                setOpenCellSPV(
-                                  openCellSPV === 'row1-col2'
-                                    ? null
-                                    : 'row1-col2'
-                                )
-                              }
-                              className="cursor-pointer flex items-center justify-between px-2 py-1"
-                            >
-                              {selectedAssignBy
-                                ? usersSPV.find(
-                                    (u) => u.id === selectedAssignBy
-                                  )
-                                  ? `${
-                                      usersSPV.find(
-                                        (u) => u.id === selectedAssignBy
-                                      )?.dept
-                                    } - ${
-                                      usersSPV.find(
-                                        (u) => u.id === selectedAssignBy
-                                      )?.name
-                                    }`
-                                  : 'SPV'
-                                : 'SPV'}
+                        <TableCell className="relative">
+                          <div
+                            onClick={() => {
+                              if (!selectedAssignTo) return
+                              setOpenSPVPopup(true)
+                            }}
+                            className={`cursor-pointer flex items-center justify-between px-2 py-1
+      ${!selectedAssignTo ? 'opacity-50 cursor-not-allowed' : ''}
+    `}
+                          >
+                            {selectedAssignBy
+                              ? usersSPV.find((u) => u.id === selectedAssignBy)
+                                ? `${
+                                    usersSPV.find(
+                                      (u) => u.id === selectedAssignBy
+                                    )?.dept
+                                  } - 
+           ${usersSPV.find((u) => u.id === selectedAssignBy)?.name}`
+                                : 'SPV'
+                              : selectedAssignTo
+                              ? 'Pilih SPV'
+                              : 'Pilih Operator dulu'}
 
-                              <ChevronDown
-                                className={`w-4 h-4 ml-2 transition-transform ${
-                                  openCellSPV === 'row1-col2'
-                                    ? 'rotate-180'
-                                    : ''
-                                }`}
-                              />
-                            </div>
+                            <ChevronDown className="w-4 h-4 ml-2" />
+                          </div>
 
-                            {openCellSPV === 'row1-col2' && (
+                          {/* {openCellSPV === 'row1-col2' && (
                               <div className="absolute top-full left-0 w-56 bg-white text-black rounded-md shadow-lg z-20 border">
-                                {/* Search */}
                                 <input
                                   className="w-full px-3 py-2 text-sm border-b outline-none"
-                                  placeholder="Cari user..."
+                                  placeholder="Cari SPV..."
                                   value={searchSPV}
                                   onChange={(e) => setSearchSPV(e.target.value)}
                                 />
 
                                 <div className="max-h-40 overflow-y-auto">
-                                  {searchSPV.length > 0 &&
-                                    (filteredUsersSPV.length > 0 ? (
-                                      filteredUsersSPV.slice(0, 10).map((u) => (
-                                        <div
-                                          key={u.id}
-                                          onClick={() => {
-                                            setSelectedAssignBy(u.id)
-                                            setOpenCellSPV(null)
-                                            setSearchSPV('')
-                                          }}
-                                          className="px-3 py-2 cursor-pointer hover:bg-gray-100 flex items-center"
-                                        >
-                                          <User className="w-4 h-4 mr-2 text-gray-400" />
-                                          {u.dept} - {u.name}
-                                        </div>
-                                      ))
-                                    ) : (
-                                      <div className="px-3 py-2 text-gray-400 text-sm">
-                                        User tidak ditemukan
+                                  {searchSPV.length > 0 && (filteredUsersSPV.length > 0 ? (
+                                    filteredUsersSPV.slice(0, 10).map((u) => (
+                                      <div
+                                        key={u.id}
+                                        onClick={() => {
+                                          setSelectedAssignBy(u.id)
+                                          setOpenCellSPV(null)
+                                          setSearchSPV('')
+                                        }}
+                                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 flex items-center"
+                                      >
+                                        <User className="w-4 h-4 mr-2 text-gray-400" />
+                                        {u.name}
+                                        <span className="ml-auto text-xs text-gray-400">
+                                          {u.uap}
+                                        </span>
                                       </div>
-                                    ))}
+                                    ))
+                                  ) : (
+                                    <div className="px-3 py-2 text-gray-400 text-sm">
+                                      SPV dengan UAP ini tidak ditemukan
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
+                            )} */}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                  {/* open OP popup */}
+                  {openOPPopup && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                      <div className="w-96 bg-white rounded-lg shadow-lg">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b">
+                          <h3 className="font-semibold">
+                            Pilih Operator / Mekanik
+                          </h3>
+                          <button
+                            onClick={() => {
+                              setOpenOPPopup(false)
+                              setSearchOP('')
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
 
-                {/* Textarea cause untuk periode ORANGE (belum digunakan, jadi di-hide dulu)
-                <Textarea
-                  placeholder="Masukkan cause untuk periode orange ini (trial, belum disimpan ke database)"
-                  className="min-h-[100px]"
-                />
-                */}
+                        {/* Search */}
+                        <div className="p-3">
+                          <input
+                            className="w-full px-3 py-2 border rounded-md outline-none"
+                            placeholder="Cari user..."
+                            value={searchOP}
+                            onChange={(e) => setSearchOP(e.target.value)}
+                            autoFocus
+                          />
+                        </div>
+
+                        {/* Result (UI-only fix, sama seperti SPV) */}
+                        <div className="max-h-60 overflow-y-auto">
+                          {searchOP.trim() === '' ? (
+                            <div className="px-4 py-3 text-sm text-gray-400">
+                              Ketik untuk mencari Operator / Mekanik
+                            </div>
+                          ) : filteredUsersOP.length > 0 ? (
+                            filteredUsersOP.slice(0, 10).map((u) => (
+                              <div
+                                key={u.id}
+                                onClick={() => {
+                                  setSelectedAssignTo(u.id)
+                                  setOpenOPPopup(false)
+                                  setSearchOP('')
+                                }}
+                                className="px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center"
+                              >
+                                <User className="w-4 h-4 mr-2 text-gray-400" />
+                                <span>{u.name}</span>
+                                <span className="ml-auto text-xs text-gray-400">
+                                  {u.dept}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-4 py-3 text-sm text-gray-400">
+                              User tidak ditemukan
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* open SPV popup */}
+                  {openSPVPopup && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                      <div className="w-96 bg-white rounded-lg shadow-lg">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b">
+                          <h3 className="font-semibold">Pilih SPV</h3>
+                          <button
+                            onClick={() => {
+                              setOpenSPVPopup(false)
+                              setSearchSPV('')
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        {/* Search */}
+                        <div className="p-3">
+                          <input
+                            className="w-full px-3 py-2 border rounded-md outline-none"
+                            placeholder="Cari SPV..."
+                            value={searchSPV}
+                            onChange={(e) => setSearchSPV(e.target.value)}
+                            autoFocus
+                          />
+                        </div>
+
+                        {/* Result */}
+                        <div className="max-h-60 overflow-y-auto">
+                          {searchSPV.length > 0 ? (
+                            filteredUsersSPV.length > 0 ? (
+                              filteredUsersSPV.slice(0, 10).map((u, index) => (
+                                <div
+                                  key={`${u.id}-${u.uap}-${index}`}
+                                  onClick={() => {
+                                    setSelectedAssignBy(u.id)
+                                    setOpenSPVPopup(false)
+                                    setSearchSPV('')
+                                  }}
+                                  className="px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center"
+                                >
+                                  <User className="w-4 h-4 mr-2 text-gray-400" />
+                                  <span>{u.name}</span>
+                                  <span className="ml-auto text-xs text-gray-400">
+                                    {u.uap}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-sm text-gray-400">
+                                SPV tidak ditemukan
+                              </div>
+                            )
+                          ) : (
+                            <div className="px-4 py-3 text-sm text-gray-400">
+                              Ketik untuk mencari SPV
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+              {/* Assign To & Assign By TETAP PAKAI STATE YANG SAMA */}
+
               <DialogFooter>
                 <Button
                   variant="outline"
-                  onClick={() => setIsStateDialogOpen(false)}
-                  disabled={isLoading}
+                  onClick={() => {
+                    setIsConfirmDialogOpen(false)
+                    setIsStateDialogOpen(true)
+                  }}
                 >
-                  Close
+                  Back
                 </Button>
+
                 <Button
                   onClick={handleOrangeTicketSubmit}
-                  disabled={
-                    isLoading || !selectedProblemId || !selectedSolutionId
-                  }
+                  disabled={!selectedAssignBy || !selectedAssignTo || isLoading}
                 >
-                  {isLoading ? 'Submitting...' : 'Submit ke TicketTRX'}
+                  {isLoading ? 'Submitting...' : 'Submit'}
                 </Button>
               </DialogFooter>
             </DialogContent>
