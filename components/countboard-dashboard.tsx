@@ -3206,7 +3206,8 @@ export default function CountboardDashboard() {
                       >
                         <option value="">Pilih Departemen</option>
                         <option value="MTC">MTC</option>
-                        <option value="MISSING">MISSING</option>
+                        <option value="MAINTENANCE">MAINTENANCE</option>
+                        <option value="MISSING">MIXING</option>
                         <option value="MOLDSHOP">MOLDSHOP</option>
                       </select>
                     </div>

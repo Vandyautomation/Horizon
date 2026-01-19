@@ -933,92 +933,93 @@ export default function EmsDashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 w-full">
-              <Card id="total-loss">
-                <CardHeader className="font-bold text-center text-lg py-2">
-                  Total Loss
+            <div className="w-full ">
+              <Card className="w-full  pb-0">
+                <CardHeader className="py-2 text-lg font-bold text-center">
+                  Energy (kWh)
                 </CardHeader>
-                <CardContent className="text-center p-x-2 pb-0 pt-3">
-                  <Label className="flex text-center align-center items-baseline text-5xl text-red-500 font-bold">
-                    {totalLoss.toFixed(2)} <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="running">
-                <CardHeader className="font-bold text-center text-lg py-2">
-                  Running
-                </CardHeader>
-                <CardContent className="text-center p-x-2 pb-0 pt-3">
-                  <Label className="flex text-center align-center items-baseline text-5xl text-green-500 font-bold">
-                    {(energyGreen?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="orange">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Breakdown
-                </CardHeader>
-                <CardContent className="text-center p-x-2 pb-0 pt-3">
-                  <Label className="flex text-center items-baseline text-5xl text-orange-500 font-bold">
-                    {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="purple">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Org. Disfunction
-                </CardHeader>
-                <CardContent className="text-center p-x-2  pb-0 pt-3">
-                  <Label className="flex text-center items-baseline text-5xl text-purple-500 font-bold">
-                    {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="yellow">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Micro stop
-                </CardHeader>
-                <CardContent className="text-center p-x-2 py-0">
-                  <Label className="flex text-center items-baseline text-5xl text-yellow-500 font-bold">
-                    {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="blue">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Changeover
-                </CardHeader>
-                <CardContent className="text-center  p-x-2 py-0">
-                  <Label className="flex text-center items-baseline text-5xl text-blue-500 font-bold">
-                    {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="white">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Planned Stoppage
-                </CardHeader>
-                <CardContent className="text-center p-x-2 py-0">
-                  <Label className="flex text-center items-baseline text-5xl text-gray-500 font-bold">
-                    {(energyWhite?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="red">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Non Quality
-                </CardHeader>
-                <CardContent className="text-center p-x-2 py-0">
-                  <Label className="flex text-center items-baseline text-5xl text-red-500 font-bold">
-                    {(energyRed?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
+                <CardContent className="flex flex-col justify-end h-full p-2 pb-1 pt-0">
+                  <div className="flex items-end justify-between w-full">
+                    {/* TOTAL LOSS */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-red-500 leading-none">
+                        {totalLoss.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-red-500 border border-black px-2 py-[2px] rounded-l-md w-full text-center">
+                        TOTAL LOSS
+                      </div>
+                    </div>
+
+                    {/* RUNNING */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-green-500 leading-none">
+                        {(energyGreen?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-green-500 border border-black px-2 py-[2px] w-full text-center">
+                        RUNNING
+                      </div>
+                    </div>
+
+                    {/* BREAKDOWN */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-orange-500 leading-none">
+                        {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-orange-500 border border-black px-2 py-[2px] w-full text-center">
+                        BREAKDOWN
+                      </div>
+                    </div>
+
+                    {/* ORG DISFUNCTION */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-purple-500 leading-none">
+                        {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-purple-500 border border-black px-2 py-[2px] w-full text-center">
+                        ORG
+                      </div>
+                    </div>
+
+                    {/* MICRO STOP */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-yellow-500 leading-none">
+                        {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-black bg-yellow-400 border border-black px-2 py-[2px] w-full text-center">
+                        MS
+                      </div>
+                    </div>
+
+                    {/* CHANGEOVER */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-blue-500 leading-none">
+                        {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-blue-500 border border-black px-2 py-[2px] w-full text-center">
+                        C/O
+                      </div>
+                    </div>
+
+                    {/* PLANNED STOPPAGE */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-gray-500 leading-none">
+                        {(energyWhite?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-black bg-gray-300 border border-black px-2 py-[2px] w-full text-center">
+                        PS
+                      </div>
+                    </div>
+
+                    {/* NON QUALITY */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-red-500 leading-none">
+                        {(energyRed?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-red-600 border border-black px-2 py-[2px] rounded-r-md w-full text-center">
+                        NQ
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
