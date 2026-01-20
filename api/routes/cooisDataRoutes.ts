@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 
 import { getCoois, getCooisComplete } from '../controllers/countboardController';
+import { createCoois } from "../controllers/cooisController"
 
 
 
@@ -18,6 +19,19 @@ cooisDataRouter.get('/', async (c) => {
     return c.json({ error: (error as Error).message }, 500);
   }
 });
+cooisDataRouter.post("/", async (c) => {
+  try {
+    const body = await c.req.json()
 
+    const result = await createCoois(body)
+
+    return c.json(result, 201)
+  } catch (error) {
+    return c.json(
+      { error: (error as Error).message },
+      400
+    )
+  }
+})
 
 export default cooisDataRouter;

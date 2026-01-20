@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 
 import { getCoois, getRouting } from '../controllers/countboardController';
-
+import { createRouting } from "../controllers/routingController"
 
 
 
@@ -20,5 +20,18 @@ routingDataRouter.get('/', async (c) => {
   }
 });
 
+routingDataRouter.post("/", async (c) => {
+  try {
+    const body = await c.req.json()
 
+    const result = await createRouting(body)
+
+    return c.json(result, 201)
+  } catch (error) {
+    return c.json(
+      { error: (error as Error).message },
+      400
+    )
+  }
+})
 export default routingDataRouter;
