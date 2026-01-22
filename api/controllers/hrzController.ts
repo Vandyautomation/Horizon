@@ -38,6 +38,7 @@ select
        CAST(sova05.OrderVal AS NVARCHAR(50)) AS OrderVal,
        CAST(sova05.Stock AS NVARCHAR(50)) AS Stock,
        CAST(sova05.TBP AS NVARCHAR(50)) AS TBP,
+       CAST(DlvQty.DlvQty AS NVARCHAR(30)) AS dlvqty,
        CAST(sto.QtyUnrest AS NVARCHAR(50)) AS QtyUnrest,
        CAST(sto.QtyQuality AS NVARCHAR(50)) AS QtyQuality,
        CAST(sto.QtyBlocked AS NVARCHAR(50)) AS QtyBlocked,
@@ -48,6 +49,7 @@ from hrz_salesorderva05trx sova05
 left join ( select distinct SORef2, MaterialID, QtyUnrest, QtyQuality, QtyBlocked from hrz_stocktrx ) sto on sova05.soref2 = sto.soref2 and sto.MaterialID = sova05.MaterialID
 left join ( select distinct MaterialID, NewProject, GrupId from Hrz_ROUTING ) rou on sova05.materialid = rou.materialid
 left join ( select distinct GrupId, UAP from Hrz_GroupCapacity) grp on grp.GrupId = rou.GrupId
+left join ( select distinct SORef2, MaterialID, DlvQty from Hrz_DlvQty ) DlvQty on DlvQty.soref2 = sova05.soref2 and DlvQty.materialid = sova05.materialid
 where (
     (@year IS NULL AND @month IS NULL AND @day IS NULL AND CAST(sova05.DlvDate AS date) = CAST(GETDATE() AS date))
     OR
@@ -155,6 +157,7 @@ where (
     // fields not present in this schema - provide sensible defaults
     Stock: row.Stock || 0,
     tbp: row.TBP,
+    dlvqty: row.dlvqty,
     QtyQuality: row.QtyQuality || 0,
     QtyUnrest: row.QtyUnrest || 0,
     UAP: row.UAP || null,

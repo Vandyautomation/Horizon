@@ -97,7 +97,7 @@ export default function HRZDashboard() {
           const itemNo = Array.isArray(d.ItemNo) ? d.ItemNo.join(",") : d.ItemNo;
           const dlvDate = formatDlvDate(d.DlvDate);
           const orderQty = Number(d.OrderQty) || 0;
-          const DelQty = Number(d.DelQty) || 0;
+          const DelQty = Number(d.dlvqty) || 0;
           const stockValue = Number(d.Stock) || 0;
 
           return {
@@ -110,8 +110,8 @@ export default function HRZDashboard() {
             order: orderQty,
             value: DelQty,
             produceValue: stockValue,
-            producePercent: stockValue ? Math.round((stockValue / d.tbp) * 100) : 0,
-            tbp: Number(d.tbp) || 0,
+            producePercent: Math.round((d.tbp / orderQty) * 100),
+            tbp: Number(d.tbp.toLocaleString()) || 0,
             unrest: Number(d.QtyUnrest) || 0,
             qi: Number(d.QtyQuality) || 0,
             uap: String(d.UAP || ""),
@@ -322,14 +322,16 @@ export default function HRZDashboard() {
               {/*<th rowSpan={2} className="border px-3 py-2">Value(USD)</th>*/}
               <th rowSpan={2} className="border px-3 py-2">Dlv Qty</th>
               <th rowSpan={2} className="border px-3 py-2">TBP</th>
-              <th colSpan={2} className="border px-3 py-2 bg-blue-200 font-semibold">Produce</th>
+              <th className="border px-3 py-2">% TBP</th>
+              <th className="border px-3 py-2">Stock</th>
+              {/*<th colSpan={2} className="border px-3 py-2 bg-blue-200 font-semibold">Produce</th>*/}
               <th rowSpan={2} className="border px-3 py-2">Unrest</th>
               <th rowSpan={2} className="border px-3 py-2">QI</th>
             </tr>
-            <tr className="bg-blue-50 text-gray-700 text-center">
+            {/*<tr className="bg-blue-50 text-gray-700 text-center">
               <th className="border px-3 py-2">Stock</th>
               <th className="border px-3 py-2">%</th>
-            </tr>
+            </tr>*/}
           </thead>
           <tbody className="bg-white">
             {pagedData.map((d, i) => (
@@ -349,8 +351,9 @@ export default function HRZDashboard() {
                 <td className="border px-3 py-2 text-right">{d.order.toLocaleString()}</td>
                 <td className="border px-3 py-2 text-right">{d.value.toLocaleString()}</td>
                 <td className="border px-3 py-2 text-center">{d.tbp.toLocaleString()}</td>
-                <td className="border px-3 py-2 text-right">{d.produceValue.toLocaleString()}</td>
                 <td className="border px-3 py-2 text-center">{d.producePercent.toLocaleString(undefined, { maximumFractionDigits: 2 })}%</td>
+                <td className="border px-3 py-2 text-right">{d.produceValue.toLocaleString()}</td>
+                {/*<td className="border px-3 py-2 text-center">{d.producePercent.toLocaleString(undefined, { maximumFractionDigits: 2 })}%</td>*/}
                 <td className="border px-3 py-2 text-right">{d.unrest.toLocaleString()}</td>
                 <td className="border px-3 py-2 text-right">{d.qi.toLocaleString()}</td>
               </tr>

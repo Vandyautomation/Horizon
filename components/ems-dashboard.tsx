@@ -895,6 +895,7 @@ export default function EmsDashboard() {
               </div>
             </div>
 
+            {/*
             <div className="grid grid-cols-4 gap-2 w-full">
               <Card id="total-loss" >
                 <CardHeader className="font-bold text-center text-lg py-2">
@@ -983,6 +984,81 @@ export default function EmsDashboard() {
                   </Label>
                 </CardContent>
               </Card>
+            </div>
+            */}
+
+            <div className="flex w-full">
+              <div className="flex flex-col items-center flex-1">
+                <div className="text-3xl font-bold text-red-500 leading-none">
+                  {totalLoss.toFixed(2)}
+                </div>
+                <div className="text-xs text-white bg-red-500 border border-black px-2 py-[2px] rounded-l-md w-full text-center">
+                  TOTAL LOSS
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center flex-1">
+                <div className="text-3xl font-bold text-green-500 leading-none">
+                  {(energyGreen?.TotalEnergyUsed || 0).toFixed(2)}
+                </div>
+                <div className="text-xs text-white bg-green-500 border border-black px-2 py-[2px] w-full text-center">
+                  RUNNING
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center flex-1">
+                <div className="text-3xl font-bold text-orange-500 leading-none">
+                  {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)}
+                </div>
+                <div className="text-xs text-white bg-orange-500 border border-black px-2 py-[2px] w-full text-center">
+                  BREAKDOWN
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center flex-1">
+                <div className="text-3xl font-bold text-purple-500 leading-none">
+                  {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)}
+                </div>
+                <div className="text-xs text-white bg-purple-500 border border-black px-2 py-[2px] w-full text-center">
+                  ORG
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center flex-1">
+                <div className="text-3xl font-bold text-yellow-500 leading-none">
+                  {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)}
+                </div>
+                <div className="text-xs text-black bg-yellow-400 border border-black px-2 py-[2px] w-full text-center">
+                  MS
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center flex-1">
+                <div className="text-3xl font-bold text-blue-500 leading-none">
+                  {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)}
+                </div>
+                <div className="text-xs text-white bg-blue-500 border border-black px-2 py-[2px] w-full text-center">
+                  C/O
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center flex-1">
+                <div className="text-3xl font-bold text-gray-500 leading-none">
+                  {(energyWhite?.TotalEnergyUsed || 0).toFixed(2)}
+                </div>
+                <div className="text-xs text-black bg-gray-300 border border-black px-2 py-[2px] w-full text-center">
+                  PS
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center flex-1">
+                <div className="text-3xl font-bold text-red-500 leading-none">
+                  {(energyRed?.TotalEnergyUsed || 0).toFixed(2)}
+                </div>
+                <div className="text-xs text-white bg-red-600 border border-black px-2 py-[2px] rounded-r-md w-full text-center">
+                  NQ
+                </div>
+              </div>
             </div>
           </div>
         </div>
