@@ -180,6 +180,36 @@ export async function getHRZColumns() {
   return rows.map((r: any) => r.COLUMN_NAME);
 }
 
+// Ambil data HRZ Capacity 
+
+export async function getHRZCapacityMch() {
+  const sql = `
+    SELECT
+        MchProcess,
+        CONVERT(VARCHAR(20), GroupID) AS GroupID,
+        UAP
+      FROM iot.dbo.Hrz_CapacityMch
+      ORDER BY MchProcess, GroupID
+  `;
+
+  const rows = await queryDatabase(sql);
+  return rows;
+}
+
+
+
+// Ambil daftar UAP unik untuk dropdown
+export async function getUAPList() {
+  const sql = `
+    SELECT DISTINCT UAP
+    FROM iot.dbo.Hrz_CapacityMch
+    ORDER BY UAP
+  `;
+  const rows = await queryDatabase(sql);
+  return rows.map((r: { UAP: string }) => r.UAP);
+}
+
+
 export async function getTableColumns(tableName: string) {
   const sqlQuery = `
     SELECT COLUMN_NAME

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { getHRZData, getHRZColumns, getTableColumns } from '../controllers/hrzController';
+import { getHRZData, getHRZColumns, getTableColumns,getHRZCapacityMch,getUAPList } from '../controllers/hrzController';
 import {
   getPlannerData,
   getPlannerAvailData,
@@ -9,7 +9,7 @@ import {
   updatePlannerDispatch,
   PlannerDispatchUpdateBody,
 } from '../controllers/hrzPlannerController';
-
+import { NextResponse } from "next/server";
 const hrzRoutes = new Hono();
 
 hrzRoutes.get('/test-mssql', async (c) => {
@@ -246,7 +246,27 @@ hrzRoutes.get('/scan-columns', async (c) => {
 
   return c.json(result);
 });
-
+// GET data table
+// GET semua data
+hrzRoutes.get("/hrz-capacity", async (c) => {
+  try {
+    const data = await getHRZCapacityMch();
+    return c.json({ success: true, data });
+  } catch (err: any) {
+    console.error(err);
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
+// GET daftar UAP untuk dropdown
+hrzRoutes.get("/hrz-uap-list", async (c) => {
+  try {
+    const list = await getUAPList();
+    return c.json({ success: true, data: list });
+  } catch (err: any) {
+    console.error(err);
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
 export default hrzRoutes;
 
 
