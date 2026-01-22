@@ -7,6 +7,33 @@ SELECT id, name from RejectMST where active = 1
   `;
   return await queryDatabase(sqlQuery);
 }
+export async function getUsers() {
+  const sqlQuery = `
+  SELECT *
+    FROM IoT.dbo.UsersOpt
+  `;
+
+  return await queryDatabase(sqlQuery);
+}
+export async function getAssignUsers() {
+  const sqlQuery = `
+    SELECT 
+      UserRFID,
+      UserName,
+      UserDept,
+      UserUAP
+    FROM IoT.dbo.useraccessmst
+    WHERE UserDept IN (
+      'OperatorBahan',
+      'Mechanic',
+      'SPV Production'
+    )
+  `
+
+  return await queryDatabase(sqlQuery)
+}
+
+// console.log('Users:', getUsers());
 export async function editScrap(hourlyId: number, scrap: number) {
   const sqlQuery = `
     DECLARE @oldScrap INT;
@@ -390,44 +417,123 @@ export async function getTickets() {
 
 // NOTE: versi tanpa ticketId (fallback berdasarkan MchID + ORANGE + tanggal terdekat)
 export async function submitOrangeTicket(
-    machineId: string,
-    ticketDate: string,
-    problem: string,
-    actionPlan: string,
-  ) {
-    const sqlQuery = `
-      DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
+  machineId: string,
+  ticketDate: string,
+  problem: string,
+  actionPlan: string,
+  assignToId: string,
+  assignById: string,
+   eskalasiFlag: 0 | 1,
+  eskalasiDept: string | null
+) {
+  const sqlQuery = `
+   DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
 
-      UPDATE T
-      SET 
-        Problem = @problem,
-        ActionPlan = @actionPlan
-      FROM (
-        SELECT TOP (1) *
-        FROM IoT.dbo.TicketTRX
-        WHERE 
-          MchID = @machineId
-          AND ColorID = 'ORANGE'
-          AND CAST(TicketDate AS date) = CAST(@ticketDateParam AS date)
-        ORDER BY ABS(DATEDIFF(SECOND, TicketDate, @ticketDateParam))
-      ) AS T;
+    DECLARE @AssignToUserName NVARCHAR(100);
+ 
+    DECLARE @FinalAssignToDept NVARCHAR(100);
+    DECLARE @AssignByUserName NVARCHAR(100);
 
-      SELECT @@ROWCOUNT AS affected;
-    `;
+    -- Ambil username  To
+    SELECT 
+      @AssignToUserName = UserName
+    FROM IoT.dbo.useraccessmst
+    WHERE UserRFID = @assignToId;
 
-    try {
-      const result = await queryDatabase(sqlQuery, {
-        machineId,
-        ticketDate,
-        problem,
-        actionPlan,
-      });
-      return result?.[0] ?? { affected: 0 };
-    } catch (error: any) {
-      console.error('Error submitting orange ticket:', error);
-      throw new Error(`Failed to submit ticket: ${error.message}`);
-    }
+    -- Ambil username Assign By
+    SELECT 
+      @AssignByUserName = UserName
+    FROM IoT.dbo.useraccessmst
+    WHERE UserRFID = @assignById;
+
+    -- Tentukan AssignToDept FINAL
+    SET @FinalAssignToDept =
+      CASE 
+        WHEN @eskalasiFlag = 1 THEN @eskalasiDept
+   
+      END;
+
+    UPDATE T
+    SET 
+      Problem        = @problem,
+      ActionPlan     = @actionPlan,
+      AssignTo       = @AssignToUserName,
+      AssignToDept   = @FinalAssignToDept,
+      AssignBy       = @AssignByUserName,
+      EskalasiFlag   = @eskalasiFlag
+    FROM (
+      SELECT TOP (1) *
+      FROM IoT.dbo.TicketTRX
+      WHERE 
+        MchID = @machineId
+        AND ColorID = 'ORANGE'
+        AND CAST(TicketDate AS date) = CAST(@ticketDateParam AS date)
+      ORDER BY ABS(DATEDIFF(SECOND, TicketDate, @ticketDateParam))
+    ) AS T;
+
+    SELECT @@ROWCOUNT AS affected;
+
+  `;
+
+  try {
+    const result = await queryDatabase(sqlQuery, {
+      machineId,
+      ticketDate,
+      problem,
+      actionPlan,
+      assignToId,
+      assignById,
+        eskalasiFlag,
+  eskalasiDept,
+    });
+
+    return result?.[0] ?? { affected: 0 };
+  } catch (error: any) {
+    console.error('Error submitting orange ticket:', error);
+    throw new Error(`Failed to submit ticket: ${error.message}`);
   }
+}
+
+
+// export async function submitOrangeTicket(
+//     machineId: string,
+//     ticketDate: string,
+//     problem: string,
+//     actionPlan: string,
+//   ) {
+//     const sqlQuery = `
+//       DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
+  
+//       UPDATE T
+//       SET 
+//         Problem = @problem,
+//         ActionPlan = @actionPlan
+//       FROM (
+//         SELECT TOP (1) *
+//         FROM IoT.dbo.TicketTRX
+//         WHERE 
+//           MchID = @machineId
+//           AND ColorID = 'ORANGE'
+//           AND CAST(TicketDate AS date) = CAST(@ticketDateParam AS date)
+//         ORDER BY ABS(DATEDIFF(SECOND, TicketDate, @ticketDateParam))
+//       ) AS T;
+
+//     SELECT @@ROWCOUNT AS affected;
+//   `;
+
+//   try {
+//     const result = await queryDatabase(sqlQuery, {
+//       machineId,
+//       ticketDate,
+//       problem,
+//       actionPlan,
+//     });
+//     return result?.[0] ?? { affected: 0 };
+//   } catch (error: any) {
+//     console.error('Error submitting orange ticket:', error);
+//     throw new Error(`Failed to submit ticket: ${error.message}`);
+//   }
+// }
 
 
 export async function updateCVT(taskId: number, newCvt: number) {

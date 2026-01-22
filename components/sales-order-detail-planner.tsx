@@ -33,6 +33,7 @@ interface WeekData {
 interface Item {
   id: number;
   fg: string; // MaterialID / item number
+  fg: string; // MaterialID / item number
   description: string;
   openOrder: number;
   std: number;
@@ -1670,6 +1671,9 @@ export default function SalesOrderDetailPlanner({
                 {visibleWeeks.map((w) => (
                   <th
                     key={w}
+                    className={`w-24 px-1 border-l text-center text-xs font-semibold ${
+                      w === currentWeek ? "bg-yellow-200" : ""
+                    }`}
                     className={`w-24 px-1 border-l text-center text-xs font-semibold ${
                       w === currentWeek ? "bg-yellow-200" : ""
                     }`}

@@ -1,10 +1,8 @@
 import { Hono } from 'hono';
-import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, submitOrangeTicket, updateComment, updateCVT, getTickets, editScrap, editRework } from '../controllers/countboardController';
+import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, submitOrangeTicket, updateComment, updateCVT, getTickets,getUsers,editScrap,editRework, getAssignUsers } from '../controllers/countboardController';
 //import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
 const countboardRoutes = new Hono();
-
-
 countboardRoutes.get('/rejects', async (c) => {
 
 
@@ -150,10 +148,22 @@ countboardRoutes.put('/comment', async (c) => {
 });
 
 countboardRoutes.post('/ticket', async (c) => {
-  const { machineId, ticketDate, problem, actionPlan } = await c.req.json();
+  const {
+    machineId,
+    ticketDate,
+    problem,
+    actionPlan,
+    assignToId,
+    assignById,
+    eskalasiFlag,
+    eskalasiDept,
+  } = await c.req.json()
 
   if (!machineId || !ticketDate || !problem || !actionPlan) {
-    return c.json({ error: 'machineId, ticketDate, problem, and actionPlan are required' }, 400);
+    return c.json(
+      { error: 'machineId, ticketDate, problem, and actionPlan are required' },
+      400
+    )
   }
 
   try {
@@ -162,21 +172,51 @@ countboardRoutes.post('/ticket', async (c) => {
       ticketDate,
       problem,
       actionPlan,
-    );
+      assignToId,
+      assignById,
+      eskalasiFlag,
+      eskalasiDept
+    )
 
     if (!result.affected) {
-      return c.json({ message: 'No matching TicketTRX found for given machine and ticket date' }, 404);
+      return c.json(
+        { message: 'No matching TicketTRX found for given machine and ticket date' },
+        404
+      )
     }
 
     return c.json({
       message: 'TicketTRX updated successfully',
       affected: result.affected,
-    });
+    })
   } catch (error) {
-    console.error('Error submitting orange ticket:', error);
+    console.error('Error submitting orange ticket:', error)
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
+
+
+
+//get user
+countboardRoutes.get('/users', async (c) => {
+  try {
+    const data = await getUsers();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error fetching users:', error);
     return c.json({ error: (error as Error).message }, 500);
   }
 });
+// get assign users (Operator, Mechanic, SPV)
+countboardRoutes.get('/assign-users', async (c) => {
+  try {
+    const data = await getAssignUsers()
+    return c.json(data)
+  } catch (error) {
+    console.error('Error fetching assign users:', error)
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
 
 //update scrap
 countboardRoutes.put('/scrap', async (c) => {

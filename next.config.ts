@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   }
+  
 };
-
+// module.exports = {
+//   async rewrites() {
+//     return [
+//       {
+//         source: '/be/:path*',
+//         destination: 'http://localhost:9999/:path*', 
+//       },
+//     ]
+//   },
+// }
 export default nextConfig;

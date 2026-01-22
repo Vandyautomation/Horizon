@@ -2157,6 +2157,11 @@ export async function makeMachineGrey(machineId: string) {
   
         INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
         VALUES (@machineId, GETDATE(), 'GREY', 1);
+      const sqlQuery = `
+        UPDATE IoT.dbo.MachineMST SET is_override = 1, MchStatus = 'TRIAL' WHERE MchID = @machineId;
+  
+        INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
+        VALUES (@machineId, GETDATE(), 'GREY', 1);
     `;
     return await queryDatabase(sqlQuery, { machineId });
 }

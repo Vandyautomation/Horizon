@@ -1,252 +1,253 @@
-"use client"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton" 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+'use client'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
   TableCell,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from '@/components/ui/table'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { toast } from "react-hot-toast"
-import mqtt from "mqtt";
+import { toast } from 'react-hot-toast'
+import mqtt from 'mqtt'
 
+import { CalendarIcon, RefreshCw } from 'lucide-react'
+import { Calendar } from '@/components/ui/calendar'
+import { useState, useEffect, useCallback } from 'react'
 
+import { TooltipProvider } from './ui/tooltip'
+import { Label } from './ui/label'
 
-import {  CalendarIcon, RefreshCw } from "lucide-react"
-import { Calendar } from "@/components/ui/calendar"
-import { useState, useEffect, useCallback } from "react"
+import useSWR, { mutate } from 'swr'
+import ErrorState from './ui/error-state'
 
-import { TooltipProvider } from "./ui/tooltip"
-import { Label } from "./ui/label"
-
-import useSWR, { mutate } from "swr"
-import ErrorState from "./ui/error-state"
-
-import { format } from "date-fns/format"
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
-import { cn } from "@/lib/utils"
-import { Switch } from "./ui/switch"
-import { ResponsiveContainer, XAxis, YAxis, BarChart, Bar, ReferenceLine, Cell } from "recharts"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart"
-import Image from "next/image"
-
-
+import { format } from 'date-fns/format'
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
+import { cn } from '@/lib/utils'
+import { Switch } from './ui/switch'
+import {
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  BarChart,
+  Bar,
+  ReferenceLine,
+  Cell,
+} from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart'
+import Image from 'next/image'
 
 type MachineDetail = {
-  machineId: number;
-  machineName: string;
-  machineTonage: string;
-  machineDescription: string;
-  machineNumber: string;
-  locationId: number;
-  locationName: string;
-  machineType: number;
-};
+  machineId: number
+  machineName: string
+  machineTonage: string
+  machineDescription: string
+  machineNumber: string
+  locationId: number
+  locationName: string
+  machineType: number
+}
 
 type NooeData = {
-  NooeId: number;
-  hourlyId: number;
-  fromTime: Date;
-  blue: boolean | null;
-  orange: boolean | null;
-  purple: boolean | null;
-  grey: boolean | null;
-  yellow: boolean | null;
-  white: boolean | null;
-  red: boolean | null;
-  green: boolean | null;
-
-};
+  NooeId: number
+  hourlyId: number
+  fromTime: Date
+  blue: boolean | null
+  orange: boolean | null
+  purple: boolean | null
+  grey: boolean | null
+  yellow: boolean | null
+  white: boolean | null
+  red: boolean | null
+  green: boolean | null
+}
 
 type AdditionalData = {
-  oee: number;
-  ooe: number;
-  statusLight: string;
-  budgetEnergyPerJam: number;
-  budgetEnergyPerHari: number;
-  isMtctActive: boolean;
-  isConveyorActive: boolean;
-  isCrusherActive: boolean;
-  isDryerHopperActive: boolean;
-  isMBFeederActive: boolean;
-  isChillerActive: boolean;
-  isCorepullActive: boolean;
-};
+  oee: number
+  ooe: number
+  statusLight: string
+  budgetEnergyPerJam: number
+  budgetEnergyPerHari: number
+  isMtctActive: boolean
+  isConveyorActive: boolean
+  isCrusherActive: boolean
+  isDryerHopperActive: boolean
+  isMBFeederActive: boolean
+  isChillerActive: boolean
+  isCorepullActive: boolean
+}
 
 type EnergyData = {
-  hour: string;
-  consumption: number;
-};
+  hour: string
+  consumption: number
+}
 
 type EnergyStatusData = {
-  StatusLightBefore: string;
-  TotalEnergyUsed: number;
-  DurationHours: number;
-};
+  StatusLightBefore: string
+  TotalEnergyUsed: number
+  DurationHours: number
+}
 
-const refreshRateList = ['5000', '15000', '30000', '60000'];
+const refreshRateList = ['5000', '15000', '30000', '60000']
 
 const fiveMinutes = Array.from({ length: 12 }, (_, i) => ({
   time: `${(i * 5).toString().padStart(2, '0')}:00`,
-}));
+}))
 
-  const materialTypeList = [
-    {id:1, name: "PET"},
-    {id:2, name: "PP"},
-    {id:3, name: "SAN/ABS"}
-  ]
-
-  
+const materialTypeList = [
+  { id: 1, name: 'PET' },
+  { id: 2, name: 'PP' },
+  { id: 3, name: 'SAN/ABS' },
+]
 
 export default function EmsDashboard() {
   const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(
     null
-  );
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
-  const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('');
-  const [selectedRefreshRate, setRefreshRate] = useState('5000');
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [isLoadingRefresh, setIsLoadingRefresh] = useState(false);
-  const [isLiveMode, setIsLiveMode] = useState(true);
-  const [, setMqttClient] = useState<ReturnType<typeof mqtt.connect> | null>(null);
-  
-  const [tolerance, setTolerance] = useState(0);
-  const [selectedMaterialType, setSelectedMaterialType] = useState(materialTypeList[0].name);
+  )
+  const [selectedLocation, setSelectedLocation] = useState<string>('')
+  const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('')
+  const [selectedRefreshRate, setRefreshRate] = useState('5000')
+  const [isLoading, setIsLoading] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [isLoadingRefresh, setIsLoadingRefresh] = useState(false)
+  const [isLiveMode, setIsLiveMode] = useState(true)
+  const [, setMqttClient] = useState<ReturnType<typeof mqtt.connect> | null>(
+    null
+  )
 
-  const [isFetching, setIsFetching] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
+  const [tolerance, setTolerance] = useState(0)
+  const [selectedMaterialType, setSelectedMaterialType] = useState(
+    materialTypeList[0].name
+  )
+
+  const [isFetching, setIsFetching] = useState(false)
+  const [initialLoad, setInitialLoad] = useState(true)
   const [equipmentStatus, setEquipmentStatus] = useState({
-  mtc: false,
-  crusher: false,
-  dryHopper: false,
-  conveyor: false,
-  mbFeeder: false,
-  chiller: false,
-  corepull: false,
-  dehum: false,
-});
+    mtc: false,
+    crusher: false,
+    dryHopper: false,
+    conveyor: false,
+    mbFeeder: false,
+    chiller: false,
+    corepull: false,
+    dehum: false,
+  })
 
-  
-
-  const pathname = usePathname();
-  const router = useRouter();
-
+  const pathname = usePathname()
+  const router = useRouter()
 
   useEffect(() => {
-        const client = mqtt.connect(`${process.env.NEXT_PUBLIC_MQTT_WS}`);
-        client.on("connect", () => {
-          console.log("Connected to MQTT broker");
-          client.subscribe(`uns/utility`);
-        });
-        client.on("message", (topic, message) => {
-          try {
-            const messageData = JSON.parse(message.toString());
-            // console.log(`new message:${JSON.stringify(messageData)}`);
-            
-            // Process each item in the array
-            messageData.forEach((item: any) => {
-              // Extract building and machine number from topic
-              const topicParts = item.topic.split('/');
-              const building = topicParts[1];
-              const machineNumber = topicParts[2];
-              
-              // Only update if this message is for our currently selected machine
-              if (building === selectedLocation?.slice(-1).toLowerCase() && 
-                  machineNumber === selectedMachineNumber) {
-                
-                // Update equipment status based on payload
-                const payload = item.payload;
-                const newStatus = {...equipmentStatus};
-                
-                if (payload.mtc !== undefined) {
-                  newStatus.mtc = payload.mtc === 1;
-                }
-                if (payload.crusher !== undefined) {
-                  newStatus.crusher = payload.crusher === 1;
-                }
-                if (payload.dryHopper !== undefined) {
-                  newStatus.dryHopper = payload.dryHopper === 1;
-                }
-                if (payload.conveyor !== undefined) {
-                  newStatus.conveyor = payload.conveyor === 1;
-                }
-                if (payload.mbFeeder !== undefined) {
-                  newStatus.mbFeeder = payload.mbFeeder === 1;
-                }
-                if (payload.chiller !== undefined) {
-                  newStatus.chiller = payload.chiller === 1;
-                }
-                if (payload.corepull !== undefined) {
-                  newStatus.corepull = payload.corepull === 1;
-                }
-                
-                setEquipmentStatus(newStatus);
-              }
-            });
-          } catch (error) {
-            console.error("Error parsing MQTT message:", error);
-          }
-        });
-  
-        setMqttClient(client);
-    
-        return () => {
-          client.end();
-          console.log("Disconnected to MQTT broker");
-    
-          setMqttClient(null);
-        };
-      }, [selectedLocation, selectedMachineNumber]);
+    const client = mqtt.connect(`${process.env.NEXT_PUBLIC_MQTT_WS}`)
+    client.on('connect', () => {
+      console.log('Connected to MQTT broker')
+      client.subscribe(`uns/utility`)
+    })
+    client.on('message', (topic, message) => {
+      try {
+        const messageData = JSON.parse(message.toString())
+        // console.log(`new message:${JSON.stringify(messageData)}`);
 
-  const fetcher = useCallback((url: string) => {
-    setIsFetching(true);
-    return fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch");
-        return res.json();
-      })
-      .finally(() => {
-        setIsFetching(false);
-        if (initialLoad) setInitialLoad(false);
-      });
-  }, [initialLoad]);
+        // Process each item in the array
+        messageData.forEach((item: any) => {
+          // Extract building and machine number from topic
+          const topicParts = item.topic.split('/')
+          const building = topicParts[1]
+          const machineNumber = topicParts[2]
+
+          // Only update if this message is for our currently selected machine
+          if (
+            building === selectedLocation?.slice(-1).toLowerCase() &&
+            machineNumber === selectedMachineNumber
+          ) {
+            // Update equipment status based on payload
+            const payload = item.payload
+            const newStatus = { ...equipmentStatus }
+
+            if (payload.mtc !== undefined) {
+              newStatus.mtc = payload.mtc === 1
+            }
+            if (payload.crusher !== undefined) {
+              newStatus.crusher = payload.crusher === 1
+            }
+            if (payload.dryHopper !== undefined) {
+              newStatus.dryHopper = payload.dryHopper === 1
+            }
+            if (payload.conveyor !== undefined) {
+              newStatus.conveyor = payload.conveyor === 1
+            }
+            if (payload.mbFeeder !== undefined) {
+              newStatus.mbFeeder = payload.mbFeeder === 1
+            }
+            if (payload.chiller !== undefined) {
+              newStatus.chiller = payload.chiller === 1
+            }
+            if (payload.corepull !== undefined) {
+              newStatus.corepull = payload.corepull === 1
+            }
+
+            setEquipmentStatus(newStatus)
+          }
+        })
+      } catch (error) {
+        console.error('Error parsing MQTT message:', error)
+      }
+    })
+
+    setMqttClient(client)
+
+    return () => {
+      client.end()
+      console.log('Disconnected to MQTT broker')
+
+      setMqttClient(null)
+    }
+  }, [selectedLocation, selectedMachineNumber])
+
+  const fetcher = useCallback(
+    (url: string) => {
+      setIsFetching(true)
+      return fetch(url)
+        .then((res) => {
+          if (!res.ok) throw new Error('Failed to fetch')
+          return res.json()
+        })
+        .finally(() => {
+          setIsFetching(false)
+          if (initialLoad) setInitialLoad(false)
+        })
+    },
+    [initialLoad]
+  )
 
   useEffect(() => {
     const refreshAtShiftChange = () => {
-      const now = new Date();
-      const hour = now.getHours();
-      const lastRefreshedHour = localStorage.getItem('lastRefreshedHour');
+      const now = new Date()
+      const hour = now.getHours()
+      const lastRefreshedHour = localStorage.getItem('lastRefreshedHour')
 
       if (
         (hour === 6 || hour === 14 || hour === 22) &&
         lastRefreshedHour != hour.toString()
       ) {
-        localStorage.setItem('lastRefreshedHour', hour.toString());
-        toast.success('Auto Refreshing every shift ...', { duration: 1000 });
+        localStorage.setItem('lastRefreshedHour', hour.toString())
+        toast.success('Auto Refreshing every shift ...', { duration: 1000 })
         setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+          window.location.reload()
+        }, 1000)
       }
-    };
+    }
 
-    refreshAtShiftChange();
-  }, [router]);
+    refreshAtShiftChange()
+  }, [router])
 
   const {
     data: machines,
@@ -261,7 +262,7 @@ export default function EmsDashboard() {
       suspense: false,
       refreshInterval: 0,
     }
-  );
+  )
   useEffect(() => {
     if (selectedMachine?.machineName) {
       Promise.all([
@@ -269,9 +270,9 @@ export default function EmsDashboard() {
         refetchEnergyData(),
         refetchEnergyStatusData(),
         refetchTaskData(),
-      ]);
+      ])
     }
-  }, [selectedMachine?.machineName]);
+  }, [selectedMachine?.machineName])
 
   const noeeDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${
@@ -284,14 +285,14 @@ export default function EmsDashboard() {
             )}&ems=true`
           : '?ems=true'
       }`
-    : null;
+    : null
 
   const { data: noeeData } = useSWR<NooeData[]>(noeeDataKey, fetcher, {
     revalidateOnMount: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
-  });
+  })
 
   const processedNoeeData = Array.isArray(noeeData)
     ? noeeData.map((nooe) => ({
@@ -305,9 +306,9 @@ export default function EmsDashboard() {
         red: nooe.red ? true : false,
         green: nooe.green ? true : false,
       }))
-    : [];
+    : []
 
-  const refetchNoeeData = () => mutate(noeeDataKey);
+  const refetchNoeeData = () => mutate(noeeDataKey)
   const energyDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/energy/${
         selectedMachine.machineName
@@ -317,42 +318,44 @@ export default function EmsDashboard() {
           ? `?date=${new URLSearchParams(window.location.search).get('date')}`
           : ''
       }`
-    : null;
+    : null
 
-  const { data: rawEnergyData } = useSWR<EnergyData[]>(energyDataKey, 
+  const { data: rawEnergyData } = useSWR<EnergyData[]>(
+    energyDataKey,
     async (url) => {
-          const promise = fetch(url).then(res => {
-            if (!res.ok) throw new Error("Failed to fetch");
-            return res.json();
-          });
-          
-          toast.promise(promise, {
-            loading: 'Refreshing...',
-            // success: 'Energy data refreshed',
-            error: 'Failed to load energy'
-          });
+      const promise = fetch(url).then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        return res.json()
+      })
 
-          return promise;
+      toast.promise(promise, {
+        loading: 'Refreshing...',
+        // success: 'Energy data refreshed',
+        error: 'Failed to load energy',
+      })
+
+      return promise
     },
     {
-    revalidateOnMount: false,
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    refreshInterval: Number(selectedRefreshRate),
-  });
+      revalidateOnMount: false,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      refreshInterval: Number(selectedRefreshRate),
+    }
+  )
 
   const energyData = Array.from({ length: 24 }, (_, hour) => {
-    const formattedHour = `${hour.toString().padStart(2, '0')}:00`;
+    const formattedHour = `${hour.toString().padStart(2, '0')}:00`
     const existingData = rawEnergyData?.find(
       (data) => data.hour === formattedHour
-    );
+    )
     return {
       hour: formattedHour,
       consumption: existingData?.consumption || 0,
-    };
-  });
+    }
+  })
 
-  const refetchEnergyData = () => mutate(energyDataKey);
+  const refetchEnergyData = () => mutate(energyDataKey)
 
   const energyStatusDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/energy/status/${
@@ -363,7 +366,7 @@ export default function EmsDashboard() {
           ? `?date=${new URLSearchParams(window.location.search).get('date')}`
           : ''
       }`
-    : null;
+    : null
 
   const { data: energyStatusData } = useSWR<EnergyStatusData[]>(
     energyStatusDataKey,
@@ -374,50 +377,50 @@ export default function EmsDashboard() {
       revalidateOnReconnect: false,
       refreshInterval: Number(selectedRefreshRate),
     }
-  );
+  )
 
   const energyGreen = energyStatusData?.find(
     (status) => status.StatusLightBefore === 'GREEN'
-  );
+  )
   const energyYellow = energyStatusData?.find(
     (status) => status.StatusLightBefore === 'YELLOW'
-  );
+  )
   const energyPurple = energyStatusData?.find(
     (status) => status.StatusLightBefore === 'PURPLE'
-  );
+  )
   const energyRed = energyStatusData?.find(
     (status) => status.StatusLightBefore === 'RED'
-  );
+  )
   const energyOrange = energyStatusData?.find(
     (status) => status.StatusLightBefore === 'ORANGE'
-  );
+  )
   const energyBlue = energyStatusData?.find(
     (status) => status.StatusLightBefore === 'BLUE'
-  );
+  )
   const energyWhite = energyStatusData?.find(
     (status) => status.StatusLightBefore === 'WHITE'
-  );
+  )
   const totalLoss =
     (energyYellow?.TotalEnergyUsed || 0) +
     (energyPurple?.TotalEnergyUsed || 0) +
     (energyRed?.TotalEnergyUsed || 0) +
     (energyOrange?.TotalEnergyUsed || 0) +
     (energyBlue?.TotalEnergyUsed || 0) +
-    (energyWhite?.TotalEnergyUsed || 0);
+    (energyWhite?.TotalEnergyUsed || 0)
 
   const totalEnergy = energyData.reduce(
     (total, data) => total + data.consumption,
     0
-  );
+  )
 
-  const refetchEnergyStatusData = () => mutate(energyStatusDataKey);
+  const refetchEnergyStatusData = () => mutate(energyStatusDataKey)
 
   const uniqueLocations = Array.from(
     new Set(machines?.map((machine) => machine.locationName))
-  );
+  )
   const filteredMachines = machines?.filter(
     (machine) => machine.locationName === selectedLocation
-  );
+  )
 
   const useMachineBudget =
     new URLSearchParams(window.location.search).get('useMachineBudget') === 'true';
@@ -447,174 +450,174 @@ export default function EmsDashboard() {
       revalidateOnReconnect: false,
       refreshInterval: Number(selectedRefreshRate),
     }
-  );
+  )
   const refetchTaskData = useCallback(() => {
-    mutate(additionalDataKey);
-  }, [additionalDataKey]);
+    mutate(additionalDataKey)
+  }, [additionalDataKey])
 
   const handleLocationChange = (value: string) => {
-    setSelectedLocation(value);
-    const params = new URLSearchParams(searchParams);
-    params.set('location', value);
-    router.push(`${pathname}?${params.toString()}`);
-    setSelectedMachineNumber('');
-    setSelectedMachine(null);
-  };
+    setSelectedLocation(value)
+    const params = new URLSearchParams(searchParams)
+    params.set('location', value)
+    router.push(`${pathname}?${params.toString()}`)
+    setSelectedMachineNumber('')
+    setSelectedMachine(null)
+  }
 
   const handleToleranceChange = (value: string) => {
-    setTolerance(parseInt(value));
-    const params = new URLSearchParams(searchParams);
-    params.set('tolerance', value);
-    router.push(`${pathname}?${params.toString()}`);
-  };
+    setTolerance(parseInt(value))
+    const params = new URLSearchParams(searchParams)
+    params.set('tolerance', value)
+    router.push(`${pathname}?${params.toString()}`)
+  }
 
   const handleMachineNumberChange = (value: string) => {
-    setIsFetching(true);
-    setSelectedMachineNumber(value);
+    setIsFetching(true)
+    setSelectedMachineNumber(value)
     const selected =
       filteredMachines?.find((machine) => machine.machineNumber === value) ||
-      null;
-    setSelectedMachine(selected);
+      null
+    setSelectedMachine(selected)
 
-    const params = new URLSearchParams(searchParams);
-    params.set('machineNumber', value);
-    router.push(`${pathname}?${params.toString()}`);
+    const params = new URLSearchParams(searchParams)
+    params.set('machineNumber', value)
+    router.push(`${pathname}?${params.toString()}`)
 
-        toast.loading("Loading machine data...", {
-      id: "machine-loading",
+    toast.loading('Loading machine data...', {
+      id: 'machine-loading',
       duration: 2000,
-    });
-  };
+    })
+  }
 
   const handleRefreshRateChange = (value: string) => {
-    setRefreshRate(value);
-  };
+    setRefreshRate(value)
+  }
 
   const handleLiveMode = () => {
-    setIsLiveMode(!isLiveMode);
-    const params = new URLSearchParams(searchParams);
-    params.set('isLiveMode', String(!isLiveMode));
+    setIsLiveMode(!isLiveMode)
+    const params = new URLSearchParams(searchParams)
+    params.set('isLiveMode', String(!isLiveMode))
 
     if (isLiveMode == false) {
-      setRefreshRate('5000');
-      params.set('refresh', '5000');
-      params.delete('date');
+      setRefreshRate('5000')
+      params.set('refresh', '5000')
+      params.delete('date')
     } else if (isLiveMode == true) {
-      setRefreshRate('30000');
-      params.set('refresh', '30000');
-      params.set('date', selectedDate.toISOString().split('T')[0]);
+      setRefreshRate('30000')
+      params.set('refresh', '30000')
+      params.set('date', selectedDate.toISOString().split('T')[0])
     }
-    router.push(`${pathname}?${params.toString()}`);
-  };
+    router.push(`${pathname}?${params.toString()}`)
+  }
 
   const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
-    const params = new URLSearchParams(searchParams);
-    params.set('date', date.toISOString().split('T')[0]);
-    router.push(`${pathname}?${params.toString()}`);
-    handleRefreshButton();
-  };
+    setSelectedDate(date)
+    const params = new URLSearchParams(searchParams)
+    params.set('date', date.toISOString().split('T')[0])
+    router.push(`${pathname}?${params.toString()}`)
+    handleRefreshButton()
+  }
 
   const handleRefreshButton = async () => {
-    setIsLoadingRefresh(true);
+    setIsLoadingRefresh(true)
     try {
       await Promise.all([
         refetchNoeeData(),
         refetchEnergyData(),
         refetchEnergyStatusData(),
-      ]);
+      ])
     } finally {
-      setIsLoadingRefresh(false);
+      setIsLoadingRefresh(false)
     }
-  };
+  }
 
-  const searchParams = useSearchParams();
-  const params = new URLSearchParams(searchParams);
+  const searchParams = useSearchParams()
+  const params = new URLSearchParams(searchParams)
 
-  let queryMachineNumber = searchParams.get('machineNumber') || '';
-  let queryLocation = searchParams.get('location') || '';
-  let queryRefreshRate = searchParams.get('refresh') || '';
-  let queryLiveMode = searchParams.get('isLiveMode') || '';
-  let queryTolerance = searchParams.get('tolerance') || '';
-  const queryDate = searchParams.get('date') || '';
+  let queryMachineNumber = searchParams.get('machineNumber') || ''
+  let queryLocation = searchParams.get('location') || ''
+  let queryRefreshRate = searchParams.get('refresh') || ''
+  let queryLiveMode = searchParams.get('isLiveMode') || ''
+  let queryTolerance = searchParams.get('tolerance') || ''
+  const queryDate = searchParams.get('date') || ''
 
   if (queryMachineNumber == '') {
-    queryMachineNumber = '3';
-    params.set('machineNumber', '3');
+    queryMachineNumber = '3'
+    params.set('machineNumber', '3')
     // router.push(`${pathname}?${params.toString()}`);
   }
 
   if (queryLocation == '') {
-    queryLocation = 'INJ Bld G';
-    params.set('location', 'INJ Bld G');
+    queryLocation = 'INJ Bld G'
+    params.set('location', 'INJ Bld G')
     // router.push(`${pathname}?${params.toString()}`);
   }
   if (queryRefreshRate == '') {
-    queryRefreshRate = '5000';
-    params.set('refresh', '5000');
+    queryRefreshRate = '5000'
+    params.set('refresh', '5000')
     // router.push(`${pathname}?${params.toString()}`);
   }
   if (queryLiveMode == '') {
-    queryLiveMode = 'true';
-    params.set('isLiveMode', 'true');
+    queryLiveMode = 'true'
+    params.set('isLiveMode', 'true')
     // router.push(`${pathname}?${params.toString()}`);
   }
   if (queryTolerance == '') {
-    queryTolerance = '0';
-    params.set('tolerance', '0');
-    router.push(`${pathname}?${params.toString()}`);
+    queryTolerance = '0'
+    params.set('tolerance', '0')
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   useEffect(() => {
     if (queryLocation) {
-      setSelectedLocation(queryLocation);
+      setSelectedLocation(queryLocation)
     }
-  }, [queryLocation]);
+  }, [queryLocation])
 
   useEffect(() => {
     if (queryMachineNumber) {
-      setSelectedMachineNumber(queryMachineNumber);
+      setSelectedMachineNumber(queryMachineNumber)
       const selected = filteredMachines?.find(
         (machine) => machine.machineNumber == queryMachineNumber
-      );
-      setSelectedMachine(selected || null);
+      )
+      setSelectedMachine(selected || null)
     }
-  }, [queryMachineNumber, machines, filteredMachines]);
+  }, [queryMachineNumber, machines, filteredMachines])
 
   useEffect(() => {
     if (queryRefreshRate) {
-      setRefreshRate(queryRefreshRate);
+      setRefreshRate(queryRefreshRate)
     }
-  }, [queryRefreshRate]);
+  }, [queryRefreshRate])
 
   useEffect(() => {
     if (queryTolerance) {
-      setTolerance(parseInt(queryTolerance));
+      setTolerance(parseInt(queryTolerance))
     }
-  }, [queryTolerance]);
+  }, [queryTolerance])
 
   useEffect(() => {
     if (queryLiveMode) {
       if (queryLiveMode == 'true') {
-        setIsLiveMode(true);
+        setIsLiveMode(true)
       } else if (queryLiveMode == 'false') {
-        setIsLiveMode(false);
+        setIsLiveMode(false)
       }
     }
-  }, [queryLiveMode]);
+  }, [queryLiveMode])
 
   useEffect(() => {
     if (queryDate) {
       setSelectedDate(
         new Date(new Date(queryDate).getTime() + 1000 * 60 * 60 * 24)
-      );
+      )
     }
-  }, [queryDate]);
+  }, [queryDate])
 
   if (error)
     return (
       <ErrorState message="Error loading machines. Please try again later." />
-    );
+    )
 
   const colorMap = {
     blue: 'bg-blue-500',
@@ -625,17 +628,17 @@ export default function EmsDashboard() {
     white: 'bg-white border border-gray-300',
     red: 'bg-red-500',
     green: 'bg-green-500',
-  };
+  }
 
   const bgColorMap = (color: string) => {
-    const colorKey = color.toLowerCase() as keyof typeof colorMap;
-    return colorMap[colorKey] || 'bg-gray-500';
-  };
+    const colorKey = color.toLowerCase() as keyof typeof colorMap
+    return colorMap[colorKey] || 'bg-gray-500'
+  }
 
   let budgetEnergyHourly =
     (additionalData?.[0]?.budgetEnergyPerJam || 10300) +
-    ((additionalData?.[0]?.budgetEnergyPerJam || 10300) * tolerance) / 100;
-  let budgetEnergyDaily = (budgetEnergyHourly / 1000) * 24;
+    ((additionalData?.[0]?.budgetEnergyPerJam || 10300) * tolerance) / 100
+  let budgetEnergyDaily = (budgetEnergyHourly / 1000) * 24
 
   return (
     <div className="p-0 space-y-2 w-full  overflow-x-hidden">
@@ -778,35 +781,36 @@ export default function EmsDashboard() {
                   <Label className="w-20 pl-2 row-span-2 align-top">
                     Machine Status{' '}
                     {isFetching && !additionalData ? (
-                  <div className="flex flex-col gap-2">
-                    <Skeleton className="h-8 w-28 rounded-full mt-1" />
-                  </div>
-                ) : (
+                      <div className="flex flex-col gap-2">
+                        <Skeleton className="h-8 w-28 rounded-full mt-1" />
+                      </div>
+                    ) : (
                       <div
                         className={`h-8 w-28 rounded-full ${bgColorMap(
-                          additionalData?.[0]?.statusLight?.toLowerCase() || 'white'
+                          additionalData?.[0]?.statusLight?.toLowerCase() ||
+                            'white'
                         )} mt-1`}
                       />
                     )}
                   </Label>
                   <div className="mt-8">
-                  <Label>Material Type:</Label>
-                  <Select
-                  value={selectedMaterialType.toString()}
-                  onValueChange={(value) => setSelectedMaterialType(value)}
-                >
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="Tolerance" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {materialTypeList.map((material) => (
-                      <SelectItem key={material.id} value={material.name}>
-                      {material.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                </div>
+                    <Label>Material Type:</Label>
+                    <Select
+                      value={selectedMaterialType.toString()}
+                      onValueChange={(value) => setSelectedMaterialType(value)}
+                    >
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Tolerance" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {materialTypeList.map((material) => (
+                          <SelectItem key={material.id} value={material.name}>
+                            {material.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="h-24"></div>
                 </div>
                 <Image
@@ -821,12 +825,14 @@ export default function EmsDashboard() {
                     <Skeleton className="h-8 w-80 rounded-full mt-1" />
                     <Skeleton className="h-8 w-80 rounded-full mt-1" />
                     <Skeleton className="h-8 w-80 rounded-full mt-1" />
-
                   </div>
-                ) :(
+                ) : (
                   <Label className="flex flex-col text-3xl text-primary font-bold ">
                     <div className="flex flex-row text-center align-center items-center">
-                      <p className="text-base pl-4 flex ">{selectedMachine?.machineType} - {selectedMachine?.machineTonage}</p>
+                      <p className="text-base pl-4 flex ">
+                        {selectedMachine?.machineType} -{' '}
+                        {selectedMachine?.machineTonage}
+                      </p>
                     </div>
                     <div className="flex flex-row text-center align-center items-center">
                       <p className=" text-sm p-4 flex ">Energy Budget</p>{' '}
@@ -847,12 +853,18 @@ export default function EmsDashboard() {
                     <div className="flex justify-between text-md text-center align-center items-center">
                       <div className="flex items-center">
                         <p className="inline p-2 text-sm">OEE</p>{' '}
-                        {(additionalData && additionalData?.[0]?.oee * 100 || 0).toFixed(2)}{' '}
+                        {(
+                          (additionalData && additionalData?.[0]?.oee * 100) ||
+                          0
+                        ).toFixed(2)}{' '}
                         <p className="text-sm">%</p>
                       </div>
                       <div className="flex items-center">
                         <p className="inline p-2 text-sm">OOE</p>{' '}
-                        {(additionalData && additionalData?.[0]?.ooe * 100 || 0).toFixed(2)}{' '}
+                        {(
+                          (additionalData && additionalData?.[0]?.ooe * 100) ||
+                          0
+                        ).toFixed(2)}{' '}
                         <p className="text-sm ">%</p>
                       </div>
                     </div>
@@ -862,125 +874,158 @@ export default function EmsDashboard() {
               <div className="flex flex-row text-center align-center items-center gap-4 justify-between">
                 <Label className="w-20">
                   MTC
-                  <div className={`h-2 w-full rounded-full ${equipmentStatus.mtc ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
+                  <div
+                    className={`h-2 w-full rounded-full ${
+                      equipmentStatus.mtc ? 'bg-green-500' : 'bg-red-500'
+                    } mt-1`}
+                  ></div>
                 </Label>
                 <Label className="w-20">
                   Crusher
-                  <div className={`h-2 w-full rounded-full ${equipmentStatus.crusher ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
+                  <div
+                    className={`h-2 w-full rounded-full ${
+                      equipmentStatus.crusher ? 'bg-green-500' : 'bg-red-500'
+                    } mt-1`}
+                  ></div>
                 </Label>
                 <Label className="w-20 nowrap">
                   Hop.Dryer
-                  <div className={`h-2 w-full rounded-full ${equipmentStatus.dryHopper ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
+                  <div
+                    className={`h-2 w-full rounded-full ${
+                      equipmentStatus.dryHopper ? 'bg-green-500' : 'bg-red-500'
+                    } mt-1`}
+                  ></div>
                 </Label>
                 <Label className="w-20">
                   Conveyor
-                  <div className={`h-2 w-full rounded-full ${equipmentStatus.conveyor ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
+                  <div
+                    className={`h-2 w-full rounded-full ${
+                      equipmentStatus.conveyor ? 'bg-green-500' : 'bg-red-500'
+                    } mt-1`}
+                  ></div>
                 </Label>
                 <Label className="w-20">
                   MBFeeder
-                  <div className={`h-2 w-full rounded-full ${equipmentStatus.mbFeeder ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
+                  <div
+                    className={`h-2 w-full rounded-full ${
+                      equipmentStatus.mbFeeder ? 'bg-green-500' : 'bg-red-500'
+                    } mt-1`}
+                  ></div>
                 </Label>
                 <Label className="w-20">
                   Chiller
-                  <div className={`h-2 w-full rounded-full ${equipmentStatus.chiller ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
+                  <div
+                    className={`h-2 w-full rounded-full ${
+                      equipmentStatus.chiller ? 'bg-green-500' : 'bg-red-500'
+                    } mt-1`}
+                  ></div>
                 </Label>
                 <Label className="w-20">
                   Corepull
-                  <div className={`h-2 w-full rounded-full ${equipmentStatus.corepull ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
+                  <div
+                    className={`h-2 w-full rounded-full ${
+                      equipmentStatus.corepull ? 'bg-green-500' : 'bg-red-500'
+                    } mt-1`}
+                  ></div>
                 </Label>
                 <Label className="w-20">
                   Dehum
-                  <div className={`h-2 w-full rounded-full ${equipmentStatus.dehum ? 'bg-green-500' : 'bg-red-500'} mt-1`}></div>
+                  <div
+                    className={`h-2 w-full rounded-full ${
+                      equipmentStatus.dehum ? 'bg-green-500' : 'bg-red-500'
+                    } mt-1`}
+                  ></div>
                 </Label>
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 w-full">
-              <Card id="total-loss" >
-                <CardHeader className="font-bold text-center text-lg py-2">
-                  Total Loss
+            <div className="w-full ">
+              <Card className="w-full  pb-0">
+                <CardHeader className="py-2 text-lg font-bold text-center">
+                  Energy (kWh)
                 </CardHeader>
-                <CardContent className="text-center p-x-2 pb-0 pt-3">
-                  <Label className="flex text-center align-center items-baseline text-5xl text-red-500 font-bold">
-                    {totalLoss.toFixed(2)} <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="running">
-                <CardHeader className="font-bold text-center text-lg py-2">
-                  Running
-                </CardHeader>
-                <CardContent className="text-center p-x-2 pb-0 pt-3">
-                  <Label className="flex text-center align-center items-baseline text-5xl text-green-500 font-bold">
-                    {(energyGreen?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="orange">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Breakdown
-                </CardHeader>
-                <CardContent className="text-center p-x-2 pb-0 pt-3">
-                  <Label className="flex text-center items-baseline text-5xl text-orange-500 font-bold">
-                    {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="purple">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Org. Disfunction
-                </CardHeader>
-                <CardContent className="text-center p-x-2  pb-0 pt-3">
-                  <Label className="flex text-center items-baseline text-5xl text-purple-500 font-bold">
-                    {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="yellow">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Micro stop
-                </CardHeader>
-                <CardContent className="text-center p-x-2 py-0">
-                  <Label className="flex text-center items-baseline text-5xl text-yellow-500 font-bold">
-                    {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="blue">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Changeover
-                </CardHeader>
-                <CardContent className="text-center  p-x-2 py-0">
-                  <Label className="flex text-center items-baseline text-5xl text-blue-500 font-bold">
-                    {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="white">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Planned Stoppage
-                </CardHeader>
-                <CardContent className="text-center p-x-2 py-0">
-                  <Label className="flex text-center items-baseline text-5xl text-gray-500 font-bold">
-                    {(energyWhite?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
-                </CardContent>
-              </Card>
-              <Card id="red">
-                <CardHeader className="font-bold text-lg p-2 text-center">
-                  Non Quality
-                </CardHeader>
-                <CardContent className="text-center p-x-2 py-0">
-                  <Label className="flex text-center items-baseline text-5xl text-red-500 font-bold">
-                    {(energyRed?.TotalEnergyUsed || 0).toFixed(2)}{' '}
-                    <p className="text-base p-4">kWh</p>
-                  </Label>
+                <CardContent className="flex flex-col justify-end h-full p-2 pb-1 pt-0">
+                  <div className="flex items-end justify-between w-full">
+                    {/* TOTAL LOSS */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-red-500 leading-none">
+                        {totalLoss.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-red-500 border border-black px-2 py-[2px] rounded-l-md w-full text-center">
+                        TOTAL LOSS
+                      </div>
+                    </div>
+
+                    {/* RUNNING */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-green-500 leading-none">
+                        {(energyGreen?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-green-500 border border-black px-2 py-[2px] w-full text-center">
+                        RUNNING
+                      </div>
+                    </div>
+
+                    {/* BREAKDOWN */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-orange-500 leading-none">
+                        {(energyOrange?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-orange-500 border border-black px-2 py-[2px] w-full text-center">
+                        BREAKDOWN
+                      </div>
+                    </div>
+
+                    {/* ORG DISFUNCTION */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-purple-500 leading-none">
+                        {(energyPurple?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-purple-500 border border-black px-2 py-[2px] w-full text-center">
+                        ORG
+                      </div>
+                    </div>
+
+                    {/* MICRO STOP */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-yellow-500 leading-none">
+                        {(energyYellow?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-black bg-yellow-400 border border-black px-2 py-[2px] w-full text-center">
+                        MS
+                      </div>
+                    </div>
+
+                    {/* CHANGEOVER */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-blue-500 leading-none">
+                        {(energyBlue?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-blue-500 border border-black px-2 py-[2px] w-full text-center">
+                        C/O
+                      </div>
+                    </div>
+
+                    {/* PLANNED STOPPAGE */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-gray-500 leading-none">
+                        {(energyWhite?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-black bg-gray-300 border border-black px-2 py-[2px] w-full text-center">
+                        PS
+                      </div>
+                    </div>
+
+                    {/* NON QUALITY */}
+                    <div className="flex flex-col items-center flex-1">
+                      <div className="text-3xl font-bold text-red-500 leading-none">
+                        {(energyRed?.TotalEnergyUsed || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-white bg-red-600 border border-black px-2 py-[2px] rounded-r-md w-full text-center">
+                        NQ
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -1122,23 +1167,23 @@ export default function EmsDashboard() {
                               {nooe.time}
                             </TableCell>
                             {[...Array(24)].map((_, hour) => {
-                              const date = new Date();
-                              const offsetMinutes = date.getTimezoneOffset();
+                              const date = new Date()
+                              const offsetMinutes = date.getTimezoneOffset()
                               const nooeForHour = processedNoeeData?.find(
                                 (n) => {
-                                  const fromTime = new Date(n.fromTime);
+                                  const fromTime = new Date(n.fromTime)
                                   fromTime.setMinutes(
                                     fromTime.getMinutes() + offsetMinutes
-                                  );
+                                  )
                                   return (
                                     fromTime
                                       .toISOString()
                                       .split('T')[1]
                                       .slice(3, 8) === nooe.time &&
                                     fromTime.getHours() === hour
-                                  );
+                                  )
                                 }
-                              );
+                              )
                               const activeColor = nooeForHour
                                 ? Object.keys(colorMap).find(
                                     (color) =>
@@ -1146,7 +1191,7 @@ export default function EmsDashboard() {
                                         color as keyof typeof nooeForHour
                                       ] === true
                                   )
-                                : null;
+                                : null
 
                               // console.log(`noeeData ${JSON.stringify(noeeData)}`)
 
@@ -1174,7 +1219,7 @@ export default function EmsDashboard() {
                                     }`}
                                   />
                                 </TableCell>
-                              );
+                              )
                             })}
                           </TableRow>
                         ))}
@@ -1188,5 +1233,5 @@ export default function EmsDashboard() {
         )}
       </div>
     </div>
-  );
+  )
 }
