@@ -69,16 +69,36 @@ export function RoutingDataForm() {
   const [schedulerState, setSchedulerState] = useState<'Injection' | 'Coating'>(
     'Injection'
   )
+  const [cvtValue, setCvtValue] = useState<string | number>('')
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [routingData, setRoutingData] = React.useState<RoutingData[]>([])
+
+  // Logic untuk auto-fill CVT
+  useEffect(() => {
+    if (schedulerState === 'Coating') {
+      setCvtValue(1)
+    } else {
+      setCvtValue('')
+    }
+  }, [schedulerState])
+
+  // Reset state saat dialog ditutup/dibuka
+  useEffect(() => {
+    if (!open) {
+      setSchedulerState('Injection')
+      setCvtValue('')
+    }
+  }, [open])
+
+  // ... (Fetch logic tetap sama)
+  const [routingData, setRoutingData] = React.useState<any[]>([])
   const [searchTerm, setSearchTerm] = React.useState('')
   const [searchDate, setSearchDate] = React.useState('')
   const [loading, setLoading] = React.useState(true)
   const [page, setPage] = React.useState(1)
   const [totalPages, setTotalPages] = React.useState(0)
-  const [totalItems, setTotalItems] = React.useState(0)
 
+  const [totalItems, setTotalItems] = React.useState(0)
   const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || ''
   const fetchRoutingData = async () => {
     try {
@@ -178,10 +198,7 @@ export function RoutingDataForm() {
                       material_name: formData.get('material_name') as string,
                       scheduler,
                       cvt: parseInt(formData.get('cvt') as string),
-                      ct:
-                        scheduler === 'Injection'
-                          ? parseFloat(formData.get('ct') as string)
-                          : undefined,
+                      ct: parseFloat(formData.get('ct') as string),
                     }
 
                     try {
@@ -234,19 +251,28 @@ export function RoutingDataForm() {
                   </select>
 
                   {/* CVT Field */}
-                  <Input name="cvt" placeholder="CVT" type="number" required />
-
-                  {/* CT Field (conditional) */}
-                  {schedulerState === 'Injection' && (
-                    <Input
-                      name="ct"
-                      placeholder="CT"
-                      type="number"
-                      step="any"
-                      required
-                    />
-                  )}
-
+                  <Input
+                    name="cvt"
+                    placeholder="CVT"
+                    type="number"
+                    required
+                    value={cvtValue}
+                    onChange={(e) => setCvtValue(e.target.value)}
+                    readOnly={schedulerState === 'Coating'}
+                    className={
+                      schedulerState === 'Coating'
+                        ? 'bg-gray-100 cursor-not-allowed'
+                        : ''
+                    }
+                  />
+                  {/* CT Field */}
+                  <Input
+                    name="ct"
+                    placeholder="CT"
+                    type="number"
+                    step="any"
+                    required
+                  />
                   <DialogFooter>
                     <Button type="submit" disabled={submitting}>
                       {submitting ? 'Saving...' : 'Save'}
