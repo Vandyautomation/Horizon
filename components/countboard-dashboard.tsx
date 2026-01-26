@@ -2312,7 +2312,7 @@ export default function CountboardDashboard() {
             <div className="relative inline-block w-48">
               <button
                 onClick={() =>
-                  setOpenCell(openCell === 'row1-col2' ? null : 'Operator')
+                  setOpenCell(openCell === 'row1-col2' ? null : 'row1-col2')
                 }
                 className={`h-[43px] px-4 bg-black text-white flex items-center justify-between w-full 
                   ${openCell === 'row1-col2' ? 'rounded-t-md' : 'rounded-md'}`}
