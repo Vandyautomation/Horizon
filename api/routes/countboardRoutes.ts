@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, submitOrangeTicket, updateComment, updateCVT, getTickets,getUsers,editScrap,editRework, getAssignUsers } from '../controllers/countboardController';
+import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, submitOrangeTicket, updateComment, updateCVT, getTickets,getUsers,editScrap,editRework,updateHourlyOperator, getAssignUsers } from '../controllers/countboardController';
 //import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
 const countboardRoutes = new Hono();
@@ -204,6 +204,28 @@ countboardRoutes.get('/users', async (c) => {
     return c.json(data);
   } catch (error) {
     console.error('Error fetching users:', error);
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+countboardRoutes.post('/update-operator', async (c) => {
+  try {
+    // Ambil data dari body request
+    const { machine_id, date, shift, operator } = await c.req.json();
+
+    // Validasi sederhana jika diperlukan
+    if (!machine_id || !date || !shift || !operator) {
+      return c.json({ error: 'Missing required fields' }, 400);
+    }
+
+    const result = await updateHourlyOperator(machine_id, date, shift, operator);
+    
+    return c.json({ 
+      success: true, 
+      message: 'Operator updated successfully',
+      data: result 
+    });
+  } catch (error) {
+    console.error('Error updating operator:', error);
     return c.json({ error: (error as Error).message }, 500);
   }
 });

@@ -234,18 +234,23 @@ export function RoutingDataForm() {
                   </select>
 
                   {/* CVT Field */}
-                  <Input name="cvt" placeholder="CVT" type="number" required />
-
-                  {/* CT Field (conditional) */}
                   {schedulerState === 'Injection' && (
                     <Input
-                      name="ct"
-                      placeholder="CT"
+                      name="cvt"
+                      placeholder="CVT"
                       type="number"
-                      step="any"
                       required
                     />
                   )}
+                  {/* CT Field (conditional) */}
+
+                  <Input
+                    name="ct"
+                    placeholder="CT"
+                    type="number"
+                    step="any"
+                    required
+                  />
 
                   <DialogFooter>
                     <Button type="submit" disabled={submitting}>

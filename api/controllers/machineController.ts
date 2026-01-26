@@ -704,7 +704,8 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
             h.note AS comments,
         h.ooe,
         h.scrap,
-        h.rework
+        h.rework,
+        h.operator
     FROM IoT.dbo.hourly h
     LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
     LEFT JOIN CooisLatest c ON c.po_name = t.po_name
@@ -794,7 +795,8 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
             h.note AS comments,
             h.ooe,
             h.scrap,
-            h.rework
+            h.rework,
+             h.operator
         FROM IoT.dbo.hourly h
         LEFT JOIN IoT.dbo.countboard_tasks t ON h.task_id = t.id
         LEFT JOIN CooisLatest c ON c.po_name = t.po_name

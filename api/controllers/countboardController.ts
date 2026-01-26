@@ -15,6 +15,25 @@ export async function getUsers() {
 
   return await queryDatabase(sqlQuery);
 }
+// update operator di tabel hourly
+export async function updateHourlyOperator(
+  machine_id: string, 
+  date: string, 
+  shift: string | number, 
+  operatorName: string
+) {
+  const sqlQuery = `
+    UPDATE iot.dbo.hourly 
+    SET operator = '${operatorName}'
+    WHERE machine_id = '${machine_id}' 
+    AND CAST(from_datetime AS DATE) = '${date}'
+    AND shift_id = ${shift}
+  `;
+  
+  return await queryDatabase(sqlQuery);
+}
+
+
 export async function getAssignUsers() {
   const sqlQuery = `
     SELECT 

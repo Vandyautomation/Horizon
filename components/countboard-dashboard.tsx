@@ -91,10 +91,12 @@ type HourlyData = {
   actual: number
   scrap: number
   rework: number
+  shift_id: number
   causes: string
   comments: string
   problem: string
   action: string
+  operator: string
 }
 
 type OoeData = {
@@ -207,6 +209,99 @@ export default function CountboardDashboard() {
   const filteredUsers = users.filter((u) =>
     u.toLowerCase().includes(search.toLowerCase())
   )
+  /* Update Operator */
+  const handleUpdateOperator = async (userName: string) => {
+    const nameOnly = userName.split(' - ')[1] || userName
+    const firstRow = hourlyData && hourlyData.length > 0 ? hourlyData[0] : null
+    const params = new URLSearchParams(window.location.search)
+
+    // --- PERBAIKAN DATE ---
+    let date = params.get('date')
+    if (!date && firstRow?.from_datetime) {
+      // Jika from_datetime adalah objek Date, ubah ke string dulu
+      const dt = new Date(firstRow.from_datetime)
+      date = dt.toISOString().split('T')[0] // Hasil: "2025-12-11"
+    }
+
+    // --- PERBAIKAN SHIFT ---
+    // Jika di data JSON hourlyData ada field shift_id, gunakan itu
+    const shift =
+      params.get('shift') ||
+      (firstRow?.shift_id ? String(firstRow.shift_id) : '1')
+
+    const machineId = selectedMachine?.machineName
+
+    console.log('--- VALIDASI DATA ---')
+    console.log('Machine ID:', machineId)
+    console.log('Date:', date)
+    console.log('Shift:', shift)
+
+    if (!date || !machineId) {
+      toast.error('Data belum lengkap (Date/Machine ID null)')
+      return
+    }
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/update-operator`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            machine_id: machineId,
+            date: date,
+            shift: shift,
+            operator: nameOnly,
+          }),
+        }
+      )
+
+      if (res.ok) {
+        setSelectedUsers((prev) => ({ ...prev, ['row1-col2']: userName }))
+        refetchHourlyData()
+        toast.success(`Operator ${nameOnly} disimpan`)
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // const handleSelectUser = async (userString: string) => {
+  //   // 1. Update State Lokal (untuk UI instan)
+  //   setSelectedUsers((prev) => ({
+  //     ...prev,
+  //     ['row1-col2']: userString,
+  //   }))
+  //   setOpenCell(null)
+  //   setSearch('')
+
+  //   // 2. Kirim data ke Backend
+  //   try {
+  //     const response = await fetch(
+  //       `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/update-operator`,
+  //       {
+  //         method: 'POST',
+  //         headers: { 'Content-Type': 'application/json' },
+  //         body: JSON.stringify({
+  //           machine_id: selectedMachine?.machineName,
+  //           date: currentDate,
+  //           shift: currentShift,
+  //           operator: userString, // Format: "NIK - Nama"
+  //         }),
+  //       }
+  //     )
+
+  //     if (response.ok) {
+  //       // 3. REFRESH DATA TABEL
+  //       // Ini akan memicu useSWR untuk ambil data terbaru yang sudah ada operatornya
+  //       refetchHourlyData()
+  //       toast.success('Operator berhasil diperbarui')
+  //     }
+  //   } catch (error) {
+  //     toast.error('Gagal update operator')
+  //     console.error(error)
+  //   }
+  // }
   /*  OPERATOR / MEKANIK  */
   const { data } = useSWR(
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/assign-users`,
@@ -279,7 +374,7 @@ export default function CountboardDashboard() {
     setSearchSPV('')
   }, [selectedAssignTo])
 
-  console.log('usersSPV:', usersSPV)
+  // console.log('usersSPV:', usersSPV)
 
   const [selectedLocation, setSelectedLocation] = useState<string>('')
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('')
@@ -1109,7 +1204,7 @@ export default function CountboardDashboard() {
           : ''
       }`
     : null
-
+  console.log('hourlyDataKey:', hourlyDataKey)
   const { data: hourlyData } = useSWR<HourlyData[]>(
     hourlyDataKey,
     async (url) => {
@@ -1804,7 +1899,22 @@ export default function CountboardDashboard() {
       </div>
     )
   }
+  useEffect(() => {
+    console.log('Cek Data dari API:', hourlyData?.[0]) // Lihat di console browser!
 
+    if (hourlyData && hourlyData.length > 0) {
+      const dbOperator = hourlyData[0].operator
+      console.log('Isi field operator:', dbOperator)
+
+      if (dbOperator) {
+        setSelectedUsers((prev) => ({
+          ...prev,
+          ['row1-col2']: dbOperator,
+        }))
+      }
+    }
+  }, [hourlyData])
+  console.log('Selected Users State:', selectedUsers)
   return (
     <div className="p-0 space-y-2 w-full">
       <div className="flex gap-4 justify-between items-center">
@@ -2202,20 +2312,18 @@ export default function CountboardDashboard() {
             <div className="relative inline-block w-48">
               <button
                 onClick={() =>
-                  setOpenCell(openCell === 'row1-col2' ? null : 'row1-col2')
+                  setOpenCell(openCell === 'row1-col2' ? null : 'Operator')
                 }
-                className={`h-[43px] px-4 bg-black text-white flex items-center justify-between w-full
-          ${openCell === 'row1-col2' ? 'rounded-t-md' : 'rounded-md'}
-        `}
+                className={`h-[43px] px-4 bg-black text-white flex items-center justify-between w-full 
+                  ${openCell === 'row1-col2' ? 'rounded-t-md' : 'rounded-md'}`}
               >
                 <div className="flex items-center">
                   <User className="w-4 h-4 mr-2" />
+                  {/* Jika selectedUsers['row1-col2'] ada nilainya, tampilkan itu, jika tidak tampilkan 'Operator' */}
                   {selectedUsers['row1-col2'] || 'Operator'}
                 </div>
                 <ChevronDown
-                  className={`w-4 h-4 transition-transform duration-200
-                  ${openCell === 'row1-col2' ? 'rotate-180' : ''}
-                `}
+                  className={`w-4 h-4 transition-transform ${openCell === 'row1-col2' ? 'rotate-180' : ''}`}
                 />
               </button>
 
@@ -2234,20 +2342,14 @@ export default function CountboardDashboard() {
                   </div>
 
                   {/* List */}
+                  {/* List di dalam dropdown */}
                   <div className="max-h-20 overflow-y-auto">
                     {search.length > 0 &&
                       (filteredUsers.length > 0 ? (
                         filteredUsers.map((u) => (
                           <div
                             key={u}
-                            onClick={() => {
-                              setSelectedUsers((prev) => ({
-                                ...prev,
-                                ['row1-col2']: u,
-                              }))
-                              setOpenCell(null)
-                              setSearch('')
-                            }}
+                            onClick={() => handleUpdateOperator(u)} // <--- GANTI DISINI
                             className="px-3 py-2 cursor-pointer hover:bg-gray-700 flex items-center"
                           >
                             <User className="w-4 h-4 mr-2 text-gray-400" />
@@ -2840,10 +2942,10 @@ export default function CountboardDashboard() {
                                       {row.problem && row.causes
                                         ? row.problem + ' ' + row.causes
                                         : row.causes
-                                        ? row.causes
-                                        : row.problem
-                                        ? row.problem
-                                        : ''}
+                                          ? row.causes
+                                          : row.problem
+                                            ? row.problem
+                                            : ''}
                                     </p>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -2851,10 +2953,10 @@ export default function CountboardDashboard() {
                                       {row.problem && row.causes
                                         ? row.problem + ' ' + row.causes
                                         : row.causes
-                                        ? row.causes
-                                        : row.problem
-                                        ? row.problem
-                                        : 'Click to add causes'}
+                                          ? row.causes
+                                          : row.problem
+                                            ? row.problem
+                                            : 'Click to add causes'}
                                     </p>
                                   </TooltipContent>
                                 </Tooltip>
@@ -2877,10 +2979,10 @@ export default function CountboardDashboard() {
                                       {row.action && row.comments
                                         ? row.action + ' ' + row.comments
                                         : row.comments
-                                        ? row.comments
-                                        : row.action
-                                        ? row.action
-                                        : ''}
+                                          ? row.comments
+                                          : row.action
+                                            ? row.action
+                                            : ''}
                                     </p>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -2888,10 +2990,10 @@ export default function CountboardDashboard() {
                                       {row.action && row.comments
                                         ? row.action + ' ' + row.comments
                                         : row.comments
-                                        ? row.comments
-                                        : row.action
-                                        ? row.action
-                                        : 'Click to add comments'}
+                                          ? row.comments
+                                          : row.action
+                                            ? row.action
+                                            : 'Click to add comments'}
                                     </p>
                                   </TooltipContent>
                                 </Tooltip>
@@ -3307,8 +3409,8 @@ export default function CountboardDashboard() {
            ${usersSPV.find((u) => u.id === selectedAssignBy)?.name}`
                                 : 'SPV'
                               : selectedAssignTo
-                              ? 'Pilih SPV'
-                              : 'Pilih Operator dulu'}
+                                ? 'Pilih SPV'
+                                : 'Pilih Operator dulu'}
 
                             <ChevronDown className="w-4 h-4 ml-2" />
                           </div>
