@@ -1157,7 +1157,7 @@ export default function SalesOrderDetailPlanner({
             if (!it.group || !it.uap || !it.process) return;
             const key = buildRowKey(it.process, it.fg, it.description);
             const existing = weekUpdates.get(key) || {};
-            ALL_WEEKS.forEach((w) => {
+            visibleWeeks.forEach((w) => {
               const capKey = `${it.group}||${it.uap}||${it.process}||${w}`;
               const cap = capacityMap.get(capKey);
               if (!cap) return;
@@ -1211,7 +1211,7 @@ export default function SalesOrderDetailPlanner({
 
               const updatedDetails = details.map((detail) => {
                 const weeks = { ...detail.weeks };
-                ALL_WEEKS.forEach((w) => {
+                visibleWeeks.forEach((w) => {
                   const itemWeek = item.weeks[w];
                   if (!itemWeek) return;
                   weeks[w] = {
@@ -1316,7 +1316,7 @@ export default function SalesOrderDetailPlanner({
         if (!isUnmountedRef.current) setItems(buildDefaultItems());
       }
     },
-    [so, year, fromWeek, toWeek, itemNo, description]
+    [so, year, fromWeek, toWeek, itemNo, description, visibleWeeks]
   );
 
   const loadLevel1List = useCallback(async () => {
@@ -1461,6 +1461,18 @@ export default function SalesOrderDetailPlanner({
     [so, year, fromWeek, toWeek]
   );
 
+  useEffect(() => {
+    if (!so) return;
+    const handle = setTimeout(() => {
+      const expanded = items.filter((it) => detailExpanded[it.id]);
+      if (!expanded.length) return;
+      expanded.forEach((it) => {
+        loadPlannerItemDetail(it);
+      });
+    }, 1000);
+    return () => clearTimeout(handle);
+  }, [fromWeek, toWeek, year, so, items, detailExpanded, loadPlannerItemDetail]);
+
   const loadPlannerAvail = useCallback(async () => {
     if (isUnmountedRef.current || !so) return;
     const base = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9999").replace(
@@ -1501,6 +1513,28 @@ export default function SalesOrderDetailPlanner({
   }, [fromWeek, so, toWeek, year]);
 
   useEffect(() => {
+    if (!so) return;
+    const handle = setTimeout(() => {
+      pausePollingUntilRef.current = Date.now() + 1500;
+      loadPlannerData({ weeksOnly: true });
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [fromWeek, toWeek, year, so, loadPlannerData]);
+
+  useEffect(() => {
+    if (!so) return;
+    const handle = setTimeout(() => {
+      pausePollingUntilRef.current = Date.now() + 1500;
+      const expanded = items.filter((it) => expandedItems[it.id]);
+      if (!expanded.length) return;
+      expanded.forEach((it) => {
+        loadLevel3Detail(it);
+      });
+    }, 1000);
+    return () => clearTimeout(handle);
+  }, [fromWeek, toWeek, year, so, items, expandedItems, loadLevel3Detail]);
+
+  useEffect(() => {
     if (!so || !items.length) return;
     items.forEach((it) => {
       if (detailPrefetchRef.current.has(it.id)) return;
@@ -1508,6 +1542,19 @@ export default function SalesOrderDetailPlanner({
       void loadPlannerItemDetail(it);
     });
   }, [items, loadPlannerItemDetail, so]);
+
+  useEffect(() => {
+    if (!so) return;
+    const handle = setTimeout(() => {
+      pausePollingUntilRef.current = Date.now() + 1500;
+      const expanded = items.filter((it) => detailExpanded[it.id]);
+      if (!expanded.length) return;
+      expanded.forEach((it) => {
+        loadPlannerItemDetail(it);
+      });
+    }, 1000);
+    return () => clearTimeout(handle);
+  }, [fromWeek, toWeek, year, so, items, detailExpanded, loadPlannerItemDetail]);
 
   useEffect(() => {
     if (!so) return;
