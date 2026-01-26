@@ -1,91 +1,139 @@
-"use client";
+'use client'
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from 'react'
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL;
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL
+const ROWS_PER_PAGE = 15
+const weekLabels = Array.from({ length: 52 }, (_, i) => `W${i + 1}`)
 
-const ROWS_PER_PAGE = 15;
-const weekLabels = Array.from({ length: 52 }, (_, i) => `W${i + 1}`);
-const randomValue = () => Math.floor(Math.random() * 21) + 80;
-
-function transformHRZData(rows) {
-const map = {};
-
-  rows.forEach((row) => {
-    if (!map[row.MchProcess]) {
-      map[row.MchProcess] = { process: row.MchProcess, groups: [] };
-    }
-    map[row.MchProcess].groups.push({
-      name: row.GroupID,
-      values: weekLabels.map(() => randomValue()),
-    });
-  });
-
-  return Object.values(map);
+/* =======================
+   TRANSFORM DATA
+======================= */
+function normalizeWeekNum(week) {
+  // DB: w01 -> W1, w10 -> W10
+  const num = parseInt(week.replace(/^w/i, ''), 10)
+  return `W${num}`
 }
 
-export default function HRZDashboard3() {
-  const [rawData, setRawData] = useState([]);
-  const [uapList, setUapList] = useState([]);
-  const [selectedUAP, setSelectedUAP] = useState("");
-  const [weekIndex, setWeekIndex] = useState(0);
-  const [page, setPage] = useState(1);
+function transformHRZData(rows) {
+  return rows.map((row) => {
+    const weeks = {}
+    if (row.WeekNum) {
+      const weekKey = normalizeWeekNum(row.WeekNum)
+      weeks[weekKey] = true
+    }
+    return {
+      process: row.MchProcess,
+      group: row.GroupID,
+      weeks,
+    }
+  })
+}
 
-  // ambil UAP list
+/* =======================
+   COMPONENT
+======================= */
+export default function HRZDashboard3() {
+  const [startWeek, setStartWeek] = useState('w01')
+  const [endWeek, setEndWeek] = useState('w52')
+
+  // Fungsi helper untuk merubah angka ke format DB 'w01'
+  const formatToDBWeek = (index) => `w${String(index + 1).padStart(2, '0')}`
+  const [rawData, setRawData] = useState([])
+  const [uapList, setUapList] = useState([])
+  const [selectedUAP, setSelectedUAP] = useState('')
+  const [weekIndex, setWeekIndex] = useState(0)
+  // const totalColSpan = 2 + filteredWeeks.length;
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [loading, setLoading] = useState(false)
+
+  /* =======================
+     FETCH UAP LIST
+  ======================= */
   useEffect(() => {
     const fetchUAPList = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/hrz/hrz-uap-list`);
-        const json = await res.json();
-        setUapList(json.data || []);
+        const res = await fetch(`${API_BASE}/api/hrz/hrz-uap-list`)
+        const json = await res.json()
+        setUapList(json.data || [])
       } catch (err) {
-        console.error(err);
+        console.error(err)
       }
-    };
-    fetchUAPList();
-  }, []);
+    }
 
-  // ambil semua data
+    fetchUAPList()
+  }, [])
+
+  /* =======================
+     FETCH PAGED DATA
+  ======================= */
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true)
       try {
-        const res = await fetch(`${API_BASE}/api/hrz/hrz-capacity`);
-        const json = await res.json();
-        setRawData(json.data || []);
+        const params = new URLSearchParams({
+          page: String(page),
+          startWeek: startWeek, // Kirim ke backend
+          endWeek: endWeek, // Kirim ke backend
+        })
+
+        if (selectedUAP) params.append('uap', selectedUAP)
+
+        const res = await fetch(
+          `${API_BASE}/api/hrz/hrz-capacity?${params.toString()}`
+        )
+        const json = await res.json()
+
+        setRawData(json.data || [])
+        setTotalPages(json.totalPages || 1)
       } catch (err) {
-        console.error(err);
+        console.error(err)
+      } finally {
+        setLoading(false)
       }
-    };
-    fetchData();
-  }, []);
+    }
 
-  // filter di frontend
-  const filteredData = useMemo(() => {
-    return selectedUAP
-      ? rawData.filter((r) => r.UAP === selectedUAP)
-      : rawData;
-  }, [rawData, selectedUAP]);
+    fetchData()
+  }, [page, selectedUAP, startWeek, endWeek]) // Tambahkan dependency
 
-  // paging + transform
-  const pagedData = useMemo(() => {
-    const start = (page - 1) * ROWS_PER_PAGE;
-    const end = page * ROWS_PER_PAGE;
-    return transformHRZData(filteredData.slice(start, end));
-  }, [filteredData, page]);
+  /* =======================
+   FILTERED WEEK LABELS
+======================= */
+  const filteredWeeks = useMemo(() => {
+    // Ambil angka dari string 'w01', 'w02'
+    const startNum = parseInt(startWeek.replace('w', ''), 10)
+    const endNum = parseInt(endWeek.replace('w', ''), 10)
 
-  const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
+    // Filter weekLabels (W1, W2...) berdasarkan urutan angkanya
+    return weekLabels.filter((_, index) => {
+      const currentNum = index + 1
+      return currentNum >= startNum && currentNum <= endNum
+    })
+  }, [startWeek, endWeek])
 
+  /* =======================
+     TRANSFORM DATA
+  ======================= */
+  const tableData = useMemo(() => {
+    return transformHRZData(rawData)
+  }, [rawData])
+  const totalColSpan = 2 + filteredWeeks.length
+
+  /* =======================
+     RENDER
+  ======================= */
   return (
     <div className="p-4">
       <h1 className="text-xl font-bold mb-4">HRZ Capacity Summary</h1>
 
-      {/* FILTER UAP */}
+      {/* FILTER */}
       <div className="mb-4 flex gap-4 items-center">
         <select
           value={selectedUAP}
           onChange={(e) => {
-            setSelectedUAP(e.target.value);
-            setPage(1);
+            setSelectedUAP(e.target.value)
+            setPage(1)
           }}
           className="border p-2"
         >
@@ -97,30 +145,58 @@ export default function HRZDashboard3() {
           ))}
         </select>
 
-        <span>
-          Week: <b>{weekLabels[weekIndex]}</b>
-        </span>
+     
       </div>
+      <div className="flex gap-4 items-center bg-gray-50 p-3 rounded-md">
+        <div>
+          <label className="block text-xs font-bold">START WEEK</label>
+          <select
+            value={startWeek}
+            onChange={(e) => {
+              setStartWeek(e.target.value)
+              setPage(1)
+            }}
+            className="border p-1"
+          >
+            {weekLabels.map((_, i) => (
+              <option key={i} value={formatToDBWeek(i)}>
+                {weekLabels[i]}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      {/* WEEK SLIDER */}
-      <input
-        type="range"
-        min="0"
-        max={51}
-        value={weekIndex}
-        onChange={(e) => setWeekIndex(Number(e.target.value))}
-        className="w-full mb-4"
-      />
+        <div className="font-bold mt-4">TO</div>
+
+        <div>
+          <label className="block text-xs font-bold">END WEEK</label>
+          <select
+            value={endWeek}
+            onChange={(e) => {
+              setEndWeek(e.target.value)
+              setPage(1)
+            }}
+            className="border p-1"
+          >
+            {weekLabels.map((_, i) => (
+              <option key={i} value={formatToDBWeek(i)}>
+                {weekLabels[i]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {/* TABLE */}
       <div className="overflow-x-auto">
-        <table className="min-w-max border text-center">
+        <table className="min-w-max border-collapse text-center">
           <thead className="bg-gray-200">
             <tr>
               <th className="border px-4 sticky left-0 bg-gray-200">PROCESS</th>
-              <th className="border px-4 sticky left-[120px] bg-gray-200">GROUP</th>
-              {weekLabels.map((w, i) => (
-                <th key={w} className={`border px-2 ${i === weekIndex ? "bg-yellow-300" : ""}`}>
+              <th className="border px-4 left-[140px] bg-gray-200">GROUP</th>
+              {/* Ganti weekLabels jadi filteredWeeks */}
+              {filteredWeeks.map((w) => (
+                <th key={w} className="border px-2 min-w-[50px]">
                   {w}
                 </th>
               ))}
@@ -128,20 +204,44 @@ export default function HRZDashboard3() {
           </thead>
 
           <tbody>
-            {pagedData.map((section) =>
-              section.groups.map((group, idx) => (
-                <tr key={`${section.process}-${group.name}-${idx}`}>
-                  {idx === 0 && (
-                    <td rowSpan={section.groups.length} className="border sticky left-0 bg-white font-bold">
-                      {section.process}
-                    </td>
-                  )}
-                  <td className="border sticky left-[120px] bg-white">{group.name}</td>
-                  {group.values.map((val, wIdx) => (
-                    <td key={wIdx} className={`border ${wIdx === weekIndex ? "bg-yellow-100 font-bold" : ""}`}>
-                      {val}%
-                    </td>
-                  ))}
+            {loading ? (
+              <tr>
+                <td
+                  colSpan={totalColSpan}
+                  className="p-6 text-center text-blue-500 font-semibold"
+                >
+                  Loading data...
+                </td>
+              </tr>
+            ) : tableData.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={totalColSpan}
+                  className="p-6 text-center text-gray-500"
+                >
+                  No Data found for this range
+                </td>
+              </tr>
+            ) : (
+              tableData.map((row, idx) => (
+                <tr key={`${row.process}-${row.group}-${idx}`}>
+                  <td className="border sticky left-0 bg-white font-bold">
+                    {row.process}
+                  </td>
+                  <td className="border sticky left-[130px] bg-white">
+                    {row.group}
+                  </td>
+                  {filteredWeeks.map((w) => {
+                    const hasData = row.weeks[w]
+                    return (
+                      <td
+                        key={w}
+                        className={`border ${
+                          hasData ? 'bg-yellow-400' : 'bg-gray-100'
+                        }`}
+                      />
+                    )
+                  })}
                 </tr>
               ))
             )}
@@ -150,7 +250,7 @@ export default function HRZDashboard3() {
       </div>
 
       {/* PAGINATION */}
-      <div className="flex gap-4 mt-4 items-center">
+      <div className="flex gap-4 mt-4 items-center justify-start">
         <button
           disabled={page === 1}
           onClick={() => setPage((p) => p - 1)}
@@ -158,9 +258,11 @@ export default function HRZDashboard3() {
         >
           Prev
         </button>
+
         <span>
-          Page {page} / {totalPages || 1}
+          Page {page} / {totalPages}
         </span>
+
         <button
           disabled={page >= totalPages}
           onClick={() => setPage((p) => p + 1)}
@@ -170,5 +272,5 @@ export default function HRZDashboard3() {
         </button>
       </div>
     </div>
-  );
+  )
 }

@@ -247,16 +247,21 @@ hrzRoutes.get('/scan-columns', async (c) => {
   return c.json(result);
 });
 // GET data table
-// GET semua data
-hrzRoutes.get("/hrz-capacity", async (c) => {
+hrzRoutes.get('/hrz-capacity', async (c) => {
   try {
-    const data = await getHRZCapacityMch();
-    return c.json({ success: true, data });
+    const page = Number(c.req.query('page') || 1);
+    const uap = c.req.query('uap') || null;
+    const startWeek = c.req.query('startWeek') || null; // Ambil dari query param
+    const endWeek = c.req.query('endWeek') || null;     // Ambil dari query param
+
+    const result = await getHRZCapacityMch(uap, page, startWeek, endWeek);
+
+    return c.json({ success: true, ...result });
   } catch (err: any) {
-    console.error(err);
     return c.json({ success: false, message: err.message }, 500);
   }
 });
+
 // GET daftar UAP untuk dropdown
 hrzRoutes.get("/hrz-uap-list", async (c) => {
   try {

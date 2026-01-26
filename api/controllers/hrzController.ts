@@ -182,20 +182,55 @@ export async function getHRZColumns() {
 
 // Ambil data HRZ Capacity 
 
-export async function getHRZCapacityMch() {
+export async function getHRZCapacityMch(
+  uap: string | null,
+  page: number,
+  startWeek: string | null, // Tambah ini
+  endWeek: string | null,   // Tambah ini
+  limit = 15
+) {
+  const offset = (page - 1) * limit;
+
+  // Filter tambahan untuk SQL
+  // Menggunakan >= dan <= pada string format 'w01' bekerja dengan baik di SQL
+  const weekFilter = (startWeek && endWeek) 
+    ? `AND (WeekNum BETWEEN @startWeek AND @endWeek)` 
+    : '';
+
+  // TOTAL DATA
+  const totalItems = await queryDatabase(
+    `
+    SELECT COUNT(*) as count
+    FROM iot.dbo.Hrz_CapacityMch
+    WHERE (@uap IS NULL OR UAP = @uap) ${weekFilter}
+    `,
+    { uap, startWeek, endWeek }
+  );
+
+  const totalPages = Math.ceil(totalItems[0].count / limit);
+
+  // DATA PER PAGE
   const sql = `
-    SELECT
-        MchProcess,
-        CONVERT(VARCHAR(20), GroupID) AS GroupID,
-        UAP
-      FROM iot.dbo.Hrz_CapacityMch
-      ORDER BY MchProcess, GroupID
+    SELECT 
+      MchProcess,
+      CONVERT(VARCHAR(20), GroupID) AS GroupID,
+      UAP,
+      WeekNum
+    FROM iot.dbo.Hrz_CapacityMch
+    WHERE (@uap IS NULL OR UAP = @uap) ${weekFilter}
+    ORDER BY MchProcess, GroupID, WeekNum ASC 
+    OFFSET ${offset} ROWS
+    FETCH NEXT ${limit} ROWS ONLY
   `;
 
-  const rows = await queryDatabase(sql);
-  return rows;
-}
+  const rows = await queryDatabase(sql, { uap, startWeek, endWeek });
 
+  return {
+    data: rows,
+    totalPages,
+    totalItems: totalItems[0].count,
+  };
+}
 
 
 // Ambil daftar UAP unik untuk dropdown
