@@ -10,6 +10,7 @@ export default function SalesOrderDetailPage() {
   const customer = searchParams.get("customer") || "";
   const itemNo = searchParams.get("itemNo") || "";
   const description = searchParams.get("description") || "";
+  const giDate = searchParams.get("giDate") || "";
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -24,6 +25,7 @@ export default function SalesOrderDetailPage() {
         customer={customer}
         itemNo={itemNo}
         description={description}
+        giDate={giDate}
       />
     </div>
   );

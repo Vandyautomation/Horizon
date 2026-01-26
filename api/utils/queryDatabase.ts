@@ -1,3 +1,4 @@
+import sql from 'mssql';
 import { pool } from '../config/database';
 
 
@@ -25,6 +26,48 @@ export async function queryDatabase(sqlQuery: string, params: { [key: string]: a
     ) {
       console.error('🚨 Fatal database timeout or stuck connection pool. Restarting...');
       process.exit(1); // Trigger restart via pm2 or systemd
+    }
+    throw error;
+  }
+}
+
+export async function queryDatabaseInTransaction(
+  transaction: sql.Transaction,
+  sqlQuery: string,
+  params: { [key: string]: any } = {}
+) {
+  const request = transaction.request();
+
+  Object.entries(params).forEach(([key, value]) => {
+    request.input(key, value);
+  });
+
+  try {
+    const result = await request.query(sqlQuery);
+    return result.recordset;
+  } catch (error: any) {
+    console.error('âŒ Database query error (transaction):');
+    console.error('âž¡ï¸ Query:', sqlQuery);
+    console.error('âž¡ï¸ Params:', params);
+    console.error('âž¡ï¸ Error:', error);
+    throw error;
+  }
+}
+
+export async function withTransaction<T>(fn: (tx: sql.Transaction) => Promise<T>) {
+  const connection = await pool;
+  const transaction = new sql.Transaction(connection);
+
+  await transaction.begin();
+  try {
+    const result = await fn(transaction);
+    await transaction.commit();
+    return result;
+  } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error('âŒ Failed to rollback transaction:', rollbackError);
     }
     throw error;
   }

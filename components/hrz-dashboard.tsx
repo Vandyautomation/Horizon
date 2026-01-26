@@ -164,7 +164,7 @@ export default function HRZDashboard() {
       d.salesOrder
     )}&itemNo=${encodeURIComponent(d.itemNo)}&description=${encodeURIComponent(
       d.description
-    )}&customer=${encodeURIComponent(d.customer)}`;
+    )}&customer=${encodeURIComponent(d.customer)}&giDate=${encodeURIComponent(d.dlvDate)}`;
 
     console.log("Opening detail page with URL:", url);
     const basePath = "/admin";

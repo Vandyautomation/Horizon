@@ -65,6 +65,7 @@ interface DragMeta {
   field: string;
   value: number;
   detailIndex?: number | null;
+  source: "dspt" | "loading";
 }
 
 interface EditModalState {
@@ -80,6 +81,7 @@ interface SalesOrderDetailPlannerProps {
   customer: string;
   itemNo: string;
   description: string;
+  giDate: string;
 }
 
 // Struktur baris terpusat untuk menyamakan urutan row kiri & kanan.
@@ -144,6 +146,7 @@ export default function SalesOrderDetailPlanner({
   customer,
   itemNo,
   description,
+  giDate,
 }: SalesOrderDetailPlannerProps) {
   const currentWeek = getCurrentWeek();
   const initialYear = new Date().getFullYear();
@@ -408,7 +411,7 @@ export default function SalesOrderDetailPlanner({
               openOrder: Number(r.openOrder) || 0,
               std: Number(r.std) || 0,
               dspt: Number(r.dspt) || 0,
-              initialDspt: Number(r.std) || Number(r.dspt) || 0,
+              initialDspt: Number(r.dspt) || 0,
               weeks,
             };
           })
@@ -477,6 +480,14 @@ export default function SalesOrderDetailPlanner({
     return Number(it.weeks[week].capacity) - Number(it.weeks[week].loading || 0);
   };
 
+  const getLevel2DsptDisplay = (it: Item) => {
+    const details = level3Details[it.id];
+    if (details && details.length) {
+      return details.reduce((sum, d) => sum + Number(d.dspt || 0), 0);
+    }
+    return it.dspt;
+  };
+
   const computeAvailableValue = (capacity: number, loading: number, fallback?: number) => {
     const capNum = Number(capacity);
     if (!Number.isFinite(capNum)) return fallback;
@@ -491,7 +502,8 @@ export default function SalesOrderDetailPlanner({
   // - Jika belum ada detail, gunakan logika awal: DSPT = initialDspt - total loading.
   const recomputeItemDspt = (item: Item, details?: Level3Detail[]): Item => {
     if (details && details.length) {
-      return item;
+      const totalDetailDspt = details.reduce((sum, d) => sum + Number(d.dspt || 0), 0);
+      return { ...item, dspt: totalDetailDspt };
     }
 
     const totalLoading = computeTotalLoading(item.weeks);
@@ -648,11 +660,12 @@ export default function SalesOrderDetailPlanner({
     detailIndex: number | null = null
   ) => {
     if (!isAdmin) return;
+    const source = field === "dspt" ? "dspt" : "loading";
     e.dataTransfer?.setData(
       "text/plain",
-      JSON.stringify({ itemId, fromWeek, field, value, detailIndex })
+      JSON.stringify({ itemId, fromWeek, field, value, detailIndex, source })
     );
-    setDragMeta({ itemId, fromWeek, field, value, detailIndex });
+    setDragMeta({ itemId, fromWeek, field, value, detailIndex, source });
   };
 
   const handleDrop = (toItemId: number, toWeek: number, detailIndex: number | null = null) => {
@@ -755,11 +768,11 @@ export default function SalesOrderDetailPlanner({
         pausePollingUntilRef.current = Date.now() + 30000;
 
         // Update backend dispatch untuk perpindahan loading level 3
+        const item = items.find((it) => it.id === dragMeta.itemId);
+        const detail = updatedList[effectiveDetailIndex];
+        const dsptTotal =
+          (detail && Number(detail.initialDspt ?? detail.dspt ?? 0)) || 0;
         if (dragMeta.fromWeek !== null) {
-          const item = items.find((it) => it.id === dragMeta.itemId);
-          const detail = updatedList[effectiveDetailIndex];
-          const dsptTotal =
-            (detail && Number(detail.initialDspt ?? detail.dspt ?? 0)) || 0;
           void postDispatchUpdate({
             mode: "move",
             so,
@@ -771,6 +784,23 @@ export default function SalesOrderDetailPlanner({
             qty: val,
             proName: (detail && detail.itemNo) || "",
             dsptTotal,
+            delta: 0,
+          });
+        } else {
+          const oldQty = Number(list[effectiveDetailIndex]?.weeks?.[toWeek]?.loading || 0);
+          const newQty = Number(detail?.weeks?.[toWeek]?.loading || 0);
+          void postDispatchUpdate({
+            mode: "modal",
+            so,
+            materialId: item ? Number(item.fg) || 0 : dragMeta.itemId,
+            process: (detail && detail.process) || (item && item.process) || "",
+            year,
+            week: toWeek,
+            oldQty,
+            newQty,
+            proName: (detail && detail.itemNo) || "",
+            dsptTotal,
+            delta: newQty - oldQty,
           });
         }
 
@@ -812,6 +842,118 @@ export default function SalesOrderDetailPlanner({
       );
       pausePollingUntilRef.current = Date.now() + 30000;
     }
+
+    setDragMeta(null);
+  };
+
+  const handleDropToPool = (itemId: number, detailIndex: number | null) => {
+    if (!isAdmin) return;
+    if (!dragMeta) return;
+    if (dragMeta.source !== "loading") return;
+    if (dragMeta.fromWeek === null) return;
+    if (detailIndex === null || detailIndex < 0) return;
+    if (dragMeta.itemId !== itemId) return;
+    if (dragMeta.detailIndex !== detailIndex) return;
+
+    const fromWeek = dragMeta.fromWeek;
+    const detail = level3Details[itemId]?.[detailIndex];
+    if (!detail) return;
+
+    const oldQty = Number(detail.weeks[fromWeek]?.loading || 0);
+    if (!oldQty) return;
+
+    const sourceItem = items.find((it) => it.id === itemId);
+
+    setLevel3Details((prev) => {
+      const list = prev[itemId];
+      if (!list || !list[detailIndex]) return prev;
+
+      const updatedList = list.map((d, idx) => {
+        if (idx !== detailIndex) return d;
+        const weeks = { ...d.weeks };
+        weeks[fromWeek] = {
+          ...weeks[fromWeek],
+          loading: 0,
+          available: computeAvailableValue(
+            weeks[fromWeek].capacity,
+            0,
+            weeks[fromWeek].available
+          ),
+        };
+        const updatedDetail: Level3Detail = { ...d, weeks };
+        return recomputeDetailDspt(updatedDetail);
+      });
+
+      const aggregatedWeeks: Record<number, WeekData> = ALL_WEEKS.reduce(
+        (acc, w) => {
+          const loadingSum = updatedList.reduce(
+            (s, d) => s + Number(d.weeks[w]?.loading || 0),
+            0
+          );
+          const capacity =
+            updatedList[0]?.weeks[w]?.capacity ??
+            prev[itemId]?.[0]?.weeks[w]?.capacity ??
+            0;
+          acc[w] = {
+            capacity,
+            loading: loadingSum,
+            available: computeAvailableValue(
+              capacity,
+              loadingSum,
+              sourceItem?.weeks[w]?.available
+            ),
+          };
+          return acc;
+        },
+        {} as Record<number, WeekData>
+      );
+
+      setItems((prevItems) =>
+        prevItems.map((it) =>
+          it.id === itemId
+            ? recomputeItemDspt(
+                {
+                  ...it,
+                  weeks: ALL_WEEKS.reduce((acc, w) => {
+                    acc[w] = {
+                      ...aggregatedWeeks[w],
+                      available:
+                        aggregatedWeeks[w]?.available ??
+                        computeAvailableValue(
+                          aggregatedWeeks[w]?.capacity ?? it.weeks[w]?.capacity ?? 0,
+                          aggregatedWeeks[w]?.loading ?? it.weeks[w]?.loading ?? 0,
+                          it.weeks[w]?.available
+                        ),
+                    };
+                    return acc;
+                  }, {} as Record<number, WeekData>),
+                },
+                updatedList
+              )
+            : it
+        )
+      );
+
+      pausePollingUntilRef.current = Date.now() + 30000;
+
+      return { ...prev, [itemId]: updatedList };
+    });
+
+    const item = items.find((it) => it.id === itemId);
+    const dsptTotal = Number(detail.initialDspt ?? detail.dspt ?? 0) || 0;
+    void postDispatchUpdate({
+      mode: "modal",
+      so,
+      materialId: item ? Number(item.fg) || 0 : itemId,
+      process: detail.process || (item && item.process) || "",
+      year,
+      week: fromWeek,
+      oldQty,
+      newQty: 0,
+      proName: detail.itemNo || "",
+      dsptTotal,
+      delta: 0 - oldQty,
+    });
 
     setDragMeta(null);
   };
@@ -931,6 +1073,7 @@ export default function SalesOrderDetailPlanner({
         newQty: num,
         proName: (detail && detail.itemNo) || "",
         dsptTotal,
+        delta: num - oldQty,
       });
     } else {
       // Edit di level 2 (FG) — langsung set ke Item.weeks (total)
@@ -1133,7 +1276,7 @@ export default function SalesOrderDetailPlanner({
               openOrder: Number(row.openOrder) || 0,
               std: Number(row.std) || 0,
               dspt: Number(row.dspt) || 0,
-              initialDspt: Number(row.std) || Number(row.dspt) || 0,
+              initialDspt: Number(row.dspt) || 0,
               process: row.process || "FG",
               uap: row.uap || "0",
               group: row.group || "FG",
@@ -1279,8 +1422,7 @@ export default function SalesOrderDetailPlanner({
           openOrder: Number(updatedItemBase?.openOrder) || item.openOrder,
           std: Number(updatedItemBase?.std) || 0,
           dspt: Number(updatedItemBase?.dspt) || 0,
-          initialDspt:
-            Number(updatedItemBase?.std) || Number(updatedItemBase?.dspt) || 0,
+          initialDspt: Number(updatedItemBase?.dspt) || 0,
           process: updatedItemBase?.process || item.process,
           uap: updatedItemBase?.uap || item.uap,
           group: updatedItemBase?.group || item.group,
@@ -1473,13 +1615,21 @@ export default function SalesOrderDetailPlanner({
         <div className="flex flex-wrap gap-2 justify-between text-sm text-gray-800">
           <div className="flex flex-wrap gap-2">
             <div className="px-3 py-2 border rounded bg-gray-50">
-            <div className="text-[10px] uppercase tracking-wide text-gray-500">Customer</div>
-            <div className="font-semibold">{customer || "-"}</div>
-          </div>
+              <div className="text-[10px] uppercase tracking-wide text-gray-500">Customer</div>
+              <div className="font-semibold">{customer || "-"}</div>
+            </div>
             <div className="px-3 py-2 border rounded bg-gray-50">
-            <div className="text-[10px] uppercase tracking-wide text-gray-500">SO</div>
-            <div className="font-semibold">{so || "-"}</div>
-          </div>
+              <div className="text-[10px] uppercase tracking-wide text-gray-500">SO</div>
+              <div className="font-semibold">{so || "-"}</div>
+            </div>
+            <div className="px-3 py-2 border rounded bg-gray-50 min-w-[180px]">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500">Description</div>
+              <div className="font-semibold line-clamp-1">{description || "-"}</div>
+            </div>
+            <div className="px-3 py-2 border rounded bg-gray-50">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500">GI Date</div>
+              <div className="font-semibold">{giDate || "-"}</div>
+            </div>
           </div>
 
           {/* Year di baris yang sama dengan Customer & SO */}
@@ -1612,7 +1762,7 @@ export default function SalesOrderDetailPlanner({
                       </td>
                       <td className="text-center rounded">{formatNumber(it.std, 2)}</td>
                       <td className="bg-blue-50 text-center rounded">
-                        {formatNumber(it.dspt, 2)}
+                        {formatNumber(getLevel2DsptDisplay(it), 2)}
                       </td>
                       <td className="text-center">{it.uap}</td>
                       <td className="text-center">{it.group}</td>
@@ -1644,6 +1794,12 @@ export default function SalesOrderDetailPlanner({
                     </td>
                     <td
                       draggable={isAdmin}
+                      onDragOver={(e) => {
+                        if (dragMeta?.source === "loading") {
+                          e.preventDefault();
+                        }
+                      }}
+                      onDrop={() => handleDropToPool(it.id, row.detailIndex)}
                       onDragStart={(e) =>
                         handleDragStart(e, it.id, null, "dspt", Number(detail?.dspt ?? it.dspt))
                       }
