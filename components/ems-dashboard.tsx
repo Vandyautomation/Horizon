@@ -406,7 +406,8 @@ export default function EmsDashboard() {
     (energyRed?.TotalEnergyUsed || 0) +
     (energyOrange?.TotalEnergyUsed || 0) +
     (energyBlue?.TotalEnergyUsed || 0) +
-    (energyWhite?.TotalEnergyUsed || 0);
+    (energyWhite?.TotalEnergyUsed || 0) +
+    (energyGrey?.TotalEnergyUsed || 0);
 
   const totalEnergy = energyData.reduce(
     (total, data) => total + data.consumption,
