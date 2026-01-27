@@ -397,6 +397,9 @@ export default function EmsDashboard() {
   const energyWhite = energyStatusData?.find(
     (status) => status.StatusLightBefore === 'WHITE'
   );
+  const energyGrey = energyStatusData?.find(
+    (status) => status.StatusLightBefore === 'GREY'
+  );
   const totalLoss =
     (energyYellow?.TotalEnergyUsed || 0) +
     (energyPurple?.TotalEnergyUsed || 0) +
@@ -987,7 +990,7 @@ export default function EmsDashboard() {
             </div>
             */}
 
-            <div className="flex w-full">
+            <div className="flex w-full flex-nowrap">
               <div className="flex flex-col items-center flex-1">
                 <div className="text-3xl font-bold text-red-500 leading-none">
                   {totalLoss.toFixed(2)}
@@ -1048,6 +1051,15 @@ export default function EmsDashboard() {
                 </div>
                 <div className="text-xs text-black bg-gray-300 border border-black px-2 py-[2px] w-full text-center">
                   PS
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center flex-1">
+                <div className="text-3xl font-bold text-gray-500 leading-none">
+                  {(energyGrey?.TotalEnergyUsed || 0).toFixed(2)}
+                </div>
+                <div className="text-xs text-white bg-gray-500 border border-black px-2 py-[2px] w-full text-center">
+                  UC
                 </div>
               </div>
 
