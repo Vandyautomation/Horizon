@@ -526,6 +526,10 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('hrz', 'Dashboard 1', true)}
               </BreadcrumbItem>
+               <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('hrz/dashboard3', 'Dashboard 3')}
+              </BreadcrumbItem>
             </>
           )}
 
@@ -541,6 +545,25 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('hrz/detail', 'Dashboard 2', true)}
+              </BreadcrumbItem>
+                <BreadcrumbSeparator />
+               <BreadcrumbItem>
+                {createBreadcrumbLink('hrz/dashboard3', 'Dashboard 3',)}
+              </BreadcrumbItem>
+            </>
+          )}
+            {currentPage === 'hrz' && currentSubPage === 'dashboard3' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('hrz', 'Dashboard 1')}
+              </BreadcrumbItem>
+               <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('hrz/dashboard3', 'Dashboard 3', true)}
               </BreadcrumbItem>
             </>
           )}

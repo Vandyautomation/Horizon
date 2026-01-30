@@ -1,276 +1,189 @@
-'use client'
+  'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+  import React, { useEffect, useState } from 'react'
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL
-const ROWS_PER_PAGE = 15
-const weekLabels = Array.from({ length: 52 }, (_, i) => `W${i + 1}`)
+  const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL
+  const weekLabels = Array.from({ length: 52 }, (_, i) => `W${i + 1}`)
 
-/* =======================
-   TRANSFORM DATA
-======================= */
-function normalizeWeekNum(week) {
-  // DB: w01 -> W1, w10 -> W10
-  const num = parseInt(week.replace(/^w/i, ''), 10)
-  return `W${num}`
-}
+  export default function CapacityTable() {
+    const [data, setData] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [fromWeek, setFromWeek] = useState(1)
+    const [toWeek, setToWeek] = useState(52)
+    const [uapList, setUapList] = useState([])
+    const [selectedUap, setSelectedUap] = useState('BASIC')
+    const [yearList, setYearList] = useState([])
+    const [selectedYear, setSelectedYear] = useState([])
 
-function transformHRZData(rows) {
-  return rows.map((row) => {
-    const weeks = {}
-    if (row.WeekNum) {
-      const weekKey = normalizeWeekNum(row.WeekNum)
-      weeks[weekKey] = true
-    }
-    return {
-      process: row.MchProcess,
-      group: row.GroupID,
-      weeks,
-    }
-  })
-}
-
-/* =======================
-   COMPONENT
-======================= */
-export default function HRZDashboard3() {
-  const [startWeek, setStartWeek] = useState('w01')
-  const [endWeek, setEndWeek] = useState('w52')
-
-  // Fungsi helper untuk merubah angka ke format DB 'w01'
-  const formatToDBWeek = (index) => `w${String(index + 1).padStart(2, '0')}`
-  const [rawData, setRawData] = useState([])
-  const [uapList, setUapList] = useState([])
-  const [selectedUAP, setSelectedUAP] = useState('')
-  const [weekIndex, setWeekIndex] = useState(0)
-  // const totalColSpan = 2 + filteredWeeks.length;
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [loading, setLoading] = useState(false)
-
-  /* =======================
-     FETCH UAP LIST
-  ======================= */
-  useEffect(() => {
-    const fetchUAPList = async () => {
-      try {
+    // const UV_COATING = 'UV COATING'
+    useEffect(() => {
+      const fetchUap = async () => {
         const res = await fetch(`${API_BASE}/api/hrz/hrz-uap-list`)
         const json = await res.json()
         setUapList(json.data || [])
-      } catch (err) {
-        console.error(err)
       }
-    }
 
-    fetchUAPList()
-  }, [])
+      fetchUap()
+    }, [])
 
-  /* =======================
-     FETCH PAGED DATA
-  ======================= */
-  useEffect(() => {
+    const weekLabels = Array.from(
+      { length: toWeek - fromWeek + 1 },
+      (_, i) => `W${fromWeek + i}`
+    )
+
     const fetchData = async () => {
       setLoading(true)
-      try {
-        const params = new URLSearchParams({
-          page: String(page),
-          startWeek: startWeek, // Kirim ke backend
-          endWeek: endWeek, // Kirim ke backend
-        })
 
-        if (selectedUAP) params.append('uap', selectedUAP)
-
-        const res = await fetch(
-          `${API_BASE}/api/hrz/hrz-capacity?${params.toString()}`
-        )
-        const json = await res.json()
-
-        setRawData(json.data || [])
-        setTotalPages(json.totalPages || 1)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
+      const res = await fetch(
+        `${API_BASE}/api/hrz/hrz-capacity-all?fromWeek=${fromWeek}&toWeek=${toWeek}&uap=${selectedUap}${selectedYear ? `&year=${selectedYear}` : ''}`
+      )
+      const json = await res.json()
+      setData(json.data || [])
+      setLoading(false)
     }
+    useEffect(() => {
+      fetchData()
+    }, [fromWeek, toWeek, selectedUap, selectedYear])
 
-    fetchData()
-  }, [page, selectedUAP, startWeek, endWeek]) // Tambahkan dependency
+    console.log('data', data)
+    useEffect(() => {
+      const fetchYearList = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/hrz/hrz-year-list`)
+          const json = await res.json()
+          setYearList(json.data || [])
+          if (json.data?.length > 0) setSelectedYear(json.data[0])
+        } catch (err) {
+          console.error(err)
+        }
+      }
 
-  /* =======================
-   FILTERED WEEK LABELS
-======================= */
-  const filteredWeeks = useMemo(() => {
-    // Ambil angka dari string 'w01', 'w02'
-    const startNum = parseInt(startWeek.replace('w', ''), 10)
-    const endNum = parseInt(endWeek.replace('w', ''), 10)
+      fetchYearList()
+    }, [])
 
-    // Filter weekLabels (W1, W2...) berdasarkan urutan angkanya
-    return weekLabels.filter((_, index) => {
-      const currentNum = index + 1
-      return currentNum >= startNum && currentNum <= endNum
-    })
-  }, [startWeek, endWeek])
-
-  /* =======================
-     TRANSFORM DATA
-  ======================= */
-  const tableData = useMemo(() => {
-    return transformHRZData(rawData)
-  }, [rawData])
-  const totalColSpan = 2 + filteredWeeks.length
-
-  /* =======================
-     RENDER
-  ======================= */
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">HRZ Capacity Summary</h1>
-
-      {/* FILTER */}
-      <div className="mb-4 flex gap-4 items-center">
-        <select
-          value={selectedUAP}
-          onChange={(e) => {
-            setSelectedUAP(e.target.value)
-            setPage(1)
-          }}
-          className="border p-2"
-        >
-          <option value="">All UAP</option>
-          {uapList.map((uap) => (
-            <option key={uap} value={uap}>
-              {uap}
-            </option>
-          ))}
-        </select>
-
-     
-      </div>
-      <div className="flex gap-4 items-center bg-gray-50 p-3 rounded-md">
-        <div>
-          <label className="block text-xs font-bold">START WEEK</label>
-          <select
-            value={startWeek}
-            onChange={(e) => {
-              setStartWeek(e.target.value)
-              setPage(1)
-            }}
-            className="border p-1"
-          >
-            {weekLabels.map((_, i) => (
-              <option key={i} value={formatToDBWeek(i)}>
-                {weekLabels[i]}
-              </option>
-            ))}
-          </select>
+    <div className="p-4 w-full max-w-[calc(95vw-10px)] overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-4">
+        {/* Sisi Kiri: From Week & To Week */}
+        <div className="flex gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">From Week</label>
+            <input
+              type="number"
+              value={fromWeek}
+              onChange={(e) => setFromWeek(Number(e.target.value))}
+              className="border border-gray-300 rounded px-2 py-1.5 w-24 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">To Week</label>
+            <input
+              type="number"
+              value={toWeek}
+              onChange={(e) => setToWeek(Number(e.target.value))}
+              className="border border-gray-300 rounded px-2 py-1.5 w-24 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            />
+          </div>
         </div>
 
-        <div className="font-bold mt-4">TO</div>
-
-        <div>
-          <label className="block text-xs font-bold">END WEEK</label>
-          <select
-            value={endWeek}
-            onChange={(e) => {
-              setEndWeek(e.target.value)
-              setPage(1)
-            }}
-            className="border p-1"
-          >
-            {weekLabels.map((_, i) => (
-              <option key={i} value={formatToDBWeek(i)}>
-                {weekLabels[i]}
-              </option>
-            ))}
-          </select>
+        {/* Sisi Kanan: UAP & Year Filter */}
+        <div className="flex gap-4 bg-gray-50 p-2 rounded-lg border border-dashed border-gray-300">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">UAP</label>
+            <select
+              value={selectedUap}
+              onChange={(e) => setSelectedUap(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1.5 min-w-[120px] bg-white font-medium focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+            >
+              {uapList.map((uap) => (
+                <option key={uap} value={uap}>{uap}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Year</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="border border-gray-300 rounded px-2 py-1.5 min-w-[100px] bg-white font-medium focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+            >
+              {yearList.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="overflow-x-auto">
-        <table className="min-w-max border-collapse text-center">
-          <thead className="bg-gray-200">
+      {/* TABLE WRAPPER */}
+      <div 
+        className="relative shadow-lg rounded-xl border border-gray-300"
+        style={{ 
+          overflowX: 'auto', 
+          maxWidth: '100%', 
+          display: 'block',
+          backgroundColor: '#fff' 
+        }}
+      >
+        <table className="w-full text-sm text-center border-collapse" style={{ minWidth: 'max-content' }}>
+          <thead>
             <tr>
-              <th className="border px-4 sticky left-0 bg-gray-200">PROCESS</th>
-              <th className="border px-4 left-[140px] bg-gray-200">GROUP</th>
-              {/* Ganti weekLabels jadi filteredWeeks */}
-              {filteredWeeks.map((w) => (
-                <th key={w} className="border px-2 min-w-[50px]">
+              <th className="sticky left-0 z-30 bg-slate-700 text-white border-r border-slate-600 px-4 py-3 min-w-[150px] font-bold uppercase tracking-wider">
+                PROCESS
+              </th>
+              <th className="sticky left-[150px] z-30 bg-slate-700 text-white border-r border-slate-600 px-4 py-3 min-w-[120px] font-bold uppercase tracking-wider">
+                GROUP
+              </th>
+              {weekLabels.map((w) => (
+                <th key={w} className="bg-slate-700 text-white border-r border-slate-600 px-3 py-3 min-w-[75px] font-bold text-xs uppercase tracking-tighter">
                   {w}
                 </th>
               ))}
             </tr>
           </thead>
 
-          <tbody>
+          <tbody className="bg-white">
             {loading ? (
               <tr>
-                <td
-                  colSpan={totalColSpan}
-                  className="p-6 text-center text-blue-500 font-semibold"
-                >
-                  Loading data...
-                </td>
-              </tr>
-            ) : tableData.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={totalColSpan}
-                  className="p-6 text-center text-gray-500"
-                >
-                  No Data found for this range
+                <td colSpan={weekLabels.length + 2} className="p-12 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-gray-500 font-medium">Fetching Data...</span>
+                  </div>
                 </td>
               </tr>
             ) : (
-              tableData.map((row, idx) => (
-                <tr key={`${row.process}-${row.group}-${idx}`}>
-                  <td className="border sticky left-0 bg-white font-bold">
-                    {row.process}
-                  </td>
-                  <td className="border sticky left-[130px] bg-white">
-                    {row.group}
-                  </td>
-                  {filteredWeeks.map((w) => {
-                    const hasData = row.weeks[w]
-                    return (
+              data.map((processItem) =>
+                processItem.groups.map((group, gIdx) => (
+                  <tr key={`${processItem.process}-${group.groupName}`} className="hover:bg-blue-50 border-b border-gray-200 transition-colors">
+                    {gIdx === 0 && (
                       <td
-                        key={w}
-                        className={`border ${
-                          hasData ? 'bg-yellow-400' : 'bg-gray-100'
-                        }`}
-                      />
-                    )
-                  })}
-                </tr>
-              ))
+                        rowSpan={processItem.groups.length}
+                        className="sticky left-0 z-20 bg-gray-50 border-r border-b font-bold px-4 align-middle text-slate-800"
+                        style={{ boxShadow: '2px 0 4px -2px rgba(0,0,0,0.15)' }}
+                      >
+                        {processItem.process}
+                      </td>
+                    )}
+
+                    <td 
+                      className="sticky left-[150px] z-20 bg-gray-50 border-r border-b px-4 py-3 text-slate-700 font-semibold"
+                      style={{ boxShadow: '2px 0 4px -2px rgba(0,0,0,0.15)' }}
+                    >
+                      {group.groupName}
+                    </td>
+                    {weekLabels.map((w) => (
+                      <td key={w} className="border-r border-b px-2 py-3 text-gray-700 font-medium hover:bg-white transition-all">
+                        {group.weeks[w] || '-'}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )
             )}
           </tbody>
         </table>
       </div>
-
-      {/* PAGINATION */}
-      <div className="flex gap-4 mt-4 items-center justify-start">
-        <button
-          disabled={page === 1}
-          onClick={() => setPage((p) => p - 1)}
-          className="border px-3 py-1 disabled:opacity-50"
-        >
-          Prev
-        </button>
-
-        <span>
-          Page {page} / {totalPages}
-        </span>
-
-        <button
-          disabled={page >= totalPages}
-          onClick={() => setPage((p) => p + 1)}
-          className="border px-3 py-1 disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
     </div>
   )
-}
+  }

@@ -1,30 +1,30 @@
-import { queryDatabase } from '../utils/queryDatabase';
+import { queryDatabase } from '../utils/queryDatabase'
 
 export interface HRZDataFilters {
-  customer?: string;
-  uap?: string;
-  itemPrefix?: string;
-  search?: string;
-  searchBy?: 'salesOrder' | 'itemNo' | 'description' | 'customer';
-  page?: number;
-  limit?: number;
-  year?: number;
-  month?: number;
-  day?: number;
+  customer?: string
+  uap?: string
+  itemPrefix?: string
+  search?: string
+  searchBy?: 'salesOrder' | 'itemNo' | 'description' | 'customer'
+  page?: number
+  limit?: number
+  year?: number
+  month?: number
+  day?: number
 }
 
 export async function getHRZData(filters?: HRZDataFilters) {
-  const customer = filters?.customer;
-  const uap = filters?.uap;
-  const itemPrefix = filters?.itemPrefix ?? null;
-  const search = filters?.search?.trim() || null;
-  const searchBy = filters?.searchBy ?? null;
-  const page = Math.max(1, Number(filters?.page ?? 1));
-  const limit = Math.min(50, Math.max(1, Number(filters?.limit ?? 50)));
-  const offset = (page - 1) * limit;
-  const year = filters?.year ?? null;
-  const month = filters?.month ?? null;
-  const day = filters?.day ?? null;
+  const customer = filters?.customer
+  const uap = filters?.uap
+  const itemPrefix = filters?.itemPrefix ?? null
+  const search = filters?.search?.trim() || null
+  const searchBy = filters?.searchBy ?? null
+  const page = Math.max(1, Number(filters?.page ?? 1))
+  const limit = Math.min(50, Math.max(1, Number(filters?.limit ?? 50)))
+  const offset = (page - 1) * limit
+  const year = filters?.year ?? null
+  const month = filters?.month ?? null
+  const day = filters?.day ?? null
   // Select only columns that exist on SalesOrderMST (based on /api/hrz/columns)
   // and try to get description from MaterialMST if available.
   const sqlQuery = `
@@ -71,7 +71,7 @@ where (
   AND (@customer IS NULL OR sova05.Customer LIKE '%' + @customer + '%')
  order by sova05.DlvDate desc, sova05.SORef2
  offset @offset rows fetch next @limit rows only
-  `;
+  `
   //SELECT A.SODoc as SODoc,
   //         A.SOLine as SOLine,
   //         A.ItemNo as ItemNo,
@@ -98,7 +98,7 @@ where (
     year,
     month,
     day,
-  });
+  })
 
   const countQuery = `
   select count(1) as total
@@ -127,7 +127,7 @@ where (
       )
     )
     AND (@customer IS NULL OR sova05.Customer LIKE '%' + @customer + '%')
-  `;
+  `
 
   const countRows = await queryDatabase(countQuery, {
     uap: uap ?? null,
@@ -138,11 +138,11 @@ where (
     year,
     month,
     day,
-  });
-  const total = Number(countRows?.[0]?.total ?? 0);
+  })
+  const total = Number(countRows?.[0]?.total ?? 0)
 
   // Log for debugging - how many rows returned
-  console.log(`getHRZData: fetched ${rows.length} rows (page ${page})`);
+  console.log(`getHRZData: fetched ${rows.length} rows (page ${page})`)
 
   let data = rows.map((row: any) => ({
     SalesOrder: row.SORef2,
@@ -159,14 +159,10 @@ where (
     QtyUnrest: row.QtyUnrest || 0,
     UAP: row.UAP || null,
     // Flag project baru (0/1, bit, atau string)
-    Project:
-      row.NewProjectFlag ??
-      row.NewProject ??
-      row.newproject ??
-      0,
-  }));
+    Project: row.NewProjectFlag ?? row.NewProject ?? row.newproject ?? 0,
+  }))
 
-  return { data, total, page, limit };
+  return { data, total, page, limit }
 }
 
 export async function getHRZColumns() {
@@ -175,27 +171,26 @@ export async function getHRZColumns() {
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_NAME = 'SalesOrderMST'
     ORDER BY ORDINAL_POSITION
-  `;
-  const rows = await queryDatabase(sqlQuery);
-  return rows.map((r: any) => r.COLUMN_NAME);
+  `
+  const rows = await queryDatabase(sqlQuery)
+  return rows.map((r: any) => r.COLUMN_NAME)
 }
 
-// Ambil data HRZ Capacity 
+// Ambil data HRZ Capacity
 
 export async function getHRZCapacityMch(
   uap: string | null,
   page: number,
   startWeek: string | null, // Tambah ini
-  endWeek: string | null,   // Tambah ini
+  endWeek: string | null, // Tambah ini
   limit = 15
 ) {
-  const offset = (page - 1) * limit;
+  const offset = (page - 1) * limit
 
   // Filter tambahan untuk SQL
   // Menggunakan >= dan <= pada string format 'w01' bekerja dengan baik di SQL
-  const weekFilter = (startWeek && endWeek) 
-    ? `AND (WeekNum BETWEEN @startWeek AND @endWeek)` 
-    : '';
+  const weekFilter =
+    startWeek && endWeek ? `AND (WeekNum BETWEEN @startWeek AND @endWeek)` : ''
 
   // TOTAL DATA
   const totalItems = await queryDatabase(
@@ -205,9 +200,9 @@ export async function getHRZCapacityMch(
     WHERE (@uap IS NULL OR UAP = @uap) ${weekFilter}
     `,
     { uap, startWeek, endWeek }
-  );
+  )
 
-  const totalPages = Math.ceil(totalItems[0].count / limit);
+  const totalPages = Math.ceil(totalItems[0].count / limit)
 
   // DATA PER PAGE
   const sql = `
@@ -221,15 +216,82 @@ export async function getHRZCapacityMch(
     ORDER BY MchProcess, GroupID, WeekNum ASC 
     OFFSET ${offset} ROWS
     FETCH NEXT ${limit} ROWS ONLY
-  `;
+  `
 
-  const rows = await queryDatabase(sql, { uap, startWeek, endWeek });
+  const rows = await queryDatabase(sql, { uap, startWeek, endWeek })
 
   return {
     data: rows,
     totalPages,
     totalItems: totalItems[0].count,
-  };
+  }
+}
+
+type DBRow = {
+  MchProcess: string
+  GroupName: string
+  WeekNum: string
+  LoadingCapacity: number
+  Capacity: number
+}
+
+export async function getAllProcessCapacity(
+  fromWeek: number,
+  toWeek: number,
+  uap: string = 'BASIC',
+  year?: number,
+) {
+  const yearFilter = year ? `AND m.Years = ${year}` : ''
+  const rows = (await queryDatabase(`
+    SELECT
+      m.MchProcess,
+      g.GroupName,
+      m.WeekNum,
+      m.LoadingCapacity,
+      m.Capacity,
+      m.Years
+    FROM iot.dbo.Hrz_CapacityMch m
+    JOIN (
+      SELECT DISTINCT Grupid, GroupName
+      FROM iot.dbo.Hrz_GroupCapacity
+    ) g ON g.Grupid = m.GroupID
+    WHERE
+      CAST(REPLACE(m.WeekNum, 'W', '') AS INT)
+        BETWEEN ${fromWeek} AND ${toWeek}
+      AND m.UAP = '${uap}'
+        ${yearFilter}
+    ORDER BY m.MchProcess, g.GroupName, m.WeekNum
+  `)) as DBRow[]
+
+  const map: Record<
+    string,
+    Record<string, { groupName: string; weeks: Record<string, string | number> }>
+  > = {}
+
+  rows.forEach((r) => {
+    if (!map[r.MchProcess]) map[r.MchProcess] = {}
+
+    if (!map[r.MchProcess][r.GroupName]) {
+      map[r.MchProcess][r.GroupName] = {
+        groupName: r.GroupName,
+        weeks: {}
+      }
+    }
+
+    const weekNum = parseInt(r.WeekNum.replace(/^w/i, ''), 10)
+
+    let value: string | number = '-'
+    if (r.Capacity && r.Capacity !== 0) {
+      value = Math.round((r.LoadingCapacity / r.Capacity) * 1000) / 10
+    }
+
+    map[r.MchProcess][r.GroupName].weeks[`W${weekNum}`] = value
+  })
+
+  return Object.entries(map).map(([process, groups]) => ({
+    process,
+    groups: Object.values(groups)
+  }))
 }
 
 
@@ -239,11 +301,20 @@ export async function getUAPList() {
     SELECT DISTINCT UAP
     FROM iot.dbo.Hrz_CapacityMch
     ORDER BY UAP
-  `;
-  const rows = await queryDatabase(sql);
-  return rows.map((r: { UAP: string }) => r.UAP);
+  `
+  const rows = await queryDatabase(sql)
+  return rows.map((r: { UAP: string }) => r.UAP)
 }
-
+// Ambil daftar tahun 
+export async function getYearList() {
+  const sql = `
+    SELECT DISTINCT Years
+    FROM iot.dbo.Hrz_CapacityMch
+    ORDER BY Years DESC
+  `
+  const rows = await queryDatabase(sql)
+  return rows.map((r: { Years: number }) => r.Years)
+}
 
 export async function getTableColumns(tableName: string) {
   const sqlQuery = `
@@ -251,7 +322,7 @@ export async function getTableColumns(tableName: string) {
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_NAME = @tableName
     ORDER BY ORDINAL_POSITION
-  `;
-  const rows = await queryDatabase(sqlQuery, { tableName });
-  return rows.map((r: any) => r.COLUMN_NAME);
+  `
+  const rows = await queryDatabase(sqlQuery, { tableName })
+  return rows.map((r: any) => r.COLUMN_NAME)
 }
