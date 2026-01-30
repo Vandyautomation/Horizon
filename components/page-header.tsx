@@ -548,7 +548,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
                 <BreadcrumbSeparator />
                <BreadcrumbItem>
-                {createBreadcrumbLink('hrz/dashboard3', 'Dashboard 3',)}
+                {createBreadcrumbLink('hrz/dashboard3', 'Dashboard 3' )}
               </BreadcrumbItem>
             </>
           )}
