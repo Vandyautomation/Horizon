@@ -1,24 +1,28 @@
+import { Sidebar, SidebarTrigger } from '@/components/ui/sidebar'
+import { Separator } from '@/components/ui/separator'
 import {
-  Sidebar,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
-import { UserSetting } from "@/components/user-setting"
-import { ModeToggle } from "@/components/mode-toggle"
-import { usePathname } from "next/navigation"
-import Link from 'next/link';
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
+import { UserSetting } from '@/components/user-setting'
+import { ModeToggle } from '@/components/mode-toggle'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 
 interface PageHeaderProps extends React.ComponentProps<typeof Sidebar> {
-  onMenuClick: (component: string) => void;
-  currentPage: string;
+  onMenuClick: (component: string) => void
+  currentPage: string
 }
 
 export default function PageHeader({ onMenuClick }: PageHeaderProps) {
-  const pathname = usePathname();
-  const currentPage = pathname?.split('/')[1];
-  const currentSubPage = pathname?.split('/')[2];
-  const currentSubSubPage = pathname?.split('/')[3];
+  const pathname = usePathname()
+  const currentPage = pathname?.split('/')[1]
+  const currentSubPage = pathname?.split('/')[2]
+  const currentSubSubPage = pathname?.split('/')[3]
 
   // Helper function to create proper links
   const createBreadcrumbLink = (
@@ -26,7 +30,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
     label: string,
     isPage = false
   ) => {
-    const Component = isPage ? BreadcrumbPage : BreadcrumbLink;
+    const Component = isPage ? BreadcrumbPage : BreadcrumbLink
     return (
       <Component asChild>
         <Link
@@ -34,16 +38,16 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
           onClick={(e) => {
             // Prevent navigation for left click only, allowing right click to show context menu
             if (!e.ctrlKey && !e.metaKey && e.button === 0) {
-              e.preventDefault();
-              onMenuClick(path);
+              e.preventDefault()
+              onMenuClick(path)
             }
           }}
         >
           {label}
         </Link>
       </Component>
-    );
-  };
+    )
+  }
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b px-2">
@@ -68,7 +72,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
             </>
           )}
-          
+
           {currentPage === 'scale' && (
             <>
               <BreadcrumbItem>
@@ -94,7 +98,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('andon/uv', 'Andon UV', false)}
               </BreadcrumbItem>
-               <BreadcrumbSeparator />
+              <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('andon/overall', 'Overall', false)}
               </BreadcrumbItem>
@@ -122,7 +126,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('andon/uv', 'Andon UV', true)}
               </BreadcrumbItem>
-               <BreadcrumbSeparator />
+              <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('andon/overall', 'Overall', false)}
               </BreadcrumbItem>
@@ -265,8 +269,6 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
-
-
           {currentPage === 'detection' && (
             <>
               <BreadcrumbItem>
@@ -279,27 +281,75 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
-          {currentPage === 'countboard' && currentSubPage != 'uv' && (
-            <>
-              <BreadcrumbItem>
-                {createBreadcrumbLink('', 'Home')}
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                {createBreadcrumbLink('countboard', 'Countboard Injection', true)}
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                {createBreadcrumbLink('countboard/uv', 'Countboard UV')}
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                {createBreadcrumbLink('countboard/uv/management', 'UV Management View')}
-              </BreadcrumbItem>
-            </>
-          )}
+          {currentPage === 'countboard' &&
+            currentSubPage !== 'uv' &&
+            currentSubPage !== 'eskalasi' && (
+              <>
+                <BreadcrumbItem>
+                  {createBreadcrumbLink('', 'Home')}
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink(
+                    'countboard',
+                    'Countboard Injection',
+                    true
+                  )}
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink('countboard/uv', 'Countboard UV')}
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink(
+                    'countboard/uv/management',
+                    'UV Management View'
+                  )}
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink(
+                    'countboard/eskalasi',
+                    'Countboard Eskalasi'
+                  )}
+                </BreadcrumbItem>
+              </>
+            )}
 
-          {currentPage === 'countboard' && currentSubPage === 'uv' && !currentSubSubPage && (
+          {currentPage === 'countboard' &&
+            currentSubPage === 'uv' &&
+            !currentSubSubPage && (
+              <>
+                <BreadcrumbItem>
+                  {createBreadcrumbLink('', 'Home')}
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink('countboard', 'Countboard Injection')}
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink('countboard/uv', 'Countboard UV', true)}
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink(
+                    'countboard/uv/management',
+                    'UV Management View'
+                  )}
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink(
+                    'countboard/eskalasi',
+                    'Countboard Eskalasi'
+                  )}
+                </BreadcrumbItem>
+              </>
+            )}
+
+          {currentPage === 'countboard' && currentSubPage === 'eskalasi' && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -310,11 +360,23 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('countboard/uv', 'Countboard UV', true)}
+                {createBreadcrumbLink('countboard/uv', 'Countboard UV')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink(
+                  'countboard/uv/management',
+                  'UV Management View'
+                )}
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('countboard/uv/management', 'UV Management View')}
+                {createBreadcrumbLink(
+                  'countboard/eskalasi',
+                  'Countboard Eskalasi',
+                  true
+                )}
               </BreadcrumbItem>
             </>
           )}
@@ -334,12 +396,16 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('countboard/uv/management', 'UV Management View', true)}
+                {createBreadcrumbLink(
+                  'countboard/uv/management',
+                  'UV Management View',
+                  true
+                )}
               </BreadcrumbItem>
             </>
           )}
 
-          {currentSubPage === 'parameter-setting'  && !currentSubSubPage && (
+          {currentSubPage === 'parameter-setting' && !currentSubSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -350,13 +416,16 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('master-data/parameter-setting', 'Parameter Setting', true)}
+                {createBreadcrumbLink(
+                  'master-data/parameter-setting',
+                  'Parameter Setting',
+                  true
+                )}
               </BreadcrumbItem>
             </>
           )}
 
-          {currentSubPage === 'problem-master'  && !currentSubSubPage && (
-
+          {currentSubPage === 'problem-master' && !currentSubSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -367,13 +436,17 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('master-data/problem-master', 'Problem Master', true)}
+                {createBreadcrumbLink(
+                  'master-data/problem-master',
+                  'Problem Master',
+                  true
+                )}
               </BreadcrumbItem>
             </>
           )}
 
           {/* Example for a nested route */}
-          {currentSubPage === 'coois'  && !currentSubSubPage && (
+          {currentSubPage === 'coois' && !currentSubSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -386,14 +459,14 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('master-data/coois', 'COOIS', true)}
               </BreadcrumbItem>
-               <BreadcrumbSeparator />
+              <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('master-data/coois/data', 'COOIS Data')}
               </BreadcrumbItem>
             </>
           )}
 
-          {currentSubPage === 'routing'  && !currentSubSubPage && (
+          {currentSubPage === 'routing' && !currentSubSubPage && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -408,7 +481,10 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('master-data/routing/data', 'Routing Data')}
+                {createBreadcrumbLink(
+                  'master-data/routing/data',
+                  'Routing Data'
+                )}
               </BreadcrumbItem>
             </>
           )}
@@ -425,9 +501,13 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('master-data/coois', 'COOIS')}
               </BreadcrumbItem>
-               <BreadcrumbSeparator />
+              <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('master-data/coois/data', 'COOIS Data', true)}
+                {createBreadcrumbLink(
+                  'master-data/coois/data',
+                  'COOIS Data',
+                  true
+                )}
               </BreadcrumbItem>
             </>
           )}
@@ -446,11 +526,14 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('master-data/routing/data', 'Routing Data', true)}
+                {createBreadcrumbLink(
+                  'master-data/routing/data',
+                  'Routing Data',
+                  true
+                )}
               </BreadcrumbItem>
             </>
           )}
-
 
           {currentPage === 'machines' && !currentSubPage && (
             <>
@@ -468,7 +551,6 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
             </>
           )}
 
-
           {currentSubPage === 'equipments' && (
             <>
               <BreadcrumbItem>
@@ -480,11 +562,14 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {createBreadcrumbLink('machines/equipments', 'Equipments', true)}
+                {createBreadcrumbLink(
+                  'machines/equipments',
+                  'Equipments',
+                  true
+                )}
               </BreadcrumbItem>
             </>
           )}
-
 
           {currentPage === 'qco' && !currentSubPage && (
             <>
@@ -526,7 +611,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('hrz', 'Dashboard 1', true)}
               </BreadcrumbItem>
-               <BreadcrumbSeparator />
+              <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('hrz/dashboard3', 'Dashboard 3')}
               </BreadcrumbItem>
@@ -546,13 +631,13 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('hrz/detail', 'Dashboard 2', true)}
               </BreadcrumbItem>
-                <BreadcrumbSeparator />
-               <BreadcrumbItem>
-                {createBreadcrumbLink('hrz/dashboard3', 'Dashboard 3' )}
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('hrz/dashboard3', 'Dashboard 3')}
               </BreadcrumbItem>
             </>
           )}
-            {currentPage === 'hrz' && currentSubPage === 'dashboard3' && (
+          {currentPage === 'hrz' && currentSubPage === 'dashboard3' && (
             <>
               <BreadcrumbItem>
                 {createBreadcrumbLink('', 'Home')}
@@ -561,7 +646,7 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               <BreadcrumbItem>
                 {createBreadcrumbLink('hrz', 'Dashboard 1')}
               </BreadcrumbItem>
-               <BreadcrumbSeparator />
+              <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink('hrz/dashboard3', 'Dashboard 3', true)}
               </BreadcrumbItem>
@@ -608,5 +693,5 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
         <UserSetting />
       </div>
     </header>
-  );
+  )
 }

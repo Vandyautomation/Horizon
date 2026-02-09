@@ -739,7 +739,6 @@ export default function CountboardDashboard() {
     setIsLoading(true)
 
     try {
-      // 5. SUBMIT KE BACKEND (FINAL)
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/ticket`,
         {
