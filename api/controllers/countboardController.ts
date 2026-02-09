@@ -566,7 +566,7 @@ export async function submitOrangeTicket(
     -- Tentukan EskalasiStatus
     SET @EskalasiStatus =
       CASE
-        WHEN @eskalasiFlag = 1 THEN 'OPEN'
+        WHEN @eskalasiFlag = 1 THEN 'open'
         ELSE NULL
       END;
 

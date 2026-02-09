@@ -45,7 +45,12 @@ export default function CountboardEskalasi() {
     return differenceInCalendarDays(range.to, range.from) + 1
   }, [range])
 
-  const mode = daysDiff > 31 ? 'month' : 'week'
+  const mode = useMemo(() => {
+    if (daysDiff <= 1) return 'day'
+    if (daysDiff <= 31) return 'week'
+    return 'month'
+  }, [daysDiff])
+
   const totalPages = useMemo(() => {
     if (!range?.from || !range?.to) return 1
 
@@ -101,8 +106,15 @@ export default function CountboardEskalasi() {
           (item) => normalize(item.AssignToDept) === normalize(deptFilter)
         )
   /* ================= PAGINATION ================= */
+  const stripTime = (date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
   const pagedTickets = useMemo(() => {
-    if (!range?.from || !range?.to) return filteredTickets
+    if (mode === 'day') {
+      return filteredTickets.sort(
+        (a, b) => new Date(a.TicketDate) - new Date(b.TicketDate)
+      )
+    }
 
     let start, end
 
@@ -124,11 +136,15 @@ export default function CountboardEskalasi() {
     return filteredTickets
       .filter((item) => {
         if (!item.TicketDate) return false
-        const d = new Date(item.TicketDate)
-        return isWithinInterval(d, { start, end })
+        const d = stripTime(new Date(item.TicketDate))
+        const s = stripTime(start)
+        const e = stripTime(end)
+
+        return d >= s && d <= e
       })
       .sort((a, b) => new Date(a.TicketDate) - new Date(b.TicketDate))
   }, [filteredTickets, timePage, range, mode])
+
   const pageLabel = useMemo(() => {
     if (!range?.from) return ''
 
@@ -143,18 +159,22 @@ export default function CountboardEskalasi() {
       return format(date, 'MMMM yyyy')
     }
   }, [timePage, range, mode])
-/* ================= CALCULATIONS ================= */
+  
+  /* ================= CALCULATIONS ================= */
   const totalEskalasi = filteredTickets.length
-  const totalMaintenance = filteredTickets.filter(
-    (i) => normalize(i.AssignToDept) === 'maintenance'
-  ).length
-  const totalMoldshop = filteredTickets.filter(
-    (i) => normalize(i.AssignToDept) === 'moldshop'
-  ).length
-  const totalMixing = filteredTickets.filter(
-    (i) => normalize(i.AssignToDept) === 'mixing'
+  const totalOpen = filteredTickets.filter(
+    (i) => normalize(i.EskalasiStatus) === 'open'
   ).length
 
+  const totalProgress = filteredTickets.filter(
+    (i) => normalize(i.EskalasiStatus) === 'onprogress'
+  ).length
+
+  const totalClose = filteredTickets.filter(
+    (i) => normalize(i.EskalasiStatus) === 'close'
+  ).length
+console.log('totalClose', totalClose)
+console.log('totalOpen', totalOpen)
   const chartData = useMemo(() => {
     const map = {}
 
@@ -309,23 +329,20 @@ export default function CountboardEskalasi() {
           icon="⚠️"
         />
         <DashboardCard
-          title="Maintenance"
-          value={totalMaintenance}
-          color="orange"
-          icon="🛠️"
-        />
-        <DashboardCard
-          title="Moldshop"
-          value={totalMoldshop}
+          title="Open"
+          value={totalOpen}
           color="turquoise"
-          icon="🛠️"
+          icon="🟢"
         />
+
         <DashboardCard
-          title="Mixing"
-          value={totalMixing}
-          color="red"
-          icon="🧑‍🏭"
+          title="On Progress"
+          value={totalProgress}
+          color="orange"
+          icon="🟡"
         />
+
+        <DashboardCard title="Close" value={totalClose} color="red" icon="🔴" />
       </div>
 
       {/* ================= CHART ================= */}
@@ -418,28 +435,30 @@ export default function CountboardEskalasi() {
         </div>
       </div>
       <div className="overflow-x-auto rounded-lg border">
-        <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b">
-          <p className="text-xs font-medium text-gray-600">
-            {mode === 'week' ? 'Weekly View' : 'Monthly View'} — {pageLabel}
-          </p>
+        {mode !== 'day' && (
+          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b">
+            <p className="text-xs font-medium text-gray-600">
+              {mode === 'week' ? 'Weekly View' : 'Monthly View'} — {pageLabel}
+            </p>
 
-          <div className="flex gap-2">
-            <button
-              disabled={timePage === 0}
-              onClick={() => setTimePage((p) => p - 1)}
-              className="px-3 py-1 text-xs border rounded disabled:opacity-40"
-            >
-              ⬅ Prev
-            </button>
-            <button
-              disabled={timePage >= totalPages - 1}
-              onClick={() => setTimePage((p) => p + 1)}
-              className="px-3 py-1 text-xs border rounded disabled:opacity-40"
-            >
-              Next ➡
-            </button>
+            <div className="flex gap-2">
+              <button
+                disabled={timePage === 0}
+                onClick={() => setTimePage((p) => p - 1)}
+                className="px-3 py-1 text-xs border rounded disabled:opacity-40"
+              >
+                ⬅ Prev
+              </button>
+              <button
+                disabled={timePage >= totalPages - 1}
+                onClick={() => setTimePage((p) => p + 1)}
+                className="px-3 py-1 text-xs border rounded disabled:opacity-40"
+              >
+                Next ➡
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         <table className="min-w-full divide-y text-sm">
           <thead className="bg-gray-100">
