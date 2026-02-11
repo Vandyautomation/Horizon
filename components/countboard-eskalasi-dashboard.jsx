@@ -35,6 +35,7 @@ export default function CountboardEskalasi() {
   const [formMessage, setFormMessage] = useState('')
   const [formStatus, setFormStatus] = useState('open')
   const [timePage, setTimePage] = useState(0)
+  const [chartMode, setChartMode] = useState('day')
 
   const normalize = (val) => val?.toLowerCase().replace(/\s+/g, '')
   useEffect(() => {
@@ -159,7 +160,7 @@ export default function CountboardEskalasi() {
       return format(date, 'MMMM yyyy')
     }
   }, [timePage, range, mode])
-  
+
   /* ================= CALCULATIONS ================= */
   const totalEskalasi = filteredTickets.length
   const totalOpen = filteredTickets.filter(
@@ -173,23 +174,44 @@ export default function CountboardEskalasi() {
   const totalClose = filteredTickets.filter(
     (i) => normalize(i.EskalasiStatus) === 'close'
   ).length
-console.log('totalClose', totalClose)
-console.log('totalOpen', totalOpen)
+  console.log('totalClose', totalClose)
+  console.log('totalOpen', totalOpen)
   const chartData = useMemo(() => {
     const map = {}
 
     filteredTickets.forEach((item) => {
       if (!item.TicketDate) return
-      const day = format(new Date(item.TicketDate), 'yyyy-MM-dd')
-      map[day] = (map[day] || 0) + 1
+      const date = new Date(item.TicketDate)
+
+      let key
+
+      if (chartMode === 'day') {
+        key = format(date, 'yyyy-MM-dd')
+      }
+
+      if (chartMode === 'week') {
+        const startWeek = format(date, 'yyyy-MM-dd')
+        const weekNumber = Math.ceil(
+          (date.getDate() +
+            new Date(date.getFullYear(), date.getMonth(), 1).getDay()) /
+            7
+        )
+        key = `Week ${weekNumber} - ${format(date, 'MMM yyyy')}`
+      }
+
+      if (chartMode === 'month') {
+        key = format(date, 'MMM yyyy')
+      }
+
+      map[key] = (map[key] || 0) + 1
     })
-    return Object.keys(map)
-      .sort()
-      .map((day) => ({
-        day,
-        total: map[day],
-      }))
-  }, [filteredTickets])
+
+    return Object.keys(map).map((k) => ({
+      label: k,
+      total: map[k],
+    }))
+  }, [filteredTickets, chartMode])
+
   useEffect(() => {
     if (!selectedTicket) return
     console.log('Selected Ticket:', selectedTicket)
@@ -254,23 +276,45 @@ console.log('totalOpen', totalOpen)
       </div>
     )
   }
-  const durationChartData = useMemo(() => {
-    return filteredTickets
-      .filter((item) => item.ActualSubmit && item.ActualEskalasiFinish)
-      .map((item, index) => {
-        const submit = new Date(item.ActualSubmit)
-        const finish = new Date(item.ActualEskalasiFinish)
+const durationChartData = useMemo(() => {
+  const map = {}
 
-        const diffHours =
-          (finish.getTime() - submit.getTime()) / (1000 * 60 * 60)
+  filteredTickets.forEach((item) => {
+    if (!item.ActualSubmit || !item.ActualEskalasiFinish) return
 
-        return {
-          index: index + 1,
-          day: format(submit, 'dd MMM'),
-          totalHours: Number(diffHours.toFixed(2)),
-        }
-      })
-  }, [filteredTickets])
+    const submit = new Date(item.ActualSubmit)
+    const finish = new Date(item.ActualEskalasiFinish)
+
+    const diffHours =
+      (finish.getTime() - submit.getTime()) / (1000 * 60 * 60)
+
+    let key
+
+    if (chartMode === 'day') {
+      key = format(submit, 'yyyy-MM-dd')
+    }
+
+    if (chartMode === 'week') {
+      const weekNumber = Math.ceil(
+        (submit.getDate() + new Date(submit.getFullYear(), submit.getMonth(), 1).getDay()) / 7
+      )
+      key = `Week ${weekNumber} - ${format(submit, 'MMM yyyy')}`
+    }
+
+    if (chartMode === 'month') {
+      key = format(submit, 'MMM yyyy')
+    }
+
+    if (!map[key]) map[key] = 0
+    map[key] += diffHours
+  })
+
+  return Object.keys(map).map((k) => ({
+    label: k,
+    totalHours: Number(map[k].toFixed(2)),
+  }))
+}, [filteredTickets, chartMode])
+
 
   return (
     <div className="p-6 space-y-4">
@@ -344,6 +388,19 @@ console.log('totalOpen', totalOpen)
 
         <DashboardCard title="Close" value={totalClose} color="red" icon="🔴" />
       </div>
+      <div className="flex gap-2 mb-3">
+        {['day', 'week', 'month'].map((m) => (
+          <button
+            key={m}
+            onClick={() => setChartMode(m)}
+            className={`px-3 py-1 text-xs rounded-full border ${
+              chartMode === m ? 'bg-blue-600 text-white' : 'bg-white'
+            }`}
+          >
+            {m === 'day' ? 'Daily' : m === 'week' ? 'Weekly' : 'Monthly'}
+          </button>
+        ))}
+      </div>
 
       {/* ================= CHART ================= */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -368,17 +425,9 @@ console.log('totalOpen', totalOpen)
                   margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="day"
-                    tickFormatter={(v) => format(new Date(v), 'dd MMM')}
-                    tick={{ fontSize: 12 }}
-                  />
-
+                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                   <YAxis allowDecimals={false} />
-                  <Tooltip
-                    labelFormatter={(v) => format(new Date(v), 'dd MMM yyyy')}
-                  />
-
+                  <Tooltip />
                   <Bar
                     dataKey="total"
                     fill={chartColor}
@@ -410,18 +459,10 @@ console.log('totalOpen', totalOpen)
                   margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="day"
-                    tickFormatter={(v) => format(new Date(v), 'dd MMM')}
-                    tick={{ fontSize: 12 }}
-                  />
+                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+
                   <YAxis tickFormatter={(v) => `${v}h`} />
-                  <Tooltip
-                    formatter={(v) => `${v} jam`}
-                    labelFormatter={(_, payload) =>
-                      payload?.[0]?.payload?.day || ''
-                    }
-                  />
+                  <Tooltip formatter={(v) => `${v} jam`} />
 
                   <Bar
                     dataKey="totalHours"
