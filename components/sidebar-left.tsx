@@ -1,6 +1,6 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,  SidebarHeader, SidebarMenu,  SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import {   Bot, Calculator,  Camera,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Container, Database, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
+import {   Bot, Calculator,  Camera,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Container, Cpu, Database, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap, Wrench } from "lucide-react";
 import {
     Collapsible,
     CollapsibleContent,
@@ -113,9 +113,35 @@ export default function SidebarLeft({
         hidden: false,
       },
       {
+        title: 'ems_setting',
+        url: 'ems_setting',
+        icon: Wrench,
+        hidden: false,
+        items: [
+          {
+            title: 'Device Management',
+            url: 'ems_setting/device-management',
+          },
+          {
+            title: 'Firmware OTA',
+            url: 'ems_setting/firmware-ota',
+          },
+          {
+            title: 'Network Health',
+            url: 'ems_setting/network-health',
+          },
+        ],
+      },
+      {
         title: 'Andon',
         url: 'andon',
         icon: Lightbulb,
+        hidden: false,
+      },
+      {
+        title: 'Zhafir ZE 3600',
+        url: 'zhafir-ze-3600',
+        icon: Cpu,
         hidden: false,
       },
       {
@@ -459,7 +485,10 @@ export default function SidebarLeft({
       <SidebarMenu>
         {items
           .filter((item) => !item.hidden)
-          .map((item) => (
+          .map((item) => {
+            const isItemActive =
+              pathname === item.url || pathname.startsWith(`${item.url}/`);
+            return (
             <SidebarMenuItem key={item.title}>
               {item.items?.length ? (
                 <Collapsible
@@ -470,7 +499,7 @@ export default function SidebarLeft({
                 >
                   <CollapsibleTrigger asChild>
                     <Link href={`/${item.url}`}>
-                      <SidebarMenuButton tooltip={item.title}>
+                      <SidebarMenuButton tooltip={item.title} isActive={isItemActive}>
                         {item.icon && <item.icon />}
                         <span>{item.title}</span>
                         <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -479,20 +508,25 @@ export default function SidebarLeft({
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {item.items.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild>
-                            <Link href={`/${subItem.url}`}>
-                              {subItem.title}
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
+                      {item.items.map((subItem) => {
+                        const isSubActive =
+                          pathname === subItem.url ||
+                          pathname.startsWith(`${subItem.url}/`);
+                        return (
+                          <SidebarMenuSubItem key={subItem.title}>
+                            <SidebarMenuSubButton asChild isActive={isSubActive}>
+                              <Link href={`/${subItem.url}`}>
+                                {subItem.title}
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        );
+                      })}
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </Collapsible>
               ) : (
-                <SidebarMenuButton asChild tooltip={item.title}>
+                <SidebarMenuButton asChild tooltip={item.title} isActive={isItemActive}>
                   <Link href={`/${item.url}`}>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
@@ -500,7 +534,7 @@ export default function SidebarLeft({
                 </SidebarMenuButton>
               )}
             </SidebarMenuItem>
-          ))}
+          )})}
       </SidebarMenu>
     );
   }
