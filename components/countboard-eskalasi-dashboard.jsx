@@ -160,6 +160,22 @@ export default function CountboardEskalasi() {
       return format(date, 'MMMM yyyy')
     }
   }, [timePage, range, mode])
+  const handleExport = async () => {
+    if (!range?.from || !range?.to) return
+
+    const fromDate = format(range.from, 'yyyy-MM-dd')
+    const toDate = format(range.to, 'yyyy-MM-dd')
+
+    const url = `${API_BASE}/api/export/eskalasi?fromDate=${fromDate}&toDate=${toDate}&dept=${deptFilter}`
+
+    const res = await fetch(url)
+    const blob = await res.blob()
+
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = 'eskalasi.xlsx'
+    link.click()
+  }
 
   /* ================= CALCULATIONS ================= */
   const totalEskalasi = filteredTickets.length
@@ -276,54 +292,59 @@ export default function CountboardEskalasi() {
       </div>
     )
   }
-const durationChartData = useMemo(() => {
-  const map = {}
+  const durationChartData = useMemo(() => {
+    const map = {}
 
-  filteredTickets.forEach((item) => {
-    if (!item.ActualSubmit || !item.ActualEskalasiFinish) return
+    filteredTickets.forEach((item) => {
+      if (!item.ActualSubmit || !item.ActualEskalasiFinish) return
 
-    const submit = new Date(item.ActualSubmit)
-    const finish = new Date(item.ActualEskalasiFinish)
+      const submit = new Date(item.ActualSubmit)
+      const finish = new Date(item.ActualEskalasiFinish)
 
-    const diffHours =
-      (finish.getTime() - submit.getTime()) / (1000 * 60 * 60)
+      const diffHours = (finish.getTime() - submit.getTime()) / (1000 * 60 * 60)
 
-    let key
+      let key
 
-    if (chartMode === 'day') {
-      key = format(submit, 'yyyy-MM-dd')
-    }
+      if (chartMode === 'day') {
+        key = format(submit, 'yyyy-MM-dd')
+      }
 
-    if (chartMode === 'week') {
-      const weekNumber = Math.ceil(
-        (submit.getDate() + new Date(submit.getFullYear(), submit.getMonth(), 1).getDay()) / 7
-      )
-      key = `Week ${weekNumber} - ${format(submit, 'MMM yyyy')}`
-    }
+      if (chartMode === 'week') {
+        const weekNumber = Math.ceil(
+          (submit.getDate() +
+            new Date(submit.getFullYear(), submit.getMonth(), 1).getDay()) /
+            7
+        )
+        key = `Week ${weekNumber} - ${format(submit, 'MMM yyyy')}`
+      }
 
-    if (chartMode === 'month') {
-      key = format(submit, 'MMM yyyy')
-    }
+      if (chartMode === 'month') {
+        key = format(submit, 'MMM yyyy')
+      }
 
-    if (!map[key]) map[key] = 0
-    map[key] += diffHours
-  })
+      if (!map[key]) map[key] = 0
+      map[key] += diffHours
+    })
 
-  return Object.keys(map).map((k) => ({
-    label: k,
-    totalHours: Number(map[k].toFixed(2)),
-  }))
-}, [filteredTickets, chartMode])
-
+    return Object.keys(map).map((k) => ({
+      label: k,
+      totalHours: Number(map[k].toFixed(2)),
+    }))
+  }, [filteredTickets, chartMode])
 
   return (
     <div className="p-6 space-y-4">
       {/* ================= HEADER ================= */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-800">Ticket Eskalasi</h2>
-
         <div className="flex items-center gap-3">
           {/* DATE FILTER */}
+          <button
+            onClick={handleExport}
+            className="bg-green-600 text-white px-3 py-2 rounded-lg text-xs"
+          >
+            Export Excel
+          </button>
           <div className="relative">
             <button
               onClick={() => setShowCalendar((p) => !p)}
