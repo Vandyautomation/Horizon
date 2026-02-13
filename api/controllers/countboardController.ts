@@ -478,12 +478,7 @@ export async function getTickets() {
 export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
   let sqlQuery = `
  SELECT
-  MchID,
-  TicketDate,
-  AssignToDept,
-  EskalasiStatus,
-  ActualSubmit,
-  ActualEskalasiFinish
+  *
 FROM IoT.dbo.TicketTRX
 WHERE EskalasiFlag = 1
   `
