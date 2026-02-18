@@ -17,6 +17,7 @@ import parameterSettingDataRouter from './parameterSettingDataRoutes';
 import problemMasterDataRouter from './problemMasterRoutes';
 import hrzRoutes from './hrzRoutes';
 import zhafirRoutes from './zhafirRoutes';
+import mdpRoutes from './mdpRoutes';
 
 
 
@@ -42,6 +43,7 @@ router.route('/routing-data', routingDataRouter);
 router.route('/parameter-setting', parameterSettingDataRouter);
 router.route('/problem-master', problemMasterDataRouter);
 router.route('/zhafir-ze-3600', zhafirRoutes);
+router.route('/mdp', mdpRoutes);
 
 
 

@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   ReferenceLine,
+  YAxis,
   XAxis,
 } from "recharts";
 import {
@@ -51,8 +52,8 @@ function makeSeries(label: string, count = 30): Series {
   return { label, values };
 }
 
-function buildData() {
-  return [makeSeries("Titik 1"), makeSeries("Titik 2"), makeSeries("Titik 3")];
+function buildData(positions: Array<{ id: number }>) {
+  return positions.map((p) => makeSeries(String(p.id)));
 }
 
 function TemperatureChart({
@@ -106,6 +107,13 @@ function TemperatureChart({
             margin={{ top: 8, left: 8, right: 8, bottom: 0 }}
           >
             <CartesianGrid vertical={false} />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={6}
+              domain={[50, 90]}
+              tickFormatter={(value) => `${value}`}
+            />
             <XAxis
               dataKey="ts"
               tickLine={false}
@@ -158,6 +166,12 @@ function TemperatureChart({
 }
 
 export default function TemperatureMdpPage() {
+  const [positions, setPositions] = useState([
+    { id: 1, label: "Capacitor Bank" },
+    { id: 2, label: "MCB 1" },
+    { id: 3, label: "MCB 2" },
+  ]);
+  const [mdpId, setMdpId] = useState(2);
   const [seed, setSeed] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [intervalMinutes, setIntervalMinutes] = useState(5);
@@ -177,12 +191,40 @@ export default function TemperatureMdpPage() {
   const [modalAction, setModalAction] = useState("");
   const [modalMeta, setModalMeta] = useState<{
     point: string;
+    positionLabel?: string;
     timestamp: Date;
     value: number;
   } | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [pendingSave, setPendingSave] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const data = useMemo(() => buildData(), [seed]);
+  const data = useMemo(() => buildData(positions), [seed, positions]);
+  useEffect(() => {
+    if (activeIndex >= data.length) setActiveIndex(0);
+  }, [activeIndex, data.length]);
+  useEffect(() => {
+    setIsAnimating(true);
+    const t = setTimeout(() => setIsAnimating(false), 300);
+    return () => clearTimeout(t);
+  }, [activeIndex, intervalMinutes, shiftFilter, selectedDate, seed]);
+
+  useEffect(() => {
+    if (!manageOpen) return;
+    setPendingSave(true);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      setPendingSave(false);
+      setLastSavedAt(new Date());
+    }, 600);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [positions, manageOpen]);
   const baseTime = useMemo(() => {
     const [y, m, d] = selectedDate.split("-").map(Number);
     const target = new Date(y, (m ?? 1) - 1, d ?? 1, 23, 59, 0, 0);
@@ -211,6 +253,7 @@ export default function TemperatureMdpPage() {
 
   const history = useMemo(() => {
     const series = data[activeIndex];
+    if (!series) return [];
     const entries = series.values.map((value, index) => {
       const ts = new Date(
         baseTime -
@@ -222,6 +265,8 @@ export default function TemperatureMdpPage() {
           : value < LOWER_LIMIT
             ? "Underheat"
             : "Normal";
+      const state =
+        value > UPPER_LIMIT ? "High" : value < LOWER_LIMIT ? "Low" : "Normal";
       const action =
         cause === "Normal"
           ? "Monitoring"
@@ -232,6 +277,7 @@ export default function TemperatureMdpPage() {
         point: series.label,
         timestamp: ts,
         cause,
+        state,
         action,
         value,
       };
@@ -245,7 +291,9 @@ export default function TemperatureMdpPage() {
       return hour >= 22 || hour < 6;
     };
 
-    return entries.filter((e) => inShift(e.timestamp)).reverse();
+    return entries
+      .filter((e) => inShift(e.timestamp))
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }, [data, activeIndex, intervalMinutes, baseTime, shiftFilter]);
 
   const dailySummary = useMemo(() => {
@@ -283,7 +331,7 @@ export default function TemperatureMdpPage() {
     key: string,
     cause: string,
     action: string,
-    meta: { point: string; timestamp: Date; value: number },
+    meta: { point: string; timestamp: Date; value: number; positionLabel?: string },
   ) => {
     setModalKey(key);
     setModalCause(cause);
@@ -369,8 +417,21 @@ export default function TemperatureMdpPage() {
   return (
     <div className="p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-white px-2 py-1.5">
-        <div className="text-xs font-semibold text-gray-800">
-          Temperature MDP
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-800">
+          <span>Temperature MDP</span>
+          <select
+            value={mdpId}
+            onChange={(e) => {
+              setMdpId(Number(e.target.value));
+              setSeed((v) => v + 1);
+            }}
+            className="rounded border bg-white px-2 py-1 text-xs font-normal text-gray-700"
+          >
+            <option value={1}>MDP 1</option>
+            <option value={2}>MDP 2</option>
+            <option value={3}>MDP 3</option>
+            <option value={4}>MDP 4</option>
+          </select>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <label className="text-[11px] text-gray-500">Tanggal</label>
@@ -406,10 +467,32 @@ export default function TemperatureMdpPage() {
           </select>
           <button
             type="button"
-            onClick={() => setSeed((v) => v + 1)}
-            className="rounded border px-3 py-1 bg-gray-100 hover:bg-gray-200"
+            onClick={() => {
+              if (isRefreshing) return;
+              setIsRefreshing(true);
+              setTimeout(() => {
+                setSeed((v) => v + 1);
+                setIsRefreshing(false);
+              }, 500);
+            }}
+            className="rounded border px-3 py-1 bg-gray-100 hover:bg-gray-200 disabled:opacity-60"
+            disabled={isRefreshing}
           >
-            Refresh Data
+            {isRefreshing ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                Loading...
+              </span>
+            ) : (
+              "Refresh Data"
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setManageOpen(true)}
+            className="rounded border px-3 py-1 bg-white hover:bg-gray-50"
+          >
+            Manage Positions
           </button>
         </div>
       </div>
@@ -422,6 +505,7 @@ export default function TemperatureMdpPage() {
         {data.map((series, idx) => {
           const last = series.values[series.values.length - 1];
           const isActive = idx === activeIndex;
+          const positionLabel = positions[idx]?.label || "-";
           return (
             <button
               key={series.label}
@@ -431,9 +515,10 @@ export default function TemperatureMdpPage() {
                 isActive
                   ? "border-gray-800 bg-gray-100"
                   : "border-gray-200 bg-white hover:bg-gray-50"
-              }`}
+              } ${isAnimating ? "ring-1 ring-gray-300" : ""}`}
             >
-              <div className="text-xs text-gray-600">{series.label}</div>
+              <div className="text-xs text-gray-600">ID {series.label}</div>
+              <div className="text-[11px] text-gray-500">{positionLabel}</div>
               <div className="mt-1 text-2xl font-semibold text-gray-900">
                 {last} C
               </div>
@@ -445,20 +530,35 @@ export default function TemperatureMdpPage() {
         })}
       </div>
 
-      <TemperatureChart
-        series={data[activeIndex]}
-        baseTime={baseTime}
-        intervalMinutes={intervalMinutes}
-        shiftFilter={shiftFilter}
-      />
+      <div className={`transition-opacity ${isAnimating ? "opacity-70" : "opacity-100"}`}>
+        {isRefreshing ? (
+          <div className="rounded-xl border bg-white p-4 shadow-sm">
+            <div className="mb-3 h-3 w-48 animate-pulse rounded bg-gray-200" />
+            <div className="mb-4 h-2 w-72 animate-pulse rounded bg-gray-200" />
+            <div className="h-48 animate-pulse rounded bg-gray-100" />
+          </div>
+        ) : data[activeIndex] ? (
+          <TemperatureChart
+            series={data[activeIndex]}
+            baseTime={baseTime}
+            intervalMinutes={intervalMinutes}
+            shiftFilter={shiftFilter}
+          />
+        ) : (
+          <div className="rounded-xl border bg-white p-4 text-xs text-gray-500">
+            No data. Add a position first.
+          </div>
+        )}
+      </div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-xl border bg-white p-3 shadow-sm">
+        <div className={`rounded-xl border bg-white p-3 shadow-sm transition-opacity ${isAnimating ? "opacity-80" : "opacity-100"}`}>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs font-semibold text-gray-800">
-            History {data[activeIndex]?.label}
+            History ID {data[activeIndex]?.label} - {positions[activeIndex]?.label || "-"}
           </div>
           <div className="flex items-center gap-2 text-[11px] text-gray-500">
+            <span>Tanggal: {selectedDate}</span>
             <span>
               Per {intervalMinutes === 60 ? "1 jam" : `${intervalMinutes} menit`}
             </span>
@@ -481,15 +581,28 @@ export default function TemperatureMdpPage() {
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-[11px]">
-            <thead className="bg-gray-50 text-gray-600">
+        <div className={`overflow-x-auto transition-opacity ${isAnimating ? "opacity-80" : "opacity-100"}`}>
+          {isRefreshing ? (
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-6 animate-pulse rounded bg-gray-100" />
+              ))}
+            </div>
+          ) : (
+            <table className="w-full table-fixed text-[11px]">
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-16" />
+              <col className="w-16" />
+              <col className="w-20" />
+              <col />
+            </colgroup>
+            <thead className="bg-gray-100/80 text-gray-700 sticky top-0 shadow-sm backdrop-blur">
               <tr>
-                <th className="px-2 py-1.5 text-left font-semibold">Titik</th>
-                <th className="px-2 py-1.5 text-left font-semibold">
-                  Timestamp
-                </th>
-                <th className="px-2 py-1.5 text-left font-semibold">Value</th>
+                <th className="px-2 py-1.5 text-left font-semibold">ID</th>
+                <th className="px-2 py-1.5 text-left font-semibold">Time</th>
+                <th className="px-2 py-1.5 text-right font-semibold">Value</th>
+                <th className="px-2 py-1.5 text-left font-semibold">State</th>
                 <th className="px-2 py-1.5 text-left font-semibold">Cause</th>
                 <th className="px-3 py-2 text-left font-semibold">
                   Comment/Actions
@@ -502,139 +615,210 @@ export default function TemperatureMdpPage() {
                 const override = notes[key];
                 const cause = override?.cause ?? row.cause;
                 const action = override?.action ?? row.action;
+                const state = row.state;
+                const isSpike = row.value > UPPER_LIMIT;
+                const isLow = row.value < LOWER_LIMIT;
+                const rowId = idx + 1;
                 return (
                   <tr
                     key={`${row.point}-${idx}`}
-                    className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    className={[
+                      idx % 2 === 0 ? "bg-white" : "bg-gray-50/60",
+                      "hover:bg-gray-100/70 transition-colors",
+                      isSpike
+                        ? "border-l-4 border-red-400"
+                        : isLow
+                          ? "border-l-4 border-blue-400"
+                          : "border-l-4 border-transparent",
+                    ].join(" ")}
                   >
-                    <td className="px-2 py-1.5">{row.point}</td>
+                    <td className="px-2 py-1.5">{rowId}</td>
                     <td className="px-2 py-1.5">
-                      {row.timestamp.toLocaleString("id-ID", {
+                      {row.timestamp.toLocaleTimeString("id-ID", {
                         hour: "2-digit",
                         minute: "2-digit",
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
                       })}
                     </td>
-                    <td className="px-2 py-1.5">{row.value} C</td>
-                    <td
-                      className="px-2 py-1.5 cursor-pointer underline decoration-dotted"
-                      onClick={() =>
-                        openModal(key, cause, action, {
-                          point: row.point,
-                          timestamp: row.timestamp,
-                          value: row.value,
-                        })
-                      }
-                    >
-                      {cause}
+                    <td className="px-2 py-1.5 text-right font-mono tabular-nums">
+                      {row.value} C
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <span
+                        className={
+                          state === "High"
+                            ? "inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700"
+                            : state === "Low"
+                              ? "inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700"
+                              : "inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700"
+                        }
+                      >
+                        {state === "High" ? "▲" : state === "Low" ? "▼" : "•"} {state}
+                      </span>
                     </td>
                     <td
-                      className="px-3 py-1.5 cursor-pointer underline decoration-dotted"
+                      className="px-2 py-1.5 whitespace-normal"
                       onClick={() =>
                         openModal(key, cause, action, {
-                          point: row.point,
+                          point: String(rowId),
+                          positionLabel: positions[activeIndex]?.label,
                           timestamp: row.timestamp,
                           value: row.value,
                         })
                       }
                     >
-                      {action}
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] text-gray-700 hover:bg-gray-50"
+                      >
+                        {cause}
+                        <span className="text-[9px] text-gray-400">edit</span>
+                      </button>
+                    </td>
+                    <td
+                      className="px-3 py-1.5 whitespace-normal"
+                      onClick={() =>
+                        openModal(key, cause, action, {
+                          point: String(rowId),
+                          positionLabel: positions[activeIndex]?.label,
+                          timestamp: row.timestamp,
+                          value: row.value,
+                        })
+                      }
+                    >
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] text-gray-700 hover:bg-gray-50"
+                      >
+                        {action}
+                        <span className="text-[9px] text-gray-400">edit</span>
+                      </button>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          )}
         </div>
       </div>
 
-        <div className="rounded-xl border bg-white p-3 shadow-sm">
-          <div className="mb-2 text-xs font-semibold text-gray-800">
-            Daily Summary
-          </div>
-          <div className="mb-3 text-[11px] text-gray-600">
-            Hari {selectedDate}
-          </div>
-          <div className="mb-3 text-[11px]">
-            Spike di atas {UPPER_LIMIT} C:{" "}
-            <span className="font-semibold">{dailySummary.count} kali</span>
-          </div>
-          <div className="mb-4 text-[11px] text-gray-600">
-            Jam spike:{" "}
-            {dailySummary.times.length
-              ? dailySummary.times.join(", ")
-              : "Tidak ada"}
-          </div>
-          <div className="mb-4 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSummaryOpen(true)}
-              className="rounded border bg-white px-2 py-1 text-[10px] text-gray-700 hover:bg-gray-50"
-            >
-              Lihat Detail
-            </button>
-            <button
-              type="button"
-              onClick={exportSummary}
-              className="rounded border bg-white px-2 py-1 text-[10px] text-gray-700 hover:bg-gray-50"
-            >
-              Export Summary
-            </button>
-          </div>
+        <div className={`rounded-xl border bg-white p-3 shadow-sm transition-opacity ${isAnimating ? "opacity-80" : "opacity-100"}`}>
+          {isRefreshing ? (
+            <div className="space-y-2">
+              <div className="h-3 w-32 animate-pulse rounded bg-gray-200" />
+              <div className="h-2 w-48 animate-pulse rounded bg-gray-200" />
+              <div className="h-2 w-64 animate-pulse rounded bg-gray-100" />
+              <div className="h-2 w-56 animate-pulse rounded bg-gray-100" />
+            </div>
+          ) : (
+            <div>
+              <div className="mb-2 text-xs font-semibold text-gray-800">
+                Daily Summary
+              </div>
+              <div className="mb-3 text-[11px] text-gray-600">
+                Hari {selectedDate}
+              </div>
+              <div className="mb-3 text-[11px]">
+                Spike di atas {UPPER_LIMIT} C:{" "}
+                <span className="font-semibold">{dailySummary.count} kali</span>
+              </div>
+              <div className="mb-4 text-[11px] text-gray-600">
+                Jam spike:{" "}
+                {dailySummary.times.length
+                  ? dailySummary.times.join(", ")
+                  : "Tidak ada"}
+              </div>
+              <div className="mb-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSummaryOpen(true)}
+                  className="rounded border bg-white px-2 py-1 text-[10px] text-gray-700 hover:bg-gray-50"
+                >
+                  Lihat Detail
+                </button>
+                <button
+                  type="button"
+                  onClick={exportSummary}
+                  className="rounded border bg-white px-2 py-1 text-[10px] text-gray-700 hover:bg-gray-50"
+                >
+                  Export Summary
+                </button>
+              </div>
 
-          <div className="border-t pt-3">
-            <div className="mb-2 text-xs font-semibold text-gray-800">
-              Monthly Summary
-            </div>
-            <div className="text-[11px] text-gray-600">
-              Total spike bulan ini:{" "}
-              <span className="font-semibold">{monthlySummary.count} kali</span>
-            </div>
-          </div>
+              <div className="border-t pt-3">
+                <div className="mb-2 text-xs font-semibold text-gray-800">
+                  Monthly Summary
+                </div>
+                <div className="text-[11px] text-gray-600">
+                  Total spike bulan ini:{" "}
+                  <span className="font-semibold">{monthlySummary.count} kali</span>
+                </div>
+              </div>
 
-          <div className="border-t pt-3 mt-3">
-            <div className="mb-2 text-xs font-semibold text-gray-800">
-              Yearly Summary
+              <div className="border-t pt-3 mt-3">
+                <div className="mb-2 text-xs font-semibold text-gray-800">
+                  Yearly Summary
+                </div>
+                <div className="text-[11px] text-gray-600">
+                  Total spike tahun ini:{" "}
+                  <span className="font-semibold">{yearlySummary.count} kali</span>
+                </div>
+              </div>
             </div>
-            <div className="text-[11px] text-gray-600">
-              Total spike tahun ini:{" "}
-              <span className="font-semibold">{yearlySummary.count} kali</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-md rounded-lg border bg-white p-4 shadow-lg">
-            <div className="mb-3 text-sm font-semibold">Edit Cause & Action</div>
+          <div className="w-full max-w-lg rounded-xl border bg-white p-4 shadow-lg">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-semibold">Edit Cause & Action</div>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="rounded-full border px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-50"
+              >
+                x
+              </button>
+            </div>
             {modalMeta && (
-              <div className="mb-3 rounded border bg-gray-50 px-3 py-2 text-[11px] text-gray-700">
-                <div>
-                  <span className="font-semibold">Titik:</span> {modalMeta.point}
-                </div>
-                <div>
-                  <span className="font-semibold">Timestamp:</span>{" "}
-                  {modalMeta.timestamp.toLocaleString("id-ID", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })}
-                </div>
-                <div>
-                  <span className="font-semibold">Value:</span> {modalMeta.value} C
-                </div>
+              <div className="mb-3 flex flex-wrap gap-2 text-[11px]">
+                <span className="rounded-full border bg-gray-50 px-3 py-1 text-gray-700">
+                  ID: <span className="font-semibold">{modalMeta.point}</span>
+                </span>
+                {modalMeta.positionLabel && (
+                  <span className="rounded-full border bg-gray-50 px-3 py-1 text-gray-700">
+                    Posisi:{" "}
+                    <span className="font-semibold">
+                      {modalMeta.positionLabel}
+                    </span>
+                  </span>
+                )}
+                <span className="rounded-full border bg-gray-50 px-3 py-1 text-gray-700">
+                  Time:{" "}
+                  <span className="font-semibold">
+                    {modalMeta.timestamp.toLocaleString("id-ID", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}
+                  </span>
+                </span>
+                <span className="rounded-full border bg-gray-50 px-3 py-1 text-gray-700">
+                  Value:{" "}
+                  <span className="font-semibold">{modalMeta.value} C</span>
+                </span>
               </div>
             )}
+
             <div className="mb-3">
               <label className="mb-1 block text-xs text-gray-600">Cause</label>
               <div className="flex gap-2">
                 <select
-                  className="rounded border px-2 py-1 text-xs"
+                  className="w-40 rounded border px-2 py-1 text-xs bg-white"
                   value={modalCause}
                   onChange={(e) => setModalCause(e.target.value)}
                 >
@@ -644,15 +828,22 @@ export default function TemperatureMdpPage() {
                   <option value="Sensor Issue">Sensor Issue</option>
                   <option value="Maintenance">Maintenance</option>
                 </select>
+                <input
+                  className="flex-1 rounded border px-2 py-1 text-xs"
+                  value={modalCause}
+                  onChange={(e) => setModalCause(e.target.value)}
+                  placeholder="Ketik cause..."
+                />
               </div>
             </div>
-            <div className="mb-3">
+
+            <div className="mb-4">
               <label className="mb-1 block text-xs text-gray-600">
                 Comment/Actions
               </label>
               <div className="flex gap-2">
                 <select
-                  className="rounded border px-2 py-1 text-xs"
+                  className="w-56 rounded border px-2 py-1 text-xs bg-white"
                   value={modalAction}
                   onChange={(e) => setModalAction(e.target.value)}
                 >
@@ -666,42 +857,27 @@ export default function TemperatureMdpPage() {
                     Scheduled maintenance
                   </option>
                 </select>
+                <input
+                  className="flex-1 rounded border px-2 py-1 text-xs"
+                  value={modalAction}
+                  onChange={(e) => setModalAction(e.target.value)}
+                  placeholder="Ketik action..."
+                />
               </div>
             </div>
-            <div className="mb-3">
-              <label className="mb-1 block text-xs text-gray-600">
-                Ketik Cause
-              </label>
-              <input
-                className="w-full rounded border px-2 py-1 text-xs"
-                value={modalCause}
-                onChange={(e) => setModalCause(e.target.value)}
-                placeholder="Ketik cause..."
-              />
-            </div>
-            <div className="mb-3">
-              <label className="mb-1 block text-xs text-gray-600">
-                Ketik Comment/Actions
-              </label>
-              <input
-                className="w-full rounded border px-2 py-1 text-xs"
-                value={modalAction}
-                onChange={(e) => setModalAction(e.target.value)}
-                placeholder="Ketik action..."
-              />
-            </div>
+
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="rounded border px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200"
+                className="rounded border px-3 py-1 text-xs bg-white hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={saveModal}
-                className="rounded border px-3 py-1 text-xs bg-gray-800 text-white hover:bg-gray-700"
+                className="rounded border px-3 py-1 text-xs bg-gray-900 text-white hover:bg-gray-800"
               >
                 Add
               </button>
@@ -724,7 +900,7 @@ export default function TemperatureMdpPage() {
               </button>
             </div>
             <div className="text-[11px] text-gray-600 mb-2">
-              {data[activeIndex]?.label} | {selectedDate} |{" "}
+              ID {data[activeIndex]?.label} — {positions[activeIndex]?.label || "-"} | {selectedDate} |{" "}
               {shiftFilter === "all"
                 ? "Semua Shift"
                 : shiftFilter === "s1"
@@ -735,20 +911,26 @@ export default function TemperatureMdpPage() {
             </div>
             <div className="max-h-64 overflow-auto">
               <table className="min-w-full text-[11px]">
-                <thead className="bg-gray-50 text-gray-600">
+                <thead className="bg-gray-100/80 text-gray-700 sticky top-0 shadow-sm backdrop-blur">
                   <tr>
                     <th className="px-2 py-1.5 text-left font-semibold">
-                      Timestamp
+                      Date
+                    </th>
+                    <th className="px-2 py-1.5 text-left font-semibold">
+                      Time
                     </th>
                     <th className="px-2 py-1.5 text-left font-semibold">
                       Value
+                    </th>
+                    <th className="px-2 py-1.5 text-left font-semibold">
+                      State
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {dailySummary.spikes.length === 0 ? (
                     <tr>
-                      <td className="px-2 py-2 text-gray-500" colSpan={2}>
+                      <td className="px-2 py-2 text-gray-500" colSpan={4}>
                         Tidak ada spike
                       </td>
                     </tr>
@@ -756,23 +938,116 @@ export default function TemperatureMdpPage() {
                     dailySummary.spikes.map((s, i) => (
                       <tr
                         key={`${s.timestamp.toISOString()}-${i}`}
-                        className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                        className={[
+                          i % 2 === 0 ? "bg-white" : "bg-gray-50/60",
+                          "hover:bg-gray-100/70 transition-colors",
+                          "border-l-4 border-red-400",
+                        ].join(" ")}
                       >
                         <td className="px-2 py-1.5">
-                          {s.timestamp.toLocaleString("id-ID", {
+                          {s.timestamp.toLocaleDateString("id-ID")}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          {s.timestamp.toLocaleTimeString("id-ID", {
                             hour: "2-digit",
                             minute: "2-digit",
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
                           })}
                         </td>
-                        <td className="px-2 py-1.5">{s.value} C</td>
+                        <td className="px-2 py-1.5 font-mono tabular-nums">
+                          {s.value} C
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700">
+                            ▲ High
+                          </span>
+                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {manageOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-lg rounded-xl border bg-white p-4 shadow-lg">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-semibold">Manage Positions</div>
+              <button
+                type="button"
+                onClick={() => setManageOpen(false)}
+                className="rounded-full border px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-50"
+              >
+                x
+              </button>
+            </div>
+            <div className="mb-3 text-[11px] text-gray-600">
+              Atur nama posisi untuk setiap ID.
+            </div>
+            <div className="mb-3 text-[11px] text-gray-500">
+              {pendingSave ? "Auto-save in progress..." : "Auto-save ready"}
+              {lastSavedAt && !pendingSave ? (
+                <span> (last saved {lastSavedAt.toLocaleTimeString("id-ID")})</span>
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              {positions.map((p) => (
+                <div key={p.id} className="flex items-center gap-2">
+                  <div className="w-10 text-xs font-semibold text-gray-700">
+                    ID {p.id}
+                  </div>
+                  <input
+                    className="flex-1 rounded border px-2 py-1 text-xs"
+                    value={p.label}
+                    onChange={(e) =>
+                      setPositions((prev) =>
+                        prev.map((item) =>
+                          item.id === p.id
+                            ? { ...item, label: e.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    placeholder="Nama posisi..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPositions((prev) =>
+                        prev.filter((item) => item.id !== p.id),
+                      )
+                    }
+                    className="rounded border px-2 py-1 text-[10px] text-gray-600 hover:bg-gray-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-between">
+              <button
+                type="button"
+                onClick={() =>
+                  setPositions((prev) => {
+                    const nextId =
+                      prev.length === 0 ? 1 : Math.max(...prev.map((p) => p.id)) + 1;
+                    return [...prev, { id: nextId, label: `Posisi ${nextId}` }];
+                  })
+                }
+                className="rounded border px-3 py-1 text-xs bg-white hover:bg-gray-50"
+              >
+                Add Position
+              </button>
+              <button
+                type="button"
+                onClick={() => setManageOpen(false)}
+                className="rounded border px-3 py-1 text-xs bg-gray-900 text-white hover:bg-gray-800"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
