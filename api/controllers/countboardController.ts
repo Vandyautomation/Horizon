@@ -478,22 +478,22 @@ export async function getTickets() {
 export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
   let sqlQuery = `
     SELECT
-      t.TicketDate,
-      t.MchID,
-      m.MchNumber,
-      m.MchLoc,
-      t.Problem,
-      t.ActionPlan,
-      t.AssignToDept,
-      t.Message,
-      t.EskalasiStatus,
-      t.EskalasiFlag,
-      t.ActualSubmit,
-      t.ActualEskalasiFinish
-    FROM IoT.dbo.TicketTRX t
-    LEFT JOIN IoT.dbo.MachineMST m 
-      ON t.MchID = m.MchID
-    WHERE t.EskalasiFlag = 1
+     t.TicketDate,
+     t.MchID,
+     m.MchNumber,
+     m.MchLoc,
+     t.Problem,
+     t.ActionPlan,
+     t.AssignToDept,
+     t.Message,
+     t.EskalasiStatus,
+     t.EskalasiFlag,
+     t.ActualSubmit,
+     t.ActualEskalasiFinish
+   FROM IoT.dbo.TicketTRX t
+   LEFT JOIN IoT.dbo.MachineMST m
+     ON t.MchID = m.MchID
+   WHERE t.EskalasiFlag = 1 and t.Active = 1
   `
 
   const params: Record<string, any> = {}
