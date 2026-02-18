@@ -522,80 +522,94 @@ export default function CountboardEskalasi() {
           </div>
         )}
 
-        <table className="min-w-full divide-y text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-4 py-3">No</th>
-              <th className="px-4 py-3">Ticket Date</th>
-              <th className="px-4 py-3">Mch ID</th>
-              <th className="px-4 py-3">Problem</th>
-              <th className="px-4 py-3">Action Plan</th>
-              <th className="px-4 py-3">Dept</th>
-              <th className="px-4 py-3">Message</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Eskalasi</th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto rounded-lg border bg-white">
+          <table className="min-w-full text-sm text-left">
+            <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-600">
+              <tr>
+                <th className="px-4 py-3 w-12 text-center">No</th>
+                <th className="px-4 py-3 w-28">Ticket Date</th>
+                <th className="px-4 py-3 w-24">Mch ID</th>
+                <th className="px-4 py-3 w-32">Mch Number</th>
+                <th className="px-4 py-3 w-40">Location</th>
+                <th className="px-4 py-3">Problem</th>
+                <th className="px-4 py-3">Action Plan</th>
+                <th className="px-4 py-3 w-28">Dept</th>
+                <th className="px-4 py-3">Message</th>
+                <th className="px-4 py-3 w-24 text-center">Status</th>
+                <th className="px-4 py-3 w-24 text-center">Eskalasi</th>
+              </tr>
+            </thead>
 
-          <tbody className="divide-y">
-            {loading ? (
-              <tr>
-                <td colSpan="8" className="py-6 text-center">
-                  Loading...
-                </td>
-              </tr>
-            ) : pagedTickets.length === 0 ? (
-              <tr>
-                <td colSpan="8" className="py-6 text-center">
-                  Tidak ada data
-                </td>
-              </tr>
-            ) : (
-              pagedTickets.map((item, i) => (
-                <tr
-                  key={i}
-                  className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => {
-                    setSelectedTicket(item)
-                    setShowDialog(true)
-                  }}
-                >
-                  <td className="px-4 py-2">{i + 1}</td>
-                  <td className="px-4 py-2">
-                    {item.TicketDate
-                      ? format(new Date(item.TicketDate), 'dd/MM/yyyy')
-                      : '-'}
-                  </td>
-                  <td className="px-4 py-2">{item.MchID}</td>
-                  <td className="px-4 py-2">{item.Problem}</td>
-                  <td className="px-4 py-2">{item.ActionPlan}</td>
-                  <td className="px-4 py-2">{item.AssignToDept}</td>
-                  <td className="px-4 py-2">{item.Message || '-'}</td>
-                  <td className="px-4 py-2 text-center">
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-medium ${
-                        item.EskalasiStatus?.toLowerCase() === 'close'
-                          ? 'bg-red-100 text-red-700'
-                          : item.EskalasiStatus?.toLowerCase() === 'on progress'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : item.EskalasiStatus?.toLowerCase() === 'open'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {item.EskalasiStatus || 'Open'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-center">
-                    <span className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-700">
-                      Eskalasi
-                    </span>
+            <tbody className="divide-y">
+              {loading ? (
+                <tr>
+                  <td colSpan="11" className="py-6 text-center">
+                    Loading...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : pagedTickets.length === 0 ? (
+                <tr>
+                  <td colSpan="11" className="py-6 text-center">
+                    Tidak ada data
+                  </td>
+                </tr>
+              ) : (
+                pagedTickets.map((item, i) => (
+                  <tr
+                    key={i}
+                    className="hover:bg-gray-50 cursor-pointer align-top"
+                    onClick={() => {
+                      setSelectedTicket(item)
+                      setShowDialog(true)
+                    }}
+                  >
+                    <td className="px-4 py-3 text-center font-medium">
+                      {i + 1}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {item.TicketDate
+                        ? format(new Date(item.TicketDate), 'dd/MM/yyyy')
+                        : '-'}
+                    </td>
+
+                    <td className="px-4 py-3">{item.MchID}</td>
+                    <td className="px-4 py-3">{item.MchNumber || '-'}</td>
+                    <td className="px-4 py-3">{item.MchLoc || '-'}</td>
+
+                    <td className="px-4 py-3">{item.Problem}</td>
+                    <td className="px-4 py-3">{item.ActionPlan}</td>
+                    <td className="px-4 py-3">{item.AssignToDept}</td>
+                    <td className="px-4 py-3">{item.Message || '-'}</td>
+
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${
+                          item.EskalasiStatus?.toLowerCase() === 'close'
+                            ? 'bg-red-100 text-red-700'
+                            : item.EskalasiStatus?.toLowerCase() ===
+                                'on progress'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : item.EskalasiStatus?.toLowerCase() === 'open'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {item.EskalasiStatus || 'Open'}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3 text-center">
+                      <span className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-700">
+                        Eskalasi
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
       {showDialog && selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">

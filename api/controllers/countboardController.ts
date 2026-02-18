@@ -477,25 +477,41 @@ export async function getTickets() {
 }
 export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
   let sqlQuery = `
- SELECT
-  *
-FROM IoT.dbo.TicketTRX
-WHERE EskalasiFlag = 1
+    SELECT
+      t.TicketDate,
+      t.MchID,
+      m.MchNumber,
+      m.MchLoc,
+      t.Problem,
+      t.ActionPlan,
+      t.AssignToDept,
+      t.Message,
+      t.EskalasiStatus,
+      t.EskalasiFlag,
+      t.ActualSubmit,
+      t.ActualEskalasiFinish
+    FROM IoT.dbo.TicketTRX t
+    LEFT JOIN IoT.dbo.MachineMST m 
+      ON t.MchID = m.MchID
+    WHERE t.EskalasiFlag = 1
   `
 
   const params: Record<string, any> = {}
 
   if (fromDate && toDate) {
     sqlQuery += `
-      AND TicketDate >= @fromDate
-      AND TicketDate < DATEADD(DAY, 1, @toDate)
+      AND t.TicketDate >= @fromDate
+      AND t.TicketDate < DATEADD(DAY, 1, @toDate)
     `
     params.fromDate = fromDate
     params.toDate = toDate
   }
 
+  sqlQuery += ` ORDER BY t.TicketDate ASC`
+
   return await queryDatabase(sqlQuery, params)
 }
+
 
 export async function updateTicketEskalasi(
   mchId: string,
