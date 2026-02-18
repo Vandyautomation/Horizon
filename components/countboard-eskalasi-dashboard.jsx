@@ -529,8 +529,8 @@ export default function CountboardEskalasi() {
                 <th className="px-4 py-3 w-12 text-center">No</th>
                 <th className="px-4 py-3 w-28">Ticket Date</th>
                 <th className="px-4 py-3 w-24">Mch ID</th>
-                <th className="px-4 py-3 w-32">Mch Number</th>
                 <th className="px-4 py-3 w-40">Location</th>
+                <th className="px-4 py-3 w-32">Mch Number</th>
                 <th className="px-4 py-3">Problem</th>
                 <th className="px-4 py-3">Action Plan</th>
                 <th className="px-4 py-3 w-28">Dept</th>
@@ -574,9 +574,8 @@ export default function CountboardEskalasi() {
                     </td>
 
                     <td className="px-4 py-3">{item.MchID}</td>
-                    <td className="px-4 py-3">{item.MchNumber || '-'}</td>
                     <td className="px-4 py-3">{item.MchLoc || '-'}</td>
-
+                    <td className="px-4 py-3">{item.MchNumber || '-'}</td>
                     <td className="px-4 py-3">{item.Problem}</td>
                     <td className="px-4 py-3">{item.ActionPlan}</td>
                     <td className="px-4 py-3">{item.AssignToDept}</td>
