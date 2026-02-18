@@ -31,6 +31,8 @@ exportRoutes.get('/eskalasi', async (c) => {
       No: index + 1,
       'Ticket Date': item.TicketDate,
       'Mch ID': item.MchID,
+      Location: item.MchLoc || '-',
+      'Mch Number': item.MchNumber || '-',
       Problem: item.Problem,
       'Action Plan': item.ActionPlan,
       Department: item.AssignToDept,
