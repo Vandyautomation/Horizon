@@ -36,6 +36,7 @@ export default function CountboardEskalasi() {
   const [formStatus, setFormStatus] = useState('open')
   const [timePage, setTimePage] = useState(0)
   const [chartMode, setChartMode] = useState('day')
+  const [statusFilter, setStatusFilter] = useState('ALL')
 
   const normalize = (val) => val?.toLowerCase().replace(/\s+/g, '')
   useEffect(() => {
@@ -100,12 +101,20 @@ export default function CountboardEskalasi() {
     if (range) fetchTicketEskalasi()
   }, [range])
 
-  const filteredTickets =
-    deptFilter === 'ALL'
-      ? ticketList
-      : ticketList.filter(
-          (item) => normalize(item.AssignToDept) === normalize(deptFilter)
-        )
+  const filteredTickets = useMemo(() => {
+    return ticketList.filter((item) => {
+      const deptMatch =
+        deptFilter === 'ALL' ||
+        normalize(item.AssignToDept) === normalize(deptFilter)
+
+      const statusMatch =
+        statusFilter === 'ALL' ||
+        normalize(item.EskalasiStatus) === normalize(statusFilter)
+
+      return deptMatch && statusMatch
+    })
+  }, [ticketList, deptFilter, statusFilter])
+
   /* ================= PAGINATION ================= */
   const stripTime = (date) =>
     new Date(date.getFullYear(), date.getMonth(), date.getDate())
@@ -370,7 +379,16 @@ export default function CountboardEskalasi() {
               </div>
             )}
           </div>
-
+          {/* STATUS FILTER */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-lg border px-3 py-2 text-xs shadow-sm"
+          >
+            <option value="ALL">All Status</option>
+            <option value="open">Open</option>
+            <option value="close">Close</option>
+          </select>
           {/* DEPT FILTER */}
           <select
             value={deptFilter}
