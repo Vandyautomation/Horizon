@@ -16,6 +16,9 @@ type SectionProps = {
   title: string;
   children: React.ReactNode;
   className?: string;
+  sectionKey?: string;
+  expanded?: boolean;
+  onToggle?: (key: string) => void;
 };
 
 type RowProps = {
@@ -61,6 +64,28 @@ function fmt(value: number | string | null | undefined): string {
 }
 
 export default function ZhafirParameterForm() {
+  const SECTION_KEYS = [
+    "SUMMARY INJECTION SETTINGS",
+    "INJECT",
+    "HOLDING",
+    "CHARGING",
+    "CLAMP / MOLD",
+    "TEMPERATURE",
+    "EJECTOR FWD",
+    "EJECTOR BWD",
+    "AIR BLOW",
+    "CORE A",
+    "CORE B",
+    "CORE C",
+    "CORE D",
+    "CUSSION",
+    "COOLING TIME",
+    "V/P",
+    "SUCKBACK BEG. CHARG",
+    "SUCKBACK AFT. CHARG",
+    "BERAT UNIT",
+    "HEATER CONTROL",
+  ];
   const [values, setValues] = useState<Record<string, StdActValue>>({});
   const [stdDraft, setStdDraft] = useState<Record<string, string>>({});
   const [actDraft, setActDraft] = useState<Record<string, string>>({});
@@ -68,6 +93,9 @@ export default function ZhafirParameterForm() {
   const [error, setError] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(SECTION_KEYS.map((key) => [key, true])),
+  );
 
   const baseUrl = useMemo(
     () => process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:9999",
@@ -87,6 +115,18 @@ export default function ZhafirParameterForm() {
       unique.add("http://localhost:9999/api/zhafir-ze-3600" + q);
       unique.add("http://127.0.0.1:9999/api/zhafir-ze-3600" + q);
       unique.add(`/api/zhafir-ze-3600${q}`);
+      return Array.from(unique);
+    };
+
+    const buildActualCandidates = () => {
+      const trimmed = (baseUrl || "").replace(/\/+$/, "");
+      const normalized = trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
+      const q = `?paraId=${encodeURIComponent(PARA_ID)}`;
+      const unique = new Set<string>();
+      if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/actual-view${q}`);
+      unique.add("http://localhost:9999/api/zhafir-ze-3600/actual-view" + q);
+      unique.add("http://127.0.0.1:9999/api/zhafir-ze-3600/actual-view" + q);
+      unique.add(`/api/zhafir-ze-3600/actual-view${q}`);
       return Array.from(unique);
     };
 
@@ -124,12 +164,42 @@ export default function ZhafirParameterForm() {
         }
 
         if (!data) throw new Error(`Failed to load data (${lastStatus})`);
+        const actualCandidates = buildActualCandidates();
+        let actualData: { values?: Record<string, unknown> } | null = null;
+        let actualStatus = "unknown";
+
+        for (const url of actualCandidates) {
+          let res: Response;
+          try {
+            res = await fetchWithTimeout(url);
+          } catch (e) {
+            const name = (e as Error).name || "Error";
+            actualStatus = `${name} @ ${url}`;
+            continue;
+          }
+          actualStatus = `${res.status} @ ${url}`;
+          if (!res.ok) continue;
+          actualData = (await res.json()) as { values?: Record<string, unknown> };
+          break;
+        }
+
+        if (!actualData) {
+          console.warn(`Failed to load actual view (${actualStatus})`);
+        }
         if (active) {
           const incoming = data.values || {};
-          setValues(incoming);
+          const actualValues = (actualData?.values ?? {}) as Record<string, unknown>;
+          const mergedValues: Record<string, StdActValue> = {};
+          Object.entries(incoming).forEach(([key, pair]) => {
+            mergedValues[key] = {
+              std: pair?.std ?? null,
+              act: (actualValues[key] ?? pair?.act ?? null) as any,
+            };
+          });
+          setValues(mergedValues);
           const stdDraftLocal: Record<string, string> = {};
           const draft: Record<string, string> = {};
-          Object.entries(incoming).forEach(([key, pair]) => {
+          Object.entries(mergedValues).forEach(([key, pair]) => {
             stdDraftLocal[key] = fmt(pair?.std);
             draft[key] = fmt(pair?.act);
           });
@@ -222,6 +292,11 @@ export default function ZhafirParameterForm() {
     setStdDraft((prev) => ({ ...prev, [fieldKey]: value }));
   const handleActChange = (fieldKey: string, value: string) =>
     setActDraft((prev) => ({ ...prev, [fieldKey]: value }));
+  const toggleSection = (key: string) =>
+    setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  const allExpanded = SECTION_KEYS.every((key) => expandedSections[key]);
+  const toggleAll = () =>
+    setExpandedSections(Object.fromEntries(SECTION_KEYS.map((key) => [key, !allExpanded])));
 
   const resolveBulkSaveCandidates = () => {
     const trimmed = (baseUrl || "").replace(/\/+$/, "");
@@ -334,7 +409,175 @@ export default function ZhafirParameterForm() {
         {statusMessage && <span className="text-xs text-green-700">{statusMessage}</span>}
       </div>
 
-      <Section title="INJECT">
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={toggleAll}
+          className="rounded border px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200"
+        >
+          {allExpanded ? "Collapse All -" : "Expand All +"}
+        </button>
+      </div>
+
+      <Section
+        title="SUMMARY INJECTION SETTINGS"
+        sectionKey="SUMMARY INJECTION SETTINGS"
+        expanded={expandedSections["SUMMARY INJECTION SETTINGS"]}
+        onToggle={toggleSection}
+      >
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="border rounded-md p-3 bg-gray-50">
+            <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-700 mb-2">
+              <div className="col-span-5">Summary Injection Settings</div>
+              <div className="col-span-5 text-center">Actual / Standard</div>
+              <div className="col-span-2 text-center">Unit</div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center mb-2">
+              <div className="col-span-5 text-xs">Inj Start Pos</div>
+              <div className="col-span-5">
+                <Input
+                  pair
+                  fieldKey="InjectScrewPosition"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  onStdChange={handleStdChange}
+                  onActChange={handleActChange}
+                  savingKey={savingKey}
+                />
+              </div>
+              <div className="col-span-2 text-xs text-center">mm</div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center mb-2">
+              <div className="col-span-5 text-xs">V/P Time</div>
+              <div className="col-span-5">
+                <Input
+                  pair
+                  fieldKey="VPTimeText"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  onStdChange={handleStdChange}
+                  onActChange={handleActChange}
+                  savingKey={savingKey}
+                />
+              </div>
+              <div className="col-span-2 text-xs text-center">s</div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center mb-2">
+              <div className="col-span-5 text-xs">V/P Position</div>
+              <div className="col-span-5">
+                <Input
+                  pair
+                  fieldKey="VPPositionText"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  onStdChange={handleStdChange}
+                  onActChange={handleActChange}
+                  savingKey={savingKey}
+                />
+              </div>
+              <div className="col-span-2 text-xs text-center">mm</div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center mb-2">
+              <div className="col-span-5 text-xs">Min Cushion Position</div>
+              <div className="col-span-5">
+                <Input
+                  pair
+                  fieldKey="Thickness"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  onStdChange={handleStdChange}
+                  onActChange={handleActChange}
+                  savingKey={savingKey}
+                />
+              </div>
+              <div className="col-span-2 text-xs text-center">mm</div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center">
+              <div className="col-span-5 text-xs">Carriage Backward SE</div>
+              <div className="col-span-5">
+                <Input
+                  pair
+                  fieldKey="CarriageBwd_SE"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  onStdChange={handleStdChange}
+                  onActChange={handleActChange}
+                  savingKey={savingKey}
+                />
+              </div>
+              <div className="col-span-2 text-xs text-center">mm</div>
+            </div>
+          </div>
+
+          <div className="border rounded-md p-3 bg-gray-50">
+            <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-700 mb-2">
+              <div className="col-span-4">Hopper Temp.</div>
+              <div className="col-span-6 text-center">Actual / Standard</div>
+              <div className="col-span-2 text-center">Unit</div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center mb-2">
+              <div className="col-span-4 text-xs">Set</div>
+              <div className="col-span-6">
+                <Input
+                  pair
+                  fieldKey="HopperSet"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  onStdChange={handleStdChange}
+                  onActChange={handleActChange}
+                  savingKey={savingKey}
+                />
+              </div>
+              <div className="col-span-2 text-xs text-center">C</div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center mb-2">
+              <div className="col-span-4 text-xs">Max +</div>
+              <div className="col-span-6">
+                <Input
+                  pair
+                  fieldKey="HopperMax"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  onStdChange={handleStdChange}
+                  onActChange={handleActChange}
+                  savingKey={savingKey}
+                />
+              </div>
+              <div className="col-span-2 text-xs text-center">C</div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center">
+              <div className="col-span-4 text-xs">Min -</div>
+              <div className="col-span-6">
+                <Input
+                  pair
+                  fieldKey="HopperMin"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  onStdChange={handleStdChange}
+                  onActChange={handleActChange}
+                  savingKey={savingKey}
+                />
+              </div>
+              <div className="col-span-2 text-xs text-center">C</div>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="INJECT"
+        sectionKey="INJECT"
+        expanded={expandedSections["INJECT"]}
+        onToggle={toggleSection}
+      >
         <Row
           labels={["SE", "S4", "S3", "S2", "S1", "SB"]}
           type="triple"
@@ -357,7 +600,12 @@ export default function ZhafirParameterForm() {
         />
       </Section>
 
-      <Section title="HOLDING">
+      <Section
+        title="HOLDING"
+        sectionKey="HOLDING"
+        expanded={expandedSections["HOLDING"]}
+        onToggle={toggleSection}
+      >
         <Row
           labels={["P3", "P2", "P1"]}
           type="triple"
@@ -378,7 +626,12 @@ export default function ZhafirParameterForm() {
         />
       </Section>
 
-      <Section title="CHARGING">
+      <Section
+        title="CHARGING"
+        sectionKey="CHARGING"
+        expanded={expandedSections["CHARGING"]}
+        onToggle={toggleSection}
+      >
         <Row
           labels={["S1", "S2", "SE"]}
           type="triple"
@@ -399,7 +652,12 @@ export default function ZhafirParameterForm() {
         />
       </Section>
 
-      <Section title="CLAMP / MOLD">
+      <Section
+        title="CLAMP / MOLD"
+        sectionKey="CLAMP / MOLD"
+        expanded={expandedSections["CLAMP / MOLD"]}
+        onToggle={toggleSection}
+      >
         <SubSection title="Close Mold">
           <Row
             labels={["S0", "S1", "S2", "S3", "LP", "HP", "SE"]}
@@ -448,7 +706,12 @@ export default function ZhafirParameterForm() {
         </SubSection>
       </Section>
 
-      <Section title="TEMPERATURE">
+      <Section
+        title="TEMPERATURE"
+        sectionKey="TEMPERATURE"
+        expanded={expandedSections["TEMPERATURE"]}
+        onToggle={toggleSection}
+      >
         <div className="grid grid-cols-9 gap-2">
           {[
             { zone: "Zone 1", real: "Barrel1", set: "Barrel1" },
@@ -490,7 +753,12 @@ export default function ZhafirParameterForm() {
         </div>
       </Section>
 
-      <Section title="EJECTOR FWD">
+      <Section
+        title="EJECTOR FWD"
+        sectionKey="EJECTOR FWD"
+        expanded={expandedSections["EJECTOR FWD"]}
+        onToggle={toggleSection}
+      >
         <Row
           labels={["S1", "SE"]}
           type="triple"
@@ -509,7 +777,12 @@ export default function ZhafirParameterForm() {
         />
       </Section>
 
-      <Section title="EJECTOR BWD">
+      <Section
+        title="EJECTOR BWD"
+        sectionKey="EJECTOR BWD"
+        expanded={expandedSections["EJECTOR BWD"]}
+        onToggle={toggleSection}
+      >
         <Row
           labels={["SE", "S1"]}
           type="triple"
@@ -528,7 +801,12 @@ export default function ZhafirParameterForm() {
         />
       </Section>
 
-      <Section title="AIR BLOW">
+      <Section
+        title="AIR BLOW"
+        sectionKey="AIR BLOW"
+        expanded={expandedSections["AIR BLOW"]}
+        onToggle={toggleSection}
+      >
         <div className="grid grid-cols-3 gap-2">
           <Input label="Blow start" pair fieldKey="AirBlowStart" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onActChange={handleActChange} savingKey={savingKey} />
           <Input label="Blow delay" pair fieldKey="AirBlowDelay" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onActChange={handleActChange} savingKey={savingKey} />
@@ -539,30 +817,125 @@ export default function ZhafirParameterForm() {
         </div>
       </Section>
 
-      <Section title="CORE">
+      <Section
+        title="CORE A"
+        sectionKey="CORE A"
+        expanded={expandedSections["CORE A"]}
+        onToggle={toggleSection}
+      >
         <div className="grid grid-cols-3 gap-2">
-          <Input label="Core Mode" pair values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
-          <Input label="Core Move" pair values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
-          <Input label="Mold pos" pair values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
-          <Input label="Delay Time" pair values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
-          <Input label="Press" pair values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
-          <Input label="Flow" pair values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Core Mode (In)" pair fieldKey="Core_In_Mode_A" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Core Mode (Out)" pair fieldKey="Core_Out_Mode_A" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Mold Pos (In)" pair fieldKey="Core_In_Mold_Position_A" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Mold Pos (Out)" pair fieldKey="Core_Out_Mold_Position_A" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Delay Time (In)" pair fieldKey="Core_In_Delay_Time_A" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Delay Time (Out)" pair fieldKey="Core_Out_Delay_Time_A" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Time (In)" pair fieldKey="Core_In_Time_A" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Time (Out)" pair fieldKey="Core_Out_Time_A" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Press (In)" pair fieldKey="CoreA_In_Pressure" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Press (Out)" pair fieldKey="CoreA_Out_Pressure" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Flow (In)" pair fieldKey="CoreA_In_Flow" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Flow (Out)" pair fieldKey="CoreA_Out_Flow" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+        </div>
+      </Section>
+
+      <Section
+        title="CORE B"
+        sectionKey="CORE B"
+        expanded={expandedSections["CORE B"]}
+        onToggle={toggleSection}
+      >
+        <div className="grid grid-cols-3 gap-2">
+          <Input label="Core Mode (In)" pair fieldKey="Core_In_Mode_B" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Core Mode (Out)" pair fieldKey="Core_Out_Mode_B" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Mold Pos (In)" pair fieldKey="Core_In_Mold_Position_B" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Mold Pos (Out)" pair fieldKey="Core_Out_Mold_Position_B" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Delay Time (In)" pair fieldKey="Core_In_Delay_Time_B" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Delay Time (Out)" pair fieldKey="Core_Out_Delay_Time_B" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Time (In)" pair fieldKey="Core_In_Time_B" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Time (Out)" pair fieldKey="Core_Out_Time_B" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Press (In)" pair fieldKey="CoreB_In_Pressure" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Press (Out)" pair fieldKey="CoreB_Out_Pressure" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Flow (In)" pair fieldKey="CoreB_In_Flow" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Flow (Out)" pair fieldKey="CoreB_Out_Flow" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+        </div>
+      </Section>
+
+      <Section
+        title="CORE C"
+        sectionKey="CORE C"
+        expanded={expandedSections["CORE C"]}
+        onToggle={toggleSection}
+      >
+        <div className="grid grid-cols-3 gap-2">
+          <Input label="Core Mode (In)" pair fieldKey="Core_In_Mode_C" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Core Mode (Out)" pair fieldKey="Core_Out_Mode_C" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Mold Pos (In)" pair fieldKey="Core_In_Mold_Position_C" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Mold Pos (Out)" pair fieldKey="Core_Out_Mold_Position_C" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Delay Time (In)" pair fieldKey="Core_In_Delay_Time_C" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Delay Time (Out)" pair fieldKey="Core_Out_Delay_Time_C" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Time (In)" pair fieldKey="Core_In_Time_C" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Time (Out)" pair fieldKey="Core_Out_Time_C" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Press (In)" pair fieldKey="CoreC_In_Pressure" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Press (Out)" pair fieldKey="CoreC_Out_Pressure" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Flow (In)" pair fieldKey="CoreC_In_Flow" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Flow (Out)" pair fieldKey="CoreC_Out_Flow" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+        </div>
+      </Section>
+
+      <Section
+        title="CORE D"
+        sectionKey="CORE D"
+        expanded={expandedSections["CORE D"]}
+        onToggle={toggleSection}
+      >
+        <div className="grid grid-cols-3 gap-2">
+          <Input label="Core Mode (In)" pair fieldKey="Core_In_Mode_D" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Core Mode (Out)" pair fieldKey="Core_Out_Mode_D" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Mold Pos (In)" pair fieldKey="Core_In_Mold_Position_D" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Mold Pos (Out)" pair fieldKey="Core_Out_Mold_Position_D" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Delay Time (In)" pair fieldKey="Core_In_Delay_Time_D" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Delay Time (Out)" pair fieldKey="Core_Out_Delay_Time_D" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Time (In)" pair fieldKey="Core_In_Time_D" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Time (Out)" pair fieldKey="Core_Out_Time_D" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Press (In)" pair fieldKey="CoreD_In_Pressure" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Press (Out)" pair fieldKey="CoreD_Out_Pressure" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Flow (In)" pair fieldKey="CoreD_In_Flow" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
+          <Input label="Flow (Out)" pair fieldKey="CoreD_Out_Flow" values={values} stdDraft={stdDraft} actDraft={actDraft} savingKey={savingKey} />
         </div>
       </Section>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Section title="CUSSION" className="mb-0 h-full">
+        <Section
+          title="CUSSION"
+          className="mb-0 h-full"
+          sectionKey="CUSSION"
+          expanded={expandedSections["CUSSION"]}
+          onToggle={toggleSection}
+        >
           <div className="grid grid-cols-2 gap-2">
             <Input label="Cussion" fieldKey="Thickness" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
             <Input label="Act Inj Time" fieldKey="InjectTime" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
           </div>
         </Section>
-        <Section title="Cooling Time" className="mb-0 h-full">
+        <Section
+          title="Cooling Time"
+          className="mb-0 h-full"
+          sectionKey="COOLING TIME"
+          expanded={expandedSections["COOLING TIME"]}
+          onToggle={toggleSection}
+        >
           <div className="grid grid-cols-1 gap-2">
             <Input label="Cooling Time" fieldKey="CoolingTime" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
           </div>
         </Section>
-        <Section title="V/P" className="mb-0 h-full">
+        <Section
+          title="V/P"
+          className="mb-0 h-full"
+          sectionKey="V/P"
+          expanded={expandedSections["V/P"]}
+          onToggle={toggleSection}
+        >
           <div className="grid grid-cols-2 gap-2">
             <Input label="V/P Position" fieldKey="VPPositionText" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
             <Input label="V/P Time" fieldKey="VPTimeText" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
@@ -572,13 +945,25 @@ export default function ZhafirParameterForm() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2">
-        <Section title="Suckback Beg. Charg" className="mb-0 h-full">
+        <Section
+          title="Suckback Beg. Charg"
+          className="mb-0 h-full"
+          sectionKey="SUCKBACK BEG. CHARG"
+          expanded={expandedSections["SUCKBACK BEG. CHARG"]}
+          onToggle={toggleSection}
+        >
           <div className="grid grid-cols-1 gap-2">
             <Input label="" pair fieldKey="Plasticise1Press" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
             <Input label="" pair fieldKey="Plasticise1Velo" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
           </div>
         </Section>
-        <Section title="Suckback Aft. Charg" className="mb-0 h-full">
+        <Section
+          title="Suckback Aft. Charg"
+          className="mb-0 h-full"
+          sectionKey="SUCKBACK AFT. CHARG"
+          expanded={expandedSections["SUCKBACK AFT. CHARG"]}
+          onToggle={toggleSection}
+        >
           <div className="grid grid-cols-1 gap-2">
             <Input label="" pair fieldKey="AfterPlasticisePress" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
             <Input label="" pair fieldKey="AfterPlasticiseVelo" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
@@ -586,7 +971,12 @@ export default function ZhafirParameterForm() {
         </Section>
       </div>
 
-      <Section title="BERAT UNIT">
+      <Section
+        title="BERAT UNIT"
+        sectionKey="BERAT UNIT"
+        expanded={expandedSections["BERAT UNIT"]}
+        onToggle={toggleSection}
+      >
         <div className="grid grid-cols-4 gap-2">
           {Array.from({ length: 16 }).map((_, i) => (
             <Input
@@ -605,7 +995,12 @@ export default function ZhafirParameterForm() {
         </div>
       </Section>
 
-      <Section title="HEATER CONTROL">
+      <Section
+        title="HEATER CONTROL"
+        sectionKey="HEATER CONTROL"
+        expanded={expandedSections["HEATER CONTROL"]}
+        onToggle={toggleSection}
+      >
         <div className="grid grid-cols-4 gap-2">
           {Array.from({ length: 14 }).map((_, i) => (
             <Input
@@ -627,11 +1022,23 @@ export default function ZhafirParameterForm() {
   );
 }
 
-function Section({ title, children, className }: SectionProps) {
+function Section({ title, children, className, sectionKey, expanded, onToggle }: SectionProps) {
+  const isExpanded = expanded ?? true;
   return (
     <div className={`border-2 border-gray-400 rounded-xl p-4 mb-4 bg-white shadow-sm ${className ?? ""}`}>
-      <h2 className="font-bold mb-3 bg-gray-100 border border-gray-300 rounded-md px-3 py-2">{title}</h2>
-      {children}
+      <div className="mb-3 flex items-center justify-between gap-2 bg-gray-100 border border-gray-300 rounded-md px-3 py-2">
+        <h2 className="font-bold">{title}</h2>
+        {sectionKey && onToggle && (
+          <button
+            type="button"
+            onClick={() => onToggle(sectionKey)}
+            className="rounded border px-2 py-0.5 text-xs bg-white hover:bg-gray-100"
+          >
+            {isExpanded ? "Collapse -" : "Expand +"}
+          </button>
+        )}
+      </div>
+      {isExpanded ? children : null}
     </div>
   );
 }
@@ -711,6 +1118,7 @@ function Input({
   const currentSavingKey = savingKey ?? savingField ?? null;
   const isSavingStd = fieldKey ? currentSavingKey === `std:${fieldKey}` : false;
   const isSavingAct = fieldKey ? currentSavingKey === `actual:${fieldKey}` || currentSavingKey === fieldKey : false;
+  const actReadOnly = true;
 
   return (
     <div className="flex flex-col mb-1">
@@ -745,11 +1153,8 @@ function Input({
             <div className="flex gap-1">
               <input
                 value={actValue}
-                onChange={(e) => {
-                  if (!fieldKey || !onActChange) return;
-                  onActChange(fieldKey, e.target.value);
-                }}
-                className="border px-1 py-0.5 rounded w-full"
+                readOnly={actReadOnly}
+                className="border px-1 py-0.5 rounded w-full bg-gray-100 text-gray-700"
               />
               {fieldKey && onActSave && ENABLE_PER_FIELD_SAVE && (
                 <button

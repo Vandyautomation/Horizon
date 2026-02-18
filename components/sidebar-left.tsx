@@ -1,6 +1,6 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,  SidebarHeader, SidebarMenu,  SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import {   Bot, Calculator,  Camera,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Container, Cpu, Database, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap, Wrench } from "lucide-react";
+import {   Bot, Calculator,  Camera,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Container, Cpu, Database, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap, Wrench, Thermometer } from "lucide-react";
 import {
     Collapsible,
     CollapsibleContent,
@@ -142,6 +142,12 @@ export default function SidebarLeft({
         title: 'Zhafir ZE 3600',
         url: 'zhafir-ze-3600',
         icon: Cpu,
+        hidden: false,
+      },
+      {
+        title: 'Temperature MDP',
+        url: 'temperature-mdp',
+        icon: Thermometer,
         hidden: false,
       },
       {

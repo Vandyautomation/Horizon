@@ -9,6 +9,62 @@ const ZHAFIR_SECTIONS = {
   clamp_mold: ['Close1Press', 'Close1To', 'Close1Velo', 'Close2Press', 'Close2To', 'Close2Velo', 'ProtectPress', 'ProtectTo', 'ProtectVelo', 'HiPressPress', 'HiPressVelo', 'MoldProtectionTime', 'Open1Press', 'Open1To', 'Open1Velo', 'Open2Press', 'Open2To', 'Open2Velo', 'Open3Press', 'Open3To', 'Open3Velo', 'Open4Press', 'Open4To', 'Open4Velo', 'Close0To', 'Close0Velo', 'CloseLPTo', 'CloseLPVelo', 'CloseHPTo', 'CloseHPVelo', 'CloseSETo', 'CloseSEVelo', 'OpenS5To', 'OpenS5Velo', 'OpenS4To', 'OpenS4Velo'],
   temperature: ['Nozzle', 'Barrel1', 'Barrel2', 'Barrel3', 'Barrel4', 'Barrel5', 'Barrel6', 'HopperReal', 'HopperSet'],
   ejector_core: ['EjectorMode', 'Forward1Press', 'Forward1To', 'Forward1Velo', 'Forward2Press', 'Forward2To', 'Forward2Velo', 'Backward1Press', 'Backward1To', 'Backward1Velo', 'Backward2Press', 'Backward2To', 'Backward2Velo'],
+  core_a: [
+    'Core_In_Mode_A',
+    'Core_Out_Mode_A',
+    'Core_In_Mold_Position_A',
+    'Core_Out_Mold_Position_A',
+    'Core_In_Delay_Time_A',
+    'Core_Out_Delay_Time_A',
+    'Core_In_Time_A',
+    'Core_Out_Time_A',
+    'CoreA_In_Pressure',
+    'CoreA_Out_Pressure',
+    'CoreA_In_Flow',
+    'CoreA_Out_Flow',
+  ],
+  core_b: [
+    'Core_In_Mode_B',
+    'Core_Out_Mode_B',
+    'Core_In_Mold_Position_B',
+    'Core_Out_Mold_Position_B',
+    'Core_In_Delay_Time_B',
+    'Core_Out_Delay_Time_B',
+    'Core_In_Time_B',
+    'Core_Out_Time_B',
+    'CoreB_In_Pressure',
+    'CoreB_Out_Pressure',
+    'CoreB_In_Flow',
+    'CoreB_Out_Flow',
+  ],
+  core_c: [
+    'Core_In_Mode_C',
+    'Core_Out_Mode_C',
+    'Core_In_Mold_Position_C',
+    'Core_Out_Mold_Position_C',
+    'Core_In_Delay_Time_C',
+    'Core_Out_Delay_Time_C',
+    'Core_In_Time_C',
+    'Core_Out_Time_C',
+    'CoreC_In_Pressure',
+    'CoreC_Out_Pressure',
+    'CoreC_In_Flow',
+    'CoreC_Out_Flow',
+  ],
+  core_d: [
+    'Core_In_Mode_D',
+    'Core_Out_Mode_D',
+    'Core_In_Mold_Position_D',
+    'Core_Out_Mold_Position_D',
+    'Core_In_Delay_Time_D',
+    'Core_Out_Delay_Time_D',
+    'Core_In_Time_D',
+    'Core_Out_Time_D',
+    'CoreD_In_Pressure',
+    'CoreD_Out_Pressure',
+    'CoreD_In_Flow',
+    'CoreD_Out_Flow',
+  ],
   cushion_vp: ['Thickness', 'CycleTime', 'Tonase', 'CoolingTime', 'Cavity'],
   air_blow: ['AirBlowStart', 'AirBlowDelay', 'AirBlowTime', 'AirBlowCount', 'AirBlowStarPost', 'AirBlowMaleFemale'],
   vp_text: ['VPPositionText', 'VPTimeText', 'VPPosnText'],
@@ -149,6 +205,57 @@ const ACT_EJECTOR_CORE: Record<string, number> = {
   Backward2Velo: 10.0,
 };
 
+const ACT_CORE: Record<string, number> = {
+  Core_In_Mode_A: 0,
+  Core_Out_Mode_A: 0,
+  Core_In_Mold_Position_A: 0,
+  Core_Out_Mold_Position_A: 0,
+  Core_In_Delay_Time_A: 0,
+  Core_Out_Delay_Time_A: 0,
+  Core_In_Time_A: 0,
+  Core_Out_Time_A: 0,
+  CoreA_In_Pressure: 0,
+  CoreA_Out_Pressure: 0,
+  CoreA_In_Flow: 0,
+  CoreA_Out_Flow: 0,
+  Core_In_Mode_B: 0,
+  Core_Out_Mode_B: 0,
+  Core_In_Mold_Position_B: 0,
+  Core_Out_Mold_Position_B: 0,
+  Core_In_Delay_Time_B: 0,
+  Core_Out_Delay_Time_B: 0,
+  Core_In_Time_B: 0,
+  Core_Out_Time_B: 0,
+  CoreB_In_Pressure: 0,
+  CoreB_Out_Pressure: 0,
+  CoreB_In_Flow: 0,
+  CoreB_Out_Flow: 0,
+  Core_In_Mode_C: 0,
+  Core_Out_Mode_C: 0,
+  Core_In_Mold_Position_C: 0,
+  Core_Out_Mold_Position_C: 0,
+  Core_In_Delay_Time_C: 0,
+  Core_Out_Delay_Time_C: 0,
+  Core_In_Time_C: 0,
+  Core_Out_Time_C: 0,
+  CoreC_In_Pressure: 0,
+  CoreC_Out_Pressure: 0,
+  CoreC_In_Flow: 0,
+  CoreC_Out_Flow: 0,
+  Core_In_Mode_D: 0,
+  Core_Out_Mode_D: 0,
+  Core_In_Mold_Position_D: 0,
+  Core_Out_Mold_Position_D: 0,
+  Core_In_Delay_Time_D: 0,
+  Core_Out_Delay_Time_D: 0,
+  Core_In_Time_D: 0,
+  Core_Out_Time_D: 0,
+  CoreD_In_Pressure: 0,
+  CoreD_Out_Pressure: 0,
+  CoreD_In_Flow: 0,
+  CoreD_Out_Flow: 0,
+};
+
 // CUSSION / V-P / Cooling table
 const ACT_CUSHION_VP: Record<string, number> = {
   Thickness: 7.146,   // Cussion
@@ -188,6 +295,7 @@ const HARD_CODED_ACT_VALUES: Record<string, string | number> = {
   ...ACT_CLAMP_MOLD,
   ...ACT_TEMPERATURE,
   ...ACT_EJECTOR_CORE,
+  ...ACT_CORE,
   ...ACT_CUSHION_VP,
   ...ACT_AIR_BLOW,
   ...ACT_VP_TEXT,
@@ -360,6 +468,160 @@ export async function getZhafirStdActByParaId(paraId: string, section?: string) 
       MoldID: 'MOLD-DUMMY',
     },
     values: createStdActMap(std, actual, section),
+  };
+}
+
+function mapActualFromViewRow(
+  row: Record<string, any> | undefined,
+  fallback: Record<string, string | number>,
+) {
+  const actual = { ...fallback };
+  if (!row) return actual;
+  const viewToField: Record<string, string> = {
+    // CHARGING
+    Charge_Position_S1: 'Plasticise1To',
+    Charge_Position_S2: 'Plasticise2To',
+    Charge_Position_SE: 'AfterPlasticisePosition',
+    Charge_Speed_S1: 'Plasticise1Velo',
+    Charge_Speed_S2: 'Plasticise2Velo',
+    Charge_Speed_S3: 'AfterPlasticiseSpeed',
+    Charge_BackPress_S1: 'Plasticise1BackPress',
+    Charge_BackPress_S2: 'AfterPlasticiseBackPress',
+    Charge_BackPress_SE: 'AfterPlasticiseBackPress',
+    Charge_Pressure_S1: 'Plasticise1Press',
+    Charge_Pressure_S2: 'Plasticise2Press',
+    Charge_Pressure_SE: 'AfterPlasticisePress',
+
+    // COOLING / CUSSION / V-P
+    Cooling_Time: 'CoolingTime',
+    Note_Cushion: 'Thickness',
+    Note_CycleTime: 'CycleTime',
+    Note_ActInjtTime: 'InjectTime',
+    Note_PlastTime: 'AfterPlasticiseTime',
+    Note_InjStartPos: 'InjectScrewPosition',
+    Note_MinCushionPos: 'Thickness',
+    Tonnage_Set: 'Tonase',
+
+    // EJECTOR
+    EjectBWD_Pressure_S1: 'Backward1Press',
+    EjectBWD_Pressure_SE: 'Backward2Press',
+    EjectBWD_Post_S1: 'Backward1To',
+    EjectBWD_Post_SE: 'Backward2To',
+    EjectBWD_Speed_S1: 'Backward1Velo',
+    EjectBWD_Speed_SE: 'Backward2Velo',
+    EjectFWD_Pressure_S1: 'Forward1Press',
+    EjectFWD_Pressure_SE: 'Forward2Press',
+    EjectFWD_Post_S1: 'Forward1To',
+    EjectFWD_Post_SE: 'Forward2To',
+    EjectFWD_Speed_S1: 'Forward1Velo',
+    EjectFWD_Speed_SE: 'Forward2Velo',
+
+    // HOLDING
+    Holding_Pressure_P1: 'Hold1Press',
+    Holding_Pressure_P2: 'Hold2Press',
+    Holding_Pressure_P3: 'Hold3Press',
+    Holding_Time_P1: 'Hold1To',
+    Holding_Time_P2: 'Hold2To',
+    Holding_Time_P3: 'Hold3To',
+    Holding_HoldSpeed_P1: 'Hold1Velo',
+
+    // INJECT
+    Inject_Pressure_S1: 'Inject1Press',
+    Inject_Pressure_S3: 'Inject3Press',
+    Inject_Pressure_SE: 'Inject4Press',
+    Inject_Position_S1: 'Inject1To',
+    Inject_Position_S2: 'Inject2To',
+    Inject_Position_S3: 'Inject3To',
+    Inject_Position_SE: 'Inject4Velo',
+    Inject_Speed_S1: 'Inject1Velo',
+    Inject_Speed_S2: 'Inject2Velo',
+    Inject_Speed_S3: 'Inject3Velo',
+    Inject_Speed_SE: 'Inject4Velo',
+
+    // MOLD CLOSE
+    CloseMold_Position_S1: 'Close1To',
+    CloseMold_Position_S2: 'Close2To',
+    CloseMold_Position_S3: 'ProtectTo',
+    CloseMold_Position_LP: 'CloseLPTo',
+    CloseMold_Position_HP: 'CloseHPTo',
+    CloseMold_Position_SE: 'CloseSETo',
+    CloseMold_Speed_S1: 'Close1Velo',
+    CloseMold_Speed_S2: 'Close2Velo',
+    CloseMold_Speed_S3: 'ProtectVelo',
+    CloseMold_Speed_LP: 'CloseLPVelo',
+    CloseMold_Speed_HP: 'CloseHPVelo',
+    CloseMold_Speed_SE: 'CloseSEVelo',
+
+    // MOLD OPEN
+    OpenMold_Position_S1: 'Open1To',
+    OpenMold_Position_S2: 'Open2To',
+    OpenMold_Position_S3: 'Open3To',
+    OpenMold_Position_S4: 'Open4To',
+    OpenMold_Position_S5: 'OpenS5To',
+    OpenMold_Position_SE: 'Open4To',
+    OpenMold_Speed_S1: 'Open1Velo',
+    OpenMold_Speed_S2: 'Open2Velo',
+    OpenMold_Speed_S3: 'Open3Velo',
+    OpenMold_Speed_S4: 'Open4Velo',
+    OpenMold_Speed_S5: 'OpenS5Velo',
+    OpenMold_Speed_SE: 'Open4Velo',
+
+    // CORE (placeholder mapping to existing fields)
+    Core_DelayTime_AIn: 'Core_In_Delay_Time_A',
+    Core_Mode_AIn: 'Core_In_Mode_A',
+    Core_MoldPost_AIn: 'Core_In_Mold_Position_A',
+    Core_Time_AIn: 'Core_In_Time_A',
+    Core_DelayTime_AOut: 'Core_Out_Delay_Time_A',
+    Core_Mode_AOut: 'Core_Out_Mode_A',
+    Core_MoldPost_AOut: 'Core_Out_Mold_Position_A',
+    Core_Time_AOut: 'Core_Out_Time_A',
+    Core_Flow_AIn: 'CoreA_In_Flow',
+    Core_Press_AIn: 'CoreA_In_Pressure',
+    Core_Flow_AOut: 'CoreA_Out_Flow',
+    Core_Press_AOut: 'CoreA_Out_Pressure',
+  };
+
+  Object.entries(viewToField).forEach(([viewKey, fieldKey]) => {
+    if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(fieldKey)) return;
+    const value = row[viewKey];
+    if (value !== undefined && value !== null && value !== '') {
+      actual[fieldKey] = value;
+    }
+  });
+  return actual;
+}
+
+function pickMetaFromRow(row?: Record<string, any>) {
+  if (!row) {
+    return { MchID: 'ZE-3600', MoldID: 'MOLD-DUMMY' };
+  }
+  const keyMap: Record<string, string> = {};
+  for (const key of Object.keys(row)) {
+    keyMap[key.toLowerCase()] = key;
+  }
+  const mchKey = keyMap['mchid'] || keyMap['machine_id'] || keyMap['machineid'];
+  const moldKey = keyMap['moldid'] || keyMap['mold_id'];
+  return {
+    MchID: mchKey ? String(row[mchKey]) : 'ZE-3600',
+    MoldID: moldKey ? String(row[moldKey]) : 'MOLD-DUMMY',
+  };
+}
+
+export async function getZhafirActualFromView(paraId?: string) {
+  const sqlQuery = `
+    SELECT TOP 1 *
+    FROM IoT.dbo.v_machine_paramset_detail
+    ORDER BY id DESC
+  `;
+  const rows = await queryDatabase(sqlQuery);
+  const row = rows?.[0] as Record<string, any> | undefined;
+  const actual = mapActualFromViewRow(row, hardCodedActRuntimeValues);
+
+  return {
+    paraId: paraId || 'ZHF-STD-001',
+    actualDate: new Date().toISOString(),
+    meta: pickMetaFromRow(row),
+    values: actual,
   };
 }
 

@@ -3,6 +3,7 @@ import {
   getZhafirQueryTemplates,
   getZhafirSections,
   getZhafirStdActByParaId,
+  getZhafirActualFromView,
   insertZhafirActual,
   updateHardcodedActField,
   updateHardcodedBulk,
@@ -41,6 +42,16 @@ zhafirRoutes.get('/', async (c) => {
     }
 
     const data = await getZhafirStdActByParaId(paraId, section);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.get('/actual-view', async (c) => {
+  try {
+    const paraId = c.req.query('paraId') || undefined;
+    const data = await getZhafirActualFromView(paraId);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
