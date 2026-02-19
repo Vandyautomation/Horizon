@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 type StdActValue = {
   std: number | string | null;
@@ -11,6 +13,28 @@ type ApiResponse = {
   paraId: string;
   values: Record<string, StdActValue>;
 };
+
+type MaterialContext = {
+  po: string;
+  materialId: string | null;
+  materialName: string | null;
+  materialType: string | null;
+  found: boolean;
+};
+
+const MATERIAL_TYPE_OPTIONS = [
+  "PET",
+  "PP",
+  "AS-ABS",
+  "ABS",
+  "AS/SAN",
+  "PCR",
+  "PS",
+  "LD/HDPE",
+  "PETG",
+  "POM",
+  "PCTG",
+];
 
 type SectionProps = {
   title: string;
@@ -45,6 +69,7 @@ type InputProps = {
 };
 
 const PARA_ID = "ZHF-STD-001";
+const EDIT_MODE_PASSWORD = "P168421TK1";
 const ENABLE_PER_FIELD_SAVE = false;
 const STRING_FIELDS = new Set([
   "AirBlowStart",
@@ -64,6 +89,15 @@ function fmt(value: number | string | null | undefined): string {
 }
 
 export default function ZhafirParameterForm() {
+  const searchParams = useSearchParams();
+  const machineId = searchParams.get("machine_id") || "";
+  const machineDesc = searchParams.get("machine_desc") || "";
+  const machineNumber = searchParams.get("machine_number") || "";
+  const location = searchParams.get("location") || "";
+  const poNumber = searchParams.get("po") || "";
+  const materialParam = searchParams.get("material") || "";
+  const countboardHref = `/countboard?machineNumber=${encodeURIComponent(machineNumber || "")}&location=${encodeURIComponent(location || "")}`;
+
   const SECTION_KEYS = [
     "SUMMARY INJECTION SETTINGS",
     "INJECT",
@@ -93,6 +127,22 @@ export default function ZhafirParameterForm() {
   const [error, setError] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [materialContext, setMaterialContext] = useState<MaterialContext | null>(null);
+  const [selectedMaterialType, setSelectedMaterialType] = useState<string>("");
+  const [materialTypeSaving, setMaterialTypeSaving] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  });
+  const [hourOptions, setHourOptions] = useState<number[]>([]);
+  const [selectedHour, setSelectedHour] = useState<string>("");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showEditPasswordModal, setShowEditPasswordModal] = useState(false);
+  const [editPasswordInput, setEditPasswordInput] = useState("");
+  const [editPasswordError, setEditPasswordError] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(
     () => Object.fromEntries(SECTION_KEYS.map((key) => [key, true])),
   );
@@ -109,11 +159,14 @@ export default function ZhafirParameterForm() {
     const buildCandidates = () => {
       const trimmed = (baseUrl || "").replace(/\/+$/, "");
       const normalized = trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
-      const q = `?paraId=${encodeURIComponent(PARA_ID)}`;
+      const q = `?paraId=${encodeURIComponent(PARA_ID)}${
+        machineId ? `&machine_id=${encodeURIComponent(machineId)}` : ""
+      }`;
       const unique = new Set<string>();
       if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600${q}`);
       unique.add("http://localhost:9999/api/zhafir-ze-3600" + q);
       unique.add("http://127.0.0.1:9999/api/zhafir-ze-3600" + q);
+      unique.add(`/be/api/zhafir-ze-3600${q}`);
       unique.add(`/api/zhafir-ze-3600${q}`);
       return Array.from(unique);
     };
@@ -121,11 +174,18 @@ export default function ZhafirParameterForm() {
     const buildActualCandidates = () => {
       const trimmed = (baseUrl || "").replace(/\/+$/, "");
       const normalized = trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
-      const q = `?paraId=${encodeURIComponent(PARA_ID)}`;
+      const q = `?paraId=${encodeURIComponent(PARA_ID)}${
+        machineId ? `&machine_id=${encodeURIComponent(machineId)}` : ""
+      }${
+        selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : ""
+      }${
+        selectedHour !== "" ? `&hour=${encodeURIComponent(selectedHour)}` : ""
+      }`;
       const unique = new Set<string>();
       if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/actual-view${q}`);
       unique.add("http://localhost:9999/api/zhafir-ze-3600/actual-view" + q);
       unique.add("http://127.0.0.1:9999/api/zhafir-ze-3600/actual-view" + q);
+      unique.add(`/be/api/zhafir-ze-3600/actual-view${q}`);
       unique.add(`/api/zhafir-ze-3600/actual-view${q}`);
       return Array.from(unique);
     };
@@ -217,7 +277,186 @@ export default function ZhafirParameterForm() {
     return () => {
       active = false;
     };
-  }, [baseUrl]);
+  }, [baseUrl, machineId, selectedDate, selectedHour]);
+
+  useEffect(() => {
+    let active = true;
+    const REQUEST_TIMEOUT_MS = 5000;
+
+    if (!machineId || !selectedDate) {
+      setHourOptions([]);
+      setSelectedHour("");
+      return;
+    }
+
+    const buildHourCandidates = () => {
+      const trimmed = (baseUrl || "").replace(/\/+$/, "");
+      const normalized = trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
+      const q = `?machine_id=${encodeURIComponent(machineId)}&date=${encodeURIComponent(selectedDate)}`;
+      const unique = new Set<string>();
+      if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/actual-hours${q}`);
+      unique.add("http://localhost:9999/api/zhafir-ze-3600/actual-hours" + q);
+      unique.add("http://127.0.0.1:9999/api/zhafir-ze-3600/actual-hours" + q);
+      unique.add(`/be/api/zhafir-ze-3600/actual-hours${q}`);
+      unique.add(`/api/zhafir-ze-3600/actual-hours${q}`);
+      return Array.from(unique);
+    };
+
+    const fetchWithTimeout = async (url: string) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        return await fetch(url, { cache: "no-store", signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    const loadHours = async () => {
+      for (const url of buildHourCandidates()) {
+        try {
+          const res = await fetchWithTimeout(url);
+          if (!res.ok) continue;
+          const data = (await res.json()) as { hours?: number[] };
+          const hours = Array.isArray(data.hours) ? data.hours : [];
+          if (!active) return;
+          setHourOptions(hours);
+          if (hours.length === 0) {
+            setSelectedHour("");
+            return;
+          }
+          const currentHour = selectedHour === "" ? null : Number(selectedHour);
+          if (currentHour === null || !hours.includes(currentHour)) {
+            setSelectedHour(String(hours[hours.length - 1]));
+          }
+          return;
+        } catch {
+          // try next candidate
+        }
+      }
+      if (active) {
+        setHourOptions([]);
+        setSelectedHour("");
+      }
+    };
+
+    loadHours();
+    return () => {
+      active = false;
+    };
+  }, [baseUrl, machineId, selectedDate]);
+
+  useEffect(() => {
+    let active = true;
+    const REQUEST_TIMEOUT_MS = 5000;
+
+    if (!poNumber) {
+      setMaterialContext(null);
+      return;
+    }
+
+    const buildMaterialCandidates = () => {
+      const trimmed = (baseUrl || "").replace(/\/+$/, "");
+      const normalized = trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
+      const q = `?po=${encodeURIComponent(poNumber)}`;
+      const unique = new Set<string>();
+      if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/material-context${q}`);
+      unique.add("http://localhost:9999/api/zhafir-ze-3600/material-context" + q);
+      unique.add("http://127.0.0.1:9999/api/zhafir-ze-3600/material-context" + q);
+      unique.add("/be/api/zhafir-ze-3600/material-context" + q);
+      unique.add("/api/zhafir-ze-3600/material-context" + q);
+      return Array.from(unique);
+    };
+
+    const fetchWithTimeout = async (url: string) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        return await fetch(url, { cache: "no-store", signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    const loadMaterial = async () => {
+      for (const url of buildMaterialCandidates()) {
+        try {
+          const res = await fetchWithTimeout(url);
+          if (!res.ok) continue;
+          const data = (await res.json()) as MaterialContext;
+          if (active) setMaterialContext(data);
+          return;
+        } catch {
+          // try next candidate
+        }
+      }
+      if (active) setMaterialContext(null);
+    };
+
+    loadMaterial();
+    return () => {
+      active = false;
+    };
+  }, [baseUrl, poNumber]);
+
+  useEffect(() => {
+    if (!materialContext?.materialType) {
+      setSelectedMaterialType("");
+      return;
+    }
+    const normalized = materialContext.materialType.trim().toUpperCase();
+    const found = MATERIAL_TYPE_OPTIONS.find((x) => x.toUpperCase() === normalized);
+    setSelectedMaterialType(found || "");
+  }, [materialContext?.materialType]);
+
+  const resolveMaterialTypeSaveCandidates = () => {
+    const trimmed = (baseUrl || "").replace(/\/+$/, "");
+    const normalized = trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
+    const unique = new Set<string>();
+    if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/material-type`);
+    unique.add("http://localhost:9999/api/zhafir-ze-3600/material-type");
+    unique.add("http://127.0.0.1:9999/api/zhafir-ze-3600/material-type");
+    unique.add("/be/api/zhafir-ze-3600/material-type");
+    unique.add("/api/zhafir-ze-3600/material-type");
+    return Array.from(unique);
+  };
+
+  const handleMaterialTypeChange = async (value: string) => {
+    setSelectedMaterialType(value);
+    if (!machineId || !value) return;
+
+    setMaterialTypeSaving(true);
+    setError(null);
+    let lastError = "unknown";
+    try {
+      let saved = false;
+      for (const url of resolveMaterialTypeSaveCandidates()) {
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              machine_id: machineId,
+              materialType: value,
+            }),
+          });
+          if (!res.ok) {
+            lastError = `${res.status} @ ${url}`;
+            continue;
+          }
+          saved = true;
+          break;
+        } catch (e) {
+          lastError = `${(e as Error).name || "Error"} @ ${url}`;
+        }
+      }
+      if (!saved) {
+        setError(`Gagal update material type (${lastError})`);
+      }
+    } finally {
+      setMaterialTypeSaving(false);
+    }
+  };
 
   const resolveSaveCandidates = (kind: "actual" | "std") => {
     const trimmed = (baseUrl || "").replace(/\/+$/, "");
@@ -227,6 +466,7 @@ export default function ZhafirParameterForm() {
     if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/${endpoint}`);
     unique.add(`http://localhost:9999/api/zhafir-ze-3600/${endpoint}`);
     unique.add(`http://127.0.0.1:9999/api/zhafir-ze-3600/${endpoint}`);
+    unique.add(`/be/api/zhafir-ze-3600/${endpoint}`);
     unique.add(`/api/zhafir-ze-3600/${endpoint}`);
     return Array.from(unique);
   };
@@ -255,6 +495,10 @@ export default function ZhafirParameterForm() {
             body: JSON.stringify({
               field: fieldKey,
               value: numericValue,
+              machine_id: machineId || undefined,
+              material: materialContext?.materialId && selectedMaterialType
+                ? `${materialContext.materialId} - ${selectedMaterialType}`
+                : materialParam || undefined,
             }),
           });
           if (!res.ok) {
@@ -288,8 +532,10 @@ export default function ZhafirParameterForm() {
 
   const saveActField = async (fieldKey: string) => saveField("actual", fieldKey);
   const saveStdField = async (fieldKey: string) => saveField("std", fieldKey);
-  const handleStdChange = (fieldKey: string, value: string) =>
+  const handleStdChange = (fieldKey: string, value: string) => {
+    if (!isEditMode) return;
     setStdDraft((prev) => ({ ...prev, [fieldKey]: value }));
+  };
   const handleActChange = (fieldKey: string, value: string) =>
     setActDraft((prev) => ({ ...prev, [fieldKey]: value }));
   const toggleSection = (key: string) =>
@@ -297,6 +543,31 @@ export default function ZhafirParameterForm() {
   const allExpanded = SECTION_KEYS.every((key) => expandedSections[key]);
   const toggleAll = () =>
     setExpandedSections(Object.fromEntries(SECTION_KEYS.map((key) => [key, !allExpanded])));
+  const closeEditPasswordModal = () => {
+    setShowEditPasswordModal(false);
+    setEditPasswordInput("");
+    setEditPasswordError(null);
+  };
+  const submitEditPassword = () => {
+    if (editPasswordInput !== EDIT_MODE_PASSWORD) {
+      setEditPasswordError("Password salah.");
+      return;
+    }
+    setError(null);
+    setIsEditMode(true);
+    setStatusMessage("Mode Edit aktif.");
+    closeEditPasswordModal();
+  };
+  const toggleEditMode = () => {
+    if (isEditMode) {
+      setIsEditMode(false);
+      setStatusMessage("Mode View aktif.");
+      return;
+    }
+    setEditPasswordInput("");
+    setEditPasswordError(null);
+    setShowEditPasswordModal(true);
+  };
 
   const resolveBulkSaveCandidates = () => {
     const trimmed = (baseUrl || "").replace(/\/+$/, "");
@@ -305,11 +576,17 @@ export default function ZhafirParameterForm() {
     if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/manual-bulk`);
     unique.add("http://localhost:9999/api/zhafir-ze-3600/manual-bulk");
     unique.add("http://127.0.0.1:9999/api/zhafir-ze-3600/manual-bulk");
+    unique.add("/be/api/zhafir-ze-3600/manual-bulk");
     unique.add("/api/zhafir-ze-3600/manual-bulk");
     return Array.from(unique);
   };
 
   const saveAll = async () => {
+    if (!isEditMode) {
+      setError("Standard hanya bisa disimpan di mode Edit.");
+      return;
+    }
+
     const confirmed = window.confirm("Apakah Anda sudah yakin semua data benar?");
     if (!confirmed) return;
 
@@ -355,7 +632,14 @@ export default function ZhafirParameterForm() {
           const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ std: stdPayload, act: actPayload }),
+            body: JSON.stringify({
+              std: stdPayload,
+              act: actPayload,
+              machine_id: machineId || undefined,
+              material: materialContext?.materialId && selectedMaterialType
+                ? `${materialContext.materialId} - ${selectedMaterialType}`
+                : materialParam || undefined,
+            }),
           });
           if (!res.ok) {
             lastError = `${res.status} @ ${url}`;
@@ -392,32 +676,184 @@ export default function ZhafirParameterForm() {
 
   return (
     <div className="p-6 text-sm">
-      <div className="mb-3 text-xs text-gray-600">
-        ParaID: <span className="font-semibold">{PARA_ID}</span>
-        {loading ? " | Loading..." : ""}
-        {error ? ` | ${error}` : ""}
+      <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Link href="/" className="font-medium text-slate-500 hover:text-slate-800">
+            Home
+          </Link>
+          <span className="text-slate-300">{">"}</span>
+          <Link href={countboardHref} className="font-medium text-slate-500 hover:text-slate-800">
+            Countboard Injection
+          </Link>
+          <span className="text-slate-300">{">"}</span>
+          <span className="font-semibold text-slate-900">Zhafir ZE-3600</span>
+        </div>
       </div>
-      <div className="mb-4 flex items-center gap-2">
+
+      <div className="mb-4 rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-4">
+        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-lg border bg-white px-3 py-2">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500">Machine Name</div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">
+              {machineDesc || "-"}{machineNumber ? ` - ${machineNumber}` : ""}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-white px-3 py-2">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500">Machine ID</div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">{machineId || "-"}</div>
+          </div>
+          <div className="rounded-lg border bg-white px-3 py-2">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500">Gedung</div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">{location || "-"}</div>
+          </div>
+          <div className="rounded-lg border bg-white px-3 py-2">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500">Material ID</div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">
+              {materialContext?.materialId || "-"}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-white px-3 py-2">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500">Zhafir Material Name</div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">
+              {materialContext?.materialName || "-"}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-white px-3 py-2">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500">Type</div>
+            <select
+              value={selectedMaterialType}
+              onChange={(e) => handleMaterialTypeChange(e.target.value)}
+              disabled={!machineId || materialTypeSaving}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm font-medium text-gray-900 outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+            >
+              <option value="">Pilih type</option>
+              {MATERIAL_TYPE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+            {materialTypeSaving && (
+              <div className="mt-1 text-[10px] text-gray-500">Saving...</div>
+            )}
+          </div>
+          <div className="rounded-lg border bg-white px-3 py-2">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500">PRO Name</div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">{poNumber || "-"}</div>
+          </div>
+        </div>
+        <div className="text-xs text-gray-600">
+          ParaID: <span className="font-semibold">{PARA_ID}</span>
+          {` | Mode: ${isEditMode ? "EDIT" : "VIEW"}`}
+          {loading ? " | Loading..." : ""}
+          {error ? ` | ${error}` : ""}
+          {!materialContext && materialParam ? ` | Material: ${materialParam}` : ""}
+        </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={saveAll}
-          disabled={loading || savingKey === "bulk"}
-          className="rounded border px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+          onClick={toggleEditMode}
+          className={`rounded-md border px-3 py-1 text-xs ${
+            isEditMode
+              ? "border-amber-500 bg-amber-50 text-amber-800 hover:bg-amber-100"
+              : "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }`}
         >
-          {savingKey === "bulk" ? "Saving All..." : "Save All STD + ACT"}
+          {isEditMode ? "Switch to View Mode" : "Enter Edit Mode"}
+        </button>
+        <div className="flex items-center gap-2 rounded-md border bg-white px-2 py-1">
+          <label className="text-xs text-gray-600">Tanggal</label>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-900 outline-none focus:border-gray-500"
+          />
+        </div>
+        <div className="flex items-center gap-2 rounded-md border bg-white px-2 py-1">
+          <label className="text-xs text-gray-600">Jam</label>
+          <select
+            value={selectedHour}
+            onChange={(e) => setSelectedHour(e.target.value)}
+            className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-900 outline-none focus:border-gray-500"
+          >
+            {hourOptions.map((h) => (
+              <option key={h} value={String(h)}>
+                {String(h).padStart(2, "0")}:00
+              </option>
+            ))}
+          </select>
+        </div>
+        {isEditMode && (
+          <button
+            type="button"
+            onClick={saveAll}
+            disabled={loading || savingKey === "bulk"}
+            className="rounded-md border px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+          >
+            {savingKey === "bulk" ? "Saving All..." : "Save All STD + ACT"}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={toggleAll}
+          className="rounded-md border px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200"
+        >
+          {allExpanded ? "Collapse All -" : "Expand All +"}
         </button>
         {statusMessage && <span className="text-xs text-green-700">{statusMessage}</span>}
       </div>
 
-      <div className="mb-4">
-        <button
-          type="button"
-          onClick={toggleAll}
-          className="rounded border px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200"
+      {showEditPasswordModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={closeEditPasswordModal}
         >
-          {allExpanded ? "Collapse All -" : "Expand All +"}
-        </button>
-      </div>
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-1 text-sm font-semibold text-slate-900">Masuk Mode Edit</div>
+            <div className="mb-4 text-xs text-slate-500">Masukkan password untuk mengaktifkan edit Standard.</div>
+            <input
+              type="password"
+              value={editPasswordInput}
+              onChange={(e) => {
+                setEditPasswordInput(e.target.value);
+                if (editPasswordError) setEditPasswordError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitEditPassword();
+                if (e.key === "Escape") closeEditPasswordModal();
+              }}
+              autoFocus
+              placeholder="Password"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            />
+            {editPasswordError && (
+              <div className="mt-2 text-xs text-red-600">{editPasswordError}</div>
+            )}
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeEditPasswordModal}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitEditPassword}
+                className="rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800"
+              >
+                Masuk Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Section
         title="SUMMARY INJECTION SETTINGS"
@@ -441,7 +877,7 @@ export default function ZhafirParameterForm() {
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={handleStdChange}
+                  onStdChange={isEditMode ? handleStdChange : undefined}
                   onActChange={handleActChange}
                   savingKey={savingKey}
                 />
@@ -457,7 +893,7 @@ export default function ZhafirParameterForm() {
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={handleStdChange}
+                  onStdChange={isEditMode ? handleStdChange : undefined}
                   onActChange={handleActChange}
                   savingKey={savingKey}
                 />
@@ -473,7 +909,7 @@ export default function ZhafirParameterForm() {
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={handleStdChange}
+                  onStdChange={isEditMode ? handleStdChange : undefined}
                   onActChange={handleActChange}
                   savingKey={savingKey}
                 />
@@ -489,7 +925,7 @@ export default function ZhafirParameterForm() {
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={handleStdChange}
+                  onStdChange={isEditMode ? handleStdChange : undefined}
                   onActChange={handleActChange}
                   savingKey={savingKey}
                 />
@@ -505,7 +941,7 @@ export default function ZhafirParameterForm() {
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={handleStdChange}
+                  onStdChange={isEditMode ? handleStdChange : undefined}
                   onActChange={handleActChange}
                   savingKey={savingKey}
                 />
@@ -529,7 +965,7 @@ export default function ZhafirParameterForm() {
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={handleStdChange}
+                  onStdChange={isEditMode ? handleStdChange : undefined}
                   onActChange={handleActChange}
                   savingKey={savingKey}
                 />
@@ -545,7 +981,7 @@ export default function ZhafirParameterForm() {
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={handleStdChange}
+                  onStdChange={isEditMode ? handleStdChange : undefined}
                   onActChange={handleActChange}
                   savingKey={savingKey}
                 />
@@ -561,7 +997,7 @@ export default function ZhafirParameterForm() {
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={handleStdChange}
+                  onStdChange={isEditMode ? handleStdChange : undefined}
                   onActChange={handleActChange}
                   savingKey={savingKey}
                 />
@@ -584,7 +1020,7 @@ export default function ZhafirParameterForm() {
           values={values}
           stdDraft={stdDraft}
           actDraft={actDraft}
-          onStdChange={handleStdChange}
+          onStdChange={isEditMode ? handleStdChange : undefined}
           onActChange={handleActChange}
           onStdSave={saveStdField}
           onActSave={saveActField}
@@ -613,7 +1049,7 @@ export default function ZhafirParameterForm() {
           values={values}
           stdDraft={stdDraft}
           actDraft={actDraft}
-          onStdChange={handleStdChange}
+          onStdChange={isEditMode ? handleStdChange : undefined}
           onActChange={handleActChange}
           onStdSave={saveStdField}
           onActSave={saveActField}
@@ -639,7 +1075,7 @@ export default function ZhafirParameterForm() {
           values={values}
           stdDraft={stdDraft}
           actDraft={actDraft}
-          onStdChange={handleStdChange}
+          onStdChange={isEditMode ? handleStdChange : undefined}
           onActChange={handleActChange}
           onStdSave={saveStdField}
           onActSave={saveActField}
@@ -665,7 +1101,7 @@ export default function ZhafirParameterForm() {
             values={values}
             stdDraft={stdDraft}
             actDraft={actDraft}
-            onStdChange={handleStdChange}
+            onStdChange={isEditMode ? handleStdChange : undefined}
             onActChange={handleActChange}
             onStdSave={saveStdField}
             onActSave={saveActField}
@@ -689,7 +1125,7 @@ export default function ZhafirParameterForm() {
             values={values}
             stdDraft={stdDraft}
             actDraft={actDraft}
-            onStdChange={handleStdChange}
+            onStdChange={isEditMode ? handleStdChange : undefined}
             onActChange={handleActChange}
             onStdSave={saveStdField}
             onActSave={saveActField}
@@ -730,7 +1166,7 @@ export default function ZhafirParameterForm() {
                 values={values}
                 actDraft={actDraft}
                 stdDraft={stdDraft}
-                onStdChange={handleStdChange}
+                onStdChange={isEditMode ? handleStdChange : undefined}
                 onStdSave={saveStdField}
                 onActChange={handleActChange}
                 onActSave={saveActField}
@@ -742,7 +1178,7 @@ export default function ZhafirParameterForm() {
                 values={values}
                 stdDraft={stdDraft}
                 actDraft={actDraft}
-                onStdChange={handleStdChange}
+                onStdChange={isEditMode ? handleStdChange : undefined}
                 onStdSave={saveStdField}
                 onActChange={handleActChange}
                 onActSave={saveActField}
@@ -765,7 +1201,7 @@ export default function ZhafirParameterForm() {
           values={values}
           stdDraft={stdDraft}
           actDraft={actDraft}
-          onStdChange={handleStdChange}
+          onStdChange={isEditMode ? handleStdChange : undefined}
           onActChange={handleActChange}
           onStdSave={saveStdField}
           onActSave={saveActField}
@@ -789,7 +1225,7 @@ export default function ZhafirParameterForm() {
           values={values}
           stdDraft={stdDraft}
           actDraft={actDraft}
-          onStdChange={handleStdChange}
+          onStdChange={isEditMode ? handleStdChange : undefined}
           onActChange={handleActChange}
           onStdSave={saveStdField}
           onActSave={saveActField}
@@ -808,12 +1244,12 @@ export default function ZhafirParameterForm() {
         onToggle={toggleSection}
       >
         <div className="grid grid-cols-3 gap-2">
-          <Input label="Blow start" pair fieldKey="AirBlowStart" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onActChange={handleActChange} savingKey={savingKey} />
-          <Input label="Blow delay" pair fieldKey="AirBlowDelay" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onActChange={handleActChange} savingKey={savingKey} />
-          <Input label="Blow time" pair fieldKey="AirBlowTime" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onActChange={handleActChange} savingKey={savingKey} />
-          <Input label="Blow count" pair fieldKey="AirBlowCount" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onActChange={handleActChange} savingKey={savingKey} />
-          <Input label="Star post" pair fieldKey="AirBlowStarPost" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onActChange={handleActChange} savingKey={savingKey} />
-          <Input label="Male/Female" pair fieldKey="AirBlowMaleFemale" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onActChange={handleActChange} savingKey={savingKey} />
+          <Input label="Blow start" pair fieldKey="AirBlowStart" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onActChange={handleActChange} savingKey={savingKey} />
+          <Input label="Blow delay" pair fieldKey="AirBlowDelay" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onActChange={handleActChange} savingKey={savingKey} />
+          <Input label="Blow time" pair fieldKey="AirBlowTime" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onActChange={handleActChange} savingKey={savingKey} />
+          <Input label="Blow count" pair fieldKey="AirBlowCount" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onActChange={handleActChange} savingKey={savingKey} />
+          <Input label="Star post" pair fieldKey="AirBlowStarPost" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onActChange={handleActChange} savingKey={savingKey} />
+          <Input label="Male/Female" pair fieldKey="AirBlowMaleFemale" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onActChange={handleActChange} savingKey={savingKey} />
         </div>
       </Section>
 
@@ -914,8 +1350,8 @@ export default function ZhafirParameterForm() {
           onToggle={toggleSection}
         >
           <div className="grid grid-cols-2 gap-2">
-            <Input label="Cussion" fieldKey="Thickness" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
-            <Input label="Act Inj Time" fieldKey="InjectTime" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
+            <Input label="Cussion" fieldKey="Thickness" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
+            <Input label="Act Inj Time" fieldKey="InjectTime" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
           </div>
         </Section>
         <Section
@@ -926,7 +1362,7 @@ export default function ZhafirParameterForm() {
           onToggle={toggleSection}
         >
           <div className="grid grid-cols-1 gap-2">
-            <Input label="Cooling Time" fieldKey="CoolingTime" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
+            <Input label="Cooling Time" fieldKey="CoolingTime" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
           </div>
         </Section>
         <Section
@@ -937,9 +1373,9 @@ export default function ZhafirParameterForm() {
           onToggle={toggleSection}
         >
           <div className="grid grid-cols-2 gap-2">
-            <Input label="V/P Position" fieldKey="VPPositionText" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
-            <Input label="V/P Time" fieldKey="VPTimeText" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
-            <Input label="V/P Posn" fieldKey="VPPosnText" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
+            <Input label="V/P Position" fieldKey="VPPositionText" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
+            <Input label="V/P Time" fieldKey="VPTimeText" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
+            <Input label="V/P Posn" fieldKey="VPPosnText" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
           </div>
         </Section>
       </div>
@@ -953,8 +1389,8 @@ export default function ZhafirParameterForm() {
           onToggle={toggleSection}
         >
           <div className="grid grid-cols-1 gap-2">
-            <Input label="" pair fieldKey="Plasticise1Press" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
-            <Input label="" pair fieldKey="Plasticise1Velo" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
+            <Input label="" pair fieldKey="Plasticise1Press" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
+            <Input label="" pair fieldKey="Plasticise1Velo" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
           </div>
         </Section>
         <Section
@@ -965,8 +1401,8 @@ export default function ZhafirParameterForm() {
           onToggle={toggleSection}
         >
           <div className="grid grid-cols-1 gap-2">
-            <Input label="" pair fieldKey="AfterPlasticisePress" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
-            <Input label="" pair fieldKey="AfterPlasticiseVelo" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={handleStdChange} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
+            <Input label="" pair fieldKey="AfterPlasticisePress" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
+            <Input label="" pair fieldKey="AfterPlasticiseVelo" values={values} stdDraft={stdDraft} actDraft={actDraft} onStdChange={isEditMode ? handleStdChange : undefined} onStdSave={saveStdField} onActChange={handleActChange} onActSave={saveActField} savingKey={savingKey} />
           </div>
         </Section>
       </div>
@@ -987,7 +1423,7 @@ export default function ZhafirParameterForm() {
               values={values}
               stdDraft={stdDraft}
               actDraft={actDraft}
-              onStdChange={handleStdChange}
+              onStdChange={isEditMode ? handleStdChange : undefined}
               onActChange={handleActChange}
               savingKey={savingKey}
             />
@@ -1011,7 +1447,7 @@ export default function ZhafirParameterForm() {
               values={values}
               stdDraft={stdDraft}
               actDraft={actDraft}
-              onStdChange={handleStdChange}
+              onStdChange={isEditMode ? handleStdChange : undefined}
               onActChange={handleActChange}
               savingKey={savingKey}
             />

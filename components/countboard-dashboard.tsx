@@ -294,8 +294,8 @@ export default function CountboardDashboard() {
     content2: '',
   })
   const [currentCVT, setCurrentCVT] = useState<number | 0>(0)
-  const [editedScrap, setEditedScrap] = useState<number>(0)
-  const [editedRework, setEditedRework] = useState<number>(0)
+  const [editedScrap, setEditedScrap] = useState<number | ''>(0)
+  const [editedRework, setEditedRework] = useState<number | ''>(0)
   const [selectedHourlyId, setSelectedHourlyId] = useState<number | null>(null)
   const [currentScrap, setCurrentScrap] = useState<number>(0)
   const [currentRework, setCurrentRework] = useState<number>(0)
@@ -1212,6 +1212,59 @@ export default function CountboardDashboard() {
     mutate(taskDataKey)
   }, [taskDataKey])
 
+  const currentPo = Array.isArray(taskData) && taskData.length > 0
+    ? taskData[taskData.length - 1].po_name
+    : selectedPO?.poNumber || ''
+
+  const currentMaterial = Array.isArray(hourlyData) &&
+    hourlyData &&
+    hourlyData.filter((data) => data?.itemDesc !== null).length > 0
+    ? hourlyData
+        .filter((data) => data?.itemDesc !== null)
+        .slice(-1)[0].itemDesc
+    : selectedPO
+      ? `${selectedPO?.materialId} - ${selectedPO?.materialName}`
+      : ''
+
+  const handleOpenParameterSetting = async () => {
+    if (!selectedMachine?.machineName) return
+    const params = new URLSearchParams()
+    params.set('machine_id', selectedMachine.machineName)
+    if (selectedMachine?.machineDescription) {
+      params.set('machine_desc', selectedMachine.machineDescription)
+    }
+    if (selectedMachine?.machineNumber) {
+      params.set('machine_number', selectedMachine.machineNumber)
+    }
+    if (selectedMachine?.locationName) {
+      params.set('location', selectedMachine.locationName)
+    }
+    if (currentPo) {
+      params.set('po', currentPo)
+    }
+    if (currentMaterial) {
+      params.set('material', currentMaterial)
+    }
+    try {
+      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/+$/, '')
+      const existsUrl = base
+        ? `${base}/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
+        : `/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
+      const res = await fetch(existsUrl)
+      if (!res.ok) {
+        throw new Error('Failed to check parameter setting')
+      }
+      const data = await res.json()
+      if (!data?.exists) {
+        toast.error('Belum ada setting parameter untuk mesin ini')
+        return
+      }
+      router.push(`/zhafir-ze-3600?${params.toString()}`)
+    } catch (error) {
+      toast.error((error as Error).message || 'Gagal cek parameter')
+    }
+  }
+
   useEffect(() => {
     setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0)
   }, [taskData])
@@ -1380,6 +1433,7 @@ export default function CountboardDashboard() {
     if (!selectedHourlyId) return
 
     setIsLoading(true)
+    const scrapValue = editedScrap === '' ? 0 : editedScrap
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/scrap`,
@@ -1388,7 +1442,7 @@ export default function CountboardDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             hourlyId: selectedHourlyId,
-            scrap: editedScrap,
+            scrap: scrapValue,
           }),
         }
       )
@@ -1397,7 +1451,7 @@ export default function CountboardDashboard() {
         throw new Error(text || 'Failed to update Scrap')
       }
       toast.success('Update Scrap successfully!')
-      setCurrentScrap(editedScrap)
+      setCurrentScrap(scrapValue)
       refetchHourlyData()
       setIsSCRAPDialogOpen(false)
     } catch (error) {
@@ -1412,6 +1466,7 @@ export default function CountboardDashboard() {
     if (!selectedHourlyId) return
 
     setIsLoading(true)
+    const reworkValue = editedRework === '' ? 0 : editedRework
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/countboards/rework`,
@@ -1420,7 +1475,7 @@ export default function CountboardDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             hourlyId: selectedHourlyId,
-            rework: editedRework,
+            rework: reworkValue,
           }),
         }
       )
@@ -1429,7 +1484,7 @@ export default function CountboardDashboard() {
         throw new Error(text || 'Failed to update Rework')
       }
       toast.success('Update Rework successfully!')
-      setCurrentRework(editedRework)
+      setCurrentRework(reworkValue)
       refetchHourlyData()
       setIsREWORKDialogOpen(false)
     } catch (error) {
@@ -1929,6 +1984,24 @@ export default function CountboardDashboard() {
               <FilePlus2 className="w-4 h-4 mr-2" />
               PRO
             </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleOpenParameterSetting}
+                  variant="secondary"
+                  className="h-[43px]"
+                  disabled={!selectedMachine?.machineName}
+                >
+                  <GearIcon className="w-4 h-4 mr-2" />
+                  Param
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {selectedMachine?.machineName
+                  ? 'Buka parameter setting untuk mesin ini'
+                  : 'Pilih mesin terlebih dahulu'}
+              </TooltipContent>
+            </Tooltip>
             <Button
               onClick={() => setIsCVTDialogOpen(true)}
               variant="default"

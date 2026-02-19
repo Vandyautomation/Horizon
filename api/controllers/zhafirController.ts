@@ -1,13 +1,11 @@
 import { queryDatabase } from '../utils/queryDatabase';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import path from 'path';
 
 const ZHAFIR_SECTIONS = {
   inject: ['Inject1Press', 'Inject1To', 'Inject1Velo', 'Inject2Press', 'Inject2To', 'Inject2Velo', 'Inject3Press', 'Inject3To', 'Inject3Velo', 'Inject4Press', 'Inject4Velo', 'InjectScrewPosition', 'InjectTime', 'InjectionPressure', 'InjectSEPosition', 'InjectS1Speed', 'InjectSBPosition', 'InjectSBSpeed', 'InjectSBPressure'],
   holding: ['Hold1Press', 'Hold1To', 'Hold1Velo', 'Hold2Press', 'Hold2To', 'Hold2Velo', 'Hold3Press', 'Hold3To', 'Hold3Velo'],
   charging: ['Plasticise1To', 'Plasticise1Velo', 'Plasticise1Press', 'AfterPlasticisePress', 'AfterPlasticiseTime', 'AfterPlasticiseVelo', 'Plasticise1BackPress', 'Plasticise2To', 'Plasticise2Velo', 'Plasticise2Press', 'AfterPlasticisePosition', 'AfterPlasticiseSpeed', 'AfterPlasticiseBackPress'],
   clamp_mold: ['Close1Press', 'Close1To', 'Close1Velo', 'Close2Press', 'Close2To', 'Close2Velo', 'ProtectPress', 'ProtectTo', 'ProtectVelo', 'HiPressPress', 'HiPressVelo', 'MoldProtectionTime', 'Open1Press', 'Open1To', 'Open1Velo', 'Open2Press', 'Open2To', 'Open2Velo', 'Open3Press', 'Open3To', 'Open3Velo', 'Open4Press', 'Open4To', 'Open4Velo', 'Close0To', 'Close0Velo', 'CloseLPTo', 'CloseLPVelo', 'CloseHPTo', 'CloseHPVelo', 'CloseSETo', 'CloseSEVelo', 'OpenS5To', 'OpenS5Velo', 'OpenS4To', 'OpenS4Velo'],
-  temperature: ['Nozzle', 'Barrel1', 'Barrel2', 'Barrel3', 'Barrel4', 'Barrel5', 'Barrel6', 'HopperReal', 'HopperSet'],
+  temperature: ['Nozzle', 'Barrel1', 'Barrel2', 'Barrel3', 'Barrel4', 'Barrel5', 'Barrel6', 'HopperReal', 'HopperSet', 'HopperMax', 'HopperMin'],
   ejector_core: ['EjectorMode', 'Forward1Press', 'Forward1To', 'Forward1Velo', 'Forward2Press', 'Forward2To', 'Forward2Velo', 'Backward1Press', 'Backward1To', 'Backward1Velo', 'Backward2Press', 'Backward2To', 'Backward2Velo'],
   core_a: [
     'Core_In_Mode_A',
@@ -67,7 +65,7 @@ const ZHAFIR_SECTIONS = {
   ],
   cushion_vp: ['Thickness', 'CycleTime', 'Tonase', 'CoolingTime', 'Cavity'],
   air_blow: ['AirBlowStart', 'AirBlowDelay', 'AirBlowTime', 'AirBlowCount', 'AirBlowStarPost', 'AirBlowMaleFemale'],
-  vp_text: ['VPPositionText', 'VPTimeText', 'VPPosnText'],
+  vp_text: ['VPPositionText', 'VPTimeText', 'VPPosnText', 'CarriageBwd_SE'],
   berat_unit: Array.from({ length: 16 }, (_, i) => `BeratUnit${i + 1}`),
   heater_control: Array.from({ length: 14 }, (_, i) => `HeaterControl${i + 1}`),
 } as const;
@@ -81,227 +79,9 @@ const ZHAFIR_ALL_COLUMNS = Array.from(
     ...ZHAFIR_META_FIELDS,
   ]),
 );
-
-// INJECT table
-const ACT_INJECT: Record<string, number> = {
-  Inject1Press: 120.0, // Pressure S1
-  Inject2Press: 145.0, // Pressure S2
-  Inject3Press: 145.0, // Pressure S3
-  Inject4Press: 0.0,   // Pressure SE
-  Inject1To: 450.0,    // Position S1
-  Inject2To: 350.0,    // Position S2
-  Inject3To: 200.0,    // Position S3
-  Inject1Velo: 18.0,   // Speed S1
-  Inject2Velo: 55.0,   // Speed S2
-  Inject3Velo: 45.0,   // Speed S3
-  Inject4Velo: 15.0,   // Speed SE
-  InjectScrewPosition: 15.0,
-  InjectTime: 3.586,
-  InjectionPressure: 95.0,
-  InjectSEPosition: 0.0,
-  InjectS1Speed: 0.0,
-  InjectSBPosition: 0.0,
-  InjectSBSpeed: 0.0,
-  InjectSBPressure: 0.0,
-};
-
-// HOLDING table
-const ACT_HOLDING: Record<string, number> = {
-  Hold1Press: 62.0, // P1
-  Hold2Press: 55.0, // P2
-  Hold3Press: 10.0, // P3
-  Hold1To: 1.3,     // Time P1
-  Hold2To: 0.8,     // Time P2
-  Hold3To: 3.0,     // Time P3
-  Hold1Velo: 50.0,
-  Hold2Velo: 45.0,
-  Hold3Velo: 30.0,
-};
-
-// CHARGING table
-const ACT_CHARGING: Record<string, number> = {
-  Plasticise1To: 54.2,      // Position S1
-  Plasticise1Velo: 18.0,    // Speed S1
-  Plasticise1Press: 100.0,  // Pressure S1
-  AfterPlasticisePress: 95.0,
-  AfterPlasticiseTime: 2.895,
-  AfterPlasticiseVelo: 50.0,
-  Plasticise1BackPress: 90.0,
-  Plasticise2To: 35.0,
-  Plasticise2Velo: 12.0,
-  Plasticise2Press: 80.0,
-  AfterPlasticisePosition: 0.0,
-  AfterPlasticiseSpeed: 0.0,
-  AfterPlasticiseBackPress: 0.0,
-};
-
-// CLAMP / MOLD table
-const ACT_CLAMP_MOLD: Record<string, number> = {
-  Close1Press: 0.0,
-  Close2Press: 0.0,
-  ProtectPress: 0.0,
-  HiPressPress: 0.0,
-  Close1To: 5.0,        // Close Position S1
-  Close2To: 185.0,      // Close Position S2
-  ProtectTo: 169.99,    // Close Position S3
-  Open1To: 1.0,         // Open Position S1
-  Open2To: 20.0,        // Open Position S2
-  Open3To: 29.0,        // Open Position S3
-  Open4To: 40.0,        // Open Position SE
-  Close1Velo: 10.0,
-  Close2Velo: 60.0,
-  ProtectVelo: 40.0,
-  HiPressVelo: 43.0,
-  Open1Velo: 17.0,
-  Open2Velo: 25.0,
-  Open3Velo: 25.0,
-  Open4Velo: 25.0,
-  Open1Press: 0.0,
-  Open2Press: 0.0,
-  Open3Press: 0.0,
-  Open4Press: 0.0,
-  MoldProtectionTime: 0.5,
-  Close0To: 0.0,
-  Close0Velo: 0.0,
-  CloseLPTo: 0.0,
-  CloseLPVelo: 0.0,
-  CloseHPTo: 0.0,
-  CloseHPVelo: 0.0,
-  CloseSETo: 0.0,
-  CloseSEVelo: 0.0,
-  OpenS5To: 0.0,
-  OpenS5Velo: 0.0,
-  OpenS4To: 0.0,
-  OpenS4Velo: 0.0,
-};
-
-// TEMPERATURE table
-const ACT_TEMPERATURE: Record<string, number> = {
-  Nozzle: 220.0,
-  Barrel1: 220.0,
-  Barrel2: 215.0,
-  Barrel3: 210.0,
-  Barrel4: 205.0,
-  Barrel5: 200.0,
-  Barrel6: 195.0,
-  HopperReal: 80.0,
-  HopperSet: 75.0,
-};
-
-// EJECTOR table (FWD + BWD + CORE mode)
-const ACT_EJECTOR_CORE: Record<string, number> = {
-  EjectorMode: 0.0,
-  Forward1Press: 12.0,
-  Forward2Press: 0.0,
-  Forward1To: 20.0,
-  Forward2To: 20.0,
-  Forward1Velo: 65.0,
-  Forward2Velo: 50.0,
-  Backward1Press: 17.0,
-  Backward2Press: 0.0,
-  Backward1To: 20.0,
-  Backward2To: 20.0,
-  Backward1Velo: 50.0,
-  Backward2Velo: 10.0,
-};
-
-const ACT_CORE: Record<string, number> = {
-  Core_In_Mode_A: 0,
-  Core_Out_Mode_A: 0,
-  Core_In_Mold_Position_A: 0,
-  Core_Out_Mold_Position_A: 0,
-  Core_In_Delay_Time_A: 0,
-  Core_Out_Delay_Time_A: 0,
-  Core_In_Time_A: 0,
-  Core_Out_Time_A: 0,
-  CoreA_In_Pressure: 0,
-  CoreA_Out_Pressure: 0,
-  CoreA_In_Flow: 0,
-  CoreA_Out_Flow: 0,
-  Core_In_Mode_B: 0,
-  Core_Out_Mode_B: 0,
-  Core_In_Mold_Position_B: 0,
-  Core_Out_Mold_Position_B: 0,
-  Core_In_Delay_Time_B: 0,
-  Core_Out_Delay_Time_B: 0,
-  Core_In_Time_B: 0,
-  Core_Out_Time_B: 0,
-  CoreB_In_Pressure: 0,
-  CoreB_Out_Pressure: 0,
-  CoreB_In_Flow: 0,
-  CoreB_Out_Flow: 0,
-  Core_In_Mode_C: 0,
-  Core_Out_Mode_C: 0,
-  Core_In_Mold_Position_C: 0,
-  Core_Out_Mold_Position_C: 0,
-  Core_In_Delay_Time_C: 0,
-  Core_Out_Delay_Time_C: 0,
-  Core_In_Time_C: 0,
-  Core_Out_Time_C: 0,
-  CoreC_In_Pressure: 0,
-  CoreC_Out_Pressure: 0,
-  CoreC_In_Flow: 0,
-  CoreC_Out_Flow: 0,
-  Core_In_Mode_D: 0,
-  Core_Out_Mode_D: 0,
-  Core_In_Mold_Position_D: 0,
-  Core_Out_Mold_Position_D: 0,
-  Core_In_Delay_Time_D: 0,
-  Core_Out_Delay_Time_D: 0,
-  Core_In_Time_D: 0,
-  Core_Out_Time_D: 0,
-  CoreD_In_Pressure: 0,
-  CoreD_Out_Pressure: 0,
-  CoreD_In_Flow: 0,
-  CoreD_Out_Flow: 0,
-};
-
-// CUSSION / V-P / Cooling table
-const ACT_CUSHION_VP: Record<string, number> = {
-  Thickness: 7.146,   // Cussion
-  CycleTime: 40.523,
-  Tonase: 32.0,
-  CoolingTime: 19.0,
-  Cavity: 1,
-};
-
-const ACT_AIR_BLOW: Record<string, string | number> = {
-  AirBlowStart: 'AUTO',
-  AirBlowDelay: 4.0,
-  AirBlowTime: 2.5,
-  AirBlowCount: 1,
-  AirBlowStarPost: 0,
-  AirBlowMaleFemale: 'MALE',
-};
-
-const ACT_VP_TEXT: Record<string, string> = {
-  VPPositionText: 'POS-A',
-  VPTimeText: 'TIME-A',
-  VPPosnText: 'POSN-A',
-};
-
-const ACT_BERAT_UNIT: Record<string, number> = Object.fromEntries(
-  Array.from({ length: 16 }, (_, i) => [`BeratUnit${i + 1}`, 0]),
-) as Record<string, number>;
-
-const ACT_HEATER_CONTROL: Record<string, number> = Object.fromEntries(
-  Array.from({ length: 14 }, (_, i) => [`HeaterControl${i + 1}`, 0]),
-) as Record<string, number>;
-
-const HARD_CODED_ACT_VALUES: Record<string, string | number> = {
-  ...ACT_INJECT,
-  ...ACT_HOLDING,
-  ...ACT_CHARGING,
-  ...ACT_CLAMP_MOLD,
-  ...ACT_TEMPERATURE,
-  ...ACT_EJECTOR_CORE,
-  ...ACT_CORE,
-  ...ACT_CUSHION_VP,
-  ...ACT_AIR_BLOW,
-  ...ACT_VP_TEXT,
-  ...ACT_BERAT_UNIT,
-  ...ACT_HEATER_CONTROL,
-};
+const ZHAFIR_VALUE_FIELDS = ZHAFIR_ALL_COLUMNS.filter(
+  (col) => !(ZHAFIR_META_FIELDS as readonly string[]).includes(col as any),
+);
 
 const STRING_VALUE_FIELDS = new Set([
   'AirBlowStart',
@@ -311,61 +91,199 @@ const STRING_VALUE_FIELDS = new Set([
   'AirBlowMaleFemale',
 ]);
 
-const ALLOWED_HARD_CODED_ACT_FIELDS = new Set(Object.keys(HARD_CODED_ACT_VALUES));
-const HARD_CODED_STORE_PATH = path.join(process.cwd(), 'api', 'data', 'zhafir-hardcoded.json');
-let hardCodedActRuntimeValues: Record<string, string | number> = { ...HARD_CODED_ACT_VALUES };
-let hardCodedStdRuntimeValues: Record<string, string | number> = Object.fromEntries(
-  Object.entries(HARD_CODED_ACT_VALUES).map(([key, value]) =>
-    [key, typeof value === 'number' ? value - 3 : `${value}`],
-  ),
-);
+const ALLOWED_HARD_CODED_ACT_FIELDS = new Set(ZHAFIR_VALUE_FIELDS);
+const MACHINE_STD_TABLE = 'IoT.dbo.MachineParameterSettingSTD';
+const MACHINE_TRX_TABLE = 'IoT.dbo.MachineParameterSettingTRX';
+const PARASET_TRX_TABLE = 'ParaSetTRX';
+let paraSetTrxColumnsCache: Set<string> | null = null;
+const zhafirManualChangeAt = new Map<string, number>();
 
-function saveRuntimeValuesToFile() {
-  const dir = path.dirname(HARD_CODED_STORE_PATH);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-  writeFileSync(
-    HARD_CODED_STORE_PATH,
-    JSON.stringify(
-      {
-        updatedAt: new Date().toISOString(),
-        std: hardCodedStdRuntimeValues,
-        act: hardCodedActRuntimeValues,
-      },
-      null,
-      2,
-    ),
-    'utf-8',
-  );
+function markZhafirManualChange(machineId?: string | null) {
+  const key = (machineId || '').trim();
+  if (!key) return;
+  zhafirManualChangeAt.set(key, Date.now());
 }
 
-function loadRuntimeValuesFromFile() {
-  if (!existsSync(HARD_CODED_STORE_PATH)) return;
-  try {
-    const raw = readFileSync(HARD_CODED_STORE_PATH, 'utf-8');
-    const parsed = JSON.parse(raw) as {
-      std?: Record<string, string | number>;
-      act?: Record<string, string | number>;
+function hasRecentManualChange(machineId: string, windowMs = 60 * 60 * 1000) {
+  const ts = zhafirManualChangeAt.get(machineId);
+  if (!ts) return false;
+  return Date.now() - ts < windowMs;
+}
+
+export async function getZhafirMaterialContext(poName: string) {
+  const trimmedPo = (poName || '').trim();
+  if (!trimmedPo) {
+    throw new Error('po is required');
+  }
+
+  const sqlQuery = `
+    SELECT TOP 1 po_name, material_id, material_name, type
+    FROM IoT.dbo.coois
+    WHERE po_name = @PoName
+    ORDER BY id DESC
+  `;
+  const rows = await queryDatabase(sqlQuery, { PoName: trimmedPo });
+  const row = rows?.[0] as Record<string, unknown> | undefined;
+
+  if (!row) {
+    return {
+      po: trimmedPo,
+      materialId: null,
+      materialName: null,
+      materialType: null,
+      found: false,
     };
-    if (parsed.act) {
-      hardCodedActRuntimeValues = {
-        ...hardCodedActRuntimeValues,
-        ...parsed.act,
-      };
-    }
-    if (parsed.std) {
-      hardCodedStdRuntimeValues = {
-        ...hardCodedStdRuntimeValues,
-        ...parsed.std,
-      };
-    }
-  } catch (error) {
-    console.error('Failed to load zhafir hardcoded file:', error);
+  }
+
+  const materialId = row.material_id ? String(row.material_id) : null;
+  const materialName = row.material_name ? String(row.material_name) : null;
+  const materialType = row.type ? String(row.type) : null;
+
+  return {
+    po: trimmedPo,
+    materialId,
+    materialName,
+    materialType,
+    found: true,
+  };
+}
+
+export async function updateLatestTrxMaterialByMachine(machineId: string, materialType: string) {
+  const resolvedMachineId = (machineId || '').trim();
+  const resolvedMaterial = (materialType || '').trim();
+
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required');
+  }
+  if (!resolvedMaterial) {
+    throw new Error('material type is required');
+  }
+
+  const latestRows = await queryDatabase(
+    `
+      SELECT TOP 1 id
+      FROM IoT.dbo.MachineParameterSettingTRX
+      WHERE machineId = @MachineID
+      ORDER BY id DESC
+    `,
+    { MachineID: resolvedMachineId },
+  );
+
+  const latestId = latestRows?.[0]?.id;
+  if (!latestId) {
+    return {
+      machineId: resolvedMachineId,
+      updated: false,
+      message: 'No MachineParameterSettingTRX row found for this machine',
+    };
+  }
+
+  await queryDatabase(
+    `
+      UPDATE IoT.dbo.MachineParameterSettingTRX
+      SET material = @Material
+      WHERE id = @Id
+    `,
+    { Id: latestId, Material: resolvedMaterial },
+  );
+  markZhafirManualChange(resolvedMachineId);
+
+  return {
+    machineId: resolvedMachineId,
+    updated: true,
+    id: latestId,
+    material: resolvedMaterial,
+    message: 'Material updated on latest trx row',
+  };
+}
+
+async function syncHourlyTrxMaterialFromLatestValue() {
+  const machines = await queryDatabase(
+    `
+      SELECT DISTINCT machineId
+      FROM ${MACHINE_TRX_TABLE}
+      WHERE machineId IS NOT NULL AND LTRIM(RTRIM(machineId)) <> ''
+    `,
+  );
+
+  for (const row of machines || []) {
+    const machineId = String((row as any).machineId || '').trim();
+    if (!machineId) continue;
+
+    const latestCurrentHourRows = await queryDatabase(
+      `
+        SELECT TOP 1 id, created_at, material
+        FROM ${MACHINE_TRX_TABLE}
+        WHERE machineId = @MachineID
+          AND created_at >= DATEADD(HOUR, DATEDIFF(HOUR, 0, GETDATE()), 0)
+        ORDER BY created_at DESC, id DESC
+      `,
+      { MachineID: machineId },
+    );
+    const target = latestCurrentHourRows?.[0] as Record<string, unknown> | undefined;
+    const targetId = target?.id ? Number(target.id) : null;
+    if (!targetId) continue;
+
+    const targetMaterial = target?.material ? String(target.material).trim() : '';
+    if (targetMaterial) continue;
+
+    const targetCreatedAt = target?.created_at ? new Date(String(target.created_at)).getTime() : NaN;
+    if (!Number.isFinite(targetCreatedAt)) continue;
+    if (Date.now() - targetCreatedAt < 2 * 60 * 1000) continue;
+
+    const sourceRows = await queryDatabase(
+      `
+        SELECT TOP 1 material
+        FROM ${MACHINE_TRX_TABLE}
+        WHERE machineId = @MachineID
+          AND id <> @TargetID
+          AND material IS NOT NULL
+          AND LTRIM(RTRIM(CONVERT(NVARCHAR(255), material))) <> ''
+        ORDER BY created_at DESC, id DESC
+      `,
+      { MachineID: machineId, TargetID: targetId },
+    );
+    const sourceMaterial = sourceRows?.[0]?.material ? String(sourceRows[0].material).trim() : '';
+    if (!sourceMaterial) continue;
+
+    await queryDatabase(
+      `
+        UPDATE ${MACHINE_TRX_TABLE}
+        SET material = @Material
+        WHERE id = @TargetID
+      `,
+      { TargetID: targetId, Material: sourceMaterial },
+    );
   }
 }
 
-loadRuntimeValuesFromFile();
+async function runZhafirHourlyCarryForward() {
+  try {
+    await syncHourlyTrxMaterialFromLatestValue();
+  } catch (error) {
+    console.error('Failed running zhafir material auto-sync:', error);
+  }
+}
+
+let zhafirHourlyTimer: ReturnType<typeof setInterval> | null = null;
+export function startZhafirHourlyCarryForwardScheduler() {
+  if (zhafirHourlyTimer) return;
+  runZhafirHourlyCarryForward();
+  zhafirHourlyTimer = setInterval(runZhafirHourlyCarryForward, 60 * 1000);
+}
+
+async function getParaSetTrxColumns() {
+  if (paraSetTrxColumnsCache) return paraSetTrxColumnsCache;
+  const rows = await queryDatabase(`
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = @TableName
+  `, { TableName: PARASET_TRX_TABLE });
+  paraSetTrxColumnsCache = new Set(
+    (rows || []).map((r: any) => String(r.COLUMN_NAME || '')),
+  );
+  return paraSetTrxColumnsCache;
+}
 
 function resolveColumns(section?: string): string[] {
   if (!section) return ZHAFIR_ALL_COLUMNS;
@@ -397,6 +315,11 @@ function normalizePayload(
       continue;
     }
 
+    if (STRING_VALUE_FIELDS.has(key)) {
+      result[key] = String(rawValue);
+      continue;
+    }
+
     const asNumber = Number(rawValue);
     if (Number.isNaN(asNumber)) {
       throw new Error(`Field "${key}" must be numeric.`);
@@ -420,6 +343,203 @@ function createStdActMap(stdRow: Record<string, any> | undefined, actualRow: Rec
   }
 
   return values;
+}
+
+function parseMaterialInput(materialRaw?: string) {
+  const source = (materialRaw || '').trim();
+  if (!source) {
+    return { materialId: null as string | null, materialName: null as string | null };
+  }
+
+  if (source.includes(' - ')) {
+    const [left, ...rest] = source.split(' - ');
+    return {
+      materialId: left?.trim() || null,
+      materialName: rest.join(' - ').trim() || null,
+    };
+  }
+
+  return {
+    materialId: source,
+    materialName: source,
+  };
+}
+
+function parseStdParamset(raw: unknown) {
+  if (!raw) return {} as Record<string, string | number | null>;
+  if (typeof raw === 'object') return raw as Record<string, string | number | null>;
+  if (typeof raw !== 'string') return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      return parsed as Record<string, string | number | null>;
+    }
+  } catch {
+    // ignore malformed JSON and fallback to empty object
+  }
+  return {};
+}
+
+function getRowValue(row: Record<string, unknown> | undefined, keys: string[]) {
+  if (!row) return undefined;
+  const keyMap: Record<string, string> = {};
+  Object.keys(row).forEach((key) => {
+    keyMap[key.toLowerCase()] = key;
+  });
+  for (const key of keys) {
+    const resolved = keyMap[key.toLowerCase()];
+    if (resolved) return row[resolved];
+  }
+  return undefined;
+}
+
+async function getNearestStdRowByMachine(machineId: string) {
+  const machineColumns = ['machineId'];
+  let lastError: string | null = null;
+
+  for (const machineColumn of machineColumns) {
+    const nearestSql = `
+      SELECT TOP 1 *
+      FROM ${MACHINE_STD_TABLE}
+      WHERE ${machineColumn} = @MachineID
+        AND CAST(created_at AS date) = CAST(GETDATE() AS date)
+      ORDER BY ABS(DATEDIFF(SECOND, created_at, GETDATE())), id DESC
+    `;
+    try {
+      const nearestRows = await queryDatabase(nearestSql, { MachineID: machineId });
+      if (Array.isArray(nearestRows) && nearestRows.length > 0) {
+        return nearestRows[0] as Record<string, unknown>;
+      }
+    } catch (error) {
+      lastError = (error as Error).message;
+    }
+
+    const latestSql = `
+      SELECT TOP 1 *
+      FROM ${MACHINE_STD_TABLE}
+      WHERE ${machineColumn} = @MachineID
+      ORDER BY created_at DESC, id DESC
+    `;
+    try {
+      const latestRows = await queryDatabase(latestSql, { MachineID: machineId });
+      if (Array.isArray(latestRows) && latestRows.length > 0) {
+        return latestRows[0] as Record<string, unknown>;
+      }
+    } catch (error) {
+      lastError = (error as Error).message;
+    }
+  }
+
+  if (lastError) {
+    throw new Error(lastError);
+  }
+  return undefined;
+}
+
+async function getLatestStdRowByMachine(machineId: string) {
+  const machineColumns = ['machineId'];
+  let lastError: string | null = null;
+
+  for (const machineColumn of machineColumns) {
+    const latestSql = `
+      SELECT TOP 1 *
+      FROM ${MACHINE_STD_TABLE}
+      WHERE ${machineColumn} = @MachineID
+      ORDER BY created_at DESC, id DESC
+    `;
+    try {
+      const latestRows = await queryDatabase(latestSql, { MachineID: machineId });
+      if (Array.isArray(latestRows) && latestRows.length > 0) {
+        return latestRows[0] as Record<string, unknown>;
+      }
+    } catch (error) {
+      lastError = (error as Error).message;
+    }
+  }
+
+  if (lastError) {
+    throw new Error(lastError);
+  }
+  return undefined;
+}
+
+async function upsertStdParamsetByMachine(
+  machineId: string,
+  stdPayload: Record<string, unknown>,
+  section?: string,
+  materialRaw?: string,
+) {
+  const resolvedMachineId = (machineId || '').trim();
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required for STD save');
+  }
+
+  const columns = resolveColumns(section);
+  const allowedPayload = normalizePayload(stdPayload, columns);
+  const latestRow = await getLatestStdRowByMachine(resolvedMachineId);
+  const currentParamset = parseStdParamset(getRowValue(latestRow, ['paramset']));
+  const nextParamset = {
+    ...currentParamset,
+    ...allowedPayload,
+  };
+
+  const parsedMaterial = parseMaterialInput(materialRaw);
+  const currentMaterialId = getRowValue(latestRow, ['material_id', 'material_Id']);
+  const currentMaterialName = getRowValue(latestRow, ['material_name', 'materialName']);
+  const currentCavity = getRowValue(latestRow, ['cavity']);
+  const materialId = parsedMaterial.materialId ?? (currentMaterialId ? String(currentMaterialId) : null);
+  const materialName = parsedMaterial.materialName ?? (currentMaterialName ? String(currentMaterialName) : null);
+  const cavity = nextParamset.Cavity ?? currentCavity ?? null;
+
+  const latestId = getRowValue(latestRow, ['id']);
+  if (latestId !== undefined && latestId !== null) {
+    const updateSql = `
+      UPDATE ${MACHINE_STD_TABLE}
+      SET machineId = @MachineID,
+          material_Id = @MaterialID,
+          material_name = @MaterialName,
+          cavity = @Cavity,
+          paramset = @Paramset,
+          created_at = GETDATE()
+      WHERE id = @Id
+    `;
+    await queryDatabase(updateSql, {
+      Id: latestId,
+      MachineID: resolvedMachineId,
+      MaterialID: materialId,
+      MaterialName: materialName,
+      Cavity: cavity,
+      Paramset: JSON.stringify(nextParamset),
+    });
+
+    return {
+      action: 'update' as const,
+      machineId: resolvedMachineId,
+      savedColumns: Object.keys(allowedPayload),
+      paramset: nextParamset,
+      id: latestId,
+    };
+  }
+
+  const insertSql = `
+    INSERT INTO ${MACHINE_STD_TABLE} (machineId, material_Id, material_name, cavity, paramset, created_at)
+    VALUES (@MachineID, @MaterialID, @MaterialName, @Cavity, @Paramset, GETDATE())
+  `;
+  await queryDatabase(insertSql, {
+    MachineID: resolvedMachineId,
+    MaterialID: materialId,
+    MaterialName: materialName,
+    Cavity: cavity,
+    Paramset: JSON.stringify(nextParamset),
+  });
+
+  return {
+    action: 'insert' as const,
+    machineId: resolvedMachineId,
+    savedColumns: Object.keys(allowedPayload),
+    paramset: nextParamset,
+    id: null,
+  };
 }
 
 export function getZhafirSections() {
@@ -451,181 +571,398 @@ export function getZhafirQueryTemplates(section?: string) {
   };
 }
 
-export async function getZhafirStdActByParaId(paraId: string, section?: string) {
-  // Temporary behavior:
-  // - Hardcoded data is exposed as ACT values
-  // - STD is editable runtime values (default initialized from ACT-3)
-  const actual = hardCodedActRuntimeValues;
-  const std = hardCodedStdRuntimeValues;
+export async function getZhafirStdActByParaId(paraId: string, section?: string, machineId?: string) {
+  if (!machineId || !machineId.trim()) {
+    throw new Error('machine_id is required');
+  }
+  let std: Record<string, string | number | null> = {};
+  let actual: Record<string, string | number | null> = {};
+  const resolvedMachineId = machineId.trim();
+  let stdDate = new Date().toISOString();
+  let actualDate = new Date().toISOString();
+
+  const nearestStdRow = await getNearestStdRowByMachine(resolvedMachineId);
+  if (nearestStdRow) {
+    const paramsetRaw = parseStdParamset(getRowValue(nearestStdRow, ['paramset']));
+    const paramset = mapSourceToUiFields(paramsetRaw as Record<string, any>);
+    std = {
+      ...std,
+      ...paramset,
+    };
+    const createdAt = getRowValue(nearestStdRow, ['created_at', 'createdAt']);
+    if (createdAt) {
+      stdDate = new Date(String(createdAt)).toISOString();
+    }
+  }
+
+  const actualData = await getZhafirActualFromView(paraId, machineId);
+  actual = (actualData?.values || {}) as Record<string, string | number | null>;
+  actualDate = actualData?.actualDate || actualDate;
+  const actualMeta = (actualData?.meta || {}) as { MchID?: string | null; MoldID?: string | null };
 
   return {
     paraId,
     section: section || 'all',
-    stdDate: new Date().toISOString(),
-    actualDate: new Date().toISOString(),
+    stdDate,
+    actualDate,
     meta: {
-      MchID: 'ZE-3600',
-      MoldID: 'MOLD-DUMMY',
+      MchID: actualMeta.MchID || resolvedMachineId,
+      MoldID: actualMeta.MoldID ?? null,
     },
     values: createStdActMap(std, actual, section),
   };
 }
 
-function mapActualFromViewRow(
-  row: Record<string, any> | undefined,
-  fallback: Record<string, string | number>,
-) {
-  const actual = { ...fallback };
-  if (!row) return actual;
-  const viewToField: Record<string, string> = {
-    // CHARGING
-    Charge_Position_S1: 'Plasticise1To',
-    Charge_Position_S2: 'Plasticise2To',
-    Charge_Position_SE: 'AfterPlasticisePosition',
-    Charge_Speed_S1: 'Plasticise1Velo',
-    Charge_Speed_S2: 'Plasticise2Velo',
-    Charge_Speed_S3: 'AfterPlasticiseSpeed',
-    Charge_BackPress_S1: 'Plasticise1BackPress',
-    Charge_BackPress_S2: 'AfterPlasticiseBackPress',
-    Charge_BackPress_SE: 'AfterPlasticiseBackPress',
-    Charge_Pressure_S1: 'Plasticise1Press',
-    Charge_Pressure_S2: 'Plasticise2Press',
-    Charge_Pressure_SE: 'AfterPlasticisePress',
+const ACT_VIEW_TO_FIELD_MAP: Record<string, string> = {
+  // CHARGING
+  Charge_Position_S1: 'Plasticise1To',
+  Charge_Position_S2: 'Plasticise2To',
+  Charge_Position_SE: 'AfterPlasticisePosition',
+  Charge_Speed_S1: 'Plasticise1Velo',
+  Charge_Speed_S2: 'Plasticise2Velo',
+  Charge_Speed_S3: 'AfterPlasticiseSpeed',
+  Charge_BackPress_S1: 'Plasticise1BackPress',
+  Charge_BackPress_S2: 'AfterPlasticiseBackPress',
+  Charge_BackPress_SE: 'AfterPlasticiseBackPress',
+  Charge_Pressure_S1: 'Plasticise1Press',
+  Charge_Pressure_S2: 'Plasticise2Press',
+  Charge_Pressure_SE: 'AfterPlasticisePress',
 
-    // COOLING / CUSSION / V-P
-    Cooling_Time: 'CoolingTime',
-    Note_Cushion: 'Thickness',
-    Note_CycleTime: 'CycleTime',
-    Note_ActInjtTime: 'InjectTime',
-    Note_PlastTime: 'AfterPlasticiseTime',
-    Note_InjStartPos: 'InjectScrewPosition',
-    Note_MinCushionPos: 'Thickness',
-    Tonnage_Set: 'Tonase',
+  // COOLING / CUSSION / V-P
+  Cooling_Time: 'CoolingTime',
+  Note_Cushion: 'Thickness',
+  Note_CycleTime: 'CycleTime',
+  Note_ActInjtTime: 'InjectTime',
+  Note_PlastTime: 'AfterPlasticiseTime',
+  Note_InjStartPos: 'InjectScrewPosition',
+  Note_MinCushionPos: 'Thickness',
+  Tonnage_Set: 'Tonase',
+  CarriageBWD_SE: 'CarriageBwd_SE',
+  VP_Position: 'VPPositionText',
+  VP_Time: 'VPTimeText',
+  Temperature_Max_Hopper: 'HopperMax',
+  Temperature_Min_Hopper: 'HopperMin',
+  Temperature_Real_Hopper: 'HopperReal',
+  Temperature_Set_Hopper: 'HopperSet',
+  SuckBackAfterCharge_mm: 'InjectSBPosition',
+  SuckBackAfterCharge_pct: 'InjectSBSpeed',
 
-    // EJECTOR
-    EjectBWD_Pressure_S1: 'Backward1Press',
-    EjectBWD_Pressure_SE: 'Backward2Press',
-    EjectBWD_Post_S1: 'Backward1To',
-    EjectBWD_Post_SE: 'Backward2To',
-    EjectBWD_Speed_S1: 'Backward1Velo',
-    EjectBWD_Speed_SE: 'Backward2Velo',
-    EjectFWD_Pressure_S1: 'Forward1Press',
-    EjectFWD_Pressure_SE: 'Forward2Press',
-    EjectFWD_Post_S1: 'Forward1To',
-    EjectFWD_Post_SE: 'Forward2To',
-    EjectFWD_Speed_S1: 'Forward1Velo',
-    EjectFWD_Speed_SE: 'Forward2Velo',
+  // EJECTOR
+  EjectBWD_Pressure_S1: 'Backward1Press',
+  EjectBWD_Pressure_SE: 'Backward2Press',
+  EjectBWD_Post_S1: 'Backward1To',
+  EjectBWD_Post_SE: 'Backward2To',
+  EjectBWD_Speed_S1: 'Backward1Velo',
+  EjectBWD_Speed_SE: 'Backward2Velo',
+  EjectFWD_Pressure_S1: 'Forward1Press',
+  EjectFWD_Pressure_SE: 'Forward2Press',
+  EjectFWD_Post_S1: 'Forward1To',
+  EjectFWD_Post_SE: 'Forward2To',
+  EjectFWD_Speed_S1: 'Forward1Velo',
+  EjectFWD_Speed_SE: 'Forward2Velo',
 
-    // HOLDING
-    Holding_Pressure_P1: 'Hold1Press',
-    Holding_Pressure_P2: 'Hold2Press',
-    Holding_Pressure_P3: 'Hold3Press',
-    Holding_Time_P1: 'Hold1To',
-    Holding_Time_P2: 'Hold2To',
-    Holding_Time_P3: 'Hold3To',
-    Holding_HoldSpeed_P1: 'Hold1Velo',
+  // HOLDING
+  Holding_Pressure_P1: 'Hold1Press',
+  Holding_Pressure_P2: 'Hold2Press',
+  Holding_Pressure_P3: 'Hold3Press',
+  Holding_Time_P1: 'Hold1To',
+  Holding_Time_P2: 'Hold2To',
+  Holding_Time_P3: 'Hold3To',
+  Holding_HoldSpeed_P1: 'Hold1Velo',
 
-    // INJECT
-    Inject_Pressure_S1: 'Inject1Press',
-    Inject_Pressure_S3: 'Inject3Press',
-    Inject_Pressure_SE: 'Inject4Press',
-    Inject_Position_S1: 'Inject1To',
-    Inject_Position_S2: 'Inject2To',
-    Inject_Position_S3: 'Inject3To',
-    Inject_Position_SE: 'Inject4Velo',
-    Inject_Speed_S1: 'Inject1Velo',
-    Inject_Speed_S2: 'Inject2Velo',
-    Inject_Speed_S3: 'Inject3Velo',
-    Inject_Speed_SE: 'Inject4Velo',
+  // INJECT
+  Inject_Pressure_S1: 'Inject1Press',
+  Inject_Pressure_S3: 'Inject3Press',
+  Inject_Pressure_SE: 'Inject4Press',
+  Inject_Position_S1: 'Inject1To',
+  Inject_Position_S2: 'Inject2To',
+  Inject_Position_S3: 'Inject3To',
+  Inject_Position_SE: 'Inject4Velo',
+  Inject_Speed_S1: 'Inject1Velo',
+  Inject_Speed_S2: 'Inject2Velo',
+  Inject_Speed_S3: 'Inject3Velo',
+  Inject_Speed_SE: 'Inject4Velo',
 
-    // MOLD CLOSE
-    CloseMold_Position_S1: 'Close1To',
-    CloseMold_Position_S2: 'Close2To',
-    CloseMold_Position_S3: 'ProtectTo',
-    CloseMold_Position_LP: 'CloseLPTo',
-    CloseMold_Position_HP: 'CloseHPTo',
-    CloseMold_Position_SE: 'CloseSETo',
-    CloseMold_Speed_S1: 'Close1Velo',
-    CloseMold_Speed_S2: 'Close2Velo',
-    CloseMold_Speed_S3: 'ProtectVelo',
-    CloseMold_Speed_LP: 'CloseLPVelo',
-    CloseMold_Speed_HP: 'CloseHPVelo',
-    CloseMold_Speed_SE: 'CloseSEVelo',
+  // MOLD CLOSE
+  CloseMold_Position_S1: 'Close1To',
+  CloseMold_Position_S2: 'Close2To',
+  CloseMold_Position_S3: 'ProtectTo',
+  CloseMold_Position_LP: 'CloseLPTo',
+  CloseMold_Position_HP: 'CloseHPTo',
+  CloseMold_Position_SE: 'CloseSETo',
+  CloseMold_Speed_S1: 'Close1Velo',
+  CloseMold_Speed_S2: 'Close2Velo',
+  CloseMold_Speed_S3: 'ProtectVelo',
+  CloseMold_Speed_LP: 'CloseLPVelo',
+  CloseMold_Speed_HP: 'CloseHPVelo',
+  CloseMold_Speed_SE: 'CloseSEVelo',
 
-    // MOLD OPEN
-    OpenMold_Position_S1: 'Open1To',
-    OpenMold_Position_S2: 'Open2To',
-    OpenMold_Position_S3: 'Open3To',
-    OpenMold_Position_S4: 'Open4To',
-    OpenMold_Position_S5: 'OpenS5To',
-    OpenMold_Position_SE: 'Open4To',
-    OpenMold_Speed_S1: 'Open1Velo',
-    OpenMold_Speed_S2: 'Open2Velo',
-    OpenMold_Speed_S3: 'Open3Velo',
-    OpenMold_Speed_S4: 'Open4Velo',
-    OpenMold_Speed_S5: 'OpenS5Velo',
-    OpenMold_Speed_SE: 'Open4Velo',
+  // MOLD OPEN
+  OpenMold_Position_S1: 'Open1To',
+  OpenMold_Position_S2: 'Open2To',
+  OpenMold_Position_S3: 'Open3To',
+  OpenMold_Position_S4: 'Open4To',
+  OpenMold_Position_S5: 'OpenS5To',
+  OpenMold_Position_SE: 'Open4To',
+  OpenMold_Speed_S1: 'Open1Velo',
+  OpenMold_Speed_S2: 'Open2Velo',
+  OpenMold_Speed_S3: 'Open3Velo',
+  OpenMold_Speed_S4: 'Open4Velo',
+  OpenMold_Speed_S5: 'OpenS5Velo',
+  OpenMold_Speed_SE: 'Open4Velo',
 
-    // CORE (placeholder mapping to existing fields)
-    Core_DelayTime_AIn: 'Core_In_Delay_Time_A',
-    Core_Mode_AIn: 'Core_In_Mode_A',
-    Core_MoldPost_AIn: 'Core_In_Mold_Position_A',
-    Core_Time_AIn: 'Core_In_Time_A',
-    Core_DelayTime_AOut: 'Core_Out_Delay_Time_A',
-    Core_Mode_AOut: 'Core_Out_Mode_A',
-    Core_MoldPost_AOut: 'Core_Out_Mold_Position_A',
-    Core_Time_AOut: 'Core_Out_Time_A',
-    Core_Flow_AIn: 'CoreA_In_Flow',
-    Core_Press_AIn: 'CoreA_In_Pressure',
-    Core_Flow_AOut: 'CoreA_Out_Flow',
-    Core_Press_AOut: 'CoreA_Out_Pressure',
-  };
+  // CORE A
+  Core_DelayTime_AIn: 'Core_In_Delay_Time_A',
+  Core_Mode_AIn: 'Core_In_Mode_A',
+  Core_MoldPost_AIn: 'Core_In_Mold_Position_A',
+  Core_Time_AIn: 'Core_In_Time_A',
+  Core_DelayTime_AOut: 'Core_Out_Delay_Time_A',
+  Core_Mode_AOut: 'Core_Out_Mode_A',
+  Core_MoldPost_AOut: 'Core_Out_Mold_Position_A',
+  Core_Time_AOut: 'Core_Out_Time_A',
+  Core_Flow_AIn: 'CoreA_In_Flow',
+  Core_Press_AIn: 'CoreA_In_Pressure',
+  Core_Flow_AOut: 'CoreA_Out_Flow',
+  Core_Press_AOut: 'CoreA_Out_Pressure',
 
-  Object.entries(viewToField).forEach(([viewKey, fieldKey]) => {
-    if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(fieldKey)) return;
-    const value = row[viewKey];
+  // TEMPERATURE aliases
+  Temperature_Real_Zone1: 'Barrel1',
+  Temperature_Real_Zone2: 'Barrel2',
+  Temperature_Real_Zone3: 'Barrel3',
+  Temperature_Real_Zone4: 'Barrel4',
+  Temperature_Real_Zone5: 'Barrel5',
+  Temperature_Real_Zone6: 'Barrel6',
+  Temperature_Set_Zone1: 'Barrel1',
+  Temperature_Set_Zone2: 'Barrel2',
+  Temperature_Set_Zone3: 'Barrel3',
+  Temperature_Set_Zone4: 'Barrel4',
+  Temperature_Set_Zone5: 'Barrel5',
+  Temperature_Set_Zone6: 'Barrel6',
+};
+
+function mapSourceToUiFields(source?: Record<string, any>) {
+  const mapped: Record<string, string | number | null> = {};
+  if (!source) return mapped;
+
+  const lowerKeyMap: Record<string, string> = {};
+  Object.keys(source).forEach((key) => {
+    lowerKeyMap[key.toLowerCase()] = key;
+  });
+
+  Array.from(ALLOWED_HARD_CODED_ACT_FIELDS).forEach((fieldKey) => {
+    const resolved = lowerKeyMap[fieldKey.toLowerCase()];
+    if (!resolved) return;
+    const value = source[resolved];
     if (value !== undefined && value !== null && value !== '') {
-      actual[fieldKey] = value;
+      mapped[fieldKey] = value;
     }
   });
+
+  Object.entries(ACT_VIEW_TO_FIELD_MAP).forEach(([viewKey, fieldKey]) => {
+    if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(fieldKey)) return;
+    const value = source[viewKey];
+    if (value !== undefined && value !== null && value !== '') {
+      mapped[fieldKey] = value;
+    }
+  });
+
+  if ((mapped.VPPosnText === null || mapped.VPPosnText === undefined || mapped.VPPosnText === '') && mapped.VPPositionText !== undefined) {
+    mapped.VPPosnText = mapped.VPPositionText;
+  }
+
+  return mapped;
+}
+
+function mapActualFromViewRow(
+  row: Record<string, any> | undefined,
+) {
+  const actual: Record<string, string | number | null> = Object.fromEntries(
+    Array.from(ALLOWED_HARD_CODED_ACT_FIELDS).map((key) => [key, null]),
+  );
+  if (!row) return actual;
+
+  Object.assign(actual, mapSourceToUiFields(row));
+
+  const rawParamset = getRowValue(row as Record<string, unknown>, ['paramset']);
+  if (rawParamset) {
+    const paramset = parseStdParamset(rawParamset) as Record<string, any>;
+    Object.assign(actual, mapSourceToUiFields(paramset));
+  }
+
   return actual;
 }
 
 function pickMetaFromRow(row?: Record<string, any>) {
   if (!row) {
-    return { MchID: 'ZE-3600', MoldID: 'MOLD-DUMMY' };
+    return { MchID: null, MoldID: null };
   }
   const keyMap: Record<string, string> = {};
   for (const key of Object.keys(row)) {
     keyMap[key.toLowerCase()] = key;
   }
-  const mchKey = keyMap['mchid'] || keyMap['machine_id'] || keyMap['machineid'];
+  const mchKey = keyMap['mchid'] || keyMap['machine_id'] || keyMap['machineid'] || keyMap['machineid'];
   const moldKey = keyMap['moldid'] || keyMap['mold_id'];
   return {
-    MchID: mchKey ? String(row[mchKey]) : 'ZE-3600',
-    MoldID: moldKey ? String(row[moldKey]) : 'MOLD-DUMMY',
+    MchID: mchKey ? String(row[mchKey]) : null,
+    MoldID: moldKey ? String(row[moldKey]) : null,
   };
 }
 
-export async function getZhafirActualFromView(paraId?: string) {
-  const sqlQuery = `
-    SELECT TOP 1 *
-    FROM IoT.dbo.v_machine_paramset_detail
-    ORDER BY id DESC
-  `;
-  const rows = await queryDatabase(sqlQuery);
-  const row = rows?.[0] as Record<string, any> | undefined;
-  const actual = mapActualFromViewRow(row, hardCodedActRuntimeValues);
+export async function getZhafirActualFromView(paraId?: string, machineId?: string) {
+  const resolvedMachineId = (machineId || '').trim();
+  const queries = resolvedMachineId
+    ? [
+      `
+        SELECT TOP 1 *
+        FROM IoT.dbo.MachineParameterSettingTRX
+        WHERE machineId = @MachineID
+        ORDER BY created_at DESC, id DESC
+      `,
+    ]
+    : [
+      `
+        SELECT TOP 1 *
+        FROM IoT.dbo.MachineParameterSettingTRX
+        ORDER BY created_at DESC, id DESC
+      `,
+    ];
+
+  let row: Record<string, any> | undefined;
+  let lastError: string | null = null;
+
+  for (const sqlQuery of queries) {
+    try {
+      const rows = resolvedMachineId
+        ? await queryDatabase(sqlQuery, { MachineID: resolvedMachineId })
+        : await queryDatabase(sqlQuery);
+      row = rows?.[0] as Record<string, any> | undefined;
+      if (row) break;
+    } catch (error) {
+      lastError = (error as Error).message;
+    }
+  }
+
+  if (!row && resolvedMachineId && lastError) {
+    throw new Error(lastError);
+  }
+
+  const actual = mapActualFromViewRow(row);
+  const meta = pickMetaFromRow(row);
+  if (resolvedMachineId) {
+    meta.MchID = resolvedMachineId;
+  }
 
   return {
     paraId: paraId || 'ZHF-STD-001',
     actualDate: new Date().toISOString(),
-    meta: pickMetaFromRow(row),
+    meta,
     values: actual,
   };
 }
 
-export function updateHardcodedActField(field: string, value: number | string) {
+export async function getZhafirActualFromViewByHour(
+  paraId: string | undefined,
+  machineId: string,
+  date: string,
+  hour: number,
+) {
+  const resolvedMachineId = (machineId || '').trim();
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required');
+  }
+
+  const sqlQuery = `
+    SELECT TOP 1 *
+    FROM IoT.dbo.MachineParameterSettingTRX
+    WHERE machineId = @MachineID
+      AND CAST(created_at AS date) = CAST(@DateParam AS date)
+      AND DATEPART(hour, created_at) = @HourParam
+    ORDER BY created_at DESC, id DESC
+  `;
+  const rows = await queryDatabase(sqlQuery, {
+    MachineID: resolvedMachineId,
+    DateParam: date,
+    HourParam: hour,
+  });
+  const row = rows?.[0] as Record<string, any> | undefined;
+  const actual = mapActualFromViewRow(row);
+  const meta = pickMetaFromRow(row);
+  meta.MchID = resolvedMachineId;
+
+  return {
+    paraId: paraId || 'ZHF-STD-001',
+    actualDate: row?.created_at ? new Date(String(row.created_at)).toISOString() : new Date().toISOString(),
+    meta,
+    values: actual,
+  };
+}
+
+export async function getZhafirAvailableHours(machineId: string, date: string) {
+  const resolvedMachineId = (machineId || '').trim();
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required');
+  }
+
+  const sqlQuery = `
+    SELECT DISTINCT DATEPART(hour, created_at) AS hour_slot
+    FROM IoT.dbo.MachineParameterSettingTRX
+    WHERE machineId = @MachineID
+      AND CAST(created_at AS date) = CAST(@DateParam AS date)
+    ORDER BY hour_slot ASC
+  `;
+  const rows = await queryDatabase(sqlQuery, {
+    MachineID: resolvedMachineId,
+    DateParam: date,
+  });
+
+  const hours = (rows || [])
+    .map((r: any) => Number(r.hour_slot))
+    .filter((v: number) => Number.isInteger(v) && v >= 0 && v <= 23);
+
+  return {
+    machineId: resolvedMachineId,
+    date,
+    hours,
+  };
+}
+
+export async function checkZhafirParamsetExists(machineId: string) {
+  const trxQueries = [
+    `SELECT TOP 1 machineId FROM IoT.dbo.MachineParameterSettingTRX WHERE machineId = @MachineID`,
+  ];
+  const stdQueries = [
+    `SELECT TOP 1 machineId FROM ${MACHINE_STD_TABLE} WHERE machineId = @MachineID`,
+  ];
+  const queries = [...trxQueries, ...stdQueries];
+
+  let lastError: string | null = null;
+  let anySuccess = false;
+  for (const sqlQuery of queries) {
+    try {
+      const rows = await queryDatabase(sqlQuery, { MachineID: machineId });
+      anySuccess = true;
+      if (Array.isArray(rows) && rows.length > 0) {
+        return {
+          machineId,
+          exists: true,
+        };
+      }
+    } catch (error) {
+      lastError = (error as Error).message;
+    }
+  }
+
+  if (anySuccess) {
+    return {
+      machineId,
+      exists: false,
+    };
+  }
+
+  throw new Error(lastError || 'Failed to check machine id');
+}
+
+export async function updateHardcodedActField(field: string, value: number | string, machineId?: string) {
   if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(field)) {
     throw new Error(`Field "${field}" is not supported for manual ACT update.`);
   }
@@ -635,20 +972,27 @@ export function updateHardcodedActField(field: string, value: number | string) {
     throw new Error(`Field "${field}" must be numeric.`);
   }
 
-  hardCodedActRuntimeValues = {
-    ...hardCodedActRuntimeValues,
+  const resolvedMachineId = (machineId || '').trim();
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required for ACT save');
+  }
+  markZhafirManualChange(resolvedMachineId);
+
+  const payload: Record<string, unknown> = {
     [field]: parsedValue,
   };
-  saveRuntimeValuesToFile();
+  const inserted = await insertZhafirActual('ZHF-STD-001', payload);
+  const saved = Array.isArray((inserted as any).savedColumns) && (inserted as any).savedColumns.length > 0;
 
   return {
+    machineId: resolvedMachineId,
     field,
-    value: hardCodedActRuntimeValues[field],
-    message: 'Hardcoded ACT value updated',
+    value: parsedValue,
+    message: saved ? 'ACT value saved to database' : 'ACT field is not available in ParaSetTRX schema (skipped)',
   };
 }
 
-export function updateHardcodedStdField(field: string, value: number | string) {
+export async function updateHardcodedStdField(field: string, value: number | string, machineId?: string, materialRaw?: string) {
   if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(field)) {
     throw new Error(`Field "${field}" is not supported for manual STD update.`);
   }
@@ -658,39 +1002,56 @@ export function updateHardcodedStdField(field: string, value: number | string) {
     throw new Error(`Field "${field}" must be numeric.`);
   }
 
-  hardCodedStdRuntimeValues = {
-    ...hardCodedStdRuntimeValues,
-    [field]: parsedValue,
-  };
-  saveRuntimeValuesToFile();
-
+  const resolvedMachineId = (machineId || '').trim();
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required for STD save');
+  }
+  markZhafirManualChange(resolvedMachineId);
+  const saved = await upsertStdParamsetByMachine(
+    resolvedMachineId,
+    { [field]: parsedValue },
+    undefined,
+    materialRaw,
+  );
   return {
+    machineId: resolvedMachineId,
     field,
-    value: hardCodedStdRuntimeValues[field],
-    message: 'Hardcoded STD value updated',
+    value: saved.paramset[field] ?? parsedValue,
+    message: `STD value ${saved.action === 'insert' ? 'inserted' : 'updated'} on MachineParameterSettingSTD`,
   };
 }
 
-export function updateHardcodedBulk(payload: {
+export async function updateHardcodedBulk(payload: {
   std?: Record<string, number | string>;
   act?: Record<string, number | string>;
-}) {
+}, machineId?: string, materialRaw?: string) {
   const stdEntries = Object.entries(payload.std || {});
   const actEntries = Object.entries(payload.act || {});
 
-  for (const [field, valueRaw] of stdEntries) {
-    const value = STRING_VALUE_FIELDS.has(field) ? String(valueRaw) : Number(valueRaw);
-    updateHardcodedStdField(field, value);
+  const resolvedMachineId = (machineId || '').trim();
+
+  if (stdEntries.length > 0) {
+    if (!resolvedMachineId) {
+      throw new Error('machine_id is required for STD save');
+    }
+    markZhafirManualChange(resolvedMachineId);
+    await upsertStdParamsetByMachine(
+      resolvedMachineId,
+      payload.std || {},
+      undefined,
+      materialRaw,
+    );
   }
 
   for (const [field, valueRaw] of actEntries) {
     const value = STRING_VALUE_FIELDS.has(field) ? String(valueRaw) : Number(valueRaw);
-    updateHardcodedActField(field, value);
+    await updateHardcodedActField(field, value, machineId);
   }
-  saveRuntimeValuesToFile();
 
   return {
-    message: 'Hardcoded STD/ACT bulk updated',
+    machineId: resolvedMachineId || null,
+    stdSavedTo: resolvedMachineId ? 'MachineParameterSettingSTD' : 'none',
+    message: 'STD/ACT bulk updated',
     updatedStdCount: stdEntries.length,
     updatedActCount: actEntries.length,
   };
@@ -700,41 +1061,28 @@ export async function upsertZhafirStd(
   paraId: string,
   payload: Record<string, unknown>,
   section?: string,
+  machineId?: string,
+  materialRaw?: string,
 ) {
-  const columns = resolveColumns(section);
-  const allowedPayload = normalizePayload(payload, columns);
-  const payloadKeys = Object.keys(allowedPayload);
-
-  const setClauses = ['ParaDate = GETDATE()', 'Active = 1'];
-  const insertColumns = ['ParaID', 'ParaDate', 'Active'];
-  const insertValues = ['@ParaID', 'GETDATE()', '1'];
-
-  for (const key of payloadKeys) {
-    setClauses.push(`${key} = @${key}`);
-    insertColumns.push(key);
-    insertValues.push(`@${key}`);
+  if (!machineId || !machineId.trim()) {
+    throw new Error('machine_id is required for STD save');
   }
+  markZhafirManualChange(machineId.trim());
 
-  const sqlQuery = `
-    IF EXISTS (SELECT 1 FROM IoT.dbo.ParaSetMST WHERE ParaID = @ParaID)
-    BEGIN
-      UPDATE IoT.dbo.ParaSetMST
-      SET ${setClauses.join(', ')}
-      WHERE ParaID = @ParaID;
-    END
-    ELSE
-    BEGIN
-      INSERT INTO IoT.dbo.ParaSetMST (${insertColumns.join(', ')})
-      VALUES (${insertValues.join(', ')});
-    END
-  `;
+  const saved = await upsertStdParamsetByMachine(
+    machineId.trim(),
+    payload,
+    section,
+    materialRaw,
+  );
 
-  await queryDatabase(sqlQuery, { ParaID: paraId, ...allowedPayload });
   return {
-    message: 'STD parameters saved',
+    message: `STD parameters ${saved.action === 'insert' ? 'inserted' : 'updated'}`,
     paraId,
     section: section || 'all',
-    savedColumns: payloadKeys,
+    machineId: machineId.trim(),
+    savedColumns: saved.savedColumns,
+    stdTableAction: saved.action,
   };
 }
 
@@ -744,8 +1092,27 @@ export async function insertZhafirActual(
   section?: string,
 ) {
   const columns = resolveColumns(section);
-  const allowedPayload = normalizePayload(payload, columns);
+  const allowedPayloadRaw = normalizePayload(payload, columns);
+  const allowedPayloadNoMeta = Object.fromEntries(
+    Object.entries(allowedPayloadRaw).filter(
+      ([key]) => !(ZHAFIR_META_FIELDS as readonly string[]).includes(key),
+    ),
+  ) as Record<string, string | number | null>;
+  const trxColumns = await getParaSetTrxColumns();
+  const allowedPayload = Object.fromEntries(
+    Object.entries(allowedPayloadNoMeta).filter(([key]) => trxColumns.has(key)),
+  ) as Record<string, string | number | null>;
   const payloadKeys = Object.keys(allowedPayload);
+
+  if (payloadKeys.length === 0) {
+    return {
+      message: 'ACT parameters skipped: no matching columns in ParaSetTRX',
+      paraId,
+      section: section || 'all',
+      savedColumns: [],
+      skippedColumns: Object.keys(allowedPayloadNoMeta),
+    };
+  }
 
   const insertColumns = ['ParaID', 'SettingDate', 'Active', ...payloadKeys];
   const insertValues = ['@ParaID', 'GETDATE()', '1', ...payloadKeys.map((key) => `@${key}`)];

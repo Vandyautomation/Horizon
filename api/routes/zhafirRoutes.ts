@@ -4,6 +4,11 @@ import {
   getZhafirSections,
   getZhafirStdActByParaId,
   getZhafirActualFromView,
+  getZhafirActualFromViewByHour,
+  getZhafirAvailableHours,
+  checkZhafirParamsetExists,
+  getZhafirMaterialContext,
+  updateLatestTrxMaterialByMachine,
   insertZhafirActual,
   updateHardcodedActField,
   updateHardcodedBulk,
@@ -36,12 +41,16 @@ zhafirRoutes.get('/', async (c) => {
   try {
     const paraId = c.req.query('paraId');
     const section = c.req.query('section');
+    const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
 
     if (!paraId) {
       return c.json({ error: 'paraId is required' }, 400);
     }
+    if (!machineId) {
+      return c.json({ error: 'machine_id (or machineId) is required' }, 400);
+    }
 
-    const data = await getZhafirStdActByParaId(paraId, section);
+    const data = await getZhafirStdActByParaId(paraId, section, machineId);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
@@ -51,7 +60,84 @@ zhafirRoutes.get('/', async (c) => {
 zhafirRoutes.get('/actual-view', async (c) => {
   try {
     const paraId = c.req.query('paraId') || undefined;
-    const data = await getZhafirActualFromView(paraId);
+    const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
+    const date = c.req.query('date') || undefined;
+    const hourRaw = c.req.query('hour') || undefined;
+    if (!machineId) {
+      return c.json({ error: 'machine_id (or machineId) is required' }, 400);
+    }
+    if (date && hourRaw !== undefined) {
+      const hour = Number(hourRaw);
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+        return c.json({ error: 'hour must be integer 0..23' }, 400);
+      }
+      const data = await getZhafirActualFromViewByHour(paraId, machineId, date, hour);
+      return c.json(data);
+    }
+    const data = await getZhafirActualFromView(paraId, machineId);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.get('/actual-hours', async (c) => {
+  try {
+    const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
+    const date = c.req.query('date') || undefined;
+    if (!machineId) {
+      return c.json({ error: 'machine_id (or machineId) is required' }, 400);
+    }
+    if (!date) {
+      return c.json({ error: 'date is required (YYYY-MM-DD)' }, 400);
+    }
+    const data = await getZhafirAvailableHours(machineId, date);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.get('/exists', async (c) => {
+  try {
+    const machineId = c.req.query('machine_id') || c.req.query('machineId');
+    if (!machineId) {
+      return c.json({ error: 'machine_id (or machineId) is required' }, 400);
+    }
+    const data = await checkZhafirParamsetExists(machineId);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.get('/material-context', async (c) => {
+  try {
+    const po = c.req.query('po');
+    if (!po) {
+      return c.json({ error: 'po is required' }, 400);
+    }
+    const data = await getZhafirMaterialContext(po);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.post('/material-type', async (c) => {
+  try {
+    const body = await c.req.json();
+    const machineId = (body.machine_id || body.machineId) as string | undefined;
+    const materialType = (body.materialType || body.type || body.material) as string | undefined;
+
+    if (!machineId) {
+      return c.json({ error: 'machine_id is required' }, 400);
+    }
+    if (!materialType) {
+      return c.json({ error: 'materialType is required' }, 400);
+    }
+
+    const data = await updateLatestTrxMaterialByMachine(machineId, materialType);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
@@ -63,13 +149,15 @@ zhafirRoutes.post('/std', async (c) => {
     const body = await c.req.json();
     const paraId = body.paraId as string | undefined;
     const section = body.section as string | undefined;
+    const machineId = (body.machine_id || body.machineId) as string | undefined;
+    const material = body.material as string | undefined;
     const values = ((body.values ?? body) as Record<string, unknown>) || {};
 
     if (!paraId) {
       return c.json({ error: 'paraId is required' }, 400);
     }
 
-    const data = await upsertZhafirStd(paraId, values, section);
+    const data = await upsertZhafirStd(paraId, values, section, machineId, material);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
@@ -99,12 +187,13 @@ zhafirRoutes.post('/manual-actual', async (c) => {
     const body = await c.req.json();
     const field = body.field as string | undefined;
     const valueRaw = body.value as number | string | undefined;
+    const machineId = (body.machine_id || body.machineId) as string | undefined;
 
     if (!field) {
       return c.json({ error: 'field is required' }, 400);
     }
 
-    const data = updateHardcodedActField(field, valueRaw as any);
+    const data = await updateHardcodedActField(field, valueRaw as any, machineId);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
@@ -116,12 +205,14 @@ zhafirRoutes.post('/manual-std', async (c) => {
     const body = await c.req.json();
     const field = body.field as string | undefined;
     const valueRaw = body.value as number | string | undefined;
+    const machineId = (body.machine_id || body.machineId) as string | undefined;
+    const material = body.material as string | undefined;
 
     if (!field) {
       return c.json({ error: 'field is required' }, 400);
     }
 
-    const data = updateHardcodedStdField(field, valueRaw as any);
+    const data = await updateHardcodedStdField(field, valueRaw as any, machineId, material);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
@@ -133,7 +224,9 @@ zhafirRoutes.post('/manual-bulk', async (c) => {
     const body = await c.req.json();
     const std = (body.std || {}) as Record<string, number | string>;
     const act = (body.act || {}) as Record<string, number | string>;
-    const data = updateHardcodedBulk({ std, act });
+    const machineId = (body.machine_id || body.machineId) as string | undefined;
+    const material = body.material as string | undefined;
+    const data = await updateHardcodedBulk({ std, act }, machineId, material);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
