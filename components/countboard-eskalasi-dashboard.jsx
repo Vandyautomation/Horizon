@@ -587,7 +587,7 @@ export default function CountboardEskalasi() {
 
                     <td className="px-4 py-3">
                       {item.TicketDate
-                        ? format(new Date(item.TicketDate), 'dd/MM/yyyy')
+                        ? format(new Date(item.TicketDate), 'dd/MM/yyyy - HH:mm')
                         : '-'}
                     </td>
 
