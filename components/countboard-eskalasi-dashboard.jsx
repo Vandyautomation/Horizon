@@ -548,7 +548,6 @@ export default function CountboardEskalasi() {
                 <th className="px-4 py-3 w-28">Ticket Date</th>
                 <th className="px-4 py-3 w-24">Mch ID</th>
                 <th className="px-4 py-3 w-40">Location</th>
-                <th className="px-4 py-3 w-32">Mch Number</th>
                 <th className="px-4 py-3">Problem</th>
                 <th className="px-4 py-3">Action Plan</th>
                 <th className="px-4 py-3 w-28">Dept</th>
@@ -558,16 +557,16 @@ export default function CountboardEskalasi() {
               </tr>
             </thead>
 
-            <tbody className="divide-y">
+            <tbody className="divide-y text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan="11" className="py-6 text-center">
+                  <td colSpan={11} className="py-4 text-center">
                     Loading...
                   </td>
                 </tr>
               ) : pagedTickets.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className="py-6 text-center">
+                  <td colSpan={11} className="py-4 text-center">
                     Tidak ada data
                   </td>
                 </tr>
@@ -575,31 +574,59 @@ export default function CountboardEskalasi() {
                 pagedTickets.map((item, i) => (
                   <tr
                     key={i}
-                    className="hover:bg-gray-50 cursor-pointer align-top"
+                    className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => {
                       setSelectedTicket(item)
                       setShowDialog(true)
                     }}
                   >
-                    <td className="px-4 py-3 text-center font-medium">
+                    {/* No */}
+                    <td className="px-3 py-2 text-center font-medium whitespace-nowrap">
                       {i + 1}
                     </td>
 
-                    <td className="px-4 py-3">
+                    {/* Date */}
+                    <td className="px-3 py-2 whitespace-nowrap">
                       {item.TicketDate
-                        ? format(new Date(item.TicketDate), 'dd/MM/yyyy - HH:mm')
+                        ? format(
+                            new Date(item.TicketDate),
+                            'dd/MM/yyyy - HH:mm'
+                          )
                         : '-'}
                     </td>
 
-                    <td className="px-4 py-3">{item.MchID}</td>
-                    <td className="px-4 py-3">{item.MchLoc || '-'}</td>
-                    <td className="px-4 py-3">{item.MchNumber || '-'}</td>
-                    <td className="px-4 py-3">{item.Problem}</td>
-                    <td className="px-4 py-3">{item.ActionPlan}</td>
-                    <td className="px-4 py-3">{item.AssignToDept}</td>
-                    <td className="px-4 py-3">{item.Message || '-'}</td>
+                    {/* Mch ID */}
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {item.MchID}
+                    </td>
 
-                    <td className="px-4 py-3 text-center">
+                    {/* Location */}
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {item.MchLoc || '-'}-{item.MchNumber || '-'}
+                    </td>
+
+                    {/* Problem */}
+                    <td className="px-3 py-2 max-w-[180px] truncate">
+                      {item.Problem}
+                    </td>
+
+                    {/* Action Plan */}
+                    <td className="px-3 py-2 max-w-[180px] truncate">
+                      {item.ActionPlan}
+                    </td>
+
+                    {/* Dept */}
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {item.AssignToDept}
+                    </td>
+
+                    {/* Message */}
+                    <td className="px-3 py-2 max-w-[150px] truncate">
+                      {item.Message || '-'}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       <span
                         className={`rounded-full px-2 py-1 text-xs font-medium ${
                           item.EskalasiStatus?.toLowerCase() === 'close'
@@ -616,7 +643,8 @@ export default function CountboardEskalasi() {
                       </span>
                     </td>
 
-                    <td className="px-4 py-3 text-center">
+                    {/* Eskalasi */}
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       <span className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-700">
                         Eskalasi
                       </span>
