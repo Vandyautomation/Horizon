@@ -387,6 +387,7 @@ export default function CountboardEskalasi() {
           >
             <option value="ALL">All Status</option>
             <option value="open">Open</option>
+            <option value="on progress">On Progress</option>
             <option value="close">Close</option>
           </select>
           {/* DEPT FILTER */}
