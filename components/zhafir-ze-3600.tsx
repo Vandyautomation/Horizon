@@ -3,6 +3,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
 
 type StdActValue = {
   std: number | string | null;
@@ -88,6 +97,19 @@ function fmt(value: number | string | null | undefined): string {
   return `${value}`;
 }
 
+function formatNumericDisplay(
+  value: number | string | null | undefined,
+  decimals = 2,
+): string {
+  if (value === null || value === undefined) return "";
+  if (value === "") return "";
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(num)) return `${value}`;
+  if (Number.isInteger(num)) return String(num);
+  const fixed = num.toFixed(decimals);
+  return fixed.replace(/\.?0+$/, "");
+}
+
 export default function ZhafirParameterForm() {
   const searchParams = useSearchParams();
   const machineId = searchParams.get("machine_id") || "";
@@ -130,6 +152,7 @@ export default function ZhafirParameterForm() {
   const [materialContext, setMaterialContext] = useState<MaterialContext | null>(null);
   const [selectedMaterialType, setSelectedMaterialType] = useState<string>("");
   const [materialTypeSaving, setMaterialTypeSaving] = useState(false);
+  const [materialTypeLoading, setMaterialTypeLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const now = new Date();
     const y = now.getFullYear();
@@ -146,6 +169,12 @@ export default function ZhafirParameterForm() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(
     () => Object.fromEntries(SECTION_KEYS.map((key) => [key, true])),
   );
+  const materialTypeOptions = useMemo(() => {
+    if (selectedMaterialType && !MATERIAL_TYPE_OPTIONS.includes(selectedMaterialType)) {
+      return [selectedMaterialType, ...MATERIAL_TYPE_OPTIONS];
+    }
+    return MATERIAL_TYPE_OPTIONS;
+  }, [selectedMaterialType]);
 
   const baseUrl = useMemo(
     () => process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:9999",
@@ -400,43 +429,94 @@ export default function ZhafirParameterForm() {
   }, [baseUrl, poNumber]);
 
   useEffect(() => {
-    if (!materialContext?.materialType) {
+    let active = true;
+    const REQUEST_TIMEOUT_MS = 5000;
+    const materialId = materialContext?.materialId;
+
+    if (!materialId) {
       setSelectedMaterialType("");
       return;
     }
-    const normalized = materialContext.materialType.trim().toUpperCase();
-    const found = MATERIAL_TYPE_OPTIONS.find((x) => x.toUpperCase() === normalized);
-    setSelectedMaterialType(found || "");
-  }, [materialContext?.materialType]);
+    if (isEditMode) return;
 
-  const resolveMaterialTypeSaveCandidates = () => {
-    const trimmed = (baseUrl || "").replace(/\/+$/, "");
-    const normalized = trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
-    const unique = new Set<string>();
-    if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/material-type`);
-    unique.add("http://localhost:9999/api/zhafir-ze-3600/material-type");
-    unique.add("http://127.0.0.1:9999/api/zhafir-ze-3600/material-type");
-    unique.add("/be/api/zhafir-ze-3600/material-type");
-    unique.add("/api/zhafir-ze-3600/material-type");
-    return Array.from(unique);
-  };
+    const buildRoutingTypeCandidates = () => {
+      const trimmed = (baseUrl || "").replace(/\/+$/, "");
+      const normalized = trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
+      const q = `?material_id=${encodeURIComponent(materialId)}`;
+      const unique = new Set<string>();
+      if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/material-type-routing${q}`);
+      unique.add("http://localhost:9999/api/zhafir-ze-3600/material-type-routing" + q);
+      unique.add("http://127.0.0.1:9999/api/zhafir-ze-3600/material-type-routing" + q);
+      unique.add("/be/api/zhafir-ze-3600/material-type-routing" + q);
+      unique.add("/api/zhafir-ze-3600/material-type-routing" + q);
+      return Array.from(unique);
+    };
+
+    const fetchWithTimeout = async (url: string) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        return await fetch(url, { cache: "no-store", signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    const loadRoutingType = async () => {
+      setMaterialTypeLoading(true);
+      try {
+        for (const url of buildRoutingTypeCandidates()) {
+          try {
+            const res = await fetchWithTimeout(url);
+            if (!res.ok) continue;
+            const data = (await res.json()) as { materialType?: string | null };
+            if (!active) return;
+            const normalized = (data.materialType || "").trim().toUpperCase();
+            setSelectedMaterialType(normalized || "");
+            return;
+          } catch {
+            // try next candidate
+          }
+        }
+        if (active) setSelectedMaterialType("");
+      } finally {
+        if (active) setMaterialTypeLoading(false);
+      }
+    };
+
+    loadRoutingType();
+    return () => {
+      active = false;
+    };
+  }, [baseUrl, materialContext?.materialId, isEditMode]);
 
   const handleMaterialTypeChange = async (value: string) => {
     setSelectedMaterialType(value);
-    if (!machineId || !value) return;
+    const materialId = materialContext?.materialId;
+    if (!machineId || !materialId || !value) return;
 
     setMaterialTypeSaving(true);
     setError(null);
     let lastError = "unknown";
     try {
       let saved = false;
-      for (const url of resolveMaterialTypeSaveCandidates()) {
+      const trimmed = (baseUrl || "").replace(/\/+$/, "");
+      const normalized = trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
+      const candidateUrls = new Set<string>();
+      if (normalized) candidateUrls.add(`${normalized}/api/zhafir-ze-3600/material-type-routing`);
+      candidateUrls.add("http://localhost:9999/api/zhafir-ze-3600/material-type-routing");
+      candidateUrls.add("http://127.0.0.1:9999/api/zhafir-ze-3600/material-type-routing");
+      candidateUrls.add("/be/api/zhafir-ze-3600/material-type-routing");
+      candidateUrls.add("/api/zhafir-ze-3600/material-type-routing");
+
+      for (const url of Array.from(candidateUrls)) {
         try {
           const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               machine_id: machineId,
+              material_id: materialId,
               materialType: value,
             }),
           });
@@ -568,6 +648,14 @@ export default function ZhafirParameterForm() {
     setEditPasswordError(null);
     setShowEditPasswordModal(true);
   };
+  const canSelectMaterialType = Boolean(
+    !isEditMode &&
+      machineId &&
+      materialContext?.materialId &&
+      !materialTypeSaving &&
+      !materialTypeLoading &&
+      !selectedMaterialType,
+  );
 
   const resolveBulkSaveCandidates = () => {
     const trimmed = (baseUrl || "").replace(/\/+$/, "");
@@ -676,18 +764,27 @@ export default function ZhafirParameterForm() {
 
   return (
     <div className="p-6 text-sm">
-      <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Link href="/" className="font-medium text-slate-500 hover:text-slate-800">
-            Home
-          </Link>
-          <span className="text-slate-300">{">"}</span>
-          <Link href={countboardHref} className="font-medium text-slate-500 hover:text-slate-800">
-            Countboard Injection
-          </Link>
-          <span className="text-slate-300">{">"}</span>
-          <span className="font-semibold text-slate-900">Zhafir ZE-3600</span>
-        </div>
+      <div className="mb-4 flex h-12 items-center gap-2 border-b px-2">
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/">Home</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href={countboardHref}>Countboard Injection</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Zhafir ZE-3600</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       <div className="mb-4 rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-4">
@@ -723,16 +820,19 @@ export default function ZhafirParameterForm() {
             <select
               value={selectedMaterialType}
               onChange={(e) => handleMaterialTypeChange(e.target.value)}
-              disabled={!machineId || materialTypeSaving}
+              disabled={!canSelectMaterialType}
               className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm font-medium text-gray-900 outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
             >
               <option value="">Pilih type</option>
-              {MATERIAL_TYPE_OPTIONS.map((option) => (
+              {materialTypeOptions.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
               ))}
             </select>
+            {materialTypeLoading && !materialTypeSaving && (
+              <div className="mt-1 text-[10px] text-gray-500">Loading...</div>
+            )}
             {materialTypeSaving && (
               <div className="mt-1 text-[10px] text-gray-500">Saving...</div>
             )}
@@ -1550,7 +1650,8 @@ function Input({
 }: InputProps) {
   const hasLabel = Boolean(label);
   const stdValue = fieldKey ? ((stdDraft?.[fieldKey]) ?? fmt(values[fieldKey]?.std)) : "";
-  const actValue = fieldKey ? ((actDraft?.[fieldKey]) ?? fmt(values[fieldKey]?.act)) : "";
+  const actRawValue = fieldKey ? ((actDraft?.[fieldKey]) ?? values[fieldKey]?.act ?? "") : "";
+  const actValue = fieldKey ? formatNumericDisplay(actRawValue, 2) : "";
   const currentSavingKey = savingKey ?? savingField ?? null;
   const isSavingStd = fieldKey ? currentSavingKey === `std:${fieldKey}` : false;
   const isSavingAct = fieldKey ? currentSavingKey === `actual:${fieldKey}` || currentSavingKey === fieldKey : false;

@@ -197,6 +197,65 @@ export async function updateLatestTrxMaterialByMachine(machineId: string, materi
   };
 }
 
+export async function getZhafirMaterialTypeFromRouting(materialId: string) {
+  const resolvedMaterialId = (materialId || '').trim();
+  if (!resolvedMaterialId) {
+    throw new Error('material_id is required');
+  }
+
+  const rows = await queryDatabase(
+    `
+      SELECT TOP 1 materialtype
+      FROM IoT.dbo.routing
+      WHERE material_id = @MaterialId
+      ORDER BY created_at DESC, id DESC
+    `,
+    { MaterialId: resolvedMaterialId },
+  );
+
+  const row = rows?.[0] as Record<string, unknown> | undefined;
+  const materialType = row?.materialtype ? String(row.materialtype) : null;
+
+  return {
+    materialId: resolvedMaterialId,
+    materialType,
+  };
+}
+
+export async function updateRoutingMaterialTypeByMaterialId(
+  materialId: string,
+  materialType: string,
+) {
+  const resolvedMaterialId = (materialId || '').trim();
+  const resolvedMaterialType = (materialType || '').trim();
+  if (!resolvedMaterialId) {
+    throw new Error('material_id is required');
+  }
+  if (!resolvedMaterialType) {
+    throw new Error('materialType is required');
+  }
+
+  await queryDatabase(
+    `
+      UPDATE IoT.dbo.routing
+      SET materialtype = @MaterialType,
+          modified_at = GETDATE()
+      WHERE material_id = @MaterialId
+        AND (materialtype IS NULL OR LTRIM(RTRIM(materialtype)) = '')
+    `,
+    {
+      MaterialId: resolvedMaterialId,
+      MaterialType: resolvedMaterialType,
+    },
+  );
+
+  return {
+    materialId: resolvedMaterialId,
+    materialType: resolvedMaterialType,
+    updated: true,
+  };
+}
+
 async function syncHourlyTrxMaterialFromLatestValue() {
   const machines = await queryDatabase(
     `
