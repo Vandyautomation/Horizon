@@ -78,3 +78,29 @@ body {
     @apply bg-background text-foreground;
   }
 }
+@keyframes softWarningGlow {
+  0%, 100% {
+    background-color: rgba(239, 68, 68, 0.05);
+  }
+  50% {
+    background-color: rgba(239, 68, 68, 0.15);
+  }
+}
+
+.blink-red {
+  animation: softWarningGlow 1.8s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+@keyframes smoothFadeWarning {
+  0%, 100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.warning-blink {
+  animation: smoothFadeWarning 1.8s ease-in-out infinite;
+}
