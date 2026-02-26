@@ -6,10 +6,10 @@ import {
   getZhafirActualFromView,
   getZhafirActualFromViewByHour,
   getZhafirAvailableHours,
+  getZhafirMaterialTypeFromRouting,
   checkZhafirParamsetExists,
   getZhafirMaterialContext,
   updateLatestTrxMaterialByMachine,
-  getZhafirMaterialTypeFromRouting,
   updateRoutingMaterialTypeByMaterialId,
   insertZhafirActual,
   updateHardcodedActField,
@@ -125,13 +125,10 @@ zhafirRoutes.get('/material-context', async (c) => {
     return c.json({ error: (error as Error).message }, 400);
   }
 });
-
 zhafirRoutes.get('/material-type-routing', async (c) => {
   try {
     const materialId = c.req.query('material_id') || c.req.query('materialId');
-    if (!materialId) {
-      return c.json({ error: 'material_id is required' }, 400);
-    }
+    if (!materialId) return c.json({ error: 'material_id is required' }, 400);
     const data = await getZhafirMaterialTypeFromRouting(materialId);
     return c.json(data);
   } catch (error) {
@@ -146,15 +143,9 @@ zhafirRoutes.post('/material-type-routing', async (c) => {
     const materialId = (body.material_id || body.materialId) as string | undefined;
     const materialType = (body.materialType || body.type || body.material) as string | undefined;
 
-    if (!machineId) {
-      return c.json({ error: 'machine_id is required' }, 400);
-    }
-    if (!materialId) {
-      return c.json({ error: 'material_id is required' }, 400);
-    }
-    if (!materialType) {
-      return c.json({ error: 'materialType is required' }, 400);
-    }
+    if (!machineId) return c.json({ error: 'machine_id is required' }, 400);
+    if (!materialId) return c.json({ error: 'material_id is required' }, 400);
+    if (!materialType) return c.json({ error: 'materialType is required' }, 400);
 
     const routingUpdate = await updateRoutingMaterialTypeByMaterialId(materialId, materialType);
     const trxUpdate = await updateLatestTrxMaterialByMachine(machineId, materialType);

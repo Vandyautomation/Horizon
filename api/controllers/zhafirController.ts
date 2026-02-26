@@ -5,7 +5,15 @@ const ZHAFIR_SECTIONS = {
   holding: ['Hold1Press', 'Hold1To', 'Hold1Velo', 'Hold2Press', 'Hold2To', 'Hold2Velo', 'Hold3Press', 'Hold3To', 'Hold3Velo'],
   charging: ['Plasticise1To', 'Plasticise1Velo', 'Plasticise1Press', 'AfterPlasticisePress', 'AfterPlasticiseTime', 'AfterPlasticiseVelo', 'Plasticise1BackPress', 'Plasticise2To', 'Plasticise2Velo', 'Plasticise2Press', 'AfterPlasticisePosition', 'AfterPlasticiseSpeed', 'AfterPlasticiseBackPress'],
   clamp_mold: ['Close1Press', 'Close1To', 'Close1Velo', 'Close2Press', 'Close2To', 'Close2Velo', 'ProtectPress', 'ProtectTo', 'ProtectVelo', 'HiPressPress', 'HiPressVelo', 'MoldProtectionTime', 'Open1Press', 'Open1To', 'Open1Velo', 'Open2Press', 'Open2To', 'Open2Velo', 'Open3Press', 'Open3To', 'Open3Velo', 'Open4Press', 'Open4To', 'Open4Velo', 'Close0To', 'Close0Velo', 'CloseLPTo', 'CloseLPVelo', 'CloseHPTo', 'CloseHPVelo', 'CloseSETo', 'CloseSEVelo', 'OpenS5To', 'OpenS5Velo', 'OpenS4To', 'OpenS4Velo'],
-  temperature: ['Nozzle', 'Barrel1', 'Barrel2', 'Barrel3', 'Barrel4', 'Barrel5', 'Barrel6', 'HopperReal', 'HopperSet', 'HopperMax', 'HopperMin'],
+  temperature: [
+    'Nozzle',
+    'Barrel1', 'Barrel2', 'Barrel3', 'Barrel4', 'Barrel5', 'Barrel6',
+    'Temperature_Real_Zone1', 'Temperature_Real_Zone2', 'Temperature_Real_Zone3',
+    'Temperature_Real_Zone4', 'Temperature_Real_Zone5', 'Temperature_Real_Zone6',
+    'Temperature_Set_Zone1', 'Temperature_Set_Zone2', 'Temperature_Set_Zone3',
+    'Temperature_Set_Zone4', 'Temperature_Set_Zone5', 'Temperature_Set_Zone6',
+    'HopperReal', 'HopperSet', 'HopperMax', 'HopperMin',
+  ],
   ejector_core: ['EjectorMode', 'Forward1Press', 'Forward1To', 'Forward1Velo', 'Forward2Press', 'Forward2To', 'Forward2Velo', 'Backward1Press', 'Backward1To', 'Backward1Velo', 'Backward2Press', 'Backward2To', 'Backward2Velo'],
   core_a: [
     'Core_In_Mode_A',
@@ -196,7 +204,6 @@ export async function updateLatestTrxMaterialByMachine(machineId: string, materi
     message: 'Material updated on latest trx row',
   };
 }
-
 export async function getZhafirMaterialTypeFromRouting(materialId: string) {
   const resolvedMaterialId = (materialId || '').trim();
   if (!resolvedMaterialId) {
@@ -255,7 +262,6 @@ export async function updateRoutingMaterialTypeByMaterialId(
     updated: true,
   };
 }
-
 async function syncHourlyTrxMaterialFromLatestValue() {
   const machines = await queryDatabase(
     `
@@ -785,18 +791,18 @@ const ACT_VIEW_TO_FIELD_MAP: Record<string, string> = {
   Core_Press_AOut: 'CoreA_Out_Pressure',
 
   // TEMPERATURE aliases
-  Temperature_Real_Zone1: 'Barrel1',
-  Temperature_Real_Zone2: 'Barrel2',
-  Temperature_Real_Zone3: 'Barrel3',
-  Temperature_Real_Zone4: 'Barrel4',
-  Temperature_Real_Zone5: 'Barrel5',
-  Temperature_Real_Zone6: 'Barrel6',
-  Temperature_Set_Zone1: 'Barrel1',
-  Temperature_Set_Zone2: 'Barrel2',
-  Temperature_Set_Zone3: 'Barrel3',
-  Temperature_Set_Zone4: 'Barrel4',
-  Temperature_Set_Zone5: 'Barrel5',
-  Temperature_Set_Zone6: 'Barrel6',
+  Temperature_Real_Zone1: 'Temperature_Real_Zone1',
+  Temperature_Real_Zone2: 'Temperature_Real_Zone2',
+  Temperature_Real_Zone3: 'Temperature_Real_Zone3',
+  Temperature_Real_Zone4: 'Temperature_Real_Zone4',
+  Temperature_Real_Zone5: 'Temperature_Real_Zone5',
+  Temperature_Real_Zone6: 'Temperature_Real_Zone6',
+  Temperature_Set_Zone1: 'Temperature_Set_Zone1',
+  Temperature_Set_Zone2: 'Temperature_Set_Zone2',
+  Temperature_Set_Zone3: 'Temperature_Set_Zone3',
+  Temperature_Set_Zone4: 'Temperature_Set_Zone4',
+  Temperature_Set_Zone5: 'Temperature_Set_Zone5',
+  Temperature_Set_Zone6: 'Temperature_Set_Zone6',
 };
 
 function mapSourceToUiFields(source?: Record<string, any>) {
@@ -827,6 +833,30 @@ function mapSourceToUiFields(source?: Record<string, any>) {
 
   if ((mapped.VPPosnText === null || mapped.VPPosnText === undefined || mapped.VPPosnText === '') && mapped.VPPositionText !== undefined) {
     mapped.VPPosnText = mapped.VPPositionText;
+  }
+
+  // Temperature compatibility:
+  // - Prefer dedicated Real/Set keys when present.
+  // - Fallback to BarrelN for legacy payloads.
+  // - Keep BarrelN filled for backward compatibility consumers.
+  for (let i = 1; i <= 6; i += 1) {
+    const barrelKey = `Barrel${i}`;
+    const realKey = `Temperature_Real_Zone${i}`;
+    const setKey = `Temperature_Set_Zone${i}`;
+
+    if ((mapped[realKey] === null || mapped[realKey] === undefined || mapped[realKey] === '') && mapped[barrelKey] !== undefined) {
+      mapped[realKey] = mapped[barrelKey];
+    }
+    if ((mapped[setKey] === null || mapped[setKey] === undefined || mapped[setKey] === '') && mapped[barrelKey] !== undefined) {
+      mapped[setKey] = mapped[barrelKey];
+    }
+    if ((mapped[barrelKey] === null || mapped[barrelKey] === undefined || mapped[barrelKey] === '')) {
+      if (mapped[setKey] !== undefined && mapped[setKey] !== null && mapped[setKey] !== '') {
+        mapped[barrelKey] = mapped[setKey];
+      } else if (mapped[realKey] !== undefined && mapped[realKey] !== null && mapped[realKey] !== '') {
+        mapped[barrelKey] = mapped[realKey];
+      }
+    }
   }
 
   return mapped;
@@ -945,6 +975,7 @@ export async function getZhafirActualFromViewByHour(
   });
   const row = rows?.[0] as Record<string, any> | undefined;
   const actual = mapActualFromViewRow(row);
+
   const meta = pickMetaFromRow(row);
   meta.MchID = resolvedMachineId;
 
