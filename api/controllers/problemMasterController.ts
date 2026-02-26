@@ -152,7 +152,7 @@ export async function getProblem(name: string | undefined, groupId: string | und
 export async function getProblemsByGroupForProcess(groupId: string, process: string | undefined) {
     try {
         const sqlQuery = `
-            SELECT p.id, p.name, p.problem_group_id, p.color
+            SELECT p.id, p.name, p.problem_group_id, p.color, p.process
             FROM IoT.dbo.problem_problem p
             WHERE p.problem_group_id = @groupId
             ORDER BY p.id ASC

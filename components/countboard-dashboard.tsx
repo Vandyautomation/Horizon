@@ -77,6 +77,7 @@ type MachineDetail = {
   locationId: number
   locationName: string
   machineStatus: string
+  Process?: string
 }
 
 type HourlyData = {
@@ -165,11 +166,11 @@ type ProblemGroup = {
 }
 
 type Problem = {
-  id: number
+  id: string
   name: string
-  problem_group_id: number
-  color?: string
-  process?: string
+  problem_group_id: string
+  color: string
+  process: string
 }
 
 type Todo = {
@@ -279,7 +280,7 @@ export default function CountboardDashboard() {
     setSearchSPV('')
   }, [selectedAssignTo])
 
-  console.log('usersSPV:', usersSPV)
+  // console.log('usersSPV:', usersSPV)
 
   const [selectedLocation, setSelectedLocation] = useState<string>('')
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('')
@@ -382,10 +383,10 @@ export default function CountboardDashboard() {
       revalidateOnReconnect: false,
     }
   )
-
+console.log('problemRes:', problemRes)
   const rawProblems = problemRes as Problem[] | undefined
   const problems: Problem[] = Array.isArray(rawProblems) ? rawProblems : []
-
+  console.log('problems:', problems)
   const { data: todoRes } = useSWR(
     selectedProblemId
       ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/todo/by-problem?problemId=${selectedProblemId}`
@@ -843,7 +844,7 @@ export default function CountboardDashboard() {
     categories,
     refetchStateData,
   ])
-
+  console.log(selectedMachine)
   // const handleOrangeTicketSubmit = useCallback(async () => {
   //   if (!selectedAssignTo || !selectedAssignBy) {
   //     toast.error('Pilih Assign To (Operator/Mekanik) dan Assign By (SPV)')
@@ -1212,19 +1213,20 @@ export default function CountboardDashboard() {
     mutate(taskDataKey)
   }, [taskDataKey])
 
-  const currentPo = Array.isArray(taskData) && taskData.length > 0
-    ? taskData[taskData.length - 1].po_name
-    : selectedPO?.poNumber || ''
+  const currentPo =
+    Array.isArray(taskData) && taskData.length > 0
+      ? taskData[taskData.length - 1].po_name
+      : selectedPO?.poNumber || ''
 
-  const currentMaterial = Array.isArray(hourlyData) &&
+  const currentMaterial =
+    Array.isArray(hourlyData) &&
     hourlyData &&
     hourlyData.filter((data) => data?.itemDesc !== null).length > 0
-    ? hourlyData
-        .filter((data) => data?.itemDesc !== null)
-        .slice(-1)[0].itemDesc
-    : selectedPO
-      ? `${selectedPO?.materialId} - ${selectedPO?.materialName}`
-      : ''
+      ? hourlyData.filter((data) => data?.itemDesc !== null).slice(-1)[0]
+          .itemDesc
+      : selectedPO
+        ? `${selectedPO?.materialId} - ${selectedPO?.materialName}`
+        : ''
 
   const handleOpenParameterSetting = async () => {
     if (!selectedMachine?.machineName) return
@@ -1246,7 +1248,10 @@ export default function CountboardDashboard() {
       params.set('material', currentMaterial)
     }
     try {
-      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/+$/, '')
+      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
+        /\/+$/,
+        ''
+      )
       const existsUrl = base
         ? `${base}/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
         : `/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
@@ -1814,7 +1819,17 @@ export default function CountboardDashboard() {
     return (
       <ErrorState message="Error loading machines. Please try again later." />
     )
-
+  console.log('Machine Process:', selectedMachine?.Process)
+  console.log('Selected Category:', selectedCategoryId)
+  console.log('Problems length:', problems?.length)
+  problems.forEach((p) => {
+    console.log(
+      'Problem process raw:',
+      JSON.stringify(p.process),
+      '| Machine process raw:',
+      JSON.stringify(selectedMachine?.Process)
+    )
+  })
   const renderNooeIndicators = (from_datetime: Date) => {
     const nooeForTime =
       noeeData?.filter((nooe) => {
@@ -2913,10 +2928,10 @@ export default function CountboardDashboard() {
                                       {row.problem && row.causes
                                         ? row.problem + ' ' + row.causes
                                         : row.causes
-                                        ? row.causes
-                                        : row.problem
-                                        ? row.problem
-                                        : ''}
+                                          ? row.causes
+                                          : row.problem
+                                            ? row.problem
+                                            : ''}
                                     </p>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -2924,10 +2939,10 @@ export default function CountboardDashboard() {
                                       {row.problem && row.causes
                                         ? row.problem + ' ' + row.causes
                                         : row.causes
-                                        ? row.causes
-                                        : row.problem
-                                        ? row.problem
-                                        : 'Click to add causes'}
+                                          ? row.causes
+                                          : row.problem
+                                            ? row.problem
+                                            : 'Click to add causes'}
                                     </p>
                                   </TooltipContent>
                                 </Tooltip>
@@ -2950,10 +2965,10 @@ export default function CountboardDashboard() {
                                       {row.action && row.comments
                                         ? row.action + ' ' + row.comments
                                         : row.comments
-                                        ? row.comments
-                                        : row.action
-                                        ? row.action
-                                        : ''}
+                                          ? row.comments
+                                          : row.action
+                                            ? row.action
+                                            : ''}
                                     </p>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -2961,10 +2976,10 @@ export default function CountboardDashboard() {
                                       {row.action && row.comments
                                         ? row.action + ' ' + row.comments
                                         : row.comments
-                                        ? row.comments
-                                        : row.action
-                                        ? row.action
-                                        : 'Click to add comments'}
+                                          ? row.comments
+                                          : row.action
+                                            ? row.action
+                                            : 'Click to add comments'}
                                     </p>
                                   </TooltipContent>
                                 </Tooltip>
@@ -3089,11 +3104,24 @@ export default function CountboardDashboard() {
                       <SelectValue placeholder="Pilih problem" />
                     </SelectTrigger>
                     <SelectContent>
-                      {problems.map((p) => (
-                        <SelectItem key={p.id} value={String(p.id)}>
-                          {p.name}
-                        </SelectItem>
-                      ))}
+                      {problems
+                        .filter((p) => {
+                          const matchCategory =
+                            String(p.problem_group_id) ===
+                            String(selectedCategoryId)
+                          const normalize = (val?: string) =>
+                            val?.trim().toLowerCase()
+                          const matchProcess =
+                            normalize(p.process) ===
+                            normalize(selectedMachine?.Process)
+
+                          return matchCategory && matchProcess
+                        })
+                        .map((p) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -3380,8 +3408,8 @@ export default function CountboardDashboard() {
            ${usersSPV.find((u) => u.id === selectedAssignBy)?.name}`
                                 : 'SPV'
                               : selectedAssignTo
-                              ? 'Pilih SPV'
-                              : 'Pilih Operator dulu'}
+                                ? 'Pilih SPV'
+                                : 'Pilih Operator dulu'}
 
                             <ChevronDown className="w-4 h-4 ml-2" />
                           </div>

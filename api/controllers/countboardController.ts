@@ -478,7 +478,7 @@ export async function getTickets() {
 export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
   let sqlQuery = `
     SELECT
-     t.TicketDate,
+   CONVERT(varchar, t.TicketDate, 120) AS TicketDate,
      t.MchID,
      m.MchNumber,
      m.MchLoc,
@@ -511,7 +511,6 @@ export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
 
   return await queryDatabase(sqlQuery, params)
 }
-
 
 export async function updateTicketEskalasi(
   mchId: string,
