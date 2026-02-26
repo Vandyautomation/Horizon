@@ -124,18 +124,18 @@ export default function CountboardEskalasi() {
   const pagedTickets = useMemo(() => {
     if (mode === 'day') {
       return [...filteredTickets].sort((a, b) => {
-        if (locationSort) {
+        if (activeSort === 'location') {
           const locCompare = (a.MchLoc || '').localeCompare(b.MchLoc || '')
-
-          if (locCompare !== 0) {
-            return locationSort === 'asc' ? locCompare : -locCompare
-          }
+          return locationSort === 'asc' ? locCompare : -locCompare
         }
 
-        const dateA = new Date(a.TicketDate)
-        const dateB = new Date(b.TicketDate)
+        if (activeSort === 'date') {
+          const dateA = new Date(a.TicketDate)
+          const dateB = new Date(b.TicketDate)
+          return dateSort === 'asc' ? dateA - dateB : dateB - dateA
+        }
 
-        return dateSort === 'asc' ? dateA - dateB : dateB - dateA
+        return 0
       })
     }
 
@@ -176,14 +176,11 @@ export default function CountboardEskalasi() {
           const dateA = new Date(a.TicketDate)
           const dateB = new Date(b.TicketDate)
 
-          return dateSort === 'asc'
-            ? dateA - dateB
-            : dateB - dateA
+          return dateSort === 'asc' ? dateA - dateB : dateB - dateA
         }
 
         return 0
-      })
-  }, [filteredTickets, timePage, range, mode, locationSort, dateSort])
+      })}, [filteredTickets, timePage, range, mode, locationSort, dateSort, activeSort])
 
   const pageLabel = useMemo(() => {
     if (!range?.from) return ''
@@ -249,7 +246,7 @@ export default function CountboardEskalasi() {
         const weekNumber = Math.ceil(
           (date.getDate() +
             new Date(date.getFullYear(), date.getMonth(), 1).getDay()) /
-          7
+            7
         )
         key = `Week ${weekNumber} - ${format(date, 'MMM yyyy')}`
       }
@@ -352,7 +349,7 @@ export default function CountboardEskalasi() {
         const weekNumber = Math.ceil(
           (submit.getDate() +
             new Date(submit.getFullYear(), submit.getMonth(), 1).getDay()) /
-          7
+            7
         )
         key = `Week ${weekNumber} - ${format(submit, 'MMM yyyy')}`
       }
@@ -392,9 +389,9 @@ export default function CountboardEskalasi() {
               📅
               {range?.from && range?.to
                 ? `${format(range.from, 'dd MMM yyyy')} - ${format(
-                  range.to,
-                  'dd MMM yyyy'
-                )}`
+                    range.to,
+                    'dd MMM yyyy'
+                  )}`
                 : 'Filter Tanggal'}
             </button>
 
@@ -480,8 +477,9 @@ export default function CountboardEskalasi() {
           <button
             key={m}
             onClick={() => setChartMode(m)}
-            className={`px-3 py-1 text-xs rounded-full border ${chartMode === m ? 'bg-blue-600 text-white' : 'bg-white'
-              }`}
+            className={`px-3 py-1 text-xs rounded-full border ${
+              chartMode === m ? 'bg-blue-600 text-white' : 'bg-white'
+            }`}
           >
             {m === 'day' ? 'Daily' : m === 'week' ? 'Weekly' : 'Monthly'}
           </button>
@@ -598,7 +596,7 @@ export default function CountboardEskalasi() {
                     <button
                       onClick={() => {
                         setActiveSort('date')
-                        setDateSort(prev => prev === 'asc' ? 'desc' : 'asc')
+                        setDateSort((prev) => (prev === 'asc' ? 'desc' : 'asc'))
                       }}
                     >
                       {dateSort === 'asc' ? '▲' : '▼'}
@@ -612,7 +610,9 @@ export default function CountboardEskalasi() {
                     <button
                       onClick={() => {
                         setActiveSort('location')
-                        setLocationSort(prev => prev === 'asc' ? 'desc' : 'asc')
+                        setLocationSort((prev) =>
+                          prev === 'asc' ? 'desc' : 'asc'
+                        )
                       }}
                     >
                       {locationSort === 'asc' ? '▲' : '▼'}
@@ -660,9 +660,9 @@ export default function CountboardEskalasi() {
                     <td className="px-3 py-2 whitespace-nowrap">
                       {item.TicketDate
                         ? format(
-                          new Date(item.TicketDate),
-                          'dd/MM/yyyy - HH:mm'
-                        )
+                            new Date(item.TicketDate),
+                            'dd/MM/yyyy - HH:mm'
+                          )
                         : '-'}
                     </td>
 
@@ -699,15 +699,16 @@ export default function CountboardEskalasi() {
                     {/* Status */}
                     <td className="px-3 py-2 text-center whitespace-nowrap">
                       <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${item.EskalasiStatus?.toLowerCase() === 'close'
-                          ? 'bg-red-100 text-red-700'
-                          : item.EskalasiStatus?.toLowerCase() ===
-                            'on progress'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : item.EskalasiStatus?.toLowerCase() === 'open'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-700'
-                          }`}
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${
+                          item.EskalasiStatus?.toLowerCase() === 'close'
+                            ? 'bg-red-100 text-red-700'
+                            : item.EskalasiStatus?.toLowerCase() ===
+                                'on progress'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : item.EskalasiStatus?.toLowerCase() === 'open'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-gray-100 text-gray-700'
+                        }`}
                       >
                         {item.EskalasiStatus || 'Open'}
                       </span>
