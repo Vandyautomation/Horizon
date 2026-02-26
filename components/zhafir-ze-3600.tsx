@@ -67,6 +67,8 @@ type InputProps = {
   label?: string
   pair?: boolean
   fieldKey?: string | null
+  valueSource?: 'std' | 'act'
+  readOnly?: boolean
   values: Record<string, StdActValue>
   stdDraft?: Record<string, string>
   actDraft?: Record<string, string>
@@ -91,6 +93,28 @@ const STRING_FIELDS = new Set([
 const SINGLE_VALUE_FIELDS = new Set([
   ...Array.from({ length: 16 }, (_, i) => `BeratUnit${i + 1}`),
   ...Array.from({ length: 14 }, (_, i) => `HeaterControl${i + 1}`),
+])
+const DB_ONLY_TEMPERATURE_FIELDS = new Set([
+  'Barrel1',
+  'Barrel2',
+  'Barrel3',
+  'Barrel4',
+  'Barrel5',
+  'Barrel6',
+  'Temperature_Real_Zone1',
+  'Temperature_Real_Zone2',
+  'Temperature_Real_Zone3',
+  'Temperature_Real_Zone4',
+  'Temperature_Real_Zone5',
+  'Temperature_Real_Zone6',
+  'Temperature_Set_Zone1',
+  'Temperature_Set_Zone2',
+  'Temperature_Set_Zone3',
+  'Temperature_Set_Zone4',
+  'Temperature_Set_Zone5',
+  'Temperature_Set_Zone6',
+  'HopperMax',
+  'HopperMin',
 ])
 
 function fmt(value: number | string | null | undefined): string {
@@ -752,9 +776,11 @@ export default function ZhafirParameterForm() {
     setSavingKey('bulk')
 
     const stdPayload: Record<string, number | string> = {}
-    const actPayload: Record<string, number | string> = {}
 
     for (const key of Object.keys(values)) {
+      if (DB_ONLY_TEMPERATURE_FIELDS.has(key)) {
+        continue
+      }
       if (SINGLE_VALUE_FIELDS.has(key)) {
         const singleRaw = stdDraft[key] ?? actDraft[key]
         const singleNumber = Number(singleRaw)
@@ -764,20 +790,16 @@ export default function ZhafirParameterForm() {
           return
         }
         stdPayload[key] = singleNumber
-        actPayload[key] = singleNumber
       } else if (STRING_FIELDS.has(key)) {
         stdPayload[key] = stdDraft[key] ?? ''
-        actPayload[key] = actDraft[key] ?? ''
       } else {
         const stdNumber = Number(stdDraft[key])
-        const actNumber = Number(actDraft[key])
-        if (Number.isNaN(stdNumber) || Number.isNaN(actNumber)) {
+        if (Number.isNaN(stdNumber)) {
           setSavingKey(null)
-          setError(`Nilai STD/ACT untuk "${key}" harus angka`)
+          setError(`Nilai STD untuk "${key}" harus angka`)
           return
         }
         stdPayload[key] = stdNumber
-        actPayload[key] = actNumber
       }
     }
 
@@ -791,7 +813,6 @@ export default function ZhafirParameterForm() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               std: stdPayload,
-              act: actPayload,
               machine_id: machineId || undefined,
               material:
                 materialContext?.materialId && selectedMaterialType
@@ -820,13 +841,16 @@ export default function ZhafirParameterForm() {
         const next = { ...prev }
         for (const key of Object.keys(prev)) {
           next[key] = {
-            std: stdPayload[key] as any,
-            act: actPayload[key] as any,
+            std:
+              key in stdPayload
+                ? (stdPayload[key] as any)
+                : (prev[key]?.std ?? null),
+            act: prev[key]?.act ?? null,
           }
         }
         return next
       })
-      setStatusMessage('Semua data STD/ACT berhasil disimpan.')
+      setStatusMessage('Semua data STD berhasil disimpan.')
     } finally {
       setSavingKey(null)
     }
@@ -986,7 +1010,7 @@ export default function ZhafirParameterForm() {
             disabled={loading || savingKey === 'bulk'}
             className="rounded-md border px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
           >
-            {savingKey === 'bulk' ? 'Saving All...' : 'Save All STD + ACT'}
+            {savingKey === 'bulk' ? 'Saving All...' : 'Save All STD'}
           </button>
         )}
         <button
@@ -1080,7 +1104,7 @@ export default function ZhafirParameterForm() {
 
               <div className="col-span-4 text-center">Actual / Standard</div>
 
-              <div className="col-span-2 text-center">Unit</div>
+              <div className="col-span-2 text-left">Unit</div>
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
@@ -1112,7 +1136,7 @@ export default function ZhafirParameterForm() {
               </div>
 
               <div
-                className={`col-span-2 text-xs text-center transition-colors duration-300
+                className={`col-span-2 flex min-h-[44px] items-center justify-center text-xs transition-colors duration-300
     ${isStdGreaterThanAct('InjectScrewPosition') ? 'text-red-600 font-semibold' : ''}`}
               >
                 mm
@@ -1147,7 +1171,7 @@ export default function ZhafirParameterForm() {
               </div>
 
               <div
-                className={`col-span-2 text-xs text-center
+                className={`col-span-2 flex min-h-[44px] items-center justify-center text-xs
     ${isStdGreaterThanAct('VPTimeText') ? 'text-red-600 font-semibold' : ''}`}
               >
                 s
@@ -1182,7 +1206,7 @@ export default function ZhafirParameterForm() {
                 />
               </div>
               <div
-                className={`col-span-2 text-xs text-center transition-colors duration-300
+                className={`col-span-2 flex min-h-[44px] items-center justify-center text-xs transition-colors duration-300
     ${isStdGreaterThanAct('VPPositionText') ? 'text-red-600 font-semibold' : ''}`}
               >
                 mm
@@ -1218,7 +1242,7 @@ export default function ZhafirParameterForm() {
               </div>
 
               <div
-                className={`col-span-2 text-xs text-center transition-colors duration-300
+                className={`col-span-2 flex min-h-[44px] items-center justify-center text-xs transition-colors duration-300
     ${isStdGreaterThanAct('Thickness') ? 'text-red-600 font-semibold' : ''}`}
               >
                 mm
@@ -1254,7 +1278,7 @@ export default function ZhafirParameterForm() {
               </div>
 
               <div
-                className={`col-span-2 text-xs text-center transition-colors duration-300
+                className={`col-span-2 flex min-h-[44px] items-center justify-center text-xs transition-colors duration-300
     ${isStdGreaterThanAct('CarriageBwd_SE') ? 'text-red-600 font-semibold' : ''}`}
               >
                 mm
@@ -1282,13 +1306,17 @@ export default function ZhafirParameterForm() {
                   savingKey={savingKey}
                 />
               </div>
-              <div className="col-span-2 text-xs text-center">C</div>
+              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">
+                C
+              </div>
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div className="col-span-4 text-xs">Max +</div>
               <div className="col-span-6">
                 <Input
                   pair
+                  valueSource="act"
+                  readOnly
                   fieldKey="HopperMax"
                   values={values}
                   stdDraft={stdDraft}
@@ -1298,13 +1326,17 @@ export default function ZhafirParameterForm() {
                   savingKey={savingKey}
                 />
               </div>
-              <div className="col-span-2 text-xs text-center">C</div>
+              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">
+                C
+              </div>
             </div>
             <div className="grid grid-cols-12 gap-2 items-center">
               <div className="col-span-4 text-xs">Min -</div>
               <div className="col-span-6">
                 <Input
                   pair
+                  valueSource="act"
+                  readOnly
                   fieldKey="HopperMin"
                   values={values}
                   stdDraft={stdDraft}
@@ -1314,7 +1346,29 @@ export default function ZhafirParameterForm() {
                   savingKey={savingKey}
                 />
               </div>
-              <div className="col-span-2 text-xs text-center">C</div>
+              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">
+                C
+              </div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center mt-2">
+              <div className="col-span-4 text-xs">Real</div>
+              <div className="col-span-6">
+                <Input
+                  pair
+                  valueSource="act"
+                  readOnly
+                  fieldKey="HopperReal"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  onStdChange={isEditMode ? handleStdChange : undefined}
+                  onActChange={handleActChange}
+                  savingKey={savingKey}
+                />
+              </div>
+              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">
+                C
+              </div>
             </div>
           </div>
         </div>
@@ -1472,12 +1526,36 @@ export default function ZhafirParameterForm() {
       >
         <div className="grid grid-cols-9 gap-2">
           {[
-            { zone: 'Zone 1', real: 'Barrel1', set: 'Barrel1' },
-            { zone: 'Zone 2', real: 'Barrel2', set: 'Barrel2' },
-            { zone: 'Zone 3', real: 'Barrel3', set: 'Barrel3' },
-            { zone: 'Zone 4', real: 'Barrel4', set: 'Barrel4' },
-            { zone: 'Zone 5', real: 'Barrel5', set: 'Barrel5' },
-            { zone: 'Zone 6', real: 'Barrel6', set: 'Barrel6' },
+            {
+              zone: 'Zone 1',
+              real: 'Temperature_Real_Zone1',
+              set: 'Temperature_Set_Zone1',
+            },
+            {
+              zone: 'Zone 2',
+              real: 'Temperature_Real_Zone2',
+              set: 'Temperature_Set_Zone2',
+            },
+            {
+              zone: 'Zone 3',
+              real: 'Temperature_Real_Zone3',
+              set: 'Temperature_Set_Zone3',
+            },
+            {
+              zone: 'Zone 4',
+              real: 'Temperature_Real_Zone4',
+              set: 'Temperature_Set_Zone4',
+            },
+            {
+              zone: 'Zone 5',
+              real: 'Temperature_Real_Zone5',
+              set: 'Temperature_Set_Zone5',
+            },
+            {
+              zone: 'Zone 6',
+              real: 'Temperature_Real_Zone6',
+              set: 'Temperature_Set_Zone6',
+            },
             { zone: 'Hopper', real: 'HopperReal', set: 'HopperSet' },
           ].map((z) => (
             <div key={z.zone} className="border p-2">
@@ -1485,6 +1563,8 @@ export default function ZhafirParameterForm() {
               <Input
                 label="Real"
                 fieldKey={z.real}
+                valueSource="act"
+                readOnly
                 values={values}
                 actDraft={actDraft}
                 stdDraft={stdDraft}
@@ -1497,6 +1577,8 @@ export default function ZhafirParameterForm() {
               <Input
                 label="Set"
                 fieldKey={z.set}
+                valueSource="act"
+                readOnly
                 values={values}
                 stdDraft={stdDraft}
                 actDraft={actDraft}
@@ -2119,6 +2201,8 @@ export default function ZhafirParameterForm() {
             <Input
               label="Cussion"
               fieldKey="Thickness"
+              valueSource="act"
+              readOnly
               values={values}
               stdDraft={stdDraft}
               actDraft={actDraft}
@@ -2131,6 +2215,8 @@ export default function ZhafirParameterForm() {
             <Input
               label="Act Inj Time"
               fieldKey="InjectTime"
+              valueSource="act"
+              readOnly
               values={values}
               stdDraft={stdDraft}
               actDraft={actDraft}
@@ -2153,6 +2239,8 @@ export default function ZhafirParameterForm() {
             <Input
               label="Cooling Time"
               fieldKey="CoolingTime"
+              valueSource="act"
+              readOnly
               values={values}
               stdDraft={stdDraft}
               actDraft={actDraft}
@@ -2187,6 +2275,8 @@ export default function ZhafirParameterForm() {
             <Input
               label="V/P Time"
               fieldKey="VPTimeText"
+              valueSource="act"
+              readOnly
               values={values}
               stdDraft={stdDraft}
               actDraft={actDraft}
@@ -2199,6 +2289,8 @@ export default function ZhafirParameterForm() {
             <Input
               label="V/P Posn"
               fieldKey="VPPosnText"
+              valueSource="act"
+              readOnly
               values={values}
               stdDraft={stdDraft}
               actDraft={actDraft}
@@ -2258,9 +2350,9 @@ export default function ZhafirParameterForm() {
         >
           <div className="grid grid-cols-1 gap-2">
             <Input
-              label=""
+              label="mm"
               pair
-              fieldKey="AfterPlasticisePress"
+              fieldKey="InjectSBPosition"
               values={values}
               stdDraft={stdDraft}
               actDraft={actDraft}
@@ -2271,9 +2363,9 @@ export default function ZhafirParameterForm() {
               savingKey={savingKey}
             />
             <Input
-              label=""
+              label="pct"
               pair
-              fieldKey="AfterPlasticiseVelo"
+              fieldKey="InjectSBSpeed"
               values={values}
               stdDraft={stdDraft}
               actDraft={actDraft}
@@ -2446,12 +2538,13 @@ function Input({
   label,
   pair,
   fieldKey,
+  valueSource = 'std',
+  readOnly = false,
   values,
   stdDraft,
   actDraft,
   onStdChange,
   onStdSave,
-  onActChange,
   onActSave,
   savingKey,
   savingField,
@@ -2459,7 +2552,9 @@ function Input({
 }: InputProps) {
   const hasLabel = Boolean(label)
   const stdValue = fieldKey
-    ? (stdDraft?.[fieldKey] ?? fmt(values[fieldKey]?.std))
+    ? valueSource === 'act'
+      ? (actDraft?.[fieldKey] ?? values[fieldKey]?.act ?? '')
+      : (stdDraft?.[fieldKey] ?? fmt(values[fieldKey]?.std))
     : ''
   const actRawValue = fieldKey
     ? (actDraft?.[fieldKey] ?? values[fieldKey]?.act ?? '')
@@ -2531,10 +2626,13 @@ function Input({
           <input
             value={stdValue}
             onChange={(e) => {
-              if (!fieldKey || !onStdChange) return
+              if (readOnly || !fieldKey || !onStdChange) return
               onStdChange(fieldKey, e.target.value)
             }}
-            className="border px-1 py-0.5 rounded w-full bg-white"
+            readOnly={readOnly}
+            className={`border px-1 py-0.5 rounded w-full ${
+              readOnly ? 'bg-gray-100 text-gray-700' : 'bg-white'
+            }`}
           />
           {fieldKey && onStdSave && ENABLE_PER_FIELD_SAVE && (
             <button
