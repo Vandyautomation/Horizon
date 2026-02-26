@@ -1342,6 +1342,24 @@ export default function ZhafirParameterForm() {
               </div>
               <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">C</div>
             </div>
+            <div className="grid grid-cols-12 gap-2 items-center mt-2">
+              <div className="col-span-4 text-xs">Real</div>
+              <div className="col-span-6">
+                <Input
+                  pair
+                  valueSource="act"
+                  readOnly
+                  fieldKey="HopperReal"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  onStdChange={isEditMode ? handleStdChange : undefined}
+                  onActChange={handleActChange}
+                  savingKey={savingKey}
+                />
+              </div>
+              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">C</div>
+            </div>
           </div>
         </div>
       </Section>
