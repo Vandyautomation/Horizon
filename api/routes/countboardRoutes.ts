@@ -172,17 +172,18 @@ countboardRoutes.put('/comment', async (c) => {
     return c.json({ error: (error as Error).message }, 500)
   }
 })
-
 countboardRoutes.post('/ticket', async (c) => {
   const {
     machineId,
     ticketDate,
+    categoryId,
     problem,
     actionPlan,
     assignToId,
     assignById,
     eskalasiFlag,
     eskalasiDept,
+    ticketColorId,
   } = await c.req.json()
 
   if (!machineId || !ticketDate || !problem || !actionPlan) {
@@ -196,12 +197,14 @@ countboardRoutes.post('/ticket', async (c) => {
     const result = await submitOrangeTicket(
       machineId,
       ticketDate,
+      categoryId,
       problem,
       actionPlan,
       assignToId,
       assignById,
       eskalasiFlag,
-      eskalasiDept
+      eskalasiDept,
+      ticketColorId
     )
 
     if (!result.affected) {
@@ -223,6 +226,56 @@ countboardRoutes.post('/ticket', async (c) => {
     return c.json({ error: (error as Error).message }, 500)
   }
 })
+// countboardRoutes.post('/ticket', async (c) => {
+//   const {
+//     machineId,
+//     ticketDate,
+//     problem,
+//     actionPlan,
+//     assignToId,
+//     assignById,
+//     eskalasiFlag,
+//     eskalasiDept,
+//   } = await c.req.json()
+
+//   if (!machineId || !ticketDate || !problem || !actionPlan) {
+//     return c.json(
+//       { error: 'machineId, ticketDate, problem, and actionPlan are required' },
+//       400
+//     )
+//   }
+
+//   try {
+//     const result = await submitOrangeTicket(
+//       machineId,
+//       ticketDate,
+//       problem,
+//       actionPlan,
+//       assignToId,
+//       assignById,
+//       eskalasiFlag,
+//       eskalasiDept
+//     )
+
+//     if (!result.affected) {
+//       return c.json(
+//         {
+//           message:
+//             'No matching TicketTRX found for given machine and ticket date',
+//         },
+//         404
+//       )
+//     }
+
+//     return c.json({
+//       message: 'TicketTRX updated successfully',
+//       affected: result.affected,
+//     })
+//   } catch (error) {
+//     console.error('Error submitting orange ticket:', error)
+//     return c.json({ error: (error as Error).message }, 500)
+//   }
+// })
 
 //get user
 countboardRoutes.get('/users', async (c) => {

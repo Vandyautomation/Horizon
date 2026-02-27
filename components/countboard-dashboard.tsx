@@ -181,6 +181,9 @@ type Todo = {
   is_escalated?: boolean
 }
 
+const OTHER_PROBLEM_VALUE = '__other_problem__'
+const OTHER_SOLUTION_VALUE = '__other_solution__'
+
 const refreshRateList = ['5000', '15000', '30000', '60000']
 
 const shiftList = ['1', '2', '3']
@@ -324,6 +327,10 @@ export default function CountboardDashboard() {
   const [selectedSolutionId, setSelectedSolutionId] = useState<
     string | undefined
   >()
+  const [newProblemName, setNewProblemName] = useState('')
+  const [newSolutionName, setNewSolutionName] = useState('')
+  const [isSavingProblem, setIsSavingProblem] = useState(false)
+  const [isSavingSolution, setIsSavingSolution] = useState(false)
   const [selectedStateChange, setSelectedStateChange] =
     useState<StateData | null>(null)
   const [isStateDialogOpen, setIsStateDialogOpen] = useState(false)
@@ -373,33 +380,167 @@ export default function CountboardDashboard() {
         )
     : []
 
-  const { data: problemRes } = useSWR(
-    selectedCategoryId
-      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem/by-group?groupId=${selectedCategoryId}`
-      : null,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
-  )
-console.log('problemRes:', problemRes)
+  const problemKey = selectedCategoryId
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem/by-group?groupId=${selectedCategoryId}`
+    : null
+
+  const { data: problemRes } = useSWR(problemKey, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  })
   const rawProblems = problemRes as Problem[] | undefined
   const problems: Problem[] = Array.isArray(rawProblems) ? rawProblems : []
-  console.log('problems:', problems)
-  const { data: todoRes } = useSWR(
-    selectedProblemId
+
+  const todoKey =
+    selectedProblemId && selectedProblemId !== OTHER_PROBLEM_VALUE
       ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/todo/by-problem?problemId=${selectedProblemId}`
-      : null,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
-  )
+      : null
+
+  const { data: todoRes } = useSWR(todoKey, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  })
 
   const rawSolutions = todoRes as Todo[] | undefined
   const solutions: Todo[] = Array.isArray(rawSolutions) ? rawSolutions : []
+  const filteredProblems = problems.filter((p) => {
+    const matchCategory = String(p.problem_group_id) === String(selectedCategoryId)
+    const normalize = (val?: string) => val?.trim().toLowerCase()
+    const matchProcess = normalize(p.process) === normalize(selectedMachine?.Process)
+    return matchCategory && matchProcess
+  })
+
+  const handleCreateProblemFromOther = useCallback(async () => {
+    const name = newProblemName.trim()
+    if (!selectedCategoryId) {
+      toast.error('Category wajib dipilih')
+      return
+    }
+    if (!name) {
+      toast.error('Nama problem wajib diisi')
+      return
+    }
+
+    const existing = filteredProblems.find(
+      (p) => p.name.trim().toLowerCase() === name.toLowerCase()
+    )
+    if (existing) {
+      setSelectedProblemId(String(existing.id))
+      setSelectedSolutionId(undefined)
+      setNewProblemName('')
+      toast.success('Problem sudah ada, langsung dipilih')
+      return
+    }
+
+    setIsSavingProblem(true)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            problem_group_id: selectedCategoryId,
+            color: 'ORANGE',
+            process: selectedMachine?.Process || 'Injection',
+          }),
+        }
+      )
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data?.error || 'Gagal menambahkan problem')
+      }
+
+      const refreshed = (await mutate(problemKey)) as Problem[] | undefined
+      const latest = Array.isArray(refreshed) ? refreshed : []
+      const created = latest.find(
+        (p) =>
+          String(p.problem_group_id) === String(selectedCategoryId) &&
+          p.name.trim().toLowerCase() === name.toLowerCase()
+      )
+      if (!created) {
+        throw new Error('Problem berhasil dibuat, tapi data terbaru belum ditemukan')
+      }
+
+      setSelectedProblemId(String(created.id))
+      setSelectedSolutionId(undefined)
+      setNewProblemName('')
+      toast.success('Problem baru berhasil ditambahkan')
+    } catch (error) {
+      toast.error((error as Error).message)
+    } finally {
+      setIsSavingProblem(false)
+    }
+  }, [
+    filteredProblems,
+    newProblemName,
+    problemKey,
+    selectedCategoryId,
+    selectedMachine?.Process,
+  ])
+
+  const handleCreateSolutionFromOther = useCallback(async () => {
+    const name = newSolutionName.trim()
+    if (!selectedProblemId || selectedProblemId === OTHER_PROBLEM_VALUE) {
+      toast.error('Problem wajib dipilih')
+      return
+    }
+    if (!name) {
+      toast.error('Nama solution wajib diisi')
+      return
+    }
+
+    const existing = solutions.find(
+      (s) => s.name.trim().toLowerCase() === name.toLowerCase()
+    )
+    if (existing) {
+      setSelectedSolutionId(String(existing.id))
+      setNewSolutionName('')
+      toast.success('Solution sudah ada, langsung dipilih')
+      return
+    }
+
+    setIsSavingSolution(true)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/todo`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            problem_id: selectedProblemId,
+            pic: userData?.UserDept || 'SPV Production',
+            is_escalated: false,
+          }),
+        }
+      )
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data?.error || 'Gagal menambahkan solution')
+      }
+
+      const refreshed = (await mutate(todoKey)) as Todo[] | undefined
+      const latest = Array.isArray(refreshed) ? refreshed : []
+      const created = latest.find(
+        (s) =>
+          String(s.problem_id) === String(selectedProblemId) &&
+          s.name.trim().toLowerCase() === name.toLowerCase()
+      )
+      if (!created) {
+        throw new Error('Solution berhasil dibuat, tapi data terbaru belum ditemukan')
+      }
+
+      setSelectedSolutionId(String(created.id))
+      setNewSolutionName('')
+      toast.success('Solution baru berhasil ditambahkan')
+    } catch (error) {
+      toast.error((error as Error).message)
+    } finally {
+      setIsSavingSolution(false)
+    }
+  }, [newSolutionName, selectedProblemId, solutions, todoKey, userData?.UserDept])
 
   const checkUser = async () => {
     const user = localStorage.getItem('user')
@@ -673,9 +814,17 @@ console.log('problemRes:', problemRes)
       toast.error('Problem wajib dipilih')
       return
     }
+    if (selectedProblemId === OTHER_PROBLEM_VALUE) {
+      toast.error('Simpan problem Others terlebih dahulu')
+      return
+    }
 
     if (!selectedSolutionId) {
       toast.error('Solution wajib dipilih')
+      return
+    }
+    if (selectedSolutionId === OTHER_SOLUTION_VALUE) {
+      toast.error('Simpan solution Others terlebih dahulu')
       return
     }
 
@@ -737,6 +886,14 @@ console.log('problemRes:', problemRes)
       return
     }
 
+    const selectedCategory = categories.find(
+      (c) => String(c.id) === String(draftTicket.categoryId)
+    )
+    const isNonQualityOrScrap =
+      selectedCategory &&
+      (selectedCategory.name.toLowerCase().includes('non quality') ||
+        selectedCategory.name.toLowerCase().includes('scrap'))
+
     setIsLoading(true)
 
     try {
@@ -749,12 +906,14 @@ console.log('problemRes:', problemRes)
           body: JSON.stringify({
             machineId: selectedMachine.machineName,
             ticketDate: selectedStateChange.AdjustedStatusDate,
+            categoryId: draftTicket.categoryId,
             problem: problemObj.name,
             actionPlan: solutionObj.name,
             assignToId: selectedAssignTo,
             assignById: selectedAssignBy,
             eskalasiFlag: isEscalated,
             eskalasiDept: isEscalated === 1 ? escalationTarget : null,
+            ticketColorId: isNonQualityOrScrap ? 'RED' : 'ORANGE',
           }),
         }
       )
@@ -796,15 +955,6 @@ console.log('problemRes:', problemRes)
       }
 
       // 7. Jika Non Quality / Scrap → ORANGE jadi RED
-      const selectedCategory = categories.find(
-        (c) => String(c.id) === String(draftTicket.categoryId)
-      )
-
-      const isNonQualityOrScrap =
-        selectedCategory &&
-        (selectedCategory.name.toLowerCase().includes('non quality') ||
-          selectedCategory.name.toLowerCase().includes('scrap'))
-
       if (isNonQualityOrScrap && selectedStateChange) {
         await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state`,
@@ -1394,6 +1544,8 @@ console.log('problemRes:', problemRes)
       setSelectedCategoryId(undefined)
       setSelectedProblemId(undefined)
       setSelectedSolutionId(undefined)
+      setNewProblemName('')
+      setNewSolutionName('')
       setSelectedStateChange(change)
       setIsStateDialogOpen(true)
     }
@@ -3075,6 +3227,8 @@ console.log('problemRes:', problemRes)
                       setSelectedCategoryId(value)
                       setSelectedProblemId(undefined)
                       setSelectedSolutionId(undefined)
+                      setNewProblemName('')
+                      setNewSolutionName('')
                     }}
                   >
                     <SelectTrigger>
@@ -3097,6 +3251,7 @@ console.log('problemRes:', problemRes)
                     onValueChange={(value) => {
                       setSelectedProblemId(value)
                       setSelectedSolutionId(undefined)
+                      setNewSolutionName('')
                     }}
                     disabled={!selectedCategoryId}
                   >
@@ -3104,26 +3259,33 @@ console.log('problemRes:', problemRes)
                       <SelectValue placeholder="Pilih problem" />
                     </SelectTrigger>
                     <SelectContent>
-                      {problems
-                        .filter((p) => {
-                          const matchCategory =
-                            String(p.problem_group_id) ===
-                            String(selectedCategoryId)
-                          const normalize = (val?: string) =>
-                            val?.trim().toLowerCase()
-                          const matchProcess =
-                            normalize(p.process) ===
-                            normalize(selectedMachine?.Process)
-
-                          return matchCategory && matchProcess
-                        })
-                        .map((p) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
+                      <SelectItem value={OTHER_PROBLEM_VALUE}>
+                        Others (+ Add New Problem)
+                      </SelectItem>
+                      {filteredProblems.map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {selectedProblemId === OTHER_PROBLEM_VALUE ? (
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        value={newProblemName}
+                        onChange={(e) => setNewProblemName(e.target.value)}
+                        placeholder="Input problem baru"
+                        disabled={isSavingProblem}
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleCreateProblemFromOther}
+                        disabled={isSavingProblem || !newProblemName.trim()}
+                      >
+                        {isSavingProblem ? 'Saving...' : 'Save'}
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-col space-y-1">
@@ -3133,12 +3295,18 @@ console.log('problemRes:', problemRes)
                     onValueChange={(value) => {
                       setSelectedSolutionId(value)
                     }}
-                    disabled={!selectedProblemId}
+                    disabled={
+                      !selectedProblemId ||
+                      selectedProblemId === OTHER_PROBLEM_VALUE
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih solution" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={OTHER_SOLUTION_VALUE}>
+                        Others (+ Add New Solution)
+                      </SelectItem>
                       {solutions.map((s) => (
                         <SelectItem key={s.id} value={String(s.id)}>
                           {s.name}
@@ -3146,6 +3314,23 @@ console.log('problemRes:', problemRes)
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedSolutionId === OTHER_SOLUTION_VALUE ? (
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        value={newSolutionName}
+                        onChange={(e) => setNewSolutionName(e.target.value)}
+                        placeholder="Input solution baru"
+                        disabled={isSavingSolution}
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleCreateSolutionFromOther}
+                        disabled={isSavingSolution || !newSolutionName.trim()}
+                      >
+                        {isSavingSolution ? 'Saving...' : 'Save'}
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div>
@@ -3220,7 +3405,9 @@ console.log('problemRes:', problemRes)
                   disabled={
                     !selectedCategoryId ||
                     !selectedProblemId ||
-                    !selectedSolutionId
+                    !selectedSolutionId ||
+                    selectedProblemId === OTHER_PROBLEM_VALUE ||
+                    selectedSolutionId === OTHER_SOLUTION_VALUE
                   }
                 >
                   Next

@@ -275,6 +275,9 @@ export async function editTopScrap(
 }
 
 export async function editProcess(hourlyId: number, process: string) {
+   const mchQuery = `SELECT machine_id FROM IoT.dbo.hourly_uv WHERE id = @hourlyId`
+  const mchResult = await queryDatabase(mchQuery, { hourlyId })
+  const MchID = mchResult[0]?.machine_id
   const sqlQuery = `
   UPDATE IoT.dbo.hourly_uv
       SET process = @process
@@ -284,10 +287,14 @@ export async function editProcess(hourlyId: number, process: string) {
       set process = @process
       where mchid = (select machine_id from IoT.dbo.hourly_uv where id = @hourlyId)
 
-  INSERT INTO IoT.dbo.UvProcessTrx (hourly_id, process) VALUES (@hourlyId, @process)
+  INSERT INTO IoT.dbo.UvProcessTrx (hourly_id, process, created_at, MchID)
+  SELECT @hourlyId, @process, GETDATE(), machine_id
+  FROM IoT.dbo.hourly_uv
+  WHERE id = @hourlyId
   `
   try {
-    return await queryDatabase(sqlQuery, { hourlyId, process })
+      const result = await queryDatabase(sqlQuery, { hourlyId, process })
+    return { ...result, MchID }
   } catch (error: any) {
     console.error('Error updating process:', error)
     throw new Error(`Failed to update process: ${error.message}`)
@@ -544,12 +551,14 @@ export async function updateTicketEskalasi(
 export async function submitOrangeTicket(
   machineId: string,
   ticketDate: string,
+  categoryId: string | null,
   problem: string,
   actionPlan: string,
   assignToId: string,
   assignById: string,
   eskalasiFlag: 0 | 1,
-  eskalasiDept: string | null
+  eskalasiDept: string | null,
+  ticketColorId: 'ORANGE' | 'RED' | null = null
 ) {
   const sqlQuery = `
     DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
@@ -558,6 +567,8 @@ export async function submitOrangeTicket(
     DECLARE @FinalAssignToDept NVARCHAR(100);
     DECLARE @AssignByUserName NVARCHAR(100);
     DECLARE @EskalasiStatus NVARCHAR(20);
+    DECLARE @ResolvedColorID NVARCHAR(20);
+    DECLARE @IsNonQualityOrScrap BIT = 0;
 
     SELECT @AssignToUserName = UserName
     FROM IoT.dbo.useraccessmst
@@ -580,6 +591,24 @@ export async function submitOrangeTicket(
         ELSE NULL
       END;
 
+    SET @ResolvedColorID = COALESCE(NULLIF(@ticketColorId, ''), 'ORANGE');
+    IF (@categoryId IS NOT NULL)
+    BEGIN
+      SELECT @IsNonQualityOrScrap =
+        CASE
+          WHEN LOWER(pg.name) LIKE '%non quality%' OR LOWER(pg.name) LIKE '%scrap%' THEN 1
+          ELSE 0
+        END
+      FROM IoT.dbo.problem_problem_group pg
+      WHERE CAST(pg.id AS NVARCHAR(50)) = @categoryId;
+    END;
+
+    -- Khusus Non Quality/Scrap: warna ditentukan dari category (RED)
+    IF (@IsNonQualityOrScrap = 1)
+    BEGIN
+      SET @ResolvedColorID = 'RED';
+    END;
+
   UPDATE T
 SET 
   Problem          = @problem,
@@ -587,6 +616,7 @@ SET
   AssignTo         = @AssignToUserName,
   AssignToDept     = @FinalAssignToDept,
   AssignBy         = @AssignByUserName,
+  ColorID          = @ResolvedColorID,
   EskalasiFlag     = @eskalasiFlag,
   EskalasiStatus   = @EskalasiStatus,
   ActualSubmit     = CASE 
@@ -611,12 +641,14 @@ FROM (
     const result = await queryDatabase(sqlQuery, {
       machineId,
       ticketDate,
+      categoryId,
       problem,
       actionPlan,
       assignToId,
       assignById,
       eskalasiFlag,
       eskalasiDept,
+      ticketColorId,
     })
 
     return result?.[0] ?? { affected: 0 }
@@ -625,6 +657,90 @@ FROM (
     throw new Error(`Failed to submit ticket: ${error.message}`)
   }
 }
+// export async function submitOrangeTicket(
+//   machineId: string,
+//   ticketDate: string,
+//   problem: string,
+//   actionPlan: string,
+//   assignToId: string,
+//   assignById: string,
+//   eskalasiFlag: 0 | 1,
+//   eskalasiDept: string | null
+// ) {
+//   const sqlQuery = `
+//     DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
+
+//     DECLARE @AssignToUserName NVARCHAR(100);
+//     DECLARE @FinalAssignToDept NVARCHAR(100);
+//     DECLARE @AssignByUserName NVARCHAR(100);
+//     DECLARE @EskalasiStatus NVARCHAR(20);
+
+//     SELECT @AssignToUserName = UserName
+//     FROM IoT.dbo.useraccessmst
+//     WHERE UserRFID = @assignToId;
+
+//     SELECT @AssignByUserName = UserName
+//     FROM IoT.dbo.useraccessmst
+//     WHERE UserRFID = @assignById;
+
+//     SET @FinalAssignToDept =
+//       CASE 
+//         WHEN @eskalasiFlag = 1 THEN @eskalasiDept
+//         ELSE NULL
+//       END;
+
+//     -- Tentukan EskalasiStatus
+//     SET @EskalasiStatus =
+//       CASE
+//         WHEN @eskalasiFlag = 1 THEN 'open'
+//         ELSE NULL
+//       END;
+
+//   UPDATE T
+// SET 
+//   Problem          = @problem,
+//   ActionPlan       = @actionPlan,
+//   AssignTo         = @AssignToUserName,
+//   AssignToDept     = @FinalAssignToDept,
+//   AssignBy         = @AssignByUserName,
+//   EskalasiFlag     = @eskalasiFlag,
+//   EskalasiStatus   = @EskalasiStatus,
+//   ActualSubmit     = CASE 
+//                        WHEN @eskalasiFlag = 1 THEN SYSDATETIME()
+//                        ELSE ActualSubmit
+//                      END
+// FROM (
+
+//       SELECT TOP (1) *
+//       FROM IoT.dbo.TicketTRX
+//       WHERE 
+//         MchID = @machineId
+//         AND ColorID = 'ORANGE'
+//         AND CAST(TicketDate AS date) = CAST(@ticketDateParam AS date)
+//       ORDER BY ABS(DATEDIFF(SECOND, TicketDate, @ticketDateParam))
+//     ) AS T;
+
+//     SELECT @@ROWCOUNT AS affected;
+//   `
+
+//   try {
+//     const result = await queryDatabase(sqlQuery, {
+//       machineId,
+//       ticketDate,
+//       problem,
+//       actionPlan,
+//       assignToId,
+//       assignById,
+//       eskalasiFlag,
+//       eskalasiDept,
+//     })
+
+//     return result?.[0] ?? { affected: 0 }
+//   } catch (error: any) {
+//     console.error('Error submitting orange ticket:', error)
+//     throw new Error(`Failed to submit ticket: ${error.message}`)
+//   }
+// }
 
 // export async function submitOrangeTicket(
 //     machineId: string,
