@@ -17,6 +17,8 @@ import {
   getAssignUsers,
   getTicketByEskalasi,
   updateTicketEskalasi,
+  getProblem,
+  getLostTime,
 } from '../controllers/countboardController'
 //import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
@@ -292,5 +294,20 @@ countboardRoutes.put('/eskalasi', async (c) => {
     return c.json({ error: (error as Error).message }, 500)
   }
 })
-
+countboardRoutes.get('/lost-time', async (c) => {
+  try {
+    const data = await getLostTime()
+    return c.json(data)
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
+countboardRoutes.get('/problem', async (c) => {
+  try {
+    const data = await getProblem()
+    return c.json(data)
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
 export default countboardRoutes

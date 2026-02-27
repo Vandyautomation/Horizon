@@ -731,3 +731,95 @@ export async function updateComment(
     }
   }
 }
+export const getLostTime = async () => {
+  const query = `
+    SELECT 
+        A.StatusDate,
+        DATEDIFF(MINUTE, A.StatusDate, GETDATE()) AS DuraMin,
+        A.MchID,
+        B.MchLoc,
+        B.MchNumber,
+        B.Brand,
+        B.MchTon,
+        (B.MchLoc + '-' + B.MchNumber) AS Location
+    FROM MchStatusTRX A
+    LEFT JOIN iot.dbo.MachineMST B ON A.MchID = B.MchID
+    WHERE 
+        CONVERT(VARCHAR(30), A.StatusDate, 120) + A.MchID IN 
+        (
+            SELECT CONVERT(VARCHAR(30), MAX(Z.StatusDate), 120) + Z.MchID
+            FROM MchStatusTRX Z
+            WHERE Z.MchID <> ''
+            GROUP BY Z.MchID
+        )
+        AND A.StatusLight = 'ORANGE'
+        AND B.Active = 1
+        AND B.MchProcess = 'INJECTION'
+    ORDER BY B.MchLoc
+  `
+
+  const result = await queryDatabase(query)
+  return result
+}
+export const getProblem = async () => {
+  const query = `
+    SELECT 
+        X.MchID,
+        X.Problem,
+        X.ActionPlan,
+        Y.Type,
+        Y.Action,
+        Y.pic,
+        X.TicketStatus,
+        X.Message,
+        M.MchLoc,
+        M.MchNumber,
+        M.Brand,
+        M.MchTon,
+        (M.MchLoc + '-' + M.MchNumber) AS Location
+    FROM TicketTRX X
+    LEFT JOIN (
+        SELECT 
+            A.name AS Problem,
+            B.name AS Type,
+            C.name AS Action,
+            C.pic
+        FROM problem_problem A
+        LEFT JOIN problem_problem_group B 
+            ON A.problem_group_id = B.id
+        LEFT JOIN problem_todo C 
+            ON A.id = C.problem_id
+        WHERE 
+            A.color = 'ORANGE' 
+            AND A.process = 'INJECTION'
+    ) Y 
+        ON X.Problem = Y.Problem 
+        AND X.ActionPlan = Y.Action
+    LEFT JOIN iot.dbo.MachineMST M 
+        ON X.MchID = M.MchID
+    WHERE 
+        X.TicketStatus IN ('NEW','ESKALASI','ONPROG','ASSIGNED','OPEN')
+        AND X.ColorID = 'ORANGE'
+        AND X.Active = 1
+        AND M.Active = 1
+        AND M.MchProcess = 'INJECTION'
+        AND X.MchID IN (
+            SELECT A.MchID
+            FROM MchStatusTRX A
+            LEFT JOIN iot.dbo.MachineMST B ON A.MchID = B.MchID
+            WHERE 
+                CONVERT(VARCHAR(30), A.StatusDate, 120) + A.MchID IN (
+                    SELECT CONVERT(VARCHAR(30), MAX(Z.StatusDate), 120) + Z.MchID
+                    FROM MchStatusTRX Z
+                    WHERE Z.MchID <> ''
+                    GROUP BY Z.MchID
+                )
+                AND A.StatusLight = 'ORANGE'
+                AND B.Active = 1
+                AND B.MchProcess = 'INJECTION'
+        )
+  `
+
+  const result = await queryDatabase(query)
+  return result
+}
