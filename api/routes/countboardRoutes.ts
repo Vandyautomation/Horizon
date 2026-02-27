@@ -1,162 +1,207 @@
-import { Hono } from 'hono';
-import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, submitOrangeTicket, updateComment, updateCVT, getTickets,getUsers,editScrap,editRework, getAssignUsers } from '../controllers/countboardController';
+import { Hono } from 'hono'
+import {
+  addCoois,
+  addRouting,
+  attachPo,
+  editProcess,
+  editTopScrap,
+  getCoois,
+  getRejectLists,
+  submitOrangeTicket,
+  updateComment,
+  updateCVT,
+  getTickets,
+  getUsers,
+  editScrap,
+  editRework,
+  getAssignUsers,
+  getTicketByEskalasi,
+  updateTicketEskalasi,
+} from '../controllers/countboardController'
 //import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
-const countboardRoutes = new Hono();
+const countboardRoutes = new Hono()
 countboardRoutes.get('/rejects', async (c) => {
-
-
   try {
-    const data = await getRejectLists();
-    return c.json(data);
+    const data = await getRejectLists()
+    return c.json(data)
   } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
-//menambahkan tiket 
+})
+//menambahkan tiket
 countboardRoutes.get('/tickets', async (c) => {
   try {
-    const data = await getTickets();
-    return c.json(data);
+    const data = await getTickets()
+    return c.json(data)
   } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
 
 countboardRoutes.get('/coois', async (c) => {
-  const poName = c.req.query('poName');
-  const type = c.req.query('type');
+  const poName = c.req.query('poName')
+  const type = c.req.query('type')
   try {
-    const data = await getCoois(poName, type);
-    return c.json(data);
+    const data = await getCoois(poName, type)
+    return c.json(data)
   } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
 
 countboardRoutes.put('/topscrap', async (c) => {
-  const data  = await c.req.json() as ({hourlyId : number, reject_a : number, reject_b : number, reject_c : number, reject_d : number});
+  const data = (await c.req.json()) as {
+    hourlyId: number
+    reject_a: number
+    reject_b: number
+    reject_c: number
+    reject_d: number
+  }
 
   try {
-    const res = await editTopScrap(data.hourlyId, data.reject_a, data.reject_b, data.reject_c, data.reject_d);
-    return c.json(res);
+    const res = await editTopScrap(
+      data.hourlyId,
+      data.reject_a,
+      data.reject_b,
+      data.reject_c,
+      data.reject_d
+    )
+    return c.json(res)
   } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
 
 countboardRoutes.put('/process', async (c) => {
-  const data  = await c.req.json() as ({hourlyId : number, process: string});
+  const data = (await c.req.json()) as { hourlyId: number; process: string }
 
   try {
-    const res = await editProcess(data.hourlyId, data.process);
-    return c.json(res);
+    const res: any = await editProcess(data.hourlyId, data.process)
+
+    if (res?.MchID) {
+      try {
+        await fetch('http://dmksrv02:443/uv/api/update/processtrx', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            hourly_id: data.hourlyId,
+            process: data.process,
+            created_at: new Date().toISOString(),
+            MchID: res.MchID,
+          }),
+        })
+      } catch (err) {
+        console.error('Failed to sync process to UV API:', err)
+      }
+    }
+    return c.json(res)
   } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
 
 countboardRoutes.post('/coois', async (c) => {
-  const data  = await c.req.json();
+  const data = await c.req.json()
   // console.log(data)
   try {
-    const res = await addCoois(data);
+    const res = await addCoois(data)
 
-    await fetch("http://dmksrv02:443/upload/api/coois_sync")
+    await fetch('http://dmksrv02:443/upload/api/coois_sync')
 
-    return c.json(res);
+    return c.json(res)
   } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
-
-
+})
 
 countboardRoutes.post('/routing', async (c) => {
-  const data  = await c.req.json();
+  const data = await c.req.json()
   // console.log(data)
   try {
-    const res = await addRouting(data);
+    const res = await addRouting(data)
 
-    await fetch("http://dmksrv02:443/upload/api/routing_sync")
+    await fetch('http://dmksrv02:443/upload/api/routing_sync')
 
-    return c.json(res);
+    return c.json(res)
   } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
-
+})
 
 countboardRoutes.post('/utility', async (c) => {
-  const data = await c.req.json();
+  const data = await c.req.json()
 
   try {
-
-    const res = await fetch("http://dmksrv02:443/ems/api/utility", {
+    const res = await fetch('http://dmksrv02:443/ems/api/utility', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(data),
-    });
+    })
 
-    return c.json(res);
+    return c.json(res)
   } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
 
 countboardRoutes.post('/task', async (c) => {
-  const { poNumber, machineName } = await c.req.json();
+  const { poNumber, machineName } = await c.req.json()
   if (!poNumber || !machineName) {
-    return c.json({ error: 'PO number and machine name are required' }, 400);
+    return c.json({ error: 'PO number and machine name are required' }, 400)
   }
   try {
-    await attachPo(poNumber, machineName);
-    if (process.env.NODE_ENV === "development") {
-      await fetch("http://localhost:1880/api/task_sync?sync=true")
-    } else if (process.env.NODE_ENV === "production") {
-      await fetch("http://dmksrv02:443/upload/api/task_sync?sync=true")
+    await attachPo(poNumber, machineName)
+    if (process.env.NODE_ENV === 'development') {
+      await fetch('http://localhost:1880/api/task_sync?sync=true')
+    } else if (process.env.NODE_ENV === 'production') {
+      await fetch('http://dmksrv02:443/upload/api/task_sync?sync=true')
     }
-    return c.json({ message: 'PO attached successfully' });
+    return c.json({ message: 'PO attached successfully' })
   } catch (error) {
-    console.error("Error attaching PO:", error);
-    return c.json({ error: (error as Error).message }, 500);
+    console.error('Error attaching PO:', error)
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
 
 countboardRoutes.put('/cvt', async (c) => {
-  const { taskId, newCvt } = await c.req.json();
+  const { taskId, newCvt } = await c.req.json()
   try {
-    await updateCVT(taskId, newCvt);
-    return c.json({ message: 'CVT updated successfully' });
+    await updateCVT(taskId, newCvt)
+    return c.json({ message: 'CVT updated successfully' })
   } catch (error) {
-    console.error("Error updating CVT:", error);
-    return c.json({ error: (error as Error).message }, 500);
+    console.error('Error updating CVT:', error)
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
 
 countboardRoutes.put('/comment', async (c) => {
-  const { hourlyId, type, content, uap } = await c.req.json();
+  const { hourlyId, type, content, uap } = await c.req.json()
   try {
-    await updateComment(hourlyId, type, content, uap);
-    return c.json({ message: 'Content updated successfully' });
+    await updateComment(hourlyId, type, content, uap)
+    return c.json({ message: 'Content updated successfully' })
   } catch (error) {
-    console.error("Error updating content:", error);
-    return c.json({ error: (error as Error).message }, 500);
+    console.error('Error updating content:', error)
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
 
 countboardRoutes.post('/ticket', async (c) => {
   const {
     machineId,
     ticketDate,
+    categoryId,
     problem,
     actionPlan,
     assignToId,
     assignById,
     eskalasiFlag,
     eskalasiDept,
+    ticketColorId,
   } = await c.req.json()
 
   if (!machineId || !ticketDate || !problem || !actionPlan) {
@@ -170,17 +215,22 @@ countboardRoutes.post('/ticket', async (c) => {
     const result = await submitOrangeTicket(
       machineId,
       ticketDate,
+      categoryId,
       problem,
       actionPlan,
       assignToId,
       assignById,
       eskalasiFlag,
-      eskalasiDept
+      eskalasiDept,
+      ticketColorId
     )
 
     if (!result.affected) {
       return c.json(
-        { message: 'No matching TicketTRX found for given machine and ticket date' },
+        {
+          message:
+            'No matching TicketTRX found for given machine and ticket date',
+        },
         404
       )
     }
@@ -195,18 +245,16 @@ countboardRoutes.post('/ticket', async (c) => {
   }
 })
 
-
-
 //get user
 countboardRoutes.get('/users', async (c) => {
   try {
-    const data = await getUsers();
-    return c.json(data);
+    const data = await getUsers()
+    return c.json(data)
   } catch (error) {
-    console.error('Error fetching users:', error);
-    return c.json({ error: (error as Error).message }, 500);
+    console.error('Error fetching users:', error)
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
 // get assign users (Operator, Mechanic, SPV)
 countboardRoutes.get('/assign-users', async (c) => {
   try {
@@ -221,31 +269,51 @@ countboardRoutes.get('/assign-users', async (c) => {
 //update scrap
 countboardRoutes.put('/scrap', async (c) => {
   try {
-    const { hourlyId, scrap } = await c.req.json();
+    const { hourlyId, scrap } = await c.req.json()
 
-    await editScrap(hourlyId, scrap);
+    await editScrap(hourlyId, scrap)
 
-    return c.json({ success: true });
+    return c.json({ success: true })
   } catch (error) {
-    return c.json(
-      { error: (error as Error).message },
-      500
-    );
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
 //update rework
 countboardRoutes.put('/rework', async (c) => {
   try {
-    const { hourlyId, rework } = await c.req.json();
+    const { hourlyId, rework } = await c.req.json()
 
-    await editRework(hourlyId, rework);
-    return c.json({ success: true });
+    await editRework(hourlyId, rework)
+    return c.json({ success: true })
   } catch (error) {
-    return c.json(
-      { error: (error as Error).message },
-      500
-    );
+    return c.json({ error: (error as Error).message }, 500)
   }
-});
+})
+//get ticket by eskalasi flag
+countboardRoutes.get('/eskalasi', async (c) => {
+  try {
+    const fromDate = c.req.query('fromDate')
+    const toDate = c.req.query('toDate')
 
-export default countboardRoutes;
+    const data = await getTicketByEskalasi(fromDate, toDate)
+
+    return c.json(data)
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
+countboardRoutes.put('/eskalasi', async (c) => {
+  try {
+    const body = await c.req.json()
+
+    const { mchId, ticketDate, message, eskalasiStatus } = body
+
+    await updateTicketEskalasi(mchId, ticketDate, message, eskalasiStatus)
+
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
+
+export default countboardRoutes

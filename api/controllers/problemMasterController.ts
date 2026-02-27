@@ -152,7 +152,7 @@ export async function getProblem(name: string | undefined, groupId: string | und
 export async function getProblemsByGroupForProcess(groupId: string, process: string | undefined) {
     try {
         const sqlQuery = `
-            SELECT p.id, p.name, p.problem_group_id, p.color
+            SELECT p.id, p.name, p.problem_group_id, p.color, p.process
             FROM IoT.dbo.problem_problem p
             WHERE p.problem_group_id = @groupId
             ORDER BY p.id ASC
@@ -168,10 +168,11 @@ export async function createProblem(name: string, problem_group_id: string, colo
     try {
         const sqlQuery = `
             INSERT INTO IoT.dbo.problem_problem (name, problem_group_id, color, process)
+            OUTPUT INSERTED.id, INSERTED.name, INSERTED.problem_group_id, INSERTED.color, INSERTED.process
             VALUES (@name, @problem_group_id, @color, @process)
         `;
-        await queryDatabase(sqlQuery, { name, problem_group_id, color, process });
-        return { message: 'Problem created successfully' };
+        const result = await queryDatabase(sqlQuery, { name, problem_group_id, color, process });
+        return result?.[0] ?? { message: 'Problem created successfully' };
     } catch (error: any) {
         console.error('Error creating problem:', error);
         throw new Error(`Failed to create problem: ${error.message}`);
@@ -265,10 +266,11 @@ export async function createTodo(name: string, problem_id: string, pic: string, 
     try {
         const sqlQuery = `
             INSERT INTO IoT.dbo.problem_todo (name, problem_id, pic, is_escalated)
+            OUTPUT INSERTED.id, INSERTED.name, INSERTED.problem_id, INSERTED.pic, INSERTED.is_escalated
             VALUES (@name, @problem_id, @pic, @is_escalated)
         `;
-        await queryDatabase(sqlQuery, { name, problem_id, pic, is_escalated });
-        return { message: 'Todo created successfully' };
+        const result = await queryDatabase(sqlQuery, { name, problem_id, pic, is_escalated });
+        return result?.[0] ?? { message: 'Todo created successfully' };
     } catch (error: any) {
         console.error('Error creating todo:', error);
         throw new Error(`Failed to create todo: ${error.message}`);

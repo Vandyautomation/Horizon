@@ -77,6 +77,7 @@ type MachineDetail = {
   locationId: number
   locationName: string
   machineStatus: string
+  Process?: string
 }
 
 type HourlyData = {
@@ -165,11 +166,11 @@ type ProblemGroup = {
 }
 
 type Problem = {
-  id: number
+  id: string
   name: string
-  problem_group_id: number
-  color?: string
-  process?: string
+  problem_group_id: string
+  color: string
+  process: string
 }
 
 type Todo = {
@@ -179,6 +180,9 @@ type Todo = {
   pic?: string
   is_escalated?: boolean
 }
+
+const OTHER_PROBLEM_VALUE = '__other_problem__'
+const OTHER_SOLUTION_VALUE = '__other_solution__'
 
 const refreshRateList = ['5000', '15000', '30000', '60000']
 
@@ -279,7 +283,7 @@ export default function CountboardDashboard() {
     setSearchSPV('')
   }, [selectedAssignTo])
 
-  console.log('usersSPV:', usersSPV)
+  // console.log('usersSPV:', usersSPV)
 
   const [selectedLocation, setSelectedLocation] = useState<string>('')
   const [selectedMachineNumber, setSelectedMachineNumber] = useState<string>('')
@@ -323,6 +327,10 @@ export default function CountboardDashboard() {
   const [selectedSolutionId, setSelectedSolutionId] = useState<
     string | undefined
   >()
+  const [newProblemName, setNewProblemName] = useState('')
+  const [newSolutionName, setNewSolutionName] = useState('')
+  const [isSavingProblem, setIsSavingProblem] = useState(false)
+  const [isSavingSolution, setIsSavingSolution] = useState(false)
   const [selectedStateChange, setSelectedStateChange] =
     useState<StateData | null>(null)
   const [isStateDialogOpen, setIsStateDialogOpen] = useState(false)
@@ -372,33 +380,167 @@ export default function CountboardDashboard() {
         )
     : []
 
-  const { data: problemRes } = useSWR(
-    selectedCategoryId
-      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem/by-group?groupId=${selectedCategoryId}`
-      : null,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
-  )
+  const problemKey = selectedCategoryId
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem/by-group?groupId=${selectedCategoryId}`
+    : null
 
+  const { data: problemRes } = useSWR(problemKey, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  })
   const rawProblems = problemRes as Problem[] | undefined
   const problems: Problem[] = Array.isArray(rawProblems) ? rawProblems : []
 
-  const { data: todoRes } = useSWR(
-    selectedProblemId
+  const todoKey =
+    selectedProblemId && selectedProblemId !== OTHER_PROBLEM_VALUE
       ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/todo/by-problem?problemId=${selectedProblemId}`
-      : null,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
-  )
+      : null
+
+  const { data: todoRes } = useSWR(todoKey, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  })
 
   const rawSolutions = todoRes as Todo[] | undefined
   const solutions: Todo[] = Array.isArray(rawSolutions) ? rawSolutions : []
+  const filteredProblems = problems.filter((p) => {
+    const matchCategory = String(p.problem_group_id) === String(selectedCategoryId)
+    const normalize = (val?: string) => val?.trim().toLowerCase()
+    const matchProcess = normalize(p.process) === normalize(selectedMachine?.Process)
+    return matchCategory && matchProcess
+  })
+
+  const handleCreateProblemFromOther = useCallback(async () => {
+    const name = newProblemName.trim()
+    if (!selectedCategoryId) {
+      toast.error('Category wajib dipilih')
+      return
+    }
+    if (!name) {
+      toast.error('Nama problem wajib diisi')
+      return
+    }
+
+    const existing = filteredProblems.find(
+      (p) => p.name.trim().toLowerCase() === name.toLowerCase()
+    )
+    if (existing) {
+      setSelectedProblemId(String(existing.id))
+      setSelectedSolutionId(undefined)
+      setNewProblemName('')
+      toast.success('Problem sudah ada, langsung dipilih')
+      return
+    }
+
+    setIsSavingProblem(true)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            problem_group_id: selectedCategoryId,
+            color: 'ORANGE',
+            process: selectedMachine?.Process || 'Injection',
+          }),
+        }
+      )
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data?.error || 'Gagal menambahkan problem')
+      }
+
+      const refreshed = (await mutate(problemKey)) as Problem[] | undefined
+      const latest = Array.isArray(refreshed) ? refreshed : []
+      const created = latest.find(
+        (p) =>
+          String(p.problem_group_id) === String(selectedCategoryId) &&
+          p.name.trim().toLowerCase() === name.toLowerCase()
+      )
+      if (!created) {
+        throw new Error('Problem berhasil dibuat, tapi data terbaru belum ditemukan')
+      }
+
+      setSelectedProblemId(String(created.id))
+      setSelectedSolutionId(undefined)
+      setNewProblemName('')
+      toast.success('Problem baru berhasil ditambahkan')
+    } catch (error) {
+      toast.error((error as Error).message)
+    } finally {
+      setIsSavingProblem(false)
+    }
+  }, [
+    filteredProblems,
+    newProblemName,
+    problemKey,
+    selectedCategoryId,
+    selectedMachine?.Process,
+  ])
+
+  const handleCreateSolutionFromOther = useCallback(async () => {
+    const name = newSolutionName.trim()
+    if (!selectedProblemId || selectedProblemId === OTHER_PROBLEM_VALUE) {
+      toast.error('Problem wajib dipilih')
+      return
+    }
+    if (!name) {
+      toast.error('Nama solution wajib diisi')
+      return
+    }
+
+    const existing = solutions.find(
+      (s) => s.name.trim().toLowerCase() === name.toLowerCase()
+    )
+    if (existing) {
+      setSelectedSolutionId(String(existing.id))
+      setNewSolutionName('')
+      toast.success('Solution sudah ada, langsung dipilih')
+      return
+    }
+
+    setIsSavingSolution(true)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/todo`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            problem_id: selectedProblemId,
+            pic: userData?.UserDept || 'SPV Production',
+            is_escalated: false,
+          }),
+        }
+      )
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data?.error || 'Gagal menambahkan solution')
+      }
+
+      const refreshed = (await mutate(todoKey)) as Todo[] | undefined
+      const latest = Array.isArray(refreshed) ? refreshed : []
+      const created = latest.find(
+        (s) =>
+          String(s.problem_id) === String(selectedProblemId) &&
+          s.name.trim().toLowerCase() === name.toLowerCase()
+      )
+      if (!created) {
+        throw new Error('Solution berhasil dibuat, tapi data terbaru belum ditemukan')
+      }
+
+      setSelectedSolutionId(String(created.id))
+      setNewSolutionName('')
+      toast.success('Solution baru berhasil ditambahkan')
+    } catch (error) {
+      toast.error((error as Error).message)
+    } finally {
+      setIsSavingSolution(false)
+    }
+  }, [newSolutionName, selectedProblemId, solutions, todoKey, userData?.UserDept])
 
   const checkUser = async () => {
     const user = localStorage.getItem('user')
@@ -672,9 +814,17 @@ export default function CountboardDashboard() {
       toast.error('Problem wajib dipilih')
       return
     }
+    if (selectedProblemId === OTHER_PROBLEM_VALUE) {
+      toast.error('Simpan problem Others terlebih dahulu')
+      return
+    }
 
     if (!selectedSolutionId) {
       toast.error('Solution wajib dipilih')
+      return
+    }
+    if (selectedSolutionId === OTHER_SOLUTION_VALUE) {
+      toast.error('Simpan solution Others terlebih dahulu')
       return
     }
 
@@ -736,6 +886,14 @@ export default function CountboardDashboard() {
       return
     }
 
+    const selectedCategory = categories.find(
+      (c) => String(c.id) === String(draftTicket.categoryId)
+    )
+    const isNonQualityOrScrap =
+      selectedCategory &&
+      (selectedCategory.name.toLowerCase().includes('non quality') ||
+        selectedCategory.name.toLowerCase().includes('scrap'))
+
     setIsLoading(true)
 
     try {
@@ -748,12 +906,14 @@ export default function CountboardDashboard() {
           body: JSON.stringify({
             machineId: selectedMachine.machineName,
             ticketDate: selectedStateChange.AdjustedStatusDate,
+            categoryId: draftTicket.categoryId,
             problem: problemObj.name,
             actionPlan: solutionObj.name,
             assignToId: selectedAssignTo,
             assignById: selectedAssignBy,
             eskalasiFlag: isEscalated,
             eskalasiDept: isEscalated === 1 ? escalationTarget : null,
+            ticketColorId: isNonQualityOrScrap ? 'RED' : 'ORANGE',
           }),
         }
       )
@@ -795,15 +955,6 @@ export default function CountboardDashboard() {
       }
 
       // 7. Jika Non Quality / Scrap → ORANGE jadi RED
-      const selectedCategory = categories.find(
-        (c) => String(c.id) === String(draftTicket.categoryId)
-      )
-
-      const isNonQualityOrScrap =
-        selectedCategory &&
-        (selectedCategory.name.toLowerCase().includes('non quality') ||
-          selectedCategory.name.toLowerCase().includes('scrap'))
-
       if (isNonQualityOrScrap && selectedStateChange) {
         await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state`,
@@ -843,7 +994,7 @@ export default function CountboardDashboard() {
     categories,
     refetchStateData,
   ])
-
+  console.log(selectedMachine)
   // const handleOrangeTicketSubmit = useCallback(async () => {
   //   if (!selectedAssignTo || !selectedAssignBy) {
   //     toast.error('Pilih Assign To (Operator/Mekanik) dan Assign By (SPV)')
@@ -1212,19 +1363,20 @@ export default function CountboardDashboard() {
     mutate(taskDataKey)
   }, [taskDataKey])
 
-  const currentPo = Array.isArray(taskData) && taskData.length > 0
-    ? taskData[taskData.length - 1].po_name
-    : selectedPO?.poNumber || ''
+  const currentPo =
+    Array.isArray(taskData) && taskData.length > 0
+      ? taskData[taskData.length - 1].po_name
+      : selectedPO?.poNumber || ''
 
-  const currentMaterial = Array.isArray(hourlyData) &&
+  const currentMaterial =
+    Array.isArray(hourlyData) &&
     hourlyData &&
     hourlyData.filter((data) => data?.itemDesc !== null).length > 0
-    ? hourlyData
-        .filter((data) => data?.itemDesc !== null)
-        .slice(-1)[0].itemDesc
-    : selectedPO
-      ? `${selectedPO?.materialId} - ${selectedPO?.materialName}`
-      : ''
+      ? hourlyData.filter((data) => data?.itemDesc !== null).slice(-1)[0]
+          .itemDesc
+      : selectedPO
+        ? `${selectedPO?.materialId} - ${selectedPO?.materialName}`
+        : ''
 
   const handleOpenParameterSetting = async () => {
     if (!selectedMachine?.machineName) return
@@ -1246,7 +1398,10 @@ export default function CountboardDashboard() {
       params.set('material', currentMaterial)
     }
     try {
-      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/+$/, '')
+      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
+        /\/+$/,
+        ''
+      )
       const existsUrl = base
         ? `${base}/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
         : `/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
@@ -1389,6 +1544,8 @@ export default function CountboardDashboard() {
       setSelectedCategoryId(undefined)
       setSelectedProblemId(undefined)
       setSelectedSolutionId(undefined)
+      setNewProblemName('')
+      setNewSolutionName('')
       setSelectedStateChange(change)
       setIsStateDialogOpen(true)
     }
@@ -1814,7 +1971,17 @@ export default function CountboardDashboard() {
     return (
       <ErrorState message="Error loading machines. Please try again later." />
     )
-
+  console.log('Machine Process:', selectedMachine?.Process)
+  console.log('Selected Category:', selectedCategoryId)
+  console.log('Problems length:', problems?.length)
+  problems.forEach((p) => {
+    console.log(
+      'Problem process raw:',
+      JSON.stringify(p.process),
+      '| Machine process raw:',
+      JSON.stringify(selectedMachine?.Process)
+    )
+  })
   const renderNooeIndicators = (from_datetime: Date) => {
     const nooeForTime =
       noeeData?.filter((nooe) => {
@@ -1988,7 +2155,7 @@ export default function CountboardDashboard() {
               <TooltipTrigger asChild>
                 <Button
                   onClick={handleOpenParameterSetting}
-                  variant="secondary"
+                  variant={'default'}
                   className="h-[43px]"
                   disabled={!selectedMachine?.machineName}
                 >
@@ -2913,10 +3080,10 @@ export default function CountboardDashboard() {
                                       {row.problem && row.causes
                                         ? row.problem + ' ' + row.causes
                                         : row.causes
-                                        ? row.causes
-                                        : row.problem
-                                        ? row.problem
-                                        : ''}
+                                          ? row.causes
+                                          : row.problem
+                                            ? row.problem
+                                            : ''}
                                     </p>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -2924,10 +3091,10 @@ export default function CountboardDashboard() {
                                       {row.problem && row.causes
                                         ? row.problem + ' ' + row.causes
                                         : row.causes
-                                        ? row.causes
-                                        : row.problem
-                                        ? row.problem
-                                        : 'Click to add causes'}
+                                          ? row.causes
+                                          : row.problem
+                                            ? row.problem
+                                            : 'Click to add causes'}
                                     </p>
                                   </TooltipContent>
                                 </Tooltip>
@@ -2950,10 +3117,10 @@ export default function CountboardDashboard() {
                                       {row.action && row.comments
                                         ? row.action + ' ' + row.comments
                                         : row.comments
-                                        ? row.comments
-                                        : row.action
-                                        ? row.action
-                                        : ''}
+                                          ? row.comments
+                                          : row.action
+                                            ? row.action
+                                            : ''}
                                     </p>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -2961,10 +3128,10 @@ export default function CountboardDashboard() {
                                       {row.action && row.comments
                                         ? row.action + ' ' + row.comments
                                         : row.comments
-                                        ? row.comments
-                                        : row.action
-                                        ? row.action
-                                        : 'Click to add comments'}
+                                          ? row.comments
+                                          : row.action
+                                            ? row.action
+                                            : 'Click to add comments'}
                                     </p>
                                   </TooltipContent>
                                 </Tooltip>
@@ -3060,6 +3227,8 @@ export default function CountboardDashboard() {
                       setSelectedCategoryId(value)
                       setSelectedProblemId(undefined)
                       setSelectedSolutionId(undefined)
+                      setNewProblemName('')
+                      setNewSolutionName('')
                     }}
                   >
                     <SelectTrigger>
@@ -3082,6 +3251,7 @@ export default function CountboardDashboard() {
                     onValueChange={(value) => {
                       setSelectedProblemId(value)
                       setSelectedSolutionId(undefined)
+                      setNewSolutionName('')
                     }}
                     disabled={!selectedCategoryId}
                   >
@@ -3089,13 +3259,33 @@ export default function CountboardDashboard() {
                       <SelectValue placeholder="Pilih problem" />
                     </SelectTrigger>
                     <SelectContent>
-                      {problems.map((p) => (
+                      <SelectItem value={OTHER_PROBLEM_VALUE}>
+                        Others (+ Add New Problem)
+                      </SelectItem>
+                      {filteredProblems.map((p) => (
                         <SelectItem key={p.id} value={String(p.id)}>
                           {p.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedProblemId === OTHER_PROBLEM_VALUE ? (
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        value={newProblemName}
+                        onChange={(e) => setNewProblemName(e.target.value)}
+                        placeholder="Input problem baru"
+                        disabled={isSavingProblem}
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleCreateProblemFromOther}
+                        disabled={isSavingProblem || !newProblemName.trim()}
+                      >
+                        {isSavingProblem ? 'Saving...' : 'Save'}
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-col space-y-1">
@@ -3105,12 +3295,18 @@ export default function CountboardDashboard() {
                     onValueChange={(value) => {
                       setSelectedSolutionId(value)
                     }}
-                    disabled={!selectedProblemId}
+                    disabled={
+                      !selectedProblemId ||
+                      selectedProblemId === OTHER_PROBLEM_VALUE
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih solution" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={OTHER_SOLUTION_VALUE}>
+                        Others (+ Add New Solution)
+                      </SelectItem>
                       {solutions.map((s) => (
                         <SelectItem key={s.id} value={String(s.id)}>
                           {s.name}
@@ -3118,6 +3314,23 @@ export default function CountboardDashboard() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedSolutionId === OTHER_SOLUTION_VALUE ? (
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        value={newSolutionName}
+                        onChange={(e) => setNewSolutionName(e.target.value)}
+                        placeholder="Input solution baru"
+                        disabled={isSavingSolution}
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleCreateSolutionFromOther}
+                        disabled={isSavingSolution || !newSolutionName.trim()}
+                      >
+                        {isSavingSolution ? 'Saving...' : 'Save'}
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div>
@@ -3192,7 +3405,9 @@ export default function CountboardDashboard() {
                   disabled={
                     !selectedCategoryId ||
                     !selectedProblemId ||
-                    !selectedSolutionId
+                    !selectedSolutionId ||
+                    selectedProblemId === OTHER_PROBLEM_VALUE ||
+                    selectedSolutionId === OTHER_SOLUTION_VALUE
                   }
                 >
                   Next
@@ -3280,7 +3495,7 @@ export default function CountboardDashboard() {
                         <option value="">Pilih Departemen</option>
                         <option value="MTC">MTC</option>
                         <option value="MAINTENANCE">MAINTENANCE</option>
-                        <option value="MISSING">MIXING</option>
+                        <option value="MIXING">MIXING</option>
                         <option value="MOLDSHOP">MOLDSHOP</option>
                       </select>
                     </div>
@@ -3380,8 +3595,8 @@ export default function CountboardDashboard() {
            ${usersSPV.find((u) => u.id === selectedAssignBy)?.name}`
                                 : 'SPV'
                               : selectedAssignTo
-                              ? 'Pilih SPV'
-                              : 'Pilih Operator dulu'}
+                                ? 'Pilih SPV'
+                                : 'Pilih Operator dulu'}
 
                             <ChevronDown className="w-4 h-4 ml-2" />
                           </div>

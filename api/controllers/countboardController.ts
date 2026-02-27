@@ -1,19 +1,19 @@
-import { queryDatabase } from '../utils/queryDatabase';
 
+import { queryDatabase } from '../utils/queryDatabase'
 
 export async function getRejectLists() {
   const sqlQuery = `
 SELECT id, name from RejectMST where active = 1
-  `;
-  return await queryDatabase(sqlQuery);
+  `
+  return await queryDatabase(sqlQuery)
 }
 export async function getUsers() {
   const sqlQuery = `
   SELECT *
     FROM IoT.dbo.UsersOpt
-  `;
+  `
 
-  return await queryDatabase(sqlQuery);
+  return await queryDatabase(sqlQuery)
 }
 export async function getAssignUsers() {
   const sqlQuery = `
@@ -50,16 +50,16 @@ export async function editScrap(hourlyId: number, scrap: number) {
       scrap = @scrap,
       running_actual_qty = running_actual_qty - @deltaScrap
     WHERE id = @hourlyId;
-  `;
+  `
 
   try {
     return await queryDatabase(sqlQuery, {
       hourlyId,
       scrap,
-    });
+    })
   } catch (error: any) {
-    console.error('Error updating scrap:', error);
-    throw new Error(`Failed to update scrap: ${error.message}`);
+    console.error('Error updating scrap:', error)
+    throw new Error(`Failed to update scrap: ${error.message}`)
   }
 }
 
@@ -79,44 +79,66 @@ export async function editRework(hourlyId: number, rework: number) {
       rework = @rework,
       running_actual_qty = running_actual_qty - @deltaRework
     WHERE id = @hourlyId;
-  `;
+  `
 
   try {
     return await queryDatabase(sqlQuery, {
       hourlyId,
       rework,
-    });
+    })
   } catch (error: any) {
-    console.error('Error updating rework:', error);
-    throw new Error(`Failed to update rework: ${error.message}`);
+    console.error('Error updating rework:', error)
+    throw new Error(`Failed to update rework: ${error.message}`)
   }
 }
 
 export async function addRouting(data: any[][]) {
-    const validData = data.slice(1).filter((row) => {
-      const [Scheduler, , MRPController, OldMaterialNo, Material, MaterialDescription, GrC, BaseQuantity, Un1, Un2, OpAc, WorkCtr, WorkCenterDescription, Machine, Unit1, Labor, Unit2, NoEmpl, CycleTime, CtrK, Cavities] = row;
-  
-      // Check for null or undefined values and ensure the data types are correct
-      // if (
-      //   !Scheduler || !Material || !MaterialDescription || !CycleTime || !Cavities ||
-      //    typeof CycleTime !== 'number' || typeof Cavities !== 'number'
-      // ) {
-      //   return false;
-      // }
-  
-      return true;
-    });
-  
-    if (validData.length === 0) {
-      throw new Error('Data tidak valid untuk di insert, periksa kembali');
-    }
+  const validData = data.slice(1).filter((row) => {
+    const [
+      Scheduler,
+      ,
+      MRPController,
+      OldMaterialNo,
+      Material,
+      MaterialDescription,
+      GrC,
+      BaseQuantity,
+      Un1,
+      Un2,
+      OpAc,
+      WorkCtr,
+      WorkCenterDescription,
+      Machine,
+      Unit1,
+      Labor,
+      Unit2,
+      NoEmpl,
+      CycleTime,
+      CtrK,
+      Cavities,
+    ] = row
+
+    // Check for null or undefined values and ensure the data types are correct
+    // if (
+    //   !Scheduler || !Material || !MaterialDescription || !CycleTime || !Cavities ||
+    //    typeof CycleTime !== 'number' || typeof Cavities !== 'number'
+    // ) {
+    //   return false;
+    // }
+
+    return true
+  })
+
+  if (validData.length === 0) {
+    throw new Error('Data tidak valid untuk di insert, periksa kembali')
+  }
 
   // console.log('Backend Valid data length:', validData.length)
 
-    // Escape single quotes by replacing ' with ''
-    const escapeSingleQuote = (value: string) => value.replace(/'/g, "''");
+  // Escape single quotes by replacing ' with ''
+  const escapeSingleQuote = (value: string) => value.replace(/'/g, "''")
 
-    const sqlQuery = `
+  const sqlQuery = `
       WITH deduplicated_source AS (
         SELECT
           scheduler,
@@ -131,11 +153,11 @@ export async function addRouting(data: any[][]) {
         FROM (
           VALUES
             ${validData
-        .map(
-          (row) =>
-            `('${escapeSingleQuote(row[0])}', '${escapeSingleQuote(row[4])}', '${escapeSingleQuote(row[5])}', ${row[18]}, ${row[20]}, getdate(), getdate(), 0)`
-        )
-      .join(", ")}
+              .map(
+                (row) =>
+                  `('${escapeSingleQuote(row[0])}', '${escapeSingleQuote(row[4])}', '${escapeSingleQuote(row[5])}', ${row[18]}, ${row[20]}, getdate(), getdate(), 0)`
+              )
+              .join(', ')}
         ) AS source(scheduler, material_id, material_name, ct, cvt, created_at, modified_at, is_sync)
       )
       MERGE INTO IoT.dbo.routing AS target
@@ -154,30 +176,42 @@ export async function addRouting(data: any[][]) {
       WHEN NOT MATCHED THEN
         INSERT (scheduler, material_id, material_name, ct, cvt, created_at, modified_at, is_sync)
         VALUES (unique_source.scheduler, unique_source.material_id, unique_source.material_name, unique_source.ct, unique_source.cvt, unique_source.created_at, unique_source.modified_at, unique_source.is_sync);
-    `;
-  
-    return await queryDatabase(sqlQuery);
+    `
+
+  return await queryDatabase(sqlQuery)
 }
-
-
 
 export async function addCoois(data: any[][]) {
   const validData = data.slice(1).filter((row) => {
-    const [po_number, so_item, , type, pn, produk, order_qty, hasil_qty, minus_qty] = row;
+    const [
+      po_number,
+      so_item,
+      ,
+      type,
+      pn,
+      produk,
+      order_qty,
+      hasil_qty,
+      minus_qty,
+    ] = row
 
     // Check for null or undefined values and ensure the data types are correct
     if (
-      !po_number || !pn || !produk ||
-      typeof order_qty !== 'number' || typeof hasil_qty !== 'number' || typeof minus_qty !== 'number'
+      !po_number ||
+      !pn ||
+      !produk ||
+      typeof order_qty !== 'number' ||
+      typeof hasil_qty !== 'number' ||
+      typeof minus_qty !== 'number'
     ) {
-      return false;
+      return false
     }
 
-    return true;
-  });
+    return true
+  })
 
   if (validData.length === 0) {
-    throw new Error('Data tidak valid untuk di insert, periksa kembali');
+    throw new Error('Data tidak valid untuk di insert, periksa kembali')
   }
 
   const sqlQuery = `
@@ -189,7 +223,7 @@ export async function addCoois(data: any[][]) {
             (row) =>
               `('${row[0]}', '${row[1]}', '${row[2]}', '${row[3]}', '${row[4]}', '${row[5]}', ${row[6]}, ${row[7]}, getdate(), getdate(), 0)`
           )
-          .join(", ")}
+          .join(', ')}
     ) AS source(po_name, so_name, op_no, type, material_id, material_name, required_qty, produced_qty, uploaded_at, modified_at, is_sync)
     ON target.po_name = source.po_name AND ISNULL(target.is_deleted, 0) = 0
     WHEN MATCHED THEN
@@ -206,18 +240,23 @@ export async function addCoois(data: any[][]) {
     WHEN NOT MATCHED THEN
       INSERT (po_name, so_name, op_no, type, material_id, material_name, required_qty, produced_qty, uploaded_at, modified_at, is_sync)
       VALUES (source.po_name, source.so_name, source.op_no, source.type, source.material_id, source.material_name, source.required_qty, source.produced_qty, source.uploaded_at, source.modified_at, source.is_sync);
-  `;
+  `
 
   try {
-    return await queryDatabase(sqlQuery);
+    return await queryDatabase(sqlQuery)
   } catch (error: any) {
-    console.error('Error inserting coois data:', error);
-    throw new Error(`Failed to insert coois data: ${error.message}`);
+    console.error('Error inserting coois data:', error)
+    throw new Error(`Failed to insert coois data: ${error.message}`)
   }
 }
 
-
-export async function editTopScrap(hourlyId: number, reject_a : number, reject_b: number, reject_c: number, reject_d: number) {
+export async function editTopScrap(
+  hourlyId: number,
+  reject_a: number,
+  reject_b: number,
+  reject_c: number,
+  reject_d: number
+) {
   const sqlQuery = `
 
   UPDATE IoT.dbo.hourly_uv
@@ -226,12 +265,21 @@ export async function editTopScrap(hourlyId: number, reject_a : number, reject_b
   UPDATE IoT.dbo.Reject_Machine_Relationship
       set reject_a_id = @reject_a, reject_b_id = @reject_b, reject_c_id = @reject_c, reject_d_id = @reject_d
       where mchid = (select machine_id from IoT.dbo.hourly_uv where id = @hourlyId)
-  `;
-  return await queryDatabase(sqlQuery, { hourlyId, reject_a, reject_b, reject_c, reject_d });
+  `
+  return await queryDatabase(sqlQuery, {
+    hourlyId,
+    reject_a,
+    reject_b,
+    reject_c,
+    reject_d,
+  })
 }
 
-
 export async function editProcess(hourlyId: number, process: string) {
+  const mchQuery = `SELECT machine_id FROM IoT.dbo.hourly_uv WHERE id = @hourlyId`
+  const mchResult = await queryDatabase(mchQuery, { hourlyId })
+  const MchID = mchResult[0]?.machine_id
+
   const sqlQuery = `
   UPDATE IoT.dbo.hourly_uv
       SET process = @process
@@ -241,20 +289,28 @@ export async function editProcess(hourlyId: number, process: string) {
       set process = @process
       where mchid = (select machine_id from IoT.dbo.hourly_uv where id = @hourlyId)
 
-  INSERT INTO IoT.dbo.UvProcessTrx (hourly_id, process) VALUES (@hourlyId, @process)
-  `;
+  INSERT INTO IoT.dbo.UvProcessTrx (hourly_id, process, created_at, MchID)
+  SELECT @hourlyId, @process, GETDATE(), machine_id
+  FROM IoT.dbo.hourly_uv
+  WHERE id = @hourlyId
+  `
   try {
-    return await queryDatabase(sqlQuery, { hourlyId, process });
+    const result = await queryDatabase(sqlQuery, { hourlyId, process })
+    return { ...result, MchID }
   } catch (error: any) {
-    console.error('Error updating process:', error);
-    throw new Error(`Failed to update process: ${error.message}`);
+    console.error('Error updating process:', error)
+    throw new Error(`Failed to update process: ${error.message}`)
   }
 }
 
-
-
-export async function getCoois(poName: string | undefined, type: string | undefined) {
-  const whereType = type === 'Metalizing, Spray Painting, Coating' ? "'Metalizing', 'Spray Painting', 'Coating'" : `'${type}'`;
+export async function getCoois(
+  poName: string | undefined,
+  type: string | undefined
+) {
+  const whereType =
+    type === 'Metalizing, Spray Painting, Coating'
+      ? "'Metalizing', 'Spray Painting', 'Coating'"
+      : `'${type}'`
   const sqlQuery = `
     SELECT 
     TOP 10
@@ -276,64 +332,78 @@ export async function getCoois(poName: string | undefined, type: string | undefi
     ORDER BY 
         poId DESC;
 
-  `;
+  `
   try {
-    return await queryDatabase(sqlQuery, { poName, type });
+    return await queryDatabase(sqlQuery, { poName, type })
   } catch (error: any) {
-    console.error('Error getting coois:', error);
-    throw new Error(`Failed to get coois: ${error.message}`);
+    console.error('Error getting coois:', error)
+    throw new Error(`Failed to get coois: ${error.message}`)
   }
 }
 
-export async function getCooisComplete(poName: string | undefined, uploadedAt: string | null, page: number) {
-  const numberOfData = uploadedAt ? '' : '';
-  const offset = (page - 1) * 15;
-  const totalItems = await queryDatabase(`SELECT COUNT(*) as count FROM IoT.dbo.coois WHERE po_name like '%'+ @poName + '%' AND (cast(uploaded_at as date) = cast(@uploadedAt as date) or @uploadedAt is null)`, { poName, uploadedAt });
-  const totalPages = Math.ceil(totalItems[0].count / 15);
+export async function getCooisComplete(
+  poName: string | undefined,
+  uploadedAt: string | null,
+  page: number
+) {
+  const numberOfData = uploadedAt ? '' : ''
+  const offset = (page - 1) * 15
+  const totalItems = await queryDatabase(
+    `SELECT COUNT(*) as count FROM IoT.dbo.coois WHERE po_name like '%'+ @poName + '%' AND (cast(uploaded_at as date) = cast(@uploadedAt as date) or @uploadedAt is null)`,
+    { poName, uploadedAt }
+  )
+  const totalPages = Math.ceil(totalItems[0].count / 15)
   const sqlQuery = `
     SELECT  ${numberOfData} * FROM IoT.dbo.coois
     WHERE po_name like '%'+ @poName + '%'
     AND (cast(uploaded_at as date) = cast(@uploadedAt as date) or @uploadedAt is null)
     ORDER BY id DESC
     OFFSET ${offset} ROWS FETCH NEXT 15 ROWS ONLY
-  `;
+  `
   try {
-    const data = await queryDatabase(sqlQuery, { poName, uploadedAt });
+    const data = await queryDatabase(sqlQuery, { poName, uploadedAt })
     return {
       data,
       totalPages,
-      totalItems
-    };
+      totalItems,
+    }
   } catch (error: any) {
-    console.error('Error getting coois:', error);
-    throw new Error(`Failed to get coois: ${error.message}`);
+    console.error('Error getting coois:', error)
+    throw new Error(`Failed to get coois: ${error.message}`)
   }
 }
-export async function getRouting(materialId: string | undefined, uploadedAt: string | null, page: number) {
+export async function getRouting(
+  materialId: string | undefined,
+  uploadedAt: string | null,
+  page: number
+) {
   // const whereType = type === 'Metalizing, Spray Painting, Coating' ? "'Metalizing', 'Spray Painting', 'Coating'" : `'${type}'`;
-  const numberOfData = uploadedAt ? '' : '';
-  const offset = (page - 1) * 15;
-  const totalItems = await queryDatabase(`SELECT COUNT(*) as count FROM IoT.dbo.routing WHERE material_id like '%'+ @materialId + '%' AND (cast(created_at as date) = cast(@uploadedAt as date) or @uploadedAt is null)`, { materialId, uploadedAt });
-  const totalPages = Math.ceil(totalItems[0].count / 15);
+  const numberOfData = uploadedAt ? '' : ''
+  const offset = (page - 1) * 15
+  const totalItems = await queryDatabase(
+    `SELECT COUNT(*) as count FROM IoT.dbo.routing WHERE material_id like '%'+ @materialId + '%' AND (cast(created_at as date) = cast(@uploadedAt as date) or @uploadedAt is null)`,
+    { materialId, uploadedAt }
+  )
+  const totalPages = Math.ceil(totalItems[0].count / 15)
   const sqlQuery = `
     SELECT ${numberOfData} * FROM IoT.dbo.routing
     WHERE material_id like '%'+ @materialId + '%'
     AND (cast(created_at as date) = cast(@uploadedAt as date) or @uploadedAt is null)
     ORDER BY id DESC
     OFFSET ${offset} ROWS FETCH NEXT 15 ROWS ONLY
-  `;
+  `
   // console.log(sqlQuery)
   // console.log(uploadedAt)
   try {
-    const data = await queryDatabase(sqlQuery, { materialId, uploadedAt });
+    const data = await queryDatabase(sqlQuery, { materialId, uploadedAt })
     return {
       data,
       totalPages,
-      totalItems
-    };
+      totalItems,
+    }
   } catch (error: any) {
-    console.error('Error getting coois:', error);
-    throw new Error(`Failed to get coois: ${error.message}`);
+    console.error('Error getting coois:', error)
+    throw new Error(`Failed to get coois: ${error.message}`)
   }
 }
 
@@ -375,12 +445,12 @@ export async function attachPo(poName: string, machineName: string) {
         
       RAISERROR (@errorMessage, 16, 1);
   END
-  `;
+  `
   try {
-    return await queryDatabase(sqlQuery, { poName, machineName });
+    return await queryDatabase(sqlQuery, { poName, machineName })
   } catch (error: any) {
-    console.error('Error attaching PO:', error);
-    throw new Error(`Failed to attach PO: ${error.message}`);
+    console.error('Error attaching PO:', error)
+    throw new Error(`Failed to attach PO: ${error.message}`)
   }
 }
 // menambahkan untuk ticketdate dan actual finish
@@ -399,7 +469,7 @@ export async function getTickets() {
   // Begitu masalah driver sudah beres, blok di bawah bisa diaktifkan lagi:
   //
   // const sqlQuery = `
-  //   SELECT 
+  //   SELECT
   //     TicketDate,
   //     ActualFinish
   //   FROM dbo.vw_TicketTRX_ForDashboard
@@ -412,56 +482,151 @@ export async function getTickets() {
   //   return [];
   // }
 
-  return [];
+  return []
+}
+export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
+  let sqlQuery = `
+    SELECT
+CONVERT(varchar, t.TicketDate, 120) AS TicketDate,
+     t.MchID,
+     m.MchNumber,
+     m.MchLoc,
+     t.Problem,
+     t.ActionPlan,
+     t.AssignToDept,
+     t.Message,
+     t.EskalasiStatus,
+     t.EskalasiFlag,
+     t.ActualSubmit,
+     t.ActualEskalasiFinish
+   FROM IoT.dbo.TicketTRX t
+   LEFT JOIN IoT.dbo.MachineMST m
+     ON t.MchID = m.MchID
+   WHERE t.EskalasiFlag = 1 and t.Active = 1
+  `
+
+  const params: Record<string, any> = {}
+
+  if (fromDate && toDate) {
+    sqlQuery += `
+      AND t.TicketDate >= @fromDate
+      AND t.TicketDate < DATEADD(DAY, 1, @toDate)
+    `
+    params.fromDate = fromDate
+    params.toDate = toDate
+  }
+
+  sqlQuery += ` ORDER BY t.TicketDate ASC`
+
+  return await queryDatabase(sqlQuery, params)
+}
+
+export async function updateTicketEskalasi(
+  mchId: string,
+  ticketDate: string,
+  message: string,
+  eskalasiStatus: 'open' | 'close' | 'status'
+) {
+  const sqlQuery = `
+  UPDATE iot.dbo.TicketTRX
+  SET 
+    Message = @message,
+    EskalasiStatus = @eskalasiStatus,
+    ActualEskalasiFinish = CASE
+      WHEN LOWER(@eskalasiStatus) = 'close'
+      THEN SYSDATETIME()
+      ELSE ActualEskalasiFinish
+    END
+  WHERE MchID = @mchId
+    AND TicketDate = @ticketDate
+  `
+
+  return await queryDatabase(sqlQuery, {
+    mchId,
+    ticketDate,
+    message,
+    eskalasiStatus,
+  })
 }
 
 // NOTE: versi tanpa ticketId (fallback berdasarkan MchID + ORANGE + tanggal terdekat)
 export async function submitOrangeTicket(
   machineId: string,
   ticketDate: string,
+  categoryId: string | null,
   problem: string,
   actionPlan: string,
   assignToId: string,
   assignById: string,
-   eskalasiFlag: 0 | 1,
-  eskalasiDept: string | null
+  eskalasiFlag: 0 | 1,
+  eskalasiDept: string | null,
+  ticketColorId: 'ORANGE' | 'RED' | null = null
 ) {
   const sqlQuery = `
-   DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
+    DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
 
     DECLARE @AssignToUserName NVARCHAR(100);
- 
     DECLARE @FinalAssignToDept NVARCHAR(100);
     DECLARE @AssignByUserName NVARCHAR(100);
+    DECLARE @EskalasiStatus NVARCHAR(20);
+    DECLARE @ResolvedColorID NVARCHAR(20);
+    DECLARE @IsNonQualityOrScrap BIT = 0;
 
-    -- Ambil username  To
-    SELECT 
-      @AssignToUserName = UserName
+    SELECT @AssignToUserName = UserName
     FROM IoT.dbo.useraccessmst
     WHERE UserRFID = @assignToId;
 
-    -- Ambil username Assign By
-    SELECT 
-      @AssignByUserName = UserName
+    SELECT @AssignByUserName = UserName
     FROM IoT.dbo.useraccessmst
     WHERE UserRFID = @assignById;
 
-    -- Tentukan AssignToDept FINAL
     SET @FinalAssignToDept =
       CASE 
         WHEN @eskalasiFlag = 1 THEN @eskalasiDept
-   
+        ELSE NULL
       END;
 
-    UPDATE T
-    SET 
-      Problem        = @problem,
-      ActionPlan     = @actionPlan,
-      AssignTo       = @AssignToUserName,
-      AssignToDept   = @FinalAssignToDept,
-      AssignBy       = @AssignByUserName,
-      EskalasiFlag   = @eskalasiFlag
-    FROM (
+    -- Tentukan EskalasiStatus
+    SET @EskalasiStatus =
+      CASE
+        WHEN @eskalasiFlag = 1 THEN 'open'
+        ELSE NULL
+      END;
+
+    SET @ResolvedColorID = COALESCE(NULLIF(@ticketColorId, ''), 'ORANGE');
+    IF (@categoryId IS NOT NULL)
+    BEGIN
+      SELECT @IsNonQualityOrScrap =
+        CASE
+          WHEN LOWER(pg.name) LIKE '%non quality%' OR LOWER(pg.name) LIKE '%scrap%' THEN 1
+          ELSE 0
+        END
+      FROM IoT.dbo.problem_problem_group pg
+      WHERE CAST(pg.id AS NVARCHAR(50)) = @categoryId;
+    END;
+
+    -- Khusus Non Quality/Scrap: warna ditentukan dari category (RED)
+    IF (@IsNonQualityOrScrap = 1)
+    BEGIN
+      SET @ResolvedColorID = 'RED';
+    END;
+
+  UPDATE T
+SET 
+  Problem          = @problem,
+  ActionPlan       = @actionPlan,
+  AssignTo         = @AssignToUserName,
+  AssignToDept     = @FinalAssignToDept,
+  AssignBy         = @AssignByUserName,
+  ColorID          = @ResolvedColorID,
+  EskalasiFlag     = @eskalasiFlag,
+  EskalasiStatus   = @EskalasiStatus,
+  ActualSubmit     = CASE 
+                       WHEN @eskalasiFlag = 1 THEN SYSDATETIME()
+                       ELSE ActualSubmit
+                     END
+FROM (
+
       SELECT TOP (1) *
       FROM IoT.dbo.TicketTRX
       WHERE 
@@ -472,28 +637,28 @@ export async function submitOrangeTicket(
     ) AS T;
 
     SELECT @@ROWCOUNT AS affected;
-
-  `;
+  `
 
   try {
     const result = await queryDatabase(sqlQuery, {
       machineId,
       ticketDate,
+      categoryId,
       problem,
       actionPlan,
       assignToId,
       assignById,
-        eskalasiFlag,
-  eskalasiDept,
-    });
+      eskalasiFlag,
+      eskalasiDept,
+      ticketColorId,
+    })
 
-    return result?.[0] ?? { affected: 0 };
+    return result?.[0] ?? { affected: 0 }
   } catch (error: any) {
-    console.error('Error submitting orange ticket:', error);
-    throw new Error(`Failed to submit ticket: ${error.message}`);
+    console.error('Error submitting orange ticket:', error)
+    throw new Error(`Failed to submit ticket: ${error.message}`)
   }
 }
-
 
 // export async function submitOrangeTicket(
 //     machineId: string,
@@ -503,15 +668,15 @@ export async function submitOrangeTicket(
 //   ) {
 //     const sqlQuery = `
 //       DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
-  
+
 //       UPDATE T
-//       SET 
+//       SET
 //         Problem = @problem,
 //         ActionPlan = @actionPlan
 //       FROM (
 //         SELECT TOP (1) *
 //         FROM IoT.dbo.TicketTRX
-//         WHERE 
+//         WHERE
 //           MchID = @machineId
 //           AND ColorID = 'ORANGE'
 //           AND CAST(TicketDate AS date) = CAST(@ticketDateParam AS date)
@@ -535,25 +700,29 @@ export async function submitOrangeTicket(
 //   }
 // }
 
-
 export async function updateCVT(taskId: number, newCvt: number) {
-    const sqlQuery = `
+  const sqlQuery = `
     UPDATE IoT.dbo.countboard_tasks 
         SET actual_cvt = @newCvt,
             updated_at = getdate()
         WHERE id = @taskId;
-    `;
+    `
   try {
-    return await queryDatabase(sqlQuery, { taskId, newCvt });
+    return await queryDatabase(sqlQuery, { taskId, newCvt })
   } catch (error) {
-    console.error('Error updating CVT:', error);
-    throw new Error('Failed to update CVT');
+    console.error('Error updating CVT:', error)
+    throw new Error('Failed to update CVT')
   }
-  }
+}
 
-  export async function updateComment(hourlyId: number, type: string, content: string, uap: string | null) {
-    if (uap == "uv") {
-      const sqlQuery = `
+export async function updateComment(
+  hourlyId: number,
+  type: string,
+  content: string,
+  uap: string | null
+) {
+  if (uap == 'uv') {
+    const sqlQuery = `
     IF (@type = 'causes')
     BEGIN
     UPDATE IoT.dbo.hourly_uv
@@ -566,16 +735,15 @@ export async function updateCVT(taskId: number, newCvt: number) {
         SET note = @content
         WHERE id = @hourlyId;
     END
-    `;
-      try {
-        return await queryDatabase(sqlQuery, { hourlyId, type, content });
-      } catch (error: any) {
-        console.error('Error updating comment:', error);
-        throw new Error(`Failed to update comment: ${error.message}`);
-      }
-
-    } else {
-      const sqlQuery = `
+    `
+    try {
+      return await queryDatabase(sqlQuery, { hourlyId, type, content })
+    } catch (error: any) {
+      console.error('Error updating comment:', error)
+      throw new Error(`Failed to update comment: ${error.message}`)
+    }
+  } else {
+    const sqlQuery = `
     IF (@type = 'causes')
     BEGIN
     UPDATE IoT.dbo.hourly 
@@ -588,12 +756,12 @@ export async function updateCVT(taskId: number, newCvt: number) {
         SET note = @content
         WHERE id = @hourlyId;
     END
-    `;
-      try {
-        return await queryDatabase(sqlQuery, { hourlyId, type, content });
-      } catch (error: any) {
-        console.error('Error updating comment:', error);
-        throw new Error(`Failed to update comment: ${error.message}`);
-      }
-    }    
+    `
+    try {
+      return await queryDatabase(sqlQuery, { hourlyId, type, content })
+    } catch (error: any) {
+      console.error('Error updating comment:', error)
+      throw new Error(`Failed to update comment: ${error.message}`)
+    }
   }
+}
