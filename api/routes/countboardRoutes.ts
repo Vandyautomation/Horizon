@@ -17,10 +17,103 @@ import {
   getAssignUsers,
   getTicketByEskalasi,
   updateTicketEskalasi,
+  getProblem,
+  getProblemStatusCount,
+  getLostTime,
 } from '../controllers/countboardController'
 //import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
 const countboardRoutes = new Hono()
+
+type CacheSource = 'hit' | 'miss' | 'inflight' | 'stale'
+
+type CacheEntry<T> = {
+  data: T | null
+  expiresAt: number
+  inflight: Promise<T> | null
+}
+
+const COUNTBOARD_CACHE_TTL_MS = 10_000
+
+const lostTimeCache = new Map<string, CacheEntry<unknown>>()
+const problemCache = new Map<string, CacheEntry<unknown>>()
+const problemStatusCountCache = new Map<string, CacheEntry<unknown>>()
+
+const invalidateCountboardCache = () => {
+  lostTimeCache.clear()
+  problemCache.clear()
+  problemStatusCountCache.clear()
+}
+
+const readThroughCache = async <T>(
+  cacheStore: Map<string, CacheEntry<T>>,
+  cacheKey: string,
+  loader: () => Promise<T>
+): Promise<{ data: T; source: CacheSource }> => {
+  const entry =
+    cacheStore.get(cacheKey) ??
+    ({
+      data: null,
+      expiresAt: 0,
+      inflight: null,
+    } as CacheEntry<T>)
+  cacheStore.set(cacheKey, entry)
+
+  const now = Date.now()
+  if (entry.data !== null && entry.expiresAt > now) {
+    return { data: entry.data, source: 'hit' }
+  }
+
+  if (entry.inflight) {
+    const data = await entry.inflight
+    return { data, source: 'inflight' }
+  }
+
+  entry.inflight = (async () => {
+    const fresh = await loader()
+    entry.data = fresh
+    entry.expiresAt = Date.now() + COUNTBOARD_CACHE_TTL_MS
+    return fresh
+  })()
+
+  try {
+    const data = await entry.inflight
+    return { data, source: 'miss' }
+  } catch (error) {
+    if (entry.data !== null) {
+      return { data: entry.data, source: 'stale' }
+    }
+    throw error
+  } finally {
+    entry.inflight = null
+  }
+}
+
+const getMonthDateRange = () => {
+  const now = new Date()
+  const fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+  const toDate = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0)
+  return { fromDate, toDate }
+}
+
+const parseRangeFromQuery = (fromRaw?: string, toRaw?: string) => {
+  if (!fromRaw || !toRaw) {
+    return getMonthDateRange()
+  }
+
+  const fromDate = new Date(fromRaw)
+  const toDate = new Date(toRaw)
+
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    return null
+  }
+
+  return { fromDate, toDate }
+}
+
+const buildRangeCacheKey = (fromDate: Date, toDate: Date) =>
+  `${fromDate.toISOString()}__${toDate.toISOString()}`
+
 countboardRoutes.get('/rejects', async (c) => {
   try {
     const data = await getRejectLists()
@@ -77,26 +170,7 @@ countboardRoutes.put('/process', async (c) => {
   const data = (await c.req.json()) as { hourlyId: number; process: string }
 
   try {
-    const res: any = await editProcess(data.hourlyId, data.process)
-
-    if (res?.MchID) {
-      try {
-        await fetch('http://dmksrv02:443/uv/api/update/processtrx', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            hourly_id: data.hourlyId,
-            process: data.process,
-            created_at: new Date().toISOString(),
-            MchID: res.MchID,
-          }),
-        })
-      } catch (err) {
-        console.error('Failed to sync process to UV API:', err)
-      }
-    }
+    const res = await editProcess(data.hourlyId, data.process)
     return c.json(res)
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500)
@@ -189,7 +263,6 @@ countboardRoutes.put('/comment', async (c) => {
     return c.json({ error: (error as Error).message }, 500)
   }
 })
-
 countboardRoutes.post('/ticket', async (c) => {
   const {
     machineId,
@@ -235,6 +308,8 @@ countboardRoutes.post('/ticket', async (c) => {
       )
     }
 
+    invalidateCountboardCache()
+
     return c.json({
       message: 'TicketTRX updated successfully',
       affected: result.affected,
@@ -244,6 +319,56 @@ countboardRoutes.post('/ticket', async (c) => {
     return c.json({ error: (error as Error).message }, 500)
   }
 })
+// countboardRoutes.post('/ticket', async (c) => {
+//   const {
+//     machineId,
+//     ticketDate,
+//     problem,
+//     actionPlan,
+//     assignToId,
+//     assignById,
+//     eskalasiFlag,
+//     eskalasiDept,
+//   } = await c.req.json()
+
+//   if (!machineId || !ticketDate || !problem || !actionPlan) {
+//     return c.json(
+//       { error: 'machineId, ticketDate, problem, and actionPlan are required' },
+//       400
+//     )
+//   }
+
+//   try {
+//     const result = await submitOrangeTicket(
+//       machineId,
+//       ticketDate,
+//       problem,
+//       actionPlan,
+//       assignToId,
+//       assignById,
+//       eskalasiFlag,
+//       eskalasiDept
+//     )
+
+//     if (!result.affected) {
+//       return c.json(
+//         {
+//           message:
+//             'No matching TicketTRX found for given machine and ticket date',
+//         },
+//         404
+//       )
+//     }
+
+//     return c.json({
+//       message: 'TicketTRX updated successfully',
+//       affected: result.affected,
+//     })
+//   } catch (error) {
+//     console.error('Error submitting orange ticket:', error)
+//     return c.json({ error: (error as Error).message }, 500)
+//   }
+// })
 
 //get user
 countboardRoutes.get('/users', async (c) => {
@@ -309,11 +434,76 @@ countboardRoutes.put('/eskalasi', async (c) => {
     const { mchId, ticketDate, message, eskalasiStatus } = body
 
     await updateTicketEskalasi(mchId, ticketDate, message, eskalasiStatus)
+    invalidateCountboardCache()
 
     return c.json({ success: true })
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500)
   }
 })
+countboardRoutes.get('/lost-time', async (c) => {
+  const startedAt = Date.now()
+  try {
+    const range = parseRangeFromQuery(c.req.query('fromDate'), c.req.query('toDate'))
+    if (!range) {
+      return c.json({ error: 'Invalid fromDate/toDate format' }, 400)
+    }
 
+    const cacheKey = buildRangeCacheKey(range.fromDate, range.toDate)
+    const { data, source } = await readThroughCache(lostTimeCache, cacheKey, () =>
+      getLostTime(range.fromDate, range.toDate)
+    )
+    c.header('X-Countboard-Cache', source)
+    c.header('X-Backend-Time', `${Date.now() - startedAt}ms`)
+    c.header('X-Range-From', range.fromDate.toISOString())
+    c.header('X-Range-To', range.toDate.toISOString())
+    return c.json(data)
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
+countboardRoutes.get('/problem', async (c) => {
+  const startedAt = Date.now()
+  try {
+    const range = parseRangeFromQuery(c.req.query('fromDate'), c.req.query('toDate'))
+    if (!range) {
+      return c.json({ error: 'Invalid fromDate/toDate format' }, 400)
+    }
+
+    const cacheKey = buildRangeCacheKey(range.fromDate, range.toDate)
+    const { data, source } = await readThroughCache(problemCache, cacheKey, () =>
+      getProblem(range.fromDate, range.toDate)
+    )
+    c.header('X-Countboard-Cache', source)
+    c.header('X-Backend-Time', `${Date.now() - startedAt}ms`)
+    c.header('X-Range-From', range.fromDate.toISOString())
+    c.header('X-Range-To', range.toDate.toISOString())
+    return c.json(data)
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
+countboardRoutes.get('/problem-status-counts', async (c) => {
+  const startedAt = Date.now()
+  try {
+    const range = parseRangeFromQuery(c.req.query('fromDate'), c.req.query('toDate'))
+    if (!range) {
+      return c.json({ error: 'Invalid fromDate/toDate format' }, 400)
+    }
+
+    const cacheKey = buildRangeCacheKey(range.fromDate, range.toDate)
+    const { data, source } = await readThroughCache(
+      problemStatusCountCache,
+      cacheKey,
+      () => getProblemStatusCount(range.fromDate, range.toDate)
+    )
+    c.header('X-Countboard-Cache', source)
+    c.header('X-Backend-Time', `${Date.now() - startedAt}ms`)
+    c.header('X-Range-From', range.fromDate.toISOString())
+    c.header('X-Range-To', range.toDate.toISOString())
+    return c.json(data)
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
 export default countboardRoutes

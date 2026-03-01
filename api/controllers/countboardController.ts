@@ -1,4 +1,3 @@
-
 import { queryDatabase } from '../utils/queryDatabase'
 
 export async function getRejectLists() {
@@ -276,10 +275,9 @@ export async function editTopScrap(
 }
 
 export async function editProcess(hourlyId: number, process: string) {
-  const mchQuery = `SELECT machine_id FROM IoT.dbo.hourly_uv WHERE id = @hourlyId`
+   const mchQuery = `SELECT machine_id FROM IoT.dbo.hourly_uv WHERE id = @hourlyId`
   const mchResult = await queryDatabase(mchQuery, { hourlyId })
   const MchID = mchResult[0]?.machine_id
-
   const sqlQuery = `
   UPDATE IoT.dbo.hourly_uv
       SET process = @process
@@ -295,7 +293,7 @@ export async function editProcess(hourlyId: number, process: string) {
   WHERE id = @hourlyId
   `
   try {
-    const result = await queryDatabase(sqlQuery, { hourlyId, process })
+      const result = await queryDatabase(sqlQuery, { hourlyId, process })
     return { ...result, MchID }
   } catch (error: any) {
     console.error('Error updating process:', error)
@@ -487,7 +485,7 @@ export async function getTickets() {
 export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
   let sqlQuery = `
     SELECT
-CONVERT(varchar, t.TicketDate, 120) AS TicketDate,
+   CONVERT(varchar, t.TicketDate, 120) AS TicketDate,
      t.MchID,
      m.MchNumber,
      m.MchLoc,
@@ -659,6 +657,90 @@ FROM (
     throw new Error(`Failed to submit ticket: ${error.message}`)
   }
 }
+// export async function submitOrangeTicket(
+//   machineId: string,
+//   ticketDate: string,
+//   problem: string,
+//   actionPlan: string,
+//   assignToId: string,
+//   assignById: string,
+//   eskalasiFlag: 0 | 1,
+//   eskalasiDept: string | null
+// ) {
+//   const sqlQuery = `
+//     DECLARE @ticketDateParam DATETIME2(0) = CAST(@ticketDate AS DATETIME2(0));
+
+//     DECLARE @AssignToUserName NVARCHAR(100);
+//     DECLARE @FinalAssignToDept NVARCHAR(100);
+//     DECLARE @AssignByUserName NVARCHAR(100);
+//     DECLARE @EskalasiStatus NVARCHAR(20);
+
+//     SELECT @AssignToUserName = UserName
+//     FROM IoT.dbo.useraccessmst
+//     WHERE UserRFID = @assignToId;
+
+//     SELECT @AssignByUserName = UserName
+//     FROM IoT.dbo.useraccessmst
+//     WHERE UserRFID = @assignById;
+
+//     SET @FinalAssignToDept =
+//       CASE 
+//         WHEN @eskalasiFlag = 1 THEN @eskalasiDept
+//         ELSE NULL
+//       END;
+
+//     -- Tentukan EskalasiStatus
+//     SET @EskalasiStatus =
+//       CASE
+//         WHEN @eskalasiFlag = 1 THEN 'open'
+//         ELSE NULL
+//       END;
+
+//   UPDATE T
+// SET 
+//   Problem          = @problem,
+//   ActionPlan       = @actionPlan,
+//   AssignTo         = @AssignToUserName,
+//   AssignToDept     = @FinalAssignToDept,
+//   AssignBy         = @AssignByUserName,
+//   EskalasiFlag     = @eskalasiFlag,
+//   EskalasiStatus   = @EskalasiStatus,
+//   ActualSubmit     = CASE 
+//                        WHEN @eskalasiFlag = 1 THEN SYSDATETIME()
+//                        ELSE ActualSubmit
+//                      END
+// FROM (
+
+//       SELECT TOP (1) *
+//       FROM IoT.dbo.TicketTRX
+//       WHERE 
+//         MchID = @machineId
+//         AND ColorID = 'ORANGE'
+//         AND CAST(TicketDate AS date) = CAST(@ticketDateParam AS date)
+//       ORDER BY ABS(DATEDIFF(SECOND, TicketDate, @ticketDateParam))
+//     ) AS T;
+
+//     SELECT @@ROWCOUNT AS affected;
+//   `
+
+//   try {
+//     const result = await queryDatabase(sqlQuery, {
+//       machineId,
+//       ticketDate,
+//       problem,
+//       actionPlan,
+//       assignToId,
+//       assignById,
+//       eskalasiFlag,
+//       eskalasiDept,
+//     })
+
+//     return result?.[0] ?? { affected: 0 }
+//   } catch (error: any) {
+//     console.error('Error submitting orange ticket:', error)
+//     throw new Error(`Failed to submit ticket: ${error.message}`)
+//   }
+// }
 
 // export async function submitOrangeTicket(
 //     machineId: string,
@@ -764,4 +846,199 @@ export async function updateComment(
       throw new Error(`Failed to update comment: ${error.message}`)
     }
   }
+}
+export const getLostTime = async (fromDate: Date, toDate: Date) => {
+  const query = `
+    ;WITH InjectionMachines AS (
+      SELECT M.MchID
+      FROM iot.dbo.MachineMST M
+      WHERE M.Active = 1
+        AND M.MchProcess = 'INJECTION'
+    ),
+    LatestMachineStatus AS (
+      SELECT
+        S.MchID,
+        S.StatusDate,
+        S.StatusLight,
+        ROW_NUMBER() OVER (
+          PARTITION BY S.MchID
+          ORDER BY S.StatusDate DESC
+        ) AS rn
+      FROM MchStatusTRX S
+      INNER JOIN InjectionMachines IM
+        ON S.MchID = IM.MchID
+      WHERE S.MchID <> ''
+        AND S.StatusDate >= @fromDate
+        AND S.StatusDate < @toDate
+    )
+    SELECT
+      LS.StatusDate,
+      DATEDIFF(MINUTE, LS.StatusDate, GETDATE()) AS DuraMin,
+      LS.MchID,
+      M.MchLoc,
+      M.MchNumber,
+      M.Brand,
+      M.MchTon,
+      (M.MchLoc + '-' + M.MchNumber) AS Location
+    FROM LatestMachineStatus LS
+    INNER JOIN iot.dbo.MachineMST M
+      ON LS.MchID = M.MchID
+    WHERE
+      LS.rn = 1
+      AND LS.StatusLight = 'ORANGE'
+    ORDER BY M.MchLoc
+  `
+
+  const result = await queryDatabase(query, { fromDate, toDate })
+  return result
+}
+export const getProblem = async (fromDate: Date, toDate: Date) => {
+  const query = `
+    ;WITH InjectionMachines AS (
+      SELECT M.MchID
+      FROM iot.dbo.MachineMST M
+      WHERE M.Active = 1
+        AND M.MchProcess = 'INJECTION'
+    ),
+    LatestMachineStatus AS (
+      SELECT
+        S.MchID,
+        S.StatusDate,
+        S.StatusLight,
+        ROW_NUMBER() OVER (
+          PARTITION BY S.MchID
+          ORDER BY S.StatusDate DESC
+        ) AS rn
+      FROM MchStatusTRX S
+      INNER JOIN InjectionMachines IM
+        ON S.MchID = IM.MchID
+      WHERE S.MchID <> ''
+        AND S.StatusDate >= @fromDate
+        AND S.StatusDate < @toDate
+    ),
+    LatestOrangeMachines AS (
+      SELECT
+        LS.MchID,
+        LS.StatusDate AS LatestStatusDate
+      FROM LatestMachineStatus LS
+      WHERE LS.rn = 1
+        AND LS.StatusLight = 'ORANGE'
+    ),
+    FilteredTickets AS (
+      SELECT
+        X.MchID,
+        X.Problem,
+        X.ActionPlan,
+        X.TicketStatus,
+        X.EskalasiStatus,
+        X.Message,
+        COALESCE(X.TicketDate, LOM.LatestStatusDate) AS TicketDate,
+        M.MchLoc,
+        M.MchNumber,
+        M.Brand,
+        M.MchTon,
+        ROW_NUMBER() OVER (
+          PARTITION BY X.MchID, UPPER(LTRIM(RTRIM(X.TicketStatus)))
+          ORDER BY COALESCE(X.TicketDate, LOM.LatestStatusDate) DESC
+        ) AS rnMachineStatus
+      FROM TicketTRX X
+      INNER JOIN InjectionMachines IM
+        ON X.MchID = IM.MchID
+      INNER JOIN LatestOrangeMachines LOM
+        ON X.MchID = LOM.MchID
+      INNER JOIN iot.dbo.MachineMST M
+        ON X.MchID = M.MchID
+      WHERE
+        X.TicketDate >= @fromDate
+        AND X.TicketDate < @toDate
+        AND X.TicketStatus IN ('NEW','ESKALASI','ONPROG','ASSIGNED','OPEN')
+        AND X.ColorID = 'ORANGE'
+        AND X.Active = 1
+    )
+    SELECT
+      X.MchID,
+      X.Problem,
+      X.ActionPlan,
+      X.TicketDate,
+      PG.name AS Type,
+      PT.name AS Action,
+      PT.pic,
+      X.TicketStatus,
+      X.EskalasiStatus,
+      X.Message,
+      LTRIM(RTRIM(X.MchLoc)) AS MchLoc,
+      LTRIM(RTRIM(X.MchNumber)) AS MchNumber,
+      X.Brand,
+      X.MchTon,
+      (LTRIM(RTRIM(X.MchLoc)) + '-' + LTRIM(RTRIM(X.MchNumber))) AS Location
+    FROM FilteredTickets X
+    LEFT JOIN problem_problem PP
+      ON X.Problem = PP.name
+      AND PP.color = 'ORANGE'
+      AND PP.process = 'INJECTION'
+    LEFT JOIN problem_problem_group PG
+      ON PP.problem_group_id = PG.id
+    OUTER APPLY (
+      SELECT TOP 1
+        T.name,
+        T.pic
+      FROM problem_todo T
+      WHERE T.problem_id = PP.id
+        AND T.name = X.ActionPlan
+      ORDER BY T.id DESC
+    ) PT
+    WHERE
+      X.rnMachineStatus = 1
+  `
+
+  const result = await queryDatabase(query, { fromDate, toDate })
+  return result
+}
+
+export const getProblemStatusCount = async (fromDate: Date, toDate: Date) => {
+  const query = `
+    ;WITH InjectionMachines AS (
+      SELECT M.MchID
+      FROM iot.dbo.MachineMST M
+      WHERE M.Active = 1
+        AND M.MchProcess = 'INJECTION'
+    ),
+    LatestMachineStatus AS (
+      SELECT
+        S.MchID,
+        S.StatusLight,
+        ROW_NUMBER() OVER (
+          PARTITION BY S.MchID
+          ORDER BY S.StatusDate DESC
+        ) AS rn
+      FROM MchStatusTRX S
+      INNER JOIN InjectionMachines IM
+        ON S.MchID = IM.MchID
+      WHERE S.MchID <> ''
+        AND S.StatusDate >= @fromDate
+        AND S.StatusDate < @toDate
+    ),
+    LatestOrangeMachines AS (
+      SELECT LS.MchID
+      FROM LatestMachineStatus LS
+      WHERE LS.rn = 1
+        AND LS.StatusLight = 'ORANGE'
+    )
+    SELECT
+      UPPER(LTRIM(RTRIM(X.TicketStatus))) AS TicketStatus,
+      COUNT(1) AS Total
+    FROM TicketTRX X
+    INNER JOIN LatestOrangeMachines LOM
+      ON X.MchID = LOM.MchID
+    WHERE
+      X.TicketDate >= @fromDate
+      AND X.TicketDate < @toDate
+      AND X.TicketStatus IN ('NEW','ESKALASI','ONPROG','ASSIGNED','OPEN')
+      AND X.ColorID = 'ORANGE'
+      AND X.Active = 1
+    GROUP BY UPPER(LTRIM(RTRIM(X.TicketStatus)))
+  `
+
+  const result = await queryDatabase(query, { fromDate, toDate })
+  return result
 }

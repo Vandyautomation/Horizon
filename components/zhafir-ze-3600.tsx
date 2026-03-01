@@ -20,6 +20,10 @@ type StdActValue = {
 
 type ApiResponse = {
   paraId: string
+  ranges?: Record<
+    string,
+    { min: number | string | null; max: number | string | null }
+  >
   values: Record<string, StdActValue>
 }
 
@@ -80,6 +84,20 @@ type InputProps = {
   savingField?: string | null
 }
 
+type SummaryRangeInputProps = {
+  fieldKey: string
+  values: Record<string, StdActValue>
+  stdDraft: Record<string, string>
+  actDraft: Record<string, string>
+  minDraft: Record<string, string>
+  maxDraft: Record<string, string>
+  onStdChange?: (fieldKey: string, value: string) => void
+  onMinChange?: (fieldKey: string, value: string) => void
+  onMaxChange?: (fieldKey: string, value: string) => void
+  isEditMode: boolean
+  isActOverLimit?: boolean
+}
+
 const PARA_ID = 'ZHF-STD-001'
 const EDIT_MODE_PASSWORD = 'P168421TK1'
 const ENABLE_PER_FIELD_SAVE = false
@@ -116,6 +134,13 @@ const DB_ONLY_TEMPERATURE_FIELDS = new Set([
   'HopperMax',
   'HopperMin',
 ])
+const SUMMARY_RANGE_FIELDS = [
+  'InjectScrewPosition',
+  'VPTimeText',
+  'VPPositionText',
+  'Thickness',
+  'CarriageBwd_SE',
+] as const
 const ACT_BOX_PRESET_COLORS = [
   '#f3f4f6', // gray
   '#dbeafe', // blue
@@ -209,6 +234,8 @@ export default function ZhafirParameterForm() {
   const [values, setValues] = useState<Record<string, StdActValue>>({})
   const [stdDraft, setStdDraft] = useState<Record<string, string>>({})
   const [actDraft, setActDraft] = useState<Record<string, string>>({})
+  const [minDraft, setMinDraft] = useState<Record<string, string>>({})
+  const [maxDraft, setMaxDraft] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingKey, setSavingKey] = useState<string | null>(null)
@@ -285,15 +312,32 @@ export default function ZhafirParameterForm() {
   )
   // Check if any actual value is over its standard
   const isStdGreaterThanAct = (fieldKey: string) => {
-    const std = Number(stdDraft[fieldKey])
-    const act = Number(actDraft[fieldKey])
+    const actRaw = actDraft[fieldKey] ?? values[fieldKey]?.act ?? ''
+    const act = Number(actRaw)
+    if (Number.isNaN(act)) return false
 
-    if (Number.isNaN(std) || Number.isNaN(act)) return false
+    const stdRaw = stdDraft[fieldKey] ?? values[fieldKey]?.std ?? ''
+    const std = Number(stdRaw)
+    const hasStd = !Number.isNaN(std)
 
-    const toleranceValue = std * (tolerance / 100)
-    const maxAllowed = std + toleranceValue
+    const minRaw = minDraft[fieldKey]
+    const maxRaw = maxDraft[fieldKey]
+    const min = Number(minRaw)
+    const max = Number(maxRaw)
+    const hasMin = minRaw !== undefined && minRaw !== '' && !Number.isNaN(min)
+    const hasMax = maxRaw !== undefined && maxRaw !== '' && !Number.isNaN(max)
 
-    return act > maxAllowed
+    const isOutsideMinMax =
+      (hasMin && act < min) || (hasMax && act > max)
+
+    let isOutsideTolerance = false
+    if (hasStd) {
+      const toleranceValue = std * (tolerance / 100)
+      const maxAllowed = std + toleranceValue
+      isOutsideTolerance = act > maxAllowed
+    }
+
+    return isOutsideTolerance || isOutsideMinMax
   }
   useEffect(() => {
     let active = true
@@ -413,12 +457,26 @@ export default function ZhafirParameterForm() {
           setValues(mergedValues)
           const stdDraftLocal: Record<string, string> = {}
           const draft: Record<string, string> = {}
+          const minDraftLocal: Record<string, string> = {}
+          const maxDraftLocal: Record<string, string> = {}
           Object.entries(mergedValues).forEach(([key, pair]) => {
             stdDraftLocal[key] = fmt(pair?.std)
             draft[key] = fmt(pair?.act)
           })
+          SUMMARY_RANGE_FIELDS.forEach((key) => {
+            const range = data.ranges?.[key]
+            if (!range) return
+            if (range.min !== null && range.min !== undefined) {
+              minDraftLocal[key] = fmt(range.min)
+            }
+            if (range.max !== null && range.max !== undefined) {
+              maxDraftLocal[key] = fmt(range.max)
+            }
+          })
           setStdDraft(stdDraftLocal)
           setActDraft(draft)
+          setMinDraft(minDraftLocal)
+          setMaxDraft(maxDraftLocal)
         }
       } catch (err) {
         if (active) setError((err as Error).message)
@@ -777,6 +835,14 @@ export default function ZhafirParameterForm() {
     if (!isEditMode) return
     setStdDraft((prev) => ({ ...prev, [fieldKey]: value }))
   }
+  const handleMinChange = (fieldKey: string, value: string) => {
+    if (!isEditMode) return
+    setMinDraft((prev) => ({ ...prev, [fieldKey]: value }))
+  }
+  const handleMaxChange = (fieldKey: string, value: string) => {
+    if (!isEditMode) return
+    setMaxDraft((prev) => ({ ...prev, [fieldKey]: value }))
+  }
   const handleActChange = (fieldKey: string, value: string) =>
     setActDraft((prev) => ({ ...prev, [fieldKey]: value }))
   const toggleSection = (key: string) =>
@@ -872,6 +938,39 @@ export default function ZhafirParameterForm() {
           return
         }
         stdPayload[key] = stdNumber
+      }
+    }
+    for (const key of SUMMARY_RANGE_FIELDS) {
+      const hasMin = Object.prototype.hasOwnProperty.call(minDraft, key)
+      if (hasMin) {
+        const minRaw = minDraft[key]
+        if (minRaw === '') {
+          stdPayload[`${key}_min`] = ''
+        } else {
+          const minNumber = Number(minRaw)
+          if (Number.isNaN(minNumber)) {
+            setSavingKey(null)
+            setError(`Nilai Min untuk "${key}" harus angka`)
+            return
+          }
+          stdPayload[`${key}_min`] = minNumber
+        }
+      }
+
+      const hasMax = Object.prototype.hasOwnProperty.call(maxDraft, key)
+      if (hasMax) {
+        const maxRaw = maxDraft[key]
+        if (maxRaw === '') {
+          stdPayload[`${key}_max`] = ''
+        } else {
+          const maxNumber = Number(maxRaw)
+          if (Number.isNaN(maxNumber)) {
+            setSavingKey(null)
+            setError(`Nilai Max untuk "${key}" harus angka`)
+            return
+          }
+          stdPayload[`${key}_max`] = maxNumber
+        }
       }
     }
 
@@ -1191,7 +1290,7 @@ export default function ZhafirParameterForm() {
             <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-700 mb-2 items-center">
               <div className="col-span-5">Summary Injection Settings</div>
 
-              <div className="col-span-5 text-center">Standard / Actual</div>
+              <div className="col-span-5 text-center">Standard / Min / Max / Actual</div>
 
               <div className="col-span-2 text-center">Unit</div>
             </div>
@@ -1211,15 +1310,17 @@ export default function ZhafirParameterForm() {
               </div>
 
               <div className="col-span-5">
-                <Input
-                  pair
+                <SummaryRangeInput
                   fieldKey="InjectScrewPosition"
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={isEditMode ? handleStdChange : undefined}
-                  onActChange={handleActChange}
-                  savingKey={savingKey}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('InjectScrewPosition')}
                 />
               </div>
@@ -1246,15 +1347,17 @@ export default function ZhafirParameterForm() {
                 )}
               </div>
               <div className="col-span-5">
-                <Input
-                  pair
+                <SummaryRangeInput
                   fieldKey="VPTimeText"
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={isEditMode ? handleStdChange : undefined}
-                  onActChange={handleActChange}
-                  savingKey={savingKey}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('VPTimeText')}
                 />
               </div>
@@ -1282,15 +1385,17 @@ export default function ZhafirParameterForm() {
               </div>
 
               <div className="col-span-5">
-                <Input
-                  pair
+                <SummaryRangeInput
                   fieldKey="VPPositionText"
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={isEditMode ? handleStdChange : undefined}
-                  onActChange={handleActChange}
-                  savingKey={savingKey}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('VPPositionText')}
                 />
               </div>
@@ -1317,15 +1422,17 @@ export default function ZhafirParameterForm() {
               </div>
 
               <div className="col-span-5">
-                <Input
-                  pair
+                <SummaryRangeInput
                   fieldKey="Thickness"
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={isEditMode ? handleStdChange : undefined}
-                  onActChange={handleActChange}
-                  savingKey={savingKey}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('Thickness')}
                 />
               </div>
@@ -1353,15 +1460,17 @@ export default function ZhafirParameterForm() {
               </div>
 
               <div className="col-span-5 transition-all duration-300">
-                <Input
-                  pair
+                <SummaryRangeInput
                   fieldKey="CarriageBwd_SE"
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={isEditMode ? handleStdChange : undefined}
-                  onActChange={handleActChange}
-                  savingKey={savingKey}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('CarriageBwd_SE')}
                 />
               </div>
@@ -2761,6 +2870,76 @@ function Row({
           ))}
         </div>
       ))}
+    </div>
+  )
+}
+
+function SummaryRangeInput({
+  fieldKey,
+  values,
+  stdDraft,
+  actDraft,
+  minDraft,
+  maxDraft,
+  onStdChange,
+  onMinChange,
+  onMaxChange,
+  isEditMode,
+  isActOverLimit,
+}: SummaryRangeInputProps) {
+  const stdValue = stdDraft[fieldKey] ?? fmt(values[fieldKey]?.std)
+  const minValue = minDraft[fieldKey] ?? ''
+  const maxValue = maxDraft[fieldKey] ?? ''
+  const actValue = formatNumericDisplay(
+    actDraft[fieldKey] ?? values[fieldKey]?.act ?? '',
+    2
+  )
+
+  return (
+    <div className="grid grid-cols-4 gap-1">
+      <div className="flex flex-col">
+        <span className="text-[10px] leading-3">Std</span>
+        <input
+          value={stdValue}
+          onChange={(e) => onStdChange?.(fieldKey, e.target.value)}
+          readOnly={!isEditMode}
+          className={`border px-1 py-0.5 rounded w-full ${
+            isEditMode ? 'bg-white' : 'bg-gray-100'
+          }`}
+        />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] leading-3">Min</span>
+        <input
+          value={minValue}
+          onChange={(e) => onMinChange?.(fieldKey, e.target.value)}
+          readOnly={!isEditMode}
+          className={`border px-1 py-0.5 rounded w-full ${
+            isEditMode ? 'bg-white' : 'bg-gray-100'
+          }`}
+        />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] leading-3">Max</span>
+        <input
+          value={maxValue}
+          onChange={(e) => onMaxChange?.(fieldKey, e.target.value)}
+          readOnly={!isEditMode}
+          className={`border px-1 py-0.5 rounded w-full ${
+            isEditMode ? 'bg-white' : 'bg-gray-100'
+          }`}
+        />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] leading-3">Act</span>
+        <input
+          value={actValue}
+          readOnly
+          className={`px-1 py-0.5 rounded w-full bg-[var(--act-bg,#f3f4f6)] text-[var(--act-fg,#374151)] transition-all duration-300 ${
+            isActOverLimit ? 'border border-red-500 ring-1 ring-red-400' : 'border'
+          }`}
+        />
+      </div>
     </div>
   )
 }
