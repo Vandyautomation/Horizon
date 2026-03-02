@@ -34,6 +34,10 @@ import {
   EyeOff,
   Minimize,
   Maximize,
+  Flag,
+  Timer,
+  ArrowLeftRight,
+  CircleDot,
 } from 'lucide-react'
 import { Calendar } from '@/components/ui/calendar'
 import { useState, useEffect, useCallback } from 'react'
@@ -181,14 +185,58 @@ type Todo = {
   is_escalated?: boolean
 }
 
+type ZhafirStdActValue = {
+  std: number | string | null
+  act: number | string | null
+}
+
+type ZhafirStdActResponse = {
+  values?: Record<string, ZhafirStdActValue>
+  ranges?: Record<string, { min: number | string | null; max: number | string | null }>
+}
+
+type ZhafirActualViewResponse = {
+  values?: Record<string, number | string | null>
+}
+
+type ZhafirIndicatorStatus = {
+  status: 'ok' | 'out_of_range' | 'unknown'
+  std: number | null
+  act: number | null
+  min: number | null
+  max: number | null
+}
+
 const OTHER_PROBLEM_VALUE = '__other_problem__'
 const OTHER_SOLUTION_VALUE = '__other_solution__'
 
 const refreshRateList = ['5000', '15000', '30000', '60000']
 
 const shiftList = ['1', '2', '3']
+const ZHAFIR_PARA_ID = 'ZHF-STD-001'
+const ZHAFIR_INDICATORS = [
+  { field: 'InjectScrewPosition', label: 'END OF PLASTIFICATION', icon: 'flag' },
+  { field: 'VPTimeText', label: 'INJECTION TIME', icon: 'timer' },
+  { field: 'VPPositionText', label: 'SWITCHING POSITION', icon: 'switch' },
+  { field: 'Thickness', label: 'CUSHION', icon: 'cushion' },
+] as const
+
+type ZhafirIndicatorField = (typeof ZHAFIR_INDICATORS)[number]['field']
+type ZhafirIndicatorMap = Record<ZhafirIndicatorField, ZhafirIndicatorStatus>
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
+const parseFiniteNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null
+  const num = Number(value)
+  return Number.isFinite(num) ? num : null
+}
+
+const formatCompactNumber = (value: number | null) => {
+  if (value === null) return '-'
+  if (Number.isInteger(value)) return String(value)
+  return value.toFixed(2).replace(/\.?0+$/, '')
+}
 
 export default function CountboardDashboard() {
   const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(
@@ -359,6 +407,102 @@ export default function CountboardDashboard() {
 
   const pathname = usePathname()
   const router = useRouter()
+  const fetchZhafirIndicatorStatuses = useCallback(
+    async (machineName: string): Promise<ZhafirIndicatorMap> => {
+      const trimmedBase = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
+        /\/+$/,
+        ''
+      )
+      const normalizedBase = trimmedBase.endsWith('/api')
+        ? trimmedBase.slice(0, -4)
+        : trimmedBase
+      const baseQuery = `?paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}&machine_id=${encodeURIComponent(machineName)}`
+      const buildCandidates = (endpoint: '' | '/actual-view') => {
+        const candidates = new Set<string>()
+        const path = `/api/zhafir-ze-3600${endpoint}${baseQuery}`
+        if (normalizedBase) {
+          candidates.add(`${normalizedBase}${path}`)
+        }
+        candidates.add(`http://localhost:9999${path}`)
+        candidates.add(`http://127.0.0.1:9999${path}`)
+        candidates.add(`/be${path}`)
+        candidates.add(path)
+        return Array.from(candidates)
+      }
+
+      const fetchFirstOkJson = async <T,>(candidates: string[]) => {
+        for (const url of candidates) {
+          try {
+            const res = await fetch(url, { cache: 'no-store' })
+            if (!res.ok) continue
+            return (await res.json()) as T
+          } catch {
+            // try next candidate
+          }
+        }
+        return null
+      }
+
+      const stdData = await fetchFirstOkJson<ZhafirStdActResponse>(
+        buildCandidates('')
+      )
+      const actualData = await fetchFirstOkJson<ZhafirActualViewResponse>(
+        buildCandidates('/actual-view')
+      )
+
+      const fallbackMap = Object.fromEntries(
+        ZHAFIR_INDICATORS.map((item) => [
+          item.field,
+          {
+            status: 'unknown',
+            std: null,
+            act: null,
+            min: null,
+            max: null,
+          },
+        ])
+      ) as ZhafirIndicatorMap
+
+      if (!stdData && !actualData) {
+        return fallbackMap
+      }
+
+      const map = { ...fallbackMap }
+      for (const indicator of ZHAFIR_INDICATORS) {
+        const pair = stdData?.values?.[indicator.field]
+        const range = stdData?.ranges?.[indicator.field]
+        const mergedAct = actualData?.values?.[indicator.field] ?? pair?.act
+
+        const std = parseFiniteNumber(pair?.std)
+        const act = parseFiniteNumber(mergedAct)
+        const min = parseFiniteNumber(range?.min)
+        const max = parseFiniteNumber(range?.max)
+
+        if (act === null) {
+          map[indicator.field] = { status: 'unknown', std, act, min, max }
+          continue
+        }
+
+        const hasRange = min !== null || max !== null
+        const outOfRange = hasRange
+          ? (min !== null && act < min) || (max !== null && act > max)
+          : std !== null
+            ? act > std
+            : false
+
+        map[indicator.field] = {
+          status: outOfRange ? 'out_of_range' : 'ok',
+          std,
+          act,
+          min,
+          max,
+        }
+      }
+
+      return map
+    },
+    []
+  )
 
   const { data: categoryRes } = useSWR(
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem-group/all`,
@@ -1362,6 +1506,20 @@ export default function CountboardDashboard() {
   const refetchTaskData = useCallback(() => {
     mutate(taskDataKey)
   }, [taskDataKey])
+  const zhafirIndicatorStatusKey = selectedMachine?.machineName
+    ? (['zhafir-indicators', selectedMachine.machineName] as const)
+    : null
+  const { data: zhafirIndicatorStatusMap, isLoading: isLoadingZhafirIndicators } =
+    useSWR<ZhafirIndicatorMap>(
+      zhafirIndicatorStatusKey,
+      () => fetchZhafirIndicatorStatuses(selectedMachine?.machineName ?? ''),
+      {
+        revalidateOnMount: true,
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        refreshInterval: Number(selectedRefreshRate),
+      }
+    )
 
   const currentPo =
     Array.isArray(taskData) && taskData.length > 0
@@ -1840,6 +1998,8 @@ export default function CountboardDashboard() {
   let queryLiveMode = searchParams.get('isLiveMode') || ''
   const queryDate = searchParams.get('date') || ''
   const queryShift = searchParams.get('shift') || ''
+  const loginRedirectTarget = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+  const loginHref = `/login/?redirect=${encodeURIComponent(loginRedirectTarget)}`
 
   if (queryMachineNumber == '') {
     queryMachineNumber = '10'
@@ -2025,6 +2185,15 @@ export default function CountboardDashboard() {
         })}
       </div>
     )
+  }
+  const renderIndicatorIcon = (
+    icon: (typeof ZHAFIR_INDICATORS)[number]['icon']
+  ) => {
+    if (icon === 'flag') return <Flag className="w-10 h-10 text-blue-500" />
+    if (icon === 'timer') return <Timer className="w-10 h-10 text-green-500" />
+    if (icon === 'switch')
+      return <ArrowLeftRight className="w-10 h-10 text-yellow-500" />
+    return <CircleDot className="w-10 h-10 text-purple-500" />
   }
 
   return (
@@ -2287,7 +2456,7 @@ export default function CountboardDashboard() {
                     <div className="text-sm text-gray-500">
                       Need more access for admin ? click{' '}
                       <Link
-                        href={`/login/?redirect=${window.location.pathname}${window.location.search}`}
+                        href={loginHref}
                         className="text-blue-500"
                       >
                         here
@@ -2439,44 +2608,70 @@ export default function CountboardDashboard() {
                 </Select>
               </>
             )}
-            <div className="relative inline-block w-48">
-              <button
-                onClick={() =>
-                  setOpenCell(openCell === 'row1-col2' ? null : 'row1-col2')
-                }
-                className={`h-[43px] px-4 bg-black text-white flex items-center justify-between w-full
+            <div className="flex items-start gap-2">
+              <div className="relative inline-block w-48">
+                <button
+                  onClick={() =>
+                    setOpenCell(openCell === 'row1-col2' ? null : 'row1-col2')
+                  }
+                  className={`h-[43px] px-4 bg-black text-white flex items-center justify-between w-full
           ${openCell === 'row1-col2' ? 'rounded-t-md' : 'rounded-md'}
         `}
-              >
-                <div className="flex items-center">
-                  <User className="w-4 h-4 mr-2" />
-                  {selectedUsers['row1-col2'] || 'Operator'}
-                </div>
-                <ChevronDown
-                  className={`w-4 h-4 transition-transform duration-200
+                >
+                  <div className="flex items-center">
+                    <User className="w-4 h-4 mr-2" />
+                    {selectedUsers['row1-col2'] || 'Operator'}
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200
                   ${openCell === 'row1-col2' ? 'rotate-180' : ''}
                 `}
-                />
-              </button>
+                  />
+                </button>
 
-              {/* Dropdown */}
-              {openCell === 'row1-col2' && (
-                <div className="absolute top-full left-0 w-full bg-black text-white rounded-b-md shadow z-20">
-                  {/* Search */}
-                  <div className="p-2 border-b border-gray-700">
-                    <input
-                      type="text"
-                      placeholder="Cari user..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="w-full px-2 py-1 text-sm bg-gray-900 text-white rounded outline-none"
-                    />
-                  </div>
+                {/* Dropdown */}
+                {openCell === 'row1-col2' && (
+                  <div className="absolute top-full left-0 w-full bg-black text-white rounded-b-md shadow z-20">
+                    {/* Search */}
+                    <div className="p-2 border-b border-gray-700">
+                      <input
+                        type="text"
+                        placeholder="Cari user..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full px-2 py-1 text-sm bg-gray-900 text-white rounded outline-none"
+                      />
+                    </div>
 
-                  {/* List */}
-                  <div className="max-h-20 overflow-y-auto">
-                    {search.length > 0 &&
-                      (filteredUsers.length > 0 ? (
+                    {/* List */}
+                    <div className="max-h-20 overflow-y-auto">
+                      {search.length > 0 &&
+                        (filteredUsers.length > 0 ? (
+                          filteredUsers.map((u) => (
+                            <div
+                              key={u}
+                              onClick={() => {
+                                setSelectedUsers((prev) => ({
+                                  ...prev,
+                                  ['row1-col2']: u,
+                                }))
+                                setOpenCell(null)
+                                setSearch('')
+                              }}
+                              className="px-3 py-2 cursor-pointer hover:bg-gray-700 flex items-center"
+                            >
+                              <User className="w-4 h-4 mr-2 text-gray-400" />
+                              {u}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-gray-400 text-sm">
+                            User tidak ditemukan
+                          </div>
+                        ))}
+                    </div>
+                    {/* <div className="max-h-32 overflow-y-auto">
+                      {filteredUsers.length > 0 ? (
                         filteredUsers.map((u) => (
                           <div
                             key={u}
@@ -2498,35 +2693,90 @@ export default function CountboardDashboard() {
                         <div className="px-3 py-2 text-gray-400 text-sm">
                           User tidak ditemukan
                         </div>
-                      ))}
+                      )}
+                    </div> */}
                   </div>
-                  {/* <div className="max-h-32 overflow-y-auto">
-                    {filteredUsers.length > 0 ? (
-                      filteredUsers.map((u) => (
-                        <div
-                          key={u}
-                          onClick={() => {
-                            setSelectedUsers((prev) => ({
-                              ...prev,
-                              ['row1-col2']: u,
-                            }))
-                            setOpenCell(null)
-                            setSearch('')
-                          }}
-                          className="px-3 py-2 cursor-pointer hover:bg-gray-700 flex items-center"
-                        >
-                          <User className="w-4 h-4 mr-2 text-gray-400" />
-                          {u}
+                )}
+              </div>
+              <div className="-mt-[1px] flex items-stretch gap-2 overflow-x-auto pb-1">
+                {ZHAFIR_INDICATORS.map((indicator) => {
+                  const indicatorStatus =
+                    zhafirIndicatorStatusMap?.[indicator.field] ??
+                    ({ status: 'unknown', std: null, act: null, min: null, max: null } as ZhafirIndicatorStatus)
+
+                  const isOutOfRange = indicatorStatus.status === 'out_of_range'
+                  const isInRange = indicatorStatus.status === 'ok'
+                  const usesHighLowCaption =
+                    indicator.field === 'VPTimeText' ||
+                    indicator.field === 'Thickness'
+                  let outCaption = 'Out of range'
+                  if (indicator.field === 'VPPositionText' && isOutOfRange) {
+                    outCaption = 'Position Error'
+                  } else if (usesHighLowCaption && isOutOfRange) {
+                    const { act, min, max } = indicatorStatus
+                    if (act != null && min != null && act < min) {
+                      outCaption = 'Too Low'
+                    } else if (act != null && max != null && act > max) {
+                      outCaption = 'Too High'
+                    } else if (act != null && indicatorStatus.std != null && act > indicatorStatus.std) {
+                      outCaption = 'Too High'
+                    }
+                  }
+                  const caption = isLoadingZhafirIndicators
+                    ? 'Checking...'
+                    : isOutOfRange
+                      ? outCaption
+                      : isInRange
+                        ? 'In range'
+                        : 'Data tidak tersedia'
+                  const hasRange =
+                    indicatorStatus.min != null || indicatorStatus.max != null
+                  const detail =
+                    indicatorStatus.act != null
+                      ? hasRange
+                        ? `Act ${formatCompactNumber(indicatorStatus.act)} | Range ${formatCompactNumber(indicatorStatus.min)} - ${formatCompactNumber(indicatorStatus.max)}`
+                        : `Act ${formatCompactNumber(indicatorStatus.act)} | Std ${formatCompactNumber(indicatorStatus.std)}`
+                      : indicator.label
+
+                  return (
+                    <div
+                      key={indicator.field}
+                      className={`h-[62px] w-[230px] shrink-0 rounded-md border px-2 py-1 ${
+                        isOutOfRange
+                          ? 'border-red-300 bg-red-50'
+                          : isInRange
+                            ? 'border-emerald-300 bg-emerald-50'
+                            : 'border-gray-300 bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex h-full items-start gap-2">
+                        <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-white">
+                          {renderIndicatorIcon(indicator.icon)}
                         </div>
-                      ))
-                    ) : (
-                      <div className="px-3 py-2 text-gray-400 text-sm">
-                        User tidak ditemukan
+                        <div className="min-w-0 flex-1 leading-tight">
+                          <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                            {indicator.label}
+                          </div>
+                          <div
+                            className={`truncate text-xs font-semibold ${
+                              isOutOfRange
+                                ? 'text-red-700'
+                                : isInRange
+                                  ? 'text-emerald-700'
+                                  : 'text-gray-700'
+                            }`}
+                          >
+                            {caption}
+                          </div>
+                          <div className="mt-0.5 text-[10px] text-gray-700">
+                            {detail}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div> */}
-                </div>
-              )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
 

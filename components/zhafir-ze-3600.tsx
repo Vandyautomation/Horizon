@@ -330,15 +330,41 @@ export default function ZhafirParameterForm() {
     const isOutsideMinMax =
       (hasMin && act < min) || (hasMax && act > max)
 
-    let isOutsideTolerance = false
-    if (hasStd) {
-      const toleranceValue = std * (tolerance / 100)
-      const maxAllowed = std + toleranceValue
-      isOutsideTolerance = act > maxAllowed
-    }
+    // Temporarily disable tolerance rule to avoid conflicting with Min/Max range rule.
+    const isOutsideTolerance = false
 
     return isOutsideTolerance || isOutsideMinMax
   }
+  const getMinMaxAlertLabel = (fieldKey: string) => {
+    const actRaw = actDraft[fieldKey] ?? values[fieldKey]?.act ?? ''
+    const act = Number(actRaw)
+    if (Number.isNaN(act)) return 'Out Of Range'
+
+    const minRaw = minDraft[fieldKey]
+    const maxRaw = maxDraft[fieldKey]
+    const min = Number(minRaw)
+    const max = Number(maxRaw)
+    const hasMin = minRaw !== undefined && minRaw !== '' && !Number.isNaN(min)
+    const hasMax = maxRaw !== undefined && maxRaw !== '' && !Number.isNaN(max)
+
+    if (hasMin && act < min) return 'Too Low'
+    if (hasMax && act > max) return 'Too High'
+    return 'Out Of Range'
+  }
+  const getSummaryWarningText = (fieldKey: string) => {
+    if (!isStdGreaterThanAct(fieldKey)) return null
+    if (fieldKey === 'VPTimeText') return injectionTimeAlertLabel
+    if (fieldKey === 'VPPositionText') return 'Position Error'
+    if (fieldKey === 'Thickness') return cushionAlertLabel
+    return 'Out Of Range'
+  }
+  const injectionTimeAlertLabel = getMinMaxAlertLabel('VPTimeText')
+  const cushionAlertLabel = getMinMaxAlertLabel('Thickness')
+  const injectWarningText = getSummaryWarningText('InjectScrewPosition')
+  const vpTimeWarningText = getSummaryWarningText('VPTimeText')
+  const vpPositionWarningText = getSummaryWarningText('VPPositionText')
+  const cushionWarningText = getSummaryWarningText('Thickness')
+  const carriageWarningText = getSummaryWarningText('CarriageBwd_SE')
   useEffect(() => {
     let active = true
     const REQUEST_TIMEOUT_MS = 5000
@@ -1203,7 +1229,8 @@ export default function ZhafirParameterForm() {
           <select
             value={tolerance}
             onChange={(e) => setTolerance(Number(e.target.value))}
-            className="border rounded px-2 py-1 text-xs"
+            disabled
+            className="border rounded px-2 py-1 text-xs bg-gray-100 text-gray-500 cursor-not-allowed"
           >
             <option value={0}>0%</option>
             <option value={5}>5%</option>
@@ -1296,17 +1323,17 @@ export default function ZhafirParameterForm() {
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
-                className={`col-span-5 text-xs font-semibold transition-colors duration-300
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
       ${isStdGreaterThanAct('InjectScrewPosition') ? 'text-red-600' : ''}`}
               >
-                Inj Start Pos
-                {isStdGreaterThanAct('InjectScrewPosition') && (
-                  <div className="text-right">
-                    <span className="text-red-600 font-bold warning-blink">
-                      ⚠ Value di luar toleransi
-                    </span>
-                  </div>
-                )}
+                <span className="flex-1">End Of Plastification</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    injectWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {injectWarningText ? `\u26A0 ${injectWarningText}` : '\u26A0'}
+                </span>
               </div>
 
               <div className="col-span-5">
@@ -1334,17 +1361,17 @@ export default function ZhafirParameterForm() {
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
-                className={`col-span-5 text-xs font-semibold transition-colors duration-300
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
     ${isStdGreaterThanAct('VPTimeText') ? 'text-red-600' : ''}`}
               >
-                V/P Time
-                {isStdGreaterThanAct('VPTimeText') && (
-                  <div className="text-right">
-                    <span className="text-red-600 font-bold warning-blink">
-                      ⚠ Value di luar toleransi
-                    </span>
-                  </div>
-                )}
+                <span className="flex-1">Injection Time</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    vpTimeWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {vpTimeWarningText ? `\u26A0 ${vpTimeWarningText}` : '\u26A0'}
+                </span>
               </div>
               <div className="col-span-5">
                 <SummaryRangeInput
@@ -1371,17 +1398,17 @@ export default function ZhafirParameterForm() {
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
-                className={`col-span-5 text-xs font-semibold transition-colors duration-300
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
     ${isStdGreaterThanAct('VPPositionText') ? 'text-red-600' : ''}`}
               >
-                V/P Position
-                {isStdGreaterThanAct('VPPositionText') && (
-                  <div className="text-right">
-                    <span className="text-red-600 font-bold warning-blink">
-                      ⚠ Value di luar toleransi
-                    </span>
-                  </div>
-                )}
+                <span className="flex-1">Switching Position</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    vpPositionWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {vpPositionWarningText ? `\u26A0 ${vpPositionWarningText}` : '\u26A0'}
+                </span>
               </div>
 
               <div className="col-span-5">
@@ -1408,17 +1435,17 @@ export default function ZhafirParameterForm() {
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
-                className={`col-span-5 text-xs font-semibold transition-colors duration-300
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
     ${isStdGreaterThanAct('Thickness') ? 'text-red-600' : ''}`}
               >
-                Min Cushion Position
-                {isStdGreaterThanAct('Thickness') && (
-                  <div className="text-right">
-                    <span className="text-red-600 font-bold warning-blink">
-                      ⚠ Value di luar toleransi
-                    </span>
-                  </div>
-                )}
+                <span className="flex-1">Cushion</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    cushionWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {cushionWarningText ? `\u26A0 ${cushionWarningText}` : '\u26A0'}
+                </span>
               </div>
 
               <div className="col-span-5">
@@ -1446,17 +1473,17 @@ export default function ZhafirParameterForm() {
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
-                className={`col-span-5 text-xs font-semibold transition-colors duration-300
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
     ${isStdGreaterThanAct('CarriageBwd_SE') ? 'text-red-600' : ''}`}
               >
-                Carriage Backward SE
-                {isStdGreaterThanAct('CarriageBwd_SE') && (
-                  <div className="text-right">
-                    <span className="text-red-600 font-bold warning-blink">
-                      ⚠ Value di luar toleransi
-                    </span>
-                  </div>
-                )}
+                <span className="flex-1">Carriage Backward SE</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    carriageWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {carriageWarningText ? `\u26A0 ${carriageWarningText}` : '\u26A0'}
+                </span>
               </div>
 
               <div className="col-span-5 transition-all duration-300">
@@ -3061,3 +3088,4 @@ function Input({
     </div>
   )
 }
+
