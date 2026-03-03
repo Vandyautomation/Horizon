@@ -17,6 +17,8 @@ type LostData = {
   MchID: string
   MchLoc: string
   MchNumber: string
+  Problem: string
+  ActionPlan: string
   Brand: string
   MchTon: number
   Location: string
@@ -33,13 +35,17 @@ type ProblemData = {
   Message: string
   Location: string
   Brand: string
+  UAP: string
 }
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL
 export default function CountboardBreakdown() {
   const [lostData, setLostData] = useState<LostData[]>([])
   const [problemData, setProblemData] = useState<ProblemData[]>([])
   const [loading, setLoading] = useState(true)
+  const [lostPage, setLostPage] = useState(1)
+  const [problemPage, setProblemPage] = useState(1)
 
+  const ITEMS_PER_PAGE = 10
   const fetchData = useCallback(async () => {
     try {
       const lostRes = await fetch(`${API_BASE}/api/countboards/lost-time`)
@@ -68,9 +74,9 @@ export default function CountboardBreakdown() {
   // 🔢 Breakdown = total lost
   const totalBreakdown = lostData.length
 
-  // 📊 Group PIC (MEKANIK vs MAINTENANCE)
+  // 📊 Group PIC
   const picSummary = problemData.reduce((acc: Record<string, number>, item) => {
-    if (!item.pic) return acc // skip unknown
+    if (!item.pic) return acc
     acc[item.pic] = (acc[item.pic] || 0) + 1
     return acc
   }, {})
@@ -86,167 +92,281 @@ export default function CountboardBreakdown() {
   }, {})
 
   if (loading) {
-    return <div className="p-6">Loading countboard...</div>
+    return (
+      <div className="relative min-h-screen">
+        <div className="p-6 opacity-30 pointer-events-none"></div>
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-5 flex flex-col items-center gap-4 w-64 animate-fadeIn">
+            <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="text-lg font-semibold text-gray-700">
+              Loading Countboard...
+            </div>
+
+            <div className="text-sm text-gray-500">
+              Please wait while data is loading
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
   const locChartData = Object.entries(locSummary).map(([name, total]) => ({
     name,
     total,
   }))
-  return (
-    <div className="p-6 space-y-6">
-      {/* HEADER */}
-      <h1 className="text-2xl font-bold">Countboard Breakdown</h1>
+  // LOST TABLE PAGINATION
+  const lostTotalPages = Math.ceil(lostData.length / ITEMS_PER_PAGE)
+  const lostPaginated = lostData.slice(
+    (lostPage - 1) * ITEMS_PER_PAGE,
+    lostPage * ITEMS_PER_PAGE
+  )
 
-      {/* 🔥 HEADER COMBINED: BREAKDOWN + PIC + MESIN */}
-      <div className="bg-white shadow rounded-2xl p-6">
+  // PROBLEM TABLE PAGINATION
+  const problemTotalPages = Math.ceil(problemData.length / ITEMS_PER_PAGE)
+  const problemPaginated = problemData.slice(
+    (problemPage - 1) * ITEMS_PER_PAGE,
+    problemPage * ITEMS_PER_PAGE
+  )
+  return (
+    <div className="p-4 space-y-4 text-sm">
+      {/* HEADER */}
+      <h1 className="text-xl font-semibold">Countboard Breakdown</h1>
+      <div className="bg-gradient-to-br from-indigo-50 to-orange-50 shadow-lg rounded-2xl p-6 border border-indigo-100">
         <div className="grid grid-cols-1 lg:grid-cols-[0.5fr_1.7fr_1.7fr] gap-6 items-start">
-          {/* 🔢 BREAKDOWN TOTAL (KIRI) */}
-          <div className="flex flex-col justify-start pt-2">
-            <p className="text-gray-500 text-xs">Breakdown</p>
-            <h2 className="text-4xl font-bold text-black mt-1">
+          {/* 🔢 BREAKDOWN TOTAL */}
+          <div className="bg-white rounded-2xl p-6 shadow-md border-l-4 border-red-500 hover:shadow-lg transition-shadow">
+            <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">
+              Breakdown
+            </p>
+            <h2 className="text-5xl font-bold text-orange-600 mt-3">
               {totalBreakdown}
             </h2>
+            <p className="text-gray-400 text-xs mt-2">Total Lost Time</p>
           </div>
 
-          {/* 📊 PIC SUMMARY (TENGAH) */}
-          <div>
-            <h2 className="text-lg font-semibold mb-3 text-center">
-              Breakdown with PIC
-            </h2>
-
-            <div className="w-full h-[260px]">
+          {/* 📊 PIC SUMMARY */}
+          <div className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow border-t-4 border-orange-500">
+            <p className="text-sm font-bold text-gray-800 mb-4">
+              📊 Breakdown by PIC
+            </p>
+            <div className="w-full h-[160px] bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-2">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={picChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="total" radius={[8, 8, 0, 0]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11 }}
+                    stroke="#6b7280"
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 11 }}
+                    stroke="#6b7280"
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: 'none',
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    }}
+                  />
+                  <Bar dataKey="total" radius={[6, 6, 0, 0]}>
                     {picChartData.map((entry, index) => {
-                      let color = '#f59e0b' // default orange (lainnya)
-
-                      if (entry.name?.toUpperCase() === 'MEKANIK') {
-                        color = '#ef4444' // merah
-                      } else if (entry.name?.toUpperCase() === 'MAINTENANCE') {
-                        color = '#f97316' // orange
-                      }
-
+                      const color =
+                        entry.name?.toUpperCase() === 'MEKANIK'
+                          ? '#ef4444'
+                          : '#f97316'
                       return <Cell key={index} fill={color} />
                     })}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
-
-            {/* Legend bawah chart */}
-            <div className="flex justify-center gap-6 mt-2 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 bg-red-500 rounded-full" />
-                Mekanik
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 bg-orange-500 rounded-full" />
-                Maintenance / Others
-              </div>
-            </div>
           </div>
 
-          {/* 🏭 MESIN / MchLoc (KANAN - CHART BIRU GRADASI) */}
-          <div>
-            <h2 className="text-lg font-semibold mb-3 text-center">
-              Lost per Location (MchLoc)
-            </h2>
-
-            <div className="w-full h-[260px]">
+          {/* 🏭 MESIN PER LOKASI */}
+            <div className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow border-t-4 border-blue-500">
+            <p className="text-sm font-bold text-gray-800 mb-4">
+              🏭 Lost per Location
+            </p>
+            <div className="w-full h-[220px] bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-3">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={locChartData}
-                  layout="vertical"
-                  margin={{ left: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" width={90} />
-                  <Tooltip />
-                  <Bar dataKey="total" radius={[0, 8, 8, 0]}>
-                    {locChartData.map((_, index) => {
-                      // gradasi biru dari tebal (atas) ke redup (bawah)
-                      const opacity = 1 - index * 0.15
-                      return (
-                        <Cell
-                          key={index}
-                          fill="#3b82f6"
-                          fillOpacity={opacity < 0.3 ? 0.3 : opacity}
-                        />
-                      )
-                    })}
-                  </Bar>
-                </BarChart>
+              <BarChart
+                data={locChartData}
+                layout="vertical"
+                margin={{ left: 80, right: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                type="number"
+                allowDecimals={false}
+                tick={{ fontSize: 12, fontWeight: 500 }}
+                stroke="#6b7280"
+                />
+                <YAxis
+                type="category"
+                dataKey="name"
+                width={75}
+                tick={{ fontSize: 12, fontWeight: 500 }}
+                stroke="#6b7280"
+                />
+                <Tooltip
+                contentStyle={{
+                  borderRadius: '8px',
+                  border: 'none',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+                formatter={(value) => `${value} items`}
+                />
+                <Bar dataKey="total" radius={[0, 6, 6, 0]} fill="#3b82f6" />
+              </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
+            </div>
         </div>
       </div>
 
       {/* 📋 TABLE LOST TIME */}
-      <div className="bg-white shadow rounded-2xl p-6">
-        <h2 className="text-lg font-semibold mb-4">Lost Time List</h2>
-        <div className="overflow-auto">
-          <table className="min-w-full text-sm border">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">Location</th>
-                <th className="p-2 border">MchID</th>
-                <th className="p-2 border">Brand</th>
-                <th className="p-2 border">Ton</th>
-                <th className="p-2 border">Duration (Min)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lostData.map((item, index) => (
-                <tr key={index} className="text-center">
-                  <td className="p-2 border">{item.Location}</td>
-                  <td className="p-2 border">{item.MchID}</td>
-                  <td className="p-2 border">{item.Brand}</td>
-                  <td className="p-2 border">{item.MchTon}</td>
-                  <td className="p-2 border font-semibold text-red-600">
-                    {item.DuraMin}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* 📋 TABLE LOST TIME (KIRI) */}
+        <div className="bg-white shadow-md rounded-2xl p-6 border-t-4 border-red-500 hover:shadow-lg transition-shadow">
+          <h2 className="text-lg font-semibold mb-4">Lost Time List</h2>
+          <div className="overflow-auto max-h-[600px]">
+            <table className="min-w-full text-xs">
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0">
+                <tr>
+                  <th className="px-2 py-2">No</th>
+                    <th className="px-2 py-2">
+                    <button
+                      onClick={() => {
+                      const sorted = [...lostData].sort((a, b) =>
+                        (a.Location || '').localeCompare(b.Location || '')
+                      )
+                      setLostData(sorted)
+                      }}
+                      className="hover:text-blue-600 underline"
+                    >
+                      Location ↕
+                    </button>
+                    </th>
+                    <th className="px-2 py-2">MchID</th>
+                    <th className="px-2 py-2">Brand</th>
+                    <th className="px-2 py-2">Ton</th>
+                    <th className="px-2 py-2">Duration</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  {lostPaginated.map((item, index) => (
+                    <tr
+                    key={index}
+                    className="text-center hover:bg-gray-50 border-b"
+                    >
+                    <td className="p-2 font-medium text-[10px]">
+                      {(lostPage - 1) * ITEMS_PER_PAGE + index + 1}
+                    </td>
+                    <td className="px-2 py-1 text-[10px]">{item.Location}</td>
+                    <td className="px-2 py-1 text-[10px]">{item.MchID}</td>
+                    <td className="px-2 py-1 text-[10px]">{item.Brand}</td>
+                    <td className="px-2 py-1 text-[10px]">{item.MchTon}</td>
+                    <td className="p-2 font-semibold text-red-600">
+                      {(item.DuraMin / 60).toFixed(2)} hrs
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex items-center justify-between mt-4 text-xs">
+              <button
+                onClick={() => setLostPage((p) => Math.max(p - 1, 1))}
+                disabled={lostPage === 1}
+                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <span className="text-gray-500">
+                Page {lostPage} of {lostTotalPages || 1} | Total:{' '}
+                {lostData.length} items
+              </span>
+              <button
+                onClick={() =>
+                  setLostPage((p) => Math.min(p + 1, lostTotalPages))
+                }
+                disabled={lostPage === lostTotalPages || lostTotalPages === 0}
+                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* 📋 TABLE PROBLEM & ACTION PLAN */}
-      <div className="bg-white shadow rounded-2xl p-6">
-        <h2 className="text-lg font-semibold mb-4">Problem & Action Plan</h2>
-        <div className="overflow-auto">
-          <table className="min-w-full text-sm border">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">Location</th>
-                <th className="p-2 border">Problem</th>
-                <th className="p-2 border">Action</th>
-                <th className="p-2 border">PIC</th>
-                <th className="p-2 border">Status</th>
-                <th className="p-2 border">Message</th>
-              </tr>
-            </thead>
-            <tbody>
-              {problemData.map((item, index) => (
-                <tr key={index} className="text-center">
-                  <td className="p-2 border">{item.Location}</td>
-                  <td className="p-2 border">{item.Problem}</td>
-                  <td className="p-2 border">{item.Action}</td>
-                  <td className="p-2 border font-semibold">{item.pic}</td>
-                  <td className="p-2 border">{item.TicketStatus}</td>
-                  <td className="p-2 border">{item.Message}</td>
+        {/* 📋 TABLE PROBLEM & ACTION PLAN (KANAN) */}
+        <div className="bg-white shadow-md rounded-2xl p-6 border-t-4 border-orange-500 hover:shadow-lg transition-shadow">
+          <h2 className="text-lg font-semibold mb-4">Problem & Action Plan</h2>
+          <div className="overflow-auto max-h-[600px]">
+            <table className="min-w-full text-xs">
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0">
+                <tr>
+                  <th className="px-2 py-2">No</th>
+                  <th className="px-2 py-2">UAP</th>
+                  <th className="px-2 py-2">Brand</th>
+                  <th className="px-2 py-2">Location</th>
+                  <th className="px-2 py-2">Problem</th>
+                  <th className="px-2 py-2">Action</th>
+                  <th className="px-2 py-2">PIC</th>
+                  <th className="px-2 py-2">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {problemPaginated.map((item, index) => (
+                  <tr
+                    key={index}
+                    className="text-center hover:bg-gray-50 border-b"
+                  >
+                    <td className="p-2 font-medium text-[10px]">
+                      {(problemPage - 1) * ITEMS_PER_PAGE + index + 1}
+                    </td>
+                    <td className="px-2 py-1 text-[10px]">{item.UAP}</td>
+                    <td className="px-2 py-1 text-[10px]">{item.Brand}</td>
+                    <td className="px-2 py-1 text-[10px]">{item.Location}</td>
+                    <td className="px-2 py-1 text-[10px]">{item.Problem}</td>
+                    <td className="px-2 py-1 text-[10px]">{item.Action}</td>
+                    <td className="px-2 py-1 font-semibold text-[10px]">
+                      {item.pic}
+                    </td>
+                    <td className="px-2 py-1 text-[10px]">
+                      {item.TicketStatus}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex items-center justify-between mt-4 text-xs">
+              <button
+                onClick={() => setProblemPage((p) => Math.max(p - 1, 1))}
+                disabled={problemPage === 1}
+                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <span className="text-gray-500">
+                Page {problemPage} of {problemTotalPages || 1} | Total: {problemData.length} items
+              </span>
+              <button
+                onClick={() =>
+                  setProblemPage((p) => Math.min(p + 1, problemTotalPages))
+                }
+                disabled={
+                  problemPage === problemTotalPages || problemTotalPages === 0
+                }
+                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

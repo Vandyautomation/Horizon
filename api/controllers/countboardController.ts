@@ -275,7 +275,7 @@ export async function editTopScrap(
 }
 
 export async function editProcess(hourlyId: number, process: string) {
-   const mchQuery = `SELECT machine_id FROM IoT.dbo.hourly_uv WHERE id = @hourlyId`
+  const mchQuery = `SELECT machine_id FROM IoT.dbo.hourly_uv WHERE id = @hourlyId`
   const mchResult = await queryDatabase(mchQuery, { hourlyId })
   const MchID = mchResult[0]?.machine_id
   const sqlQuery = `
@@ -293,7 +293,7 @@ export async function editProcess(hourlyId: number, process: string) {
   WHERE id = @hourlyId
   `
   try {
-      const result = await queryDatabase(sqlQuery, { hourlyId, process })
+    const result = await queryDatabase(sqlQuery, { hourlyId, process })
     return { ...result, MchID }
   } catch (error: any) {
     console.error('Error updating process:', error)
@@ -523,7 +523,7 @@ export async function updateTicketEskalasi(
   mchId: string,
   ticketDate: string,
   message: string,
-  eskalasiStatus: 'open' | 'close' | 'status'
+  eskalasiStatus: string
 ) {
   const sqlQuery = `
   UPDATE iot.dbo.TicketTRX
@@ -535,8 +535,8 @@ export async function updateTicketEskalasi(
       THEN SYSDATETIME()
       ELSE ActualEskalasiFinish
     END
-  WHERE MchID = @mchId
-    AND TicketDate = @ticketDate
+WHERE MchID = @mchId
+AND CAST(TicketDate AS DATE) = CAST(@ticketDate AS DATE)
   `
 
   return await queryDatabase(sqlQuery, {
@@ -684,7 +684,7 @@ FROM (
 //     WHERE UserRFID = @assignById;
 
 //     SET @FinalAssignToDept =
-//       CASE 
+//       CASE
 //         WHEN @eskalasiFlag = 1 THEN @eskalasiDept
 //         ELSE NULL
 //       END;
@@ -697,7 +697,7 @@ FROM (
 //       END;
 
 //   UPDATE T
-// SET 
+// SET
 //   Problem          = @problem,
 //   ActionPlan       = @actionPlan,
 //   AssignTo         = @AssignToUserName,
@@ -705,7 +705,7 @@ FROM (
 //   AssignBy         = @AssignByUserName,
 //   EskalasiFlag     = @eskalasiFlag,
 //   EskalasiStatus   = @EskalasiStatus,
-//   ActualSubmit     = CASE 
+//   ActualSubmit     = CASE
 //                        WHEN @eskalasiFlag = 1 THEN SYSDATETIME()
 //                        ELSE ActualSubmit
 //                      END
@@ -713,7 +713,7 @@ FROM (
 
 //       SELECT TOP (1) *
 //       FROM IoT.dbo.TicketTRX
-//       WHERE 
+//       WHERE
 //         MchID = @machineId
 //         AND ColorID = 'ORANGE'
 //         AND CAST(TicketDate AS date) = CAST(@ticketDateParam AS date)
@@ -850,28 +850,44 @@ export async function updateComment(
 export const getLostTime = async () => {
   const query = `
     SELECT 
-        A.StatusDate,
-        DATEDIFF(MINUTE, A.StatusDate, GETDATE()) AS DuraMin,
-        A.MchID,
-        B.MchLoc,
-        B.MchNumber,
-        B.Brand,
-        B.MchTon,
-        (B.MchLoc + '-' + B.MchNumber) AS Location
-    FROM MchStatusTRX A
-    LEFT JOIN iot.dbo.MachineMST B ON A.MchID = B.MchID
+    A.StatusDate,
+    DATEDIFF(MINUTE, A.StatusDate, GETDATE()) AS DuraMin,
+    A.MchID,
+    B.MchLoc,
+    B.MchNumber,
+    B.Brand,
+    B.MchTon,
+    (B.MchLoc + '-' + B.MchNumber) AS Location,
+    T.Problem,
+    T.ActionPlan
+FROM MchStatusTRX A
+
+LEFT JOIN iot.dbo.MachineMST B 
+    ON A.MchID = B.MchID
+
+OUTER APPLY (
+    SELECT TOP 1 X.Problem, X.ActionPlan
+    FROM iot.dbo.TicketTRX X
     WHERE 
-        CONVERT(VARCHAR(30), A.StatusDate, 120) + A.MchID IN 
-        (
-            SELECT CONVERT(VARCHAR(30), MAX(Z.StatusDate), 120) + Z.MchID
-            FROM MchStatusTRX Z
-            WHERE Z.MchID <> ''
-            GROUP BY Z.MchID
-        )
-        AND A.StatusLight = 'ORANGE'
-        AND B.Active = 1
-        AND B.MchProcess = 'INJECTION'
-    ORDER BY B.MchLoc
+        X.MchID = A.MchID
+        AND X.Active = 1
+        AND X.TicketStatus IN ('NEW','ESKALASI','ONPROG','ASSIGNED','OPEN')
+    ORDER BY X.MchID
+) T
+
+WHERE 
+    CONVERT(VARCHAR(30), A.StatusDate, 120) + A.MchID IN 
+    (
+        SELECT CONVERT(VARCHAR(30), MAX(Z.StatusDate), 120) + Z.MchID
+        FROM MchStatusTRX Z
+        WHERE Z.MchID <> ''
+        GROUP BY Z.MchID
+    )
+    AND A.StatusLight = 'ORANGE'
+    AND B.Active = 1
+    AND B.MchProcess = 'INJECTION'
+
+ORDER BY B.MchLoc
   `
 
   const result = await queryDatabase(query)
@@ -879,61 +895,55 @@ export const getLostTime = async () => {
 }
 export const getProblem = async () => {
   const query = `
+   SELECT 
+    ROW_NUMBER() OVER (ORDER BY X.MchID) AS No,
+    X.MchID,
+    X.Problem,
+    X.ActionPlan,
+    Y.Type,
+    Y.Action,
+    Y.pic,
+    X.TicketStatus,
+    X.Message,
+    M.UAP,
+    M.MchLoc,
+    M.MchNumber,
+    M.Brand,
+    M.MchTon,
+    (M.MchLoc + '-' + M.MchNumber) AS Location
+FROM TicketTRX X
+LEFT JOIN (
     SELECT 
-        X.MchID,
-        X.Problem,
-        X.ActionPlan,
-        Y.Type,
-        Y.Action,
-        Y.pic,
-        X.TicketStatus,
-        X.Message,
-        M.MchLoc,
-        M.MchNumber,
-        M.Brand,
-        M.MchTon,
-        (M.MchLoc + '-' + M.MchNumber) AS Location
-    FROM TicketTRX X
-    LEFT JOIN (
-        SELECT 
-            A.name AS Problem,
-            B.name AS Type,
-            C.name AS Action,
-            C.pic
-        FROM problem_problem A
-        LEFT JOIN problem_problem_group B 
-            ON A.problem_group_id = B.id
-        LEFT JOIN problem_todo C 
-            ON A.id = C.problem_id
-        WHERE 
-            A.color = 'ORANGE' 
-            AND A.process = 'INJECTION'
-    ) Y 
-        ON X.Problem = Y.Problem 
-        AND X.ActionPlan = Y.Action
-    LEFT JOIN iot.dbo.MachineMST M 
-        ON X.MchID = M.MchID
+        A.name AS Problem,
+        B.name AS Type,
+        C.name AS Action,
+        C.pic
+    FROM problem_problem A
+    LEFT JOIN problem_problem_group B 
+        ON A.problem_group_id = B.id
+    LEFT JOIN problem_todo C 
+        ON A.id = C.problem_id
     WHERE 
-        X.TicketStatus IN ('NEW','ESKALASI','ONPROG','ASSIGNED','OPEN')
-        AND X.ColorID = 'ORANGE'
-        AND X.Active = 1
-        AND M.Active = 1
-        AND M.MchProcess = 'INJECTION'
-        AND X.MchID IN (
-            SELECT A.MchID
-            FROM MchStatusTRX A
-            LEFT JOIN iot.dbo.MachineMST B ON A.MchID = B.MchID
-            WHERE 
-                CONVERT(VARCHAR(30), A.StatusDate, 120) + A.MchID IN (
-                    SELECT CONVERT(VARCHAR(30), MAX(Z.StatusDate), 120) + Z.MchID
-                    FROM MchStatusTRX Z
-                    WHERE Z.MchID <> ''
-                    GROUP BY Z.MchID
-                )
-                AND A.StatusLight = 'ORANGE'
-                AND B.Active = 1
-                AND B.MchProcess = 'INJECTION'
-        )
+        A.color = 'ORANGE' 
+        AND A.process = 'INJECTION'
+) Y 
+    ON X.Problem = Y.Problem 
+    AND X.ActionPlan = Y.Action
+INNER JOIN iot.dbo.MachineMST M 
+    ON X.MchID = M.MchID
+OUTER APPLY (
+    SELECT TOP 1 A.StatusLight
+    FROM MchStatusTRX A
+    WHERE A.MchID = X.MchID
+    ORDER BY A.StatusDate DESC
+) LS
+WHERE 
+    X.TicketStatus IN ('NEW','ESKALASI','ONPROG','ASSIGNED','OPEN')
+    AND X.ColorID = 'ORANGE'
+    AND X.Active = 1
+    AND M.Active = 1
+    AND M.MchProcess = 'INJECTION'
+    AND LS.StatusLight = 'ORANGE';
   `
 
   const result = await queryDatabase(query)

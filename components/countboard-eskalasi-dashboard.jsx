@@ -303,7 +303,7 @@ export default function CountboardEskalasi() {
       console.error(err)
     }
   }
-
+  console.log('chartData', chartData)
   const chartColor = chartColorMap[deptFilter] || '#38bdf8'
 
   function DashboardCard({ title, value, color, icon }) {
