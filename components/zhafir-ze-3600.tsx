@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -20,6 +20,10 @@ type StdActValue = {
 
 type ApiResponse = {
   paraId: string
+  ranges?: Record<
+    string,
+    { min: number | string | null; max: number | string | null }
+  >
   values: Record<string, StdActValue>
 }
 
@@ -80,6 +84,20 @@ type InputProps = {
   savingField?: string | null
 }
 
+type SummaryRangeInputProps = {
+  fieldKey: string
+  values: Record<string, StdActValue>
+  stdDraft: Record<string, string>
+  actDraft: Record<string, string>
+  minDraft: Record<string, string>
+  maxDraft: Record<string, string>
+  onStdChange?: (fieldKey: string, value: string) => void
+  onMinChange?: (fieldKey: string, value: string) => void
+  onMaxChange?: (fieldKey: string, value: string) => void
+  isEditMode: boolean
+  isActOverLimit?: boolean
+}
+
 const PARA_ID = 'ZHF-STD-001'
 const EDIT_MODE_PASSWORD = 'P168421TK1'
 const ENABLE_PER_FIELD_SAVE = false
@@ -116,6 +134,53 @@ const DB_ONLY_TEMPERATURE_FIELDS = new Set([
   'HopperMax',
   'HopperMin',
 ])
+const SUMMARY_RANGE_FIELDS = [
+  'InjectScrewPosition',
+  'VPTimeText',
+  'VPPositionText',
+  'InjPeakPressure',
+  'Thickness',
+  'CarriageBwd_SE',
+] as const
+const ACT_BOX_PRESET_COLORS = [
+  '#f3f4f6', // gray
+  '#dbeafe', // blue
+  '#fef3c7', // amber
+  '#dcfce7', // green
+  '#fee2e2', // red
+  '#ede9fe', // violet
+  '#cffafe', // cyan
+]
+const PASTEL_WARM_PRESET_COLORS = [
+  '#FDE2E4', '#FAD2E1', '#E2ECE9', '#FFF1E6', '#FDECC8',
+  '#F8EDEB', '#FCD5CE', '#FAE1DD', '#F9DCC4', '#FEC89A',
+  '#E9EDC9', '#CCD5AE', '#FFE5D9', '#FFD7BA', '#FFCDB2',
+  '#F6EAC2', '#F3D5B5', '#E7BC91', '#DDBEA9', '#EDC4B3',
+]
+const EditModeContext = React.createContext(false)
+const MachineIdContext = React.createContext('')
+type PaletteMode = 'default' | 'pastel_warm'
+type PaletteContextValue = {
+  paletteMode: PaletteMode
+  colors: string[]
+}
+const PaletteContext = React.createContext<PaletteContextValue>({
+  paletteMode: 'default',
+  colors: ACT_BOX_PRESET_COLORS,
+})
+type SectionStyleApplySignal = {
+  headerBgColor: string
+  actBgColor: string
+  nonce: number
+}
+type SectionStyleContextValue = {
+  applyToAllSectionStyles: (headerBgColor: string, actBgColor: string) => void
+  applySignal: SectionStyleApplySignal | null
+}
+const SectionStyleContext = React.createContext<SectionStyleContextValue>({
+  applyToAllSectionStyles: () => {},
+  applySignal: null,
+})
 
 function fmt(value: number | string | null | undefined): string {
   if (value === null || value === undefined) return ''
@@ -170,10 +235,16 @@ export default function ZhafirParameterForm() {
   const [values, setValues] = useState<Record<string, StdActValue>>({})
   const [stdDraft, setStdDraft] = useState<Record<string, string>>({})
   const [actDraft, setActDraft] = useState<Record<string, string>>({})
+  const [minDraft, setMinDraft] = useState<Record<string, string>>({})
+  const [maxDraft, setMaxDraft] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [paletteMode, setPaletteMode] = useState<PaletteMode>('default')
+  const [applySignal, setApplySignal] = useState<SectionStyleApplySignal | null>(
+    null
+  )
   const [materialContext, setMaterialContext] =
     useState<MaterialContext | null>(null)
   const [selectedMaterialType, setSelectedMaterialType] = useState<string>('')
@@ -211,18 +282,92 @@ export default function ZhafirParameterForm() {
     () => process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:9999',
     []
   )
+  const activePaletteColors = useMemo(
+    () =>
+      paletteMode === 'pastel_warm'
+        ? PASTEL_WARM_PRESET_COLORS
+        : ACT_BOX_PRESET_COLORS,
+    [paletteMode]
+  )
+  const applyToAllSectionStyles = useCallback(
+    (headerBgColor: string, actBgColor: string) => {
+      const machineScope = machineId || 'global'
+      SECTION_KEYS.forEach((key) => {
+        const storageKey = `zhafir:section-style:${machineScope}:${key}`
+        try {
+          localStorage.setItem(
+            storageKey,
+            JSON.stringify({ headerBgColor, actBgColor }),
+          )
+        } catch {
+          // ignore storage failures
+        }
+      })
+      setApplySignal({
+        headerBgColor,
+        actBgColor,
+        nonce: Date.now(),
+      })
+    },
+    [SECTION_KEYS, machineId]
+  )
   // Check if any actual value is over its standard
   const isStdGreaterThanAct = (fieldKey: string) => {
-    const std = Number(stdDraft[fieldKey])
-    const act = Number(actDraft[fieldKey])
+    const actRaw = actDraft[fieldKey] ?? values[fieldKey]?.act ?? ''
+    const act = Number(actRaw)
+    if (Number.isNaN(act)) return false
 
-    if (Number.isNaN(std) || Number.isNaN(act)) return false
+    const stdRaw = stdDraft[fieldKey] ?? values[fieldKey]?.std ?? ''
+    const std = Number(stdRaw)
+    const hasStd = !Number.isNaN(std)
 
-    const toleranceValue = std * (tolerance / 100)
-    const maxAllowed = std + toleranceValue
+    const minRaw = minDraft[fieldKey]
+    const maxRaw = maxDraft[fieldKey]
+    const min = Number(minRaw)
+    const max = Number(maxRaw)
+    const hasMin = minRaw !== undefined && minRaw !== '' && !Number.isNaN(min)
+    const hasMax = maxRaw !== undefined && maxRaw !== '' && !Number.isNaN(max)
 
-    return act > maxAllowed
+    const isOutsideMinMax =
+      (hasMin && act < min) || (hasMax && act > max)
+
+    // Temporarily disable tolerance rule to avoid conflicting with Min/Max range rule.
+    const isOutsideTolerance = false
+
+    return isOutsideTolerance || isOutsideMinMax
   }
+  const getMinMaxAlertLabel = (fieldKey: string) => {
+    const actRaw = actDraft[fieldKey] ?? values[fieldKey]?.act ?? ''
+    const act = Number(actRaw)
+    if (Number.isNaN(act)) return 'Out Of Range'
+
+    const minRaw = minDraft[fieldKey]
+    const maxRaw = maxDraft[fieldKey]
+    const min = Number(minRaw)
+    const max = Number(maxRaw)
+    const hasMin = minRaw !== undefined && minRaw !== '' && !Number.isNaN(min)
+    const hasMax = maxRaw !== undefined && maxRaw !== '' && !Number.isNaN(max)
+
+    if (hasMin && act < min) return 'Too Low'
+    if (hasMax && act > max) return 'Too High'
+    return 'Out Of Range'
+  }
+  const getSummaryWarningText = (fieldKey: string) => {
+    if (!isStdGreaterThanAct(fieldKey)) return null
+    if (fieldKey === 'VPTimeText') return injectionTimeAlertLabel
+    if (fieldKey === 'VPPositionText') return 'Position Error'
+    if (fieldKey === 'InjPeakPressure') return 'Peak Pressure Error'
+    if (fieldKey === 'Thickness') return cushionAlertLabel
+    return 'Out Of Range'
+  }
+  const injectionTimeAlertLabel = getMinMaxAlertLabel('VPTimeText')
+  const cushionAlertLabel = getMinMaxAlertLabel('Thickness')
+  const injectWarningText = getSummaryWarningText('InjectScrewPosition')
+  const vpTimeWarningText = getSummaryWarningText('VPTimeText')
+  const vpPositionWarningText = getSummaryWarningText('VPPositionText')
+  const injPeakPressureWarningText = getSummaryWarningText('InjPeakPressure')
+  const cushionWarningText = getSummaryWarningText('Thickness')
+  const carriageWarningText = getSummaryWarningText('CarriageBwd_SE')
   useEffect(() => {
     let active = true
     const REQUEST_TIMEOUT_MS = 5000
@@ -341,12 +486,26 @@ export default function ZhafirParameterForm() {
           setValues(mergedValues)
           const stdDraftLocal: Record<string, string> = {}
           const draft: Record<string, string> = {}
+          const minDraftLocal: Record<string, string> = {}
+          const maxDraftLocal: Record<string, string> = {}
           Object.entries(mergedValues).forEach(([key, pair]) => {
             stdDraftLocal[key] = fmt(pair?.std)
             draft[key] = fmt(pair?.act)
           })
+          SUMMARY_RANGE_FIELDS.forEach((key) => {
+            const range = data.ranges?.[key]
+            if (!range) return
+            if (range.min !== null && range.min !== undefined) {
+              minDraftLocal[key] = fmt(range.min)
+            }
+            if (range.max !== null && range.max !== undefined) {
+              maxDraftLocal[key] = fmt(range.max)
+            }
+          })
           setStdDraft(stdDraftLocal)
           setActDraft(draft)
+          setMinDraft(minDraftLocal)
+          setMaxDraft(maxDraftLocal)
         }
       } catch (err) {
         if (active) setError((err as Error).message)
@@ -705,6 +864,14 @@ export default function ZhafirParameterForm() {
     if (!isEditMode) return
     setStdDraft((prev) => ({ ...prev, [fieldKey]: value }))
   }
+  const handleMinChange = (fieldKey: string, value: string) => {
+    if (!isEditMode) return
+    setMinDraft((prev) => ({ ...prev, [fieldKey]: value }))
+  }
+  const handleMaxChange = (fieldKey: string, value: string) => {
+    if (!isEditMode) return
+    setMaxDraft((prev) => ({ ...prev, [fieldKey]: value }))
+  }
   const handleActChange = (fieldKey: string, value: string) =>
     setActDraft((prev) => ({ ...prev, [fieldKey]: value }))
   const toggleSection = (key: string) =>
@@ -802,6 +969,39 @@ export default function ZhafirParameterForm() {
         stdPayload[key] = stdNumber
       }
     }
+    for (const key of SUMMARY_RANGE_FIELDS) {
+      const hasMin = Object.prototype.hasOwnProperty.call(minDraft, key)
+      if (hasMin) {
+        const minRaw = minDraft[key]
+        if (minRaw === '') {
+          stdPayload[`${key}_min`] = ''
+        } else {
+          const minNumber = Number(minRaw)
+          if (Number.isNaN(minNumber)) {
+            setSavingKey(null)
+            setError(`Nilai Min untuk "${key}" harus angka`)
+            return
+          }
+          stdPayload[`${key}_min`] = minNumber
+        }
+      }
+
+      const hasMax = Object.prototype.hasOwnProperty.call(maxDraft, key)
+      if (hasMax) {
+        const maxRaw = maxDraft[key]
+        if (maxRaw === '') {
+          stdPayload[`${key}_max`] = ''
+        } else {
+          const maxNumber = Number(maxRaw)
+          if (Number.isNaN(maxNumber)) {
+            setSavingKey(null)
+            setError(`Nilai Max untuk "${key}" harus angka`)
+            return
+          }
+          stdPayload[`${key}_max`] = maxNumber
+        }
+      }
+    }
 
     let lastError = 'unknown'
     try {
@@ -842,9 +1042,7 @@ export default function ZhafirParameterForm() {
         for (const key of Object.keys(prev)) {
           next[key] = {
             std:
-              key in stdPayload
-                ? (stdPayload[key] as any)
-                : (prev[key]?.std ?? null),
+              key in stdPayload ? (stdPayload[key] as any) : (prev[key]?.std ?? null),
             act: prev[key]?.act ?? null,
           }
         }
@@ -857,7 +1055,13 @@ export default function ZhafirParameterForm() {
   }
 
   return (
-    <div className="p-6 text-sm">
+    <EditModeContext.Provider value={isEditMode}>
+      <MachineIdContext.Provider value={machineId}>
+        <PaletteContext.Provider value={{ paletteMode, colors: activePaletteColors }}>
+          <SectionStyleContext.Provider
+            value={{ applyToAllSectionStyles, applySignal }}
+          >
+            <div className="p-6 text-sm">
       <div className="mb-4 flex h-12 items-center gap-2 border-b px-2">
         <Separator orientation="vertical" className="mr-2 h-4" />
         <Breadcrumb>
@@ -1028,13 +1232,27 @@ export default function ZhafirParameterForm() {
           <select
             value={tolerance}
             onChange={(e) => setTolerance(Number(e.target.value))}
-            className="border rounded px-2 py-1 text-xs"
+            disabled
+            className="border rounded px-2 py-1 text-xs bg-gray-100 text-gray-500 cursor-not-allowed"
           >
             <option value={0}>0%</option>
             <option value={5}>5%</option>
             <option value={10}>10%</option>
           </select>
         </div>
+        {isEditMode && (
+          <div className="flex items-center rounded-md border bg-white px-2 py-1">
+            <label className="text-xs font-semibold">Color Palette:</label>
+            <select
+              value={paletteMode}
+              onChange={(e) => setPaletteMode(e.target.value as PaletteMode)}
+              className="ml-2 border rounded px-2 py-1 text-xs"
+            >
+              <option value="default">Default</option>
+              <option value="pastel_warm">Pastel Warm (20)</option>
+            </select>
+          </div>
+        )}
       </div>
       {showEditPasswordModal && (
         <div
@@ -1100,37 +1318,39 @@ export default function ZhafirParameterForm() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="border rounded-md p-3 bg-gray-50">
             <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-700 mb-2 items-center">
-              <div className="col-span-4">Summary Injection Settings</div>
+              <div className="col-span-5">Summary Injection Settings</div>
 
-              <div className="col-span-4 text-center">Actual / Standard</div>
+              <div className="col-span-5 text-center">Standard / Min / Max / Actual</div>
 
-              <div className="col-span-2 text-left">Unit</div>
+              <div className="col-span-2 text-center">Unit</div>
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
-                className={`col-span-5 text-xs font-semibold transition-colors duration-300
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
       ${isStdGreaterThanAct('InjectScrewPosition') ? 'text-red-600' : ''}`}
               >
-                Inj Start Pos
-                {isStdGreaterThanAct('InjectScrewPosition') && (
-                  <div className="text-right">
-                    <span className="text-red-600 font-bold warning-blink">
-                      ⚠ Value di luar toleransi
-                    </span>
-                  </div>
-                )}
+                <span className="flex-1">End Of Plastification</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    injectWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {injectWarningText ? `\u26A0 ${injectWarningText}` : '\u26A0'}
+                </span>
               </div>
 
               <div className="col-span-5">
-                <Input
-                  pair
+                <SummaryRangeInput
                   fieldKey="InjectScrewPosition"
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={isEditMode ? handleStdChange : undefined}
-                  onActChange={handleActChange}
-                  savingKey={savingKey}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('InjectScrewPosition')}
                 />
               </div>
@@ -1144,28 +1364,30 @@ export default function ZhafirParameterForm() {
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
-                className={`col-span-5 text-xs font-semibold transition-colors duration-300
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
     ${isStdGreaterThanAct('VPTimeText') ? 'text-red-600' : ''}`}
               >
-                V/P Time
-                {isStdGreaterThanAct('VPTimeText') && (
-                  <div className="text-right">
-                    <span className="text-red-600 font-bold warning-blink">
-                      ⚠ Value di luar toleransi
-                    </span>
-                  </div>
-                )}
+                <span className="flex-1">Injection Time</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    vpTimeWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {vpTimeWarningText ? `\u26A0 ${vpTimeWarningText}` : '\u26A0'}
+                </span>
               </div>
               <div className="col-span-5">
-                <Input
-                  pair
+                <SummaryRangeInput
                   fieldKey="VPTimeText"
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={isEditMode ? handleStdChange : undefined}
-                  onActChange={handleActChange}
-                  savingKey={savingKey}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('VPTimeText')}
                 />
               </div>
@@ -1179,29 +1401,31 @@ export default function ZhafirParameterForm() {
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
-                className={`col-span-5 text-xs font-semibold transition-colors duration-300
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
     ${isStdGreaterThanAct('VPPositionText') ? 'text-red-600' : ''}`}
               >
-                V/P Position
-                {isStdGreaterThanAct('VPPositionText') && (
-                  <div className="text-right">
-                    <span className="text-red-600 font-bold warning-blink">
-                      ⚠ Value di luar toleransi
-                    </span>
-                  </div>
-                )}
+                <span className="flex-1">Switching Position</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    vpPositionWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {vpPositionWarningText ? `\u26A0 ${vpPositionWarningText}` : '\u26A0'}
+                </span>
               </div>
 
               <div className="col-span-5">
-                <Input
-                  pair
+                <SummaryRangeInput
                   fieldKey="VPPositionText"
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={isEditMode ? handleStdChange : undefined}
-                  onActChange={handleActChange}
-                  savingKey={savingKey}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('VPPositionText')}
                 />
               </div>
@@ -1214,29 +1438,68 @@ export default function ZhafirParameterForm() {
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
-                className={`col-span-5 text-xs font-semibold transition-colors duration-300
-    ${isStdGreaterThanAct('Thickness') ? 'text-red-600' : ''}`}
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
+    ${isStdGreaterThanAct('InjPeakPressure') ? 'text-red-600' : ''}`}
               >
-                Min Cushion Position
-                {isStdGreaterThanAct('Thickness') && (
-                  <div className="text-right">
-                    <span className="text-red-600 font-bold warning-blink">
-                      ⚠ Value di luar toleransi
-                    </span>
-                  </div>
-                )}
+                <span className="flex-1">inject pres</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    injPeakPressureWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {injPeakPressureWarningText ? `\u26A0 ${injPeakPressureWarningText}` : '\u26A0'}
+                </span>
               </div>
 
               <div className="col-span-5">
-                <Input
-                  pair
+                <SummaryRangeInput
+                  fieldKey="InjPeakPressure"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
+                  isActOverLimit={isStdGreaterThanAct('InjPeakPressure')}
+                />
+              </div>
+              <div
+                className={`col-span-2 flex min-h-[44px] items-center justify-center text-xs transition-colors duration-300
+    ${isStdGreaterThanAct('InjPeakPressure') ? 'text-red-600 font-semibold' : ''}`}
+              >
+                mm
+              </div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center mb-2">
+              <div
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
+    ${isStdGreaterThanAct('Thickness') ? 'text-red-600' : ''}`}
+              >
+                <span className="flex-1">Cushion</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    cushionWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {cushionWarningText ? `\u26A0 ${cushionWarningText}` : '\u26A0'}
+                </span>
+              </div>
+
+              <div className="col-span-5">
+                <SummaryRangeInput
                   fieldKey="Thickness"
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={isEditMode ? handleStdChange : undefined}
-                  onActChange={handleActChange}
-                  savingKey={savingKey}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('Thickness')}
                 />
               </div>
@@ -1250,29 +1513,31 @@ export default function ZhafirParameterForm() {
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
-                className={`col-span-5 text-xs font-semibold transition-colors duration-300
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
     ${isStdGreaterThanAct('CarriageBwd_SE') ? 'text-red-600' : ''}`}
               >
-                Carriage Backward SE
-                {isStdGreaterThanAct('CarriageBwd_SE') && (
-                  <div className="text-right">
-                    <span className="text-red-600 font-bold warning-blink">
-                      ⚠ Value di luar toleransi
-                    </span>
-                  </div>
-                )}
+                <span className="flex-1">Carriage Backward SE</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    carriageWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {carriageWarningText ? `\u26A0 ${carriageWarningText}` : '\u26A0'}
+                </span>
               </div>
 
               <div className="col-span-5 transition-all duration-300">
-                <Input
-                  pair
+                <SummaryRangeInput
                   fieldKey="CarriageBwd_SE"
                   values={values}
                   stdDraft={stdDraft}
                   actDraft={actDraft}
-                  onStdChange={isEditMode ? handleStdChange : undefined}
-                  onActChange={handleActChange}
-                  savingKey={savingKey}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('CarriageBwd_SE')}
                 />
               </div>
@@ -1289,7 +1554,7 @@ export default function ZhafirParameterForm() {
           <div className="border rounded-md p-3 bg-gray-50">
             <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-700 mb-2">
               <div className="col-span-4">Hopper Temp.</div>
-              <div className="col-span-6 text-center">Actual / Standard</div>
+              <div className="col-span-6 text-center">Standard / Actual</div>
               <div className="col-span-2 text-center">Unit</div>
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
@@ -1306,9 +1571,7 @@ export default function ZhafirParameterForm() {
                   savingKey={savingKey}
                 />
               </div>
-              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">
-                C
-              </div>
+              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">C</div>
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div className="col-span-4 text-xs">Max +</div>
@@ -1326,9 +1589,7 @@ export default function ZhafirParameterForm() {
                   savingKey={savingKey}
                 />
               </div>
-              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">
-                C
-              </div>
+              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">C</div>
             </div>
             <div className="grid grid-cols-12 gap-2 items-center">
               <div className="col-span-4 text-xs">Min -</div>
@@ -1346,9 +1607,7 @@ export default function ZhafirParameterForm() {
                   savingKey={savingKey}
                 />
               </div>
-              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">
-                C
-              </div>
+              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">C</div>
             </div>
             <div className="grid grid-cols-12 gap-2 items-center mt-2">
               <div className="col-span-4 text-xs">Real</div>
@@ -1366,9 +1625,7 @@ export default function ZhafirParameterForm() {
                   savingKey={savingKey}
                 />
               </div>
-              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">
-                C
-              </div>
+              <div className="col-span-2 flex min-h-[44px] items-center justify-center text-xs">C</div>
             </div>
           </div>
         </div>
@@ -2426,7 +2683,11 @@ export default function ZhafirParameterForm() {
           ))}
         </div>
       </Section>
-    </div>
+            </div>
+          </SectionStyleContext.Provider>
+        </PaletteContext.Provider>
+      </MachineIdContext.Provider>
+    </EditModeContext.Provider>
   )
 }
 
@@ -2438,23 +2699,169 @@ function Section({
   expanded,
   onToggle,
 }: SectionProps) {
+  const isEditMode = useContext(EditModeContext)
+  const machineId = useContext(MachineIdContext)
+  const { colors: paletteColors } = useContext(PaletteContext)
+  const { applyToAllSectionStyles, applySignal } = useContext(SectionStyleContext)
+  const [headerBgColor, setHeaderBgColor] = useState('#f3f4f6')
+  const [actBgColor, setActBgColor] = useState('#f3f4f6')
+  const [showStylePanel, setShowStylePanel] = useState(false)
   const isExpanded = expanded ?? true
+  const sectionIdentity = sectionKey || title
+  const presetStorageKey = `zhafir:section-style:${machineId || 'global'}:${sectionIdentity}`
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(presetStorageKey)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as {
+        headerBgColor?: string
+        actBgColor?: string
+      }
+      if (typeof parsed.headerBgColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(parsed.headerBgColor)) {
+        setHeaderBgColor(parsed.headerBgColor)
+      }
+      if (typeof parsed.actBgColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(parsed.actBgColor)) {
+        setActBgColor(parsed.actBgColor)
+      }
+    } catch {
+      // ignore invalid preset
+    }
+  }, [presetStorageKey])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        presetStorageKey,
+        JSON.stringify({ headerBgColor, actBgColor }),
+      )
+    } catch {
+      // ignore storage failures
+    }
+  }, [presetStorageKey, headerBgColor, actBgColor])
+  useEffect(() => {
+    if (!applySignal) return
+    setHeaderBgColor(applySignal.headerBgColor)
+    setActBgColor(applySignal.actBgColor)
+  }, [applySignal])
+  const getReadableText = (hex: string) => {
+    const normalized = hex.replace('#', '')
+    const safe =
+      normalized.length === 3
+        ? normalized
+            .split('')
+            .map((c) => c + c)
+            .join('')
+        : normalized.padEnd(6, '0').slice(0, 6)
+    const r = Number.parseInt(safe.slice(0, 2), 16)
+    const g = Number.parseInt(safe.slice(2, 4), 16)
+    const b = Number.parseInt(safe.slice(4, 6), 16)
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000
+    return yiq >= 160 ? '#1f2937' : '#f9fafb'
+  }
+  const actFgColor = getReadableText(actBgColor)
   return (
     <div
       className={`border-2 border-gray-400 rounded-xl p-4 mb-4 bg-white shadow-sm ${className ?? ''}`}
+      style={
+        {
+          '--act-bg': actBgColor,
+          '--act-fg': actFgColor,
+        } as React.CSSProperties
+      }
     >
-      <div className="mb-3 flex items-center justify-between gap-2 bg-gray-100 border border-gray-300 rounded-md px-3 py-2">
+      <div
+        className="mb-3 flex items-center justify-between gap-2 border border-gray-300 rounded-md px-3 py-2"
+        style={{ backgroundColor: headerBgColor }}
+      >
         <h2 className="font-bold">{title}</h2>
-        {sectionKey && onToggle && (
-          <button
-            type="button"
-            onClick={() => onToggle(sectionKey)}
-            className="rounded border px-2 py-0.5 text-xs bg-white hover:bg-gray-100"
-          >
-            {isExpanded ? 'Collapse -' : 'Expand +'}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isEditMode && (
+            <button
+              type="button"
+              onClick={() => setShowStylePanel((prev) => !prev)}
+              className="rounded border px-2 py-0.5 text-xs bg-white hover:bg-gray-100"
+            >
+              {showStylePanel ? 'Hide Style' : 'Style'}
+            </button>
+          )}
+          {sectionKey && onToggle && (
+            <button
+              type="button"
+              onClick={() => onToggle(sectionKey)}
+              className="rounded border px-2 py-0.5 text-xs bg-white hover:bg-gray-100"
+            >
+              {isExpanded ? 'Collapse -' : 'Expand +'}
+            </button>
+          )}
+        </div>
       </div>
+      {isEditMode && showStylePanel && (
+        <div className="mb-3 rounded border border-gray-200 bg-white p-2">
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold text-gray-600">
+            <span>Header</span>
+            <input
+              type="color"
+              value={headerBgColor}
+              onChange={(e) => setHeaderBgColor(e.target.value)}
+              className="h-5 w-8 cursor-pointer rounded border border-gray-300 bg-white p-0.5"
+              title="Custom header color"
+            />
+          </div>
+          <div className="mb-3 grid grid-cols-10 gap-1">
+            {paletteColors.map((color) => (
+              <button
+                key={`hdr-panel-${title}-${color}`}
+                type="button"
+                onClick={() => setHeaderBgColor(color)}
+                className={`h-5 w-full rounded border ${
+                  headerBgColor.toLowerCase() === color.toLowerCase()
+                    ? 'ring-2 ring-slate-500'
+                    : ''
+                }`}
+                style={{ backgroundColor: color }}
+                title={`Header ${color}`}
+              />
+            ))}
+          </div>
+
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold text-gray-600">
+            <span>Act Box</span>
+            <input
+              type="color"
+              value={actBgColor}
+              onChange={(e) => setActBgColor(e.target.value)}
+              className="h-5 w-8 cursor-pointer rounded border border-gray-300 bg-white p-0.5"
+              title="Custom act color"
+            />
+          </div>
+          <div className="grid grid-cols-10 gap-1">
+            {paletteColors.map((color) => (
+              <button
+                key={`act-panel-${title}-${color}`}
+                type="button"
+                onClick={() => setActBgColor(color)}
+                className={`h-5 w-full rounded border ${
+                  actBgColor.toLowerCase() === color.toLowerCase()
+                    ? 'ring-2 ring-slate-500'
+                    : ''
+                }`}
+                style={{ backgroundColor: color }}
+                title={`Act ${color}`}
+              />
+            ))}
+          </div>
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => applyToAllSectionStyles(headerBgColor, actBgColor)}
+              className="rounded border px-2 py-1 text-xs bg-slate-50 hover:bg-slate-100"
+            >
+              Apply To All Sections
+            </button>
+          </div>
+        </div>
+      )}
       {isExpanded ? children : null}
     </div>
   )
@@ -2534,6 +2941,76 @@ function Row({
   )
 }
 
+function SummaryRangeInput({
+  fieldKey,
+  values,
+  stdDraft,
+  actDraft,
+  minDraft,
+  maxDraft,
+  onStdChange,
+  onMinChange,
+  onMaxChange,
+  isEditMode,
+  isActOverLimit,
+}: SummaryRangeInputProps) {
+  const stdValue = stdDraft[fieldKey] ?? fmt(values[fieldKey]?.std)
+  const minValue = minDraft[fieldKey] ?? ''
+  const maxValue = maxDraft[fieldKey] ?? ''
+  const actValue = formatNumericDisplay(
+    actDraft[fieldKey] ?? values[fieldKey]?.act ?? '',
+    2
+  )
+
+  return (
+    <div className="grid grid-cols-4 gap-1">
+      <div className="flex flex-col">
+        <span className="text-[10px] leading-3">Std</span>
+        <input
+          value={stdValue}
+          onChange={(e) => onStdChange?.(fieldKey, e.target.value)}
+          readOnly={!isEditMode}
+          className={`border px-1 py-0.5 rounded w-full ${
+            isEditMode ? 'bg-white' : 'bg-gray-100'
+          }`}
+        />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] leading-3">Min</span>
+        <input
+          value={minValue}
+          onChange={(e) => onMinChange?.(fieldKey, e.target.value)}
+          readOnly={!isEditMode}
+          className={`border px-1 py-0.5 rounded w-full ${
+            isEditMode ? 'bg-white' : 'bg-gray-100'
+          }`}
+        />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] leading-3">Max</span>
+        <input
+          value={maxValue}
+          onChange={(e) => onMaxChange?.(fieldKey, e.target.value)}
+          readOnly={!isEditMode}
+          className={`border px-1 py-0.5 rounded w-full ${
+            isEditMode ? 'bg-white' : 'bg-gray-100'
+          }`}
+        />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] leading-3">Act</span>
+        <input
+          value={actValue}
+          readOnly
+          className={`px-1 py-0.5 rounded w-full bg-[var(--act-bg,#f3f4f6)] text-[var(--act-fg,#374151)] transition-all duration-300 ${
+            isActOverLimit ? 'border border-red-500 ring-1 ring-red-400' : 'border'
+          }`}
+        />
+      </div>
+    </div>
+  )
+}
+
 function Input({
   label,
   pair,
@@ -2605,7 +3082,7 @@ function Input({
               <input
                 value={actValue}
                 readOnly={actReadOnly}
-                className={`px-1 py-0.5 rounded w-full bg-gray-100 text-gray-700 transition-all duration-300
+                className={`px-1 py-0.5 rounded w-full bg-[var(--act-bg,#f3f4f6)] text-[var(--act-fg,#374151)] transition-all duration-300
     ${isActOverLimit ? 'border border-red-500 ring-1 ring-red-400' : 'border'}`}
               />
               {fieldKey && onActSave && ENABLE_PER_FIELD_SAVE && (
@@ -2631,7 +3108,9 @@ function Input({
             }}
             readOnly={readOnly}
             className={`border px-1 py-0.5 rounded w-full ${
-              readOnly ? 'bg-gray-100 text-gray-700' : 'bg-white'
+              readOnly
+                ? 'bg-[var(--act-bg,#f3f4f6)] text-[var(--act-fg,#374151)]'
+                : 'bg-white'
             }`}
           />
           {fieldKey && onStdSave && ENABLE_PER_FIELD_SAVE && (
@@ -2649,3 +3128,4 @@ function Input({
     </div>
   )
 }
+

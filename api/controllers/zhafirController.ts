@@ -98,6 +98,14 @@ const STRING_VALUE_FIELDS = new Set([
   'VPPosnText',
   'AirBlowMaleFemale',
 ]);
+const RANGE_TRACKED_FIELDS = new Set([
+  'InjectScrewPosition',
+  'VPTimeText',
+  'VPPositionText',
+  'InjPeakPressure',
+  'Thickness',
+  'CarriageBwd_SE',
+]);
 
 const ALLOWED_HARD_CODED_ACT_FIELDS = new Set(ZHAFIR_VALUE_FIELDS);
 const MACHINE_STD_TABLE = 'IoT.dbo.MachineParameterSettingSTD';
@@ -410,6 +418,47 @@ function createStdActMap(stdRow: Record<string, any> | undefined, actualRow: Rec
   return values;
 }
 
+function isSupportedRangeKey(key: string) {
+  if (!key) return false;
+  if (key.endsWith('_min')) {
+    const base = key.slice(0, -4);
+    return RANGE_TRACKED_FIELDS.has(base);
+  }
+  if (key.endsWith('_max')) {
+    const base = key.slice(0, -4);
+    return RANGE_TRACKED_FIELDS.has(base);
+  }
+  return false;
+}
+
+function extractRangeValuesFromParamset(paramset: Record<string, unknown>) {
+  const keyMap: Record<string, string> = {};
+  Object.keys(paramset || {}).forEach((key) => {
+    keyMap[key.toLowerCase()] = key;
+  });
+
+  const ranges: Record<
+    string,
+    { min: string | number | null; max: string | number | null }
+  > = {};
+
+  RANGE_TRACKED_FIELDS.forEach((fieldKey) => {
+    const minKey = keyMap[`${fieldKey}_min`.toLowerCase()];
+    const maxKey = keyMap[`${fieldKey}_max`.toLowerCase()];
+    const minValue = minKey ? (paramset[minKey] as string | number | null) : null;
+    const maxValue = maxKey ? (paramset[maxKey] as string | number | null) : null;
+
+    if (minValue !== null || maxValue !== null) {
+      ranges[fieldKey] = {
+        min: minValue ?? null,
+        max: maxValue ?? null,
+      };
+    }
+  });
+
+  return ranges;
+}
+
 function parseMaterialInput(materialRaw?: string) {
   const source = (materialRaw || '').trim();
   if (!source) {
@@ -540,7 +589,13 @@ async function upsertStdParamsetByMachine(
   }
 
   const columns = resolveColumns(section);
-  const allowedPayload = normalizePayload(stdPayload, columns);
+  const dynamicRangeColumns = Object.keys(stdPayload || {}).filter((key) =>
+    isSupportedRangeKey(key),
+  );
+  const allowedPayload = normalizePayload(stdPayload, [
+    ...columns,
+    ...dynamicRangeColumns,
+  ]);
   const latestRow = await getLatestStdRowByMachine(resolvedMachineId);
   const currentParamset = parseStdParamset(getRowValue(latestRow, ['paramset']));
   const nextParamset = {
@@ -642,6 +697,7 @@ export async function getZhafirStdActByParaId(paraId: string, section?: string, 
   }
   let std: Record<string, string | number | null> = {};
   let actual: Record<string, string | number | null> = {};
+  let ranges: Record<string, { min: string | number | null; max: string | number | null }> = {};
   const resolvedMachineId = machineId.trim();
   let stdDate = new Date().toISOString();
   let actualDate = new Date().toISOString();
@@ -650,6 +706,9 @@ export async function getZhafirStdActByParaId(paraId: string, section?: string, 
   if (nearestStdRow) {
     const paramsetRaw = parseStdParamset(getRowValue(nearestStdRow, ['paramset']));
     const paramset = mapSourceToUiFields(paramsetRaw as Record<string, any>);
+    ranges = extractRangeValuesFromParamset(
+      paramsetRaw as Record<string, unknown>,
+    );
     std = {
       ...std,
       ...paramset,
@@ -674,6 +733,7 @@ export async function getZhafirStdActByParaId(paraId: string, section?: string, 
       MchID: actualMeta.MchID || resolvedMachineId,
       MoldID: actualMeta.MoldID ?? null,
     },
+    ranges,
     values: createStdActMap(std, actual, section),
   };
 }
