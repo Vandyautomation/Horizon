@@ -11,6 +11,16 @@ import {
   CartesianGrid,
   Cell,
 } from 'recharts'
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 type LostData = {
   StatusDate: string
   DuraMin: number
@@ -44,6 +54,11 @@ export default function CountboardBreakdown() {
   const [loading, setLoading] = useState(true)
   const [lostPage, setLostPage] = useState(1)
   const [problemPage, setProblemPage] = useState(1)
+  const searchParams = useSearchParams()
+  const machineNumber = searchParams.get('machine_number') || ''
+  const location = searchParams.get('location') || ''
+  const eskalasiHref = `/countboard/eskalasi`
+  const countboardHref = `/countboard?machineNumber=${encodeURIComponent(machineNumber || '')}&location=${encodeURIComponent(location || '')}`
 
   const ITEMS_PER_PAGE = 10
   const fetchData = useCallback(async () => {
@@ -129,6 +144,31 @@ export default function CountboardBreakdown() {
   )
   return (
     <div className="p-4 space-y-4 text-sm">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/">Home</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={countboardHref}>Countboard Injection</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={eskalasiHref}>Countboard Eskalasi</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Breakdown</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       {/* HEADER */}
       <h1 className="text-xl font-semibold">Countboard Breakdown</h1>
       <div className="bg-gradient-to-br from-indigo-50 to-orange-50 shadow-lg rounded-2xl p-6 border border-indigo-100">
@@ -149,7 +189,9 @@ export default function CountboardBreakdown() {
             <p className="text-sm font-bold text-gray-800 mb-4">
               📊 Breakdown by PIC
             </p>
-            <div className="w-full h-[160px] bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-2">
+
+            {/* Samakan tinggi jadi 220px & padding p-3 */}
+            <div className="w-full h-[220px] bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-3">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={picChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -185,187 +227,174 @@ export default function CountboardBreakdown() {
           </div>
 
           {/* 🏭 MESIN PER LOKASI */}
-            <div className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow border-t-4 border-blue-500">
+          <div className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow border-t-4 border-blue-500">
             <p className="text-sm font-bold text-gray-800 mb-4">
               🏭 Lost per Location
             </p>
             <div className="w-full h-[220px] bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-3">
               <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={locChartData}
-                layout="vertical"
-                margin={{ left: 80, right: 20 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis
-                type="number"
-                allowDecimals={false}
-                tick={{ fontSize: 12, fontWeight: 500 }}
-                stroke="#6b7280"
-                />
-                <YAxis
-                type="category"
-                dataKey="name"
-                width={75}
-                tick={{ fontSize: 12, fontWeight: 500 }}
-                stroke="#6b7280"
-                />
-                <Tooltip
-                contentStyle={{
-                  borderRadius: '8px',
-                  border: 'none',
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                }}
-                formatter={(value) => `${value} items`}
-                />
-                <Bar dataKey="total" radius={[0, 6, 6, 0]} fill="#3b82f6" />
-              </BarChart>
+                <BarChart
+                  data={locChartData}
+                  layout="vertical"
+                  margin={{ left: 80, right: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    tick={{ fontSize: 12, fontWeight: 500 }}
+                    stroke="#6b7280"
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={75}
+                    tick={{ fontSize: 12, fontWeight: 500 }}
+                    stroke="#6b7280"
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: 'none',
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                    }}
+                    formatter={(value) => `${value} items`}
+                  />
+                  <Bar dataKey="total" radius={[0, 6, 6, 0]} fill="#3b82f6" />
+                </BarChart>
               </ResponsiveContainer>
-            </div>
-            </div>
-        </div>
-      </div>
-
-      {/* 📋 TABLE LOST TIME */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* 📋 TABLE LOST TIME (KIRI) */}
-        <div className="bg-white shadow-md rounded-2xl p-6 border-t-4 border-red-500 hover:shadow-lg transition-shadow">
-          <h2 className="text-lg font-semibold mb-4">Lost Time List</h2>
-          <div className="overflow-auto max-h-[600px]">
-            <table className="min-w-full text-xs">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0">
-                <tr>
-                  <th className="px-2 py-2">No</th>
-                    <th className="px-2 py-2">
-                    <button
-                      onClick={() => {
-                      const sorted = [...lostData].sort((a, b) =>
-                        (a.Location || '').localeCompare(b.Location || '')
-                      )
-                      setLostData(sorted)
-                      }}
-                      className="hover:text-blue-600 underline"
-                    >
-                      Location ↕
-                    </button>
-                    </th>
-                    <th className="px-2 py-2">MchID</th>
-                    <th className="px-2 py-2">Brand</th>
-                    <th className="px-2 py-2">Ton</th>
-                    <th className="px-2 py-2">Duration</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  {lostPaginated.map((item, index) => (
-                    <tr
-                    key={index}
-                    className="text-center hover:bg-gray-50 border-b"
-                    >
-                    <td className="p-2 font-medium text-[10px]">
-                      {(lostPage - 1) * ITEMS_PER_PAGE + index + 1}
-                    </td>
-                    <td className="px-2 py-1 text-[10px]">{item.Location}</td>
-                    <td className="px-2 py-1 text-[10px]">{item.MchID}</td>
-                    <td className="px-2 py-1 text-[10px]">{item.Brand}</td>
-                    <td className="px-2 py-1 text-[10px]">{item.MchTon}</td>
-                    <td className="p-2 font-semibold text-red-600">
-                      {(item.DuraMin / 60).toFixed(2)} hrs
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex items-center justify-between mt-4 text-xs">
-              <button
-                onClick={() => setLostPage((p) => Math.max(p - 1, 1))}
-                disabled={lostPage === 1}
-                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
-              >
-                Prev
-              </button>
-              <span className="text-gray-500">
-                Page {lostPage} of {lostTotalPages || 1} | Total:{' '}
-                {lostData.length} items
-              </span>
-              <button
-                onClick={() =>
-                  setLostPage((p) => Math.min(p + 1, lostTotalPages))
-                }
-                disabled={lostPage === lostTotalPages || lostTotalPages === 0}
-                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
-              >
-                Next
-              </button>
             </div>
           </div>
         </div>
-
-        {/* 📋 TABLE PROBLEM & ACTION PLAN (KANAN) */}
-        <div className="bg-white shadow-md rounded-2xl p-6 border-t-4 border-orange-500 hover:shadow-lg transition-shadow">
-          <h2 className="text-lg font-semibold mb-4">Problem & Action Plan</h2>
-          <div className="overflow-auto max-h-[600px]">
-            <table className="min-w-full text-xs">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0">
-                <tr>
-                  <th className="px-2 py-2">No</th>
-                  <th className="px-2 py-2">UAP</th>
-                  <th className="px-2 py-2">Brand</th>
-                  <th className="px-2 py-2">Location</th>
-                  <th className="px-2 py-2">Problem</th>
-                  <th className="px-2 py-2">Action</th>
-                  <th className="px-2 py-2">PIC</th>
-                  <th className="px-2 py-2">Status</th>
+      </div>
+      {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-4"></div> */}
+      {/* 📋 TABLE LOST TIME (KIRI) */}
+      <div className="bg-white shadow-md rounded-2xl p-6 border-t-4 border-red-500 hover:shadow-lg transition-shadow">
+        <h2 className="text-lg font-semibold mb-4">Lost Time List</h2>
+        <div className="overflow-auto max-h-[600px]">
+          <table className="min-w-full text-xs">
+            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0">
+              <tr>
+                <th className="px-2 py-2">No</th>
+                <th className="px-2 py-2">Location</th>
+                <th className="px-2 py-2">MchID</th>
+                <th className="px-2 py-2">Brand</th>
+                <th className="px-2 py-2">Problem</th>
+                <th className="px-2 py-2">Action</th>
+                <th className="px-2 py-2">Ton</th>
+                <th className="px-2 py-2">Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lostPaginated.map((item, index) => (
+                <tr
+                  key={index}
+                  className="text-center hover:bg-gray-50 border-b"
+                >
+                  <td className="p-2 font-medium text-[15px]">
+                    {(lostPage - 1) * ITEMS_PER_PAGE + index + 1}
+                  </td>
+                  <td className="px-2 py-1 text-[15px]">{item.Location}</td>
+                  <td className="px-2 py-1 text-[15px]">{item.MchID}</td>
+                  <td className="px-2 py-1 text-[15px]">{item.Brand}</td>
+                  <td className="px-2 py-1 text-[15px]">{item.Problem}</td>
+                  <td className="px-2 py-1 text-[15px]">{item.ActionPlan}</td>
+                  <td className="px-2 py-1 text-[15px]">{item.MchTon}</td>
+                  <td className="p-2 font-semibold text-[15px] text-red-600">
+                    {(item.DuraMin / 60).toFixed(2)} hrs
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {problemPaginated.map((item, index) => (
-                  <tr
-                    key={index}
-                    className="text-center hover:bg-gray-50 border-b"
-                  >
-                    <td className="p-2 font-medium text-[10px]">
-                      {(problemPage - 1) * ITEMS_PER_PAGE + index + 1}
-                    </td>
-                    <td className="px-2 py-1 text-[10px]">{item.UAP}</td>
-                    <td className="px-2 py-1 text-[10px]">{item.Brand}</td>
-                    <td className="px-2 py-1 text-[10px]">{item.Location}</td>
-                    <td className="px-2 py-1 text-[10px]">{item.Problem}</td>
-                    <td className="px-2 py-1 text-[10px]">{item.Action}</td>
-                    <td className="px-2 py-1 font-semibold text-[10px]">
-                      {item.pic}
-                    </td>
-                    <td className="px-2 py-1 text-[10px]">
-                      {item.TicketStatus}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex items-center justify-between mt-4 text-xs">
-              <button
-                onClick={() => setProblemPage((p) => Math.max(p - 1, 1))}
-                disabled={problemPage === 1}
-                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
-              >
-                Prev
-              </button>
-              <span className="text-gray-500">
-                Page {problemPage} of {problemTotalPages || 1} | Total: {problemData.length} items
-              </span>
-              <button
-                onClick={() =>
-                  setProblemPage((p) => Math.min(p + 1, problemTotalPages))
-                }
-                disabled={
-                  problemPage === problemTotalPages || problemTotalPages === 0
-                }
-                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex items-center justify-between mt-4 text-xs">
+            <button
+              onClick={() => setLostPage((p) => Math.max(p - 1, 1))}
+              disabled={lostPage === 1}
+              className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+            >
+              Prev
+            </button>
+            <span className="text-gray-500">
+              Page {lostPage} of {lostTotalPages || 1} | Total:{' '}
+              {lostData.length} items
+            </span>
+            <button
+              onClick={() =>
+                setLostPage((p) => Math.min(p + 1, lostTotalPages))
+              }
+              disabled={lostPage === lostTotalPages || lostTotalPages === 0}
+              className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+      {/* 📋 TABLE PROBLEM & ACTION PLAN */}
+      <div className="bg-white shadow-md rounded-2xl p-6 border-t-4 border-orange-500 hover:shadow-lg transition-shadow">
+        <h2 className="text-lg font-semibold mb-4">Problem & Action Plan</h2>
+        <div className="overflow-auto max-h-[600px]">
+          <table className="min-w-full text-xs">
+            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0">
+              <tr>
+                <th className="px-2 py-2">No</th>
+                <th className="px-2 py-2">UAP</th>
+                <th className="px-2 py-2">Brand</th>
+                <th className="px-2 py-2">Location</th>
+                <th className="px-2 py-2">Problem</th>
+                <th className="px-2 py-2">Action</th>
+                <th className="px-2 py-2">PIC</th>
+                <th className="px-2 py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {problemPaginated.map((item, index) => (
+                <tr
+                  key={index}
+                  className="text-center hover:bg-gray-50 border-b"
+                >
+                  <td className="p-2 font-medium text-[15px]">
+                    {(problemPage - 1) * ITEMS_PER_PAGE + index + 1}
+                  </td>
+                  <td className="px-2 py-1 text-[15px]">{item.UAP}</td>
+                  <td className="px-2 py-1 text-[15px]">{item.Brand}</td>
+                  <td className="px-2 py-1 text-[15px]">{item.Location}</td>
+                  <td className="px-2 py-1 text-[15px]">{item.Problem}</td>
+                  <td className="px-2 py-1 text-[15px]">{item.Action}</td>
+                  <td className="px-2 py-1 font-semibold text-[15px]">
+                    {item.pic}
+                  </td>
+                  <td className="px-2 py-1 text-[15px]">{item.TicketStatus}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex items-center justify-between mt-4 text-xs">
+            <button
+              onClick={() => setProblemPage((p) => Math.max(p - 1, 1))}
+              disabled={problemPage === 1}
+              className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+            >
+              Prev
+            </button>
+            <span className="text-gray-500">
+              Page {problemPage} of {problemTotalPages || 1} | Total:{' '}
+              {problemData.length} items
+            </span>
+            <button
+              onClick={() =>
+                setProblemPage((p) => Math.min(p + 1, problemTotalPages))
+              }
+              disabled={
+                problemPage === problemTotalPages || problemTotalPages === 0
+              }
+              className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>

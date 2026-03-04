@@ -314,6 +314,13 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
                     'Countboard Eskalasi'
                   )}
                 </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink(
+                    'countboard-breakdown',
+                    'Countboard Breakdown'
+                  )}
+                </BreadcrumbItem>
               </>
             )}
 
@@ -376,6 +383,13 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
                   'countboard/eskalasi',
                   'Countboard Eskalasi',
                   true
+                )}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink(
+                  'countboard-breakdown',
+                  'Countboard Breakdown'
                 )}
               </BreadcrumbItem>
             </>
