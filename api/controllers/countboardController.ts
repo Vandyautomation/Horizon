@@ -485,22 +485,41 @@ export async function getTickets() {
 export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
   let sqlQuery = `
     SELECT
-   CONVERT(varchar, t.TicketDate, 120) AS TicketDate,
-     t.MchID,
-     m.MchNumber,
-     m.MchLoc,
-     t.Problem,
-     t.ActionPlan,
-     t.AssignToDept,
-     t.Message,
-     t.EskalasiStatus,
-     t.EskalasiFlag,
-     t.ActualSubmit,
-     t.ActualEskalasiFinish
-   FROM IoT.dbo.TicketTRX t
-   LEFT JOIN IoT.dbo.MachineMST m
-     ON t.MchID = m.MchID
-   WHERE t.EskalasiFlag = 1 and t.Active = 1
+      CONVERT(varchar, t.TicketDate, 120) AS TicketDate,
+      t.MchID,
+      m.MchNumber,
+      m.MchLoc,
+      t.Problem,
+      t.ActionPlan,
+      t.AssignToDept,
+      t.Message,
+      t.EskalasiStatus,
+      t.EskalasiFlag,
+      t.ActualSubmit,
+      t.ActualEskalasiFinish,
+      mix.material_name
+
+    FROM IoT.dbo.TicketTRX t
+
+    LEFT JOIN IoT.dbo.MachineMST m
+        ON t.MchID = m.MchID
+
+    OUTER APPLY (
+        SELECT TOP 1 co.material_name
+        FROM IOT.DBO.hourly h
+        LEFT JOIN IOT.DBO.countboard_tasks ct
+            ON h.task_id = ct.id
+        LEFT JOIN IOT.DBO.coois co
+            ON ct.po_name = co.po_name
+        WHERE 
+            h.machine_id = t.MchID
+            AND t.AssignToDept = 'Mixing'
+            AND t.TicketDate BETWEEN h.from_datetime AND h.to_datetime
+        ORDER BY h.from_datetime DESC
+    ) mix
+
+    WHERE t.EskalasiFlag = 1
+      AND t.Active = 1
   `
 
   const params: Record<string, any> = {}
@@ -514,29 +533,54 @@ export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
     params.toDate = toDate
   }
 
-  sqlQuery += ` ORDER BY t.TicketDate ASC`
+  sqlQuery += `
+    ORDER BY t.TicketDate ASC
+    OPTION (RECOMPILE)
+  `
 
   return await queryDatabase(sqlQuery, params)
 }
+export async function getLatestMachineStatus(mchId: string) {
+  const sqlQuery = `
+    SELECT TOP 1 StatusLight
+    FROM IoT.dbo.MchStatusTRX
+    WHERE MchID = @mchId
+    ORDER BY StatusDate DESC
+  `
 
+  const result = await queryDatabase(sqlQuery, { mchId })
+
+  console.log('RESULT DEBUG:', result)
+
+  return result?.[0]?.StatusLight ?? null
+}
 export async function updateTicketEskalasi(
   mchId: string,
   ticketDate: string,
   message: string,
   eskalasiStatus: string
 ) {
+  const latestStatus = await getLatestMachineStatus(mchId)
+
+  if (
+    eskalasiStatus.toLowerCase() === 'close' &&
+    latestStatus?.toLowerCase() === 'orange'
+  ) {
+    throw new Error('Tidak bisa close karena mesin masih ORANGE')
+  }
+
   const sqlQuery = `
-  UPDATE iot.dbo.TicketTRX
-  SET 
-    Message = @message,
-    EskalasiStatus = @eskalasiStatus,
-    ActualEskalasiFinish = CASE
-      WHEN LOWER(@eskalasiStatus) = 'close'
-      THEN SYSDATETIME()
-      ELSE ActualEskalasiFinish
-    END
-WHERE MchID = @mchId
-AND CAST(TicketDate AS DATE) = CAST(@ticketDate AS DATE)
+    UPDATE iot.dbo.TicketTRX
+    SET 
+      Message = @message,
+      EskalasiStatus = @eskalasiStatus,
+      ActualEskalasiFinish = CASE
+        WHEN LOWER(@eskalasiStatus) = 'close'
+        THEN SYSDATETIME()
+        ELSE ActualEskalasiFinish
+      END
+    WHERE MchID = @mchId
+    AND CAST(TicketDate AS DATE) = CAST(@ticketDate AS DATE)
   `
 
   return await queryDatabase(sqlQuery, {
