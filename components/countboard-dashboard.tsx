@@ -192,11 +192,21 @@ type ZhafirStdActValue = {
 
 type ZhafirStdActResponse = {
   values?: Record<string, ZhafirStdActValue>
-  ranges?: Record<string, { min: number | string | null; max: number | string | null }>
+  ranges?: Record<
+    string,
+    { min: number | string | null; max: number | string | null }
+  >
 }
 
 type ZhafirActualViewResponse = {
   values?: Record<string, number | string | null>
+}
+
+type ZhafirTemporaryAccessStatus = {
+  machineId: string
+  enabled: boolean
+  runtimeEnabled: boolean
+  note?: string
 }
 
 type ZhafirIndicatorStatus = {
@@ -215,10 +225,24 @@ const refreshRateList = ['5000', '15000', '30000', '60000']
 const shiftList = ['1', '2', '3']
 const ZHAFIR_PARA_ID = 'ZHF-STD-001'
 const ZHAFIR_INDICATORS = [
-  { field: 'InjectScrewPosition', label: 'END OF PLASTIFICATION', icon: 'flag' },
-  { field: 'VPTimeText', label: 'INJECTION TIME', icon: 'timer' },
-  { field: 'VPPositionText', label: 'SWITCHING POSITION', icon: 'switch' },
-  { field: 'Thickness', label: 'CUSHION', icon: 'cushion' },
+  
+  {
+    field: 'InjectScrewPosition',
+    label: 'END OF PLASTIFICATION',
+    icon: '/admin/End of plastification (dosing).png',
+  },
+  {
+    field: 'VPTimeText',
+    label: 'INJECTION TIME',
+    icon: '/admin/Injection time.png',
+  },
+  { field: 'VPPositionText', label: 'SWITCHING POSITION', icon: '/admin/Switching position.png' },
+  {
+    field:"InjPeakPressure",
+    label: 'inject peak pressure',
+    icon: '/admin/inj-press.png',
+  },
+  { field: 'Thickness', label: 'CUSHION', icon: '/admin/Cushion.png' },
 ] as const
 
 type ZhafirIndicatorField = (typeof ZHAFIR_INDICATORS)[number]['field']
@@ -407,6 +431,23 @@ export default function CountboardDashboard() {
 
   const pathname = usePathname()
   const router = useRouter()
+  const resolveZhafirCandidates = useCallback((endpoint: string) => {
+    const trimmedBase = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
+      /\/+$/,
+      ''
+    )
+    const normalizedBase = trimmedBase.endsWith('/api')
+      ? trimmedBase.slice(0, -4)
+      : trimmedBase
+    const unique = new Set<string>()
+    if (normalizedBase)
+      unique.add(`${normalizedBase}/api/zhafir-ze-3600/${endpoint}`)
+    unique.add(`http://localhost:9999/api/zhafir-ze-3600/${endpoint}`)
+    unique.add(`http://127.0.0.1:9999/api/zhafir-ze-3600/${endpoint}`)
+    unique.add(`/be/api/zhafir-ze-3600/${endpoint}`)
+    unique.add(`/api/zhafir-ze-3600/${endpoint}`)
+    return Array.from(unique)
+  }, [])
   const fetchZhafirIndicatorStatuses = useCallback(
     async (machineName: string): Promise<ZhafirIndicatorMap> => {
       const trimmedBase = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
@@ -503,6 +544,84 @@ export default function CountboardDashboard() {
     },
     []
   )
+  const [isSavingZhafirAccess, setIsSavingZhafirAccess] = useState(false)
+  const fetchZhafirTemporaryAccessStatus = useCallback(
+    async (machineName: string): Promise<ZhafirTemporaryAccessStatus> => {
+      const candidates = resolveZhafirCandidates(
+        `temporary-access-status?machine_id=${encodeURIComponent(machineName)}`
+      )
+      for (const url of candidates) {
+        try {
+          const res = await fetch(url, { cache: 'no-store' })
+          if (!res.ok) continue
+          return (await res.json()) as ZhafirTemporaryAccessStatus
+        } catch {
+          // try next candidate
+        }
+      }
+      return {
+        machineId: machineName,
+        enabled: false,
+        runtimeEnabled: false,
+        note: 'unavailable',
+      }
+    },
+    [resolveZhafirCandidates]
+  )
+  const setZhafirTemporaryAccess = useCallback(
+    async (enabled: boolean) => {
+      const machineName = selectedMachine?.machineName
+      if (!machineName) {
+        toast.error('Pilih mesin terlebih dahulu')
+        return
+      }
+      const password = window.prompt(
+        `Masukkan password Zhafir untuk ${enabled ? 'ENABLE' : 'DISABLE'} machine ${machineName}`
+      )
+      if (!password) return
+
+      setIsSavingZhafirAccess(true)
+      try {
+        let success = false
+        let lastError = 'unknown'
+        const candidates = resolveZhafirCandidates('temporary-access')
+        for (const url of candidates) {
+          try {
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                machine_id: machineName,
+                password,
+                enabled,
+              }),
+            })
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) {
+              lastError = data?.error || `${res.status} @ ${url}`
+              continue
+            }
+            success = true
+            break
+          } catch (error) {
+            lastError = (error as Error).message
+          }
+        }
+        if (!success) {
+          toast.error(`Gagal update akses Zhafir: ${lastError}`)
+          return
+        }
+        toast.success(
+          `Zhafir ${enabled ? 'enabled' : 'disabled'} untuk ${machineName}`
+        )
+        mutate(['zhafir-indicators', machineName])
+        mutate(['zhafir-access', machineName])
+      } finally {
+        setIsSavingZhafirAccess(false)
+      }
+    },
+    [resolveZhafirCandidates, selectedMachine?.machineName]
+  )
 
   const { data: categoryRes } = useSWR(
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem-group/all`,
@@ -548,9 +667,11 @@ export default function CountboardDashboard() {
   const rawSolutions = todoRes as Todo[] | undefined
   const solutions: Todo[] = Array.isArray(rawSolutions) ? rawSolutions : []
   const filteredProblems = problems.filter((p) => {
-    const matchCategory = String(p.problem_group_id) === String(selectedCategoryId)
+    const matchCategory =
+      String(p.problem_group_id) === String(selectedCategoryId)
     const normalize = (val?: string) => val?.trim().toLowerCase()
-    const matchProcess = normalize(p.process) === normalize(selectedMachine?.Process)
+    const matchProcess =
+      normalize(p.process) === normalize(selectedMachine?.Process)
     return matchCategory && matchProcess
   })
 
@@ -604,7 +725,9 @@ export default function CountboardDashboard() {
           p.name.trim().toLowerCase() === name.toLowerCase()
       )
       if (!created) {
-        throw new Error('Problem berhasil dibuat, tapi data terbaru belum ditemukan')
+        throw new Error(
+          'Problem berhasil dibuat, tapi data terbaru belum ditemukan'
+        )
       }
 
       setSelectedProblemId(String(created.id))
@@ -673,7 +796,9 @@ export default function CountboardDashboard() {
           s.name.trim().toLowerCase() === name.toLowerCase()
       )
       if (!created) {
-        throw new Error('Solution berhasil dibuat, tapi data terbaru belum ditemukan')
+        throw new Error(
+          'Solution berhasil dibuat, tapi data terbaru belum ditemukan'
+        )
       }
 
       setSelectedSolutionId(String(created.id))
@@ -684,7 +809,13 @@ export default function CountboardDashboard() {
     } finally {
       setIsSavingSolution(false)
     }
-  }, [newSolutionName, selectedProblemId, solutions, todoKey, userData?.UserDept])
+  }, [
+    newSolutionName,
+    selectedProblemId,
+    solutions,
+    todoKey,
+    userData?.UserDept,
+  ])
 
   const checkUser = async () => {
     const user = localStorage.getItem('user')
@@ -1509,17 +1640,32 @@ export default function CountboardDashboard() {
   const zhafirIndicatorStatusKey = selectedMachine?.machineName
     ? (['zhafir-indicators', selectedMachine.machineName] as const)
     : null
-  const { data: zhafirIndicatorStatusMap, isLoading: isLoadingZhafirIndicators } =
-    useSWR<ZhafirIndicatorMap>(
-      zhafirIndicatorStatusKey,
-      () => fetchZhafirIndicatorStatuses(selectedMachine?.machineName ?? ''),
-      {
-        revalidateOnMount: true,
-        revalidateOnFocus: false,
-        revalidateOnReconnect: false,
-        refreshInterval: Number(selectedRefreshRate),
-      }
-    )
+  const zhafirAccessStatusKey = selectedMachine?.machineName
+    ? (['zhafir-access', selectedMachine.machineName] as const)
+    : null
+  const {
+    data: zhafirIndicatorStatusMap,
+    isLoading: isLoadingZhafirIndicators,
+  } = useSWR<ZhafirIndicatorMap>(
+    zhafirIndicatorStatusKey,
+    () => fetchZhafirIndicatorStatuses(selectedMachine?.machineName ?? ''),
+    {
+      revalidateOnMount: true,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      refreshInterval: Number(selectedRefreshRate),
+    }
+  )
+  const { data: zhafirAccessStatus } = useSWR<ZhafirTemporaryAccessStatus>(
+    zhafirAccessStatusKey,
+    () => fetchZhafirTemporaryAccessStatus(selectedMachine?.machineName ?? ''),
+    {
+      revalidateOnMount: true,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      refreshInterval: Number(selectedRefreshRate),
+    }
+  )
 
   const currentPo =
     Array.isArray(taskData) && taskData.length > 0
@@ -2189,12 +2335,27 @@ export default function CountboardDashboard() {
   const renderIndicatorIcon = (
     icon: (typeof ZHAFIR_INDICATORS)[number]['icon']
   ) => {
-    if (icon === 'flag') return <Flag className="w-10 h-10 text-blue-500" />
-    if (icon === 'timer') return <Timer className="w-10 h-10 text-green-500" />
-    if (icon === 'switch')
+    if (typeof icon === 'string' && icon.startsWith('/')) {
+      return (
+        <img src={icon} alt="indicator" className="w-10 h-10 object-contain" />
+      )
+    }
+    if (icon === '/admin/inj-press.png')
+      return <ArrowLeftRight className="w-10 h-10 text-red-500" />
+    if (icon === '/admin/End of plastification (dosing).png')
+      return <Flag className="w-10 h-10 text-blue-500" />
+    if (icon === '/admin/Injection time.png')
+      return <Timer className="w-10 h-10 text-green-500" />
+    if (icon === '/admin/Switching position.png')
       return <ArrowLeftRight className="w-10 h-10 text-yellow-500" />
+
     return <CircleDot className="w-10 h-10 text-purple-500" />
   }
+  const isG2Machine =
+    (selectedMachine?.locationName || '').trim().toLowerCase() ===
+      'inj bld g' && String(selectedMachine?.machineNumber || '').trim() === '2'
+  const shouldShowZhafirIndicators =
+    isG2Machine || Boolean(zhafirAccessStatus?.enabled)
 
   return (
     <div className="p-0 space-y-2 w-full">
@@ -2366,6 +2527,40 @@ export default function CountboardDashboard() {
                   <DialogTitle>Configuration Menu</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                  <div className="rounded-md border p-3">
+                    <div className="mb-2 text-sm font-semibold">
+                      Zhafir Temporary Access
+                    </div>
+                    <div className="mb-3 text-xs text-gray-600">
+                      Status:{' '}
+                      {zhafirAccessStatus?.enabled ? 'Enabled' : 'Disabled'}
+                      {zhafirAccessStatus?.runtimeEnabled
+                        ? ' (runtime override)'
+                        : ''}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="justify-start"
+                        disabled={
+                          !selectedMachine?.machineName || isSavingZhafirAccess
+                        }
+                        onClick={() => setZhafirTemporaryAccess(true)}
+                      >
+                        Enable Zhafir
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="justify-start"
+                        disabled={
+                          !selectedMachine?.machineName || isSavingZhafirAccess
+                        }
+                        onClick={() => setZhafirTemporaryAccess(false)}
+                      >
+                        Disable Zhafir
+                      </Button>
+                    </div>
+                  </div>
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button
@@ -2455,10 +2650,7 @@ export default function CountboardDashboard() {
                   {!userData && (
                     <div className="text-sm text-gray-500">
                       Need more access for admin ? click{' '}
-                      <Link
-                        href={loginHref}
-                        className="text-blue-500"
-                      >
+                      <Link href={loginHref} className="text-blue-500">
                         here
                       </Link>{' '}
                       to login
@@ -2610,7 +2802,7 @@ export default function CountboardDashboard() {
             )}
             <div className="flex items-start gap-2">
               <div className="relative inline-block w-48">
-                <button
+                <Button
                   onClick={() =>
                     setOpenCell(openCell === 'row1-col2' ? null : 'row1-col2')
                   }
@@ -2627,7 +2819,7 @@ export default function CountboardDashboard() {
                   ${openCell === 'row1-col2' ? 'rotate-180' : ''}
                 `}
                   />
-                </button>
+                </Button>
 
                 {/* Dropdown */}
                 {openCell === 'row1-col2' && (
@@ -2698,85 +2890,97 @@ export default function CountboardDashboard() {
                   </div>
                 )}
               </div>
-              <div className="-mt-[1px] flex items-stretch gap-2 overflow-x-auto pb-1">
-                {ZHAFIR_INDICATORS.map((indicator) => {
-                  const indicatorStatus =
-                    zhafirIndicatorStatusMap?.[indicator.field] ??
-                    ({ status: 'unknown', std: null, act: null, min: null, max: null } as ZhafirIndicatorStatus)
+              {shouldShowZhafirIndicators ? (
+                <div className="-mt-[1px] flex items-start gap-2 overflow-x-auto pb-1">
+                  {ZHAFIR_INDICATORS.map((indicator) => {
+                    const indicatorStatus =
+                      zhafirIndicatorStatusMap?.[indicator.field] ??
+                      ({
+                        status: 'unknown',
+                        std: null,
+                        act: null,
+                        min: null,
+                        max: null,
+                      } as ZhafirIndicatorStatus)
 
-                  const isOutOfRange = indicatorStatus.status === 'out_of_range'
-                  const isInRange = indicatorStatus.status === 'ok'
-                  const usesHighLowCaption =
-                    indicator.field === 'VPTimeText' ||
-                    indicator.field === 'Thickness'
-                  let outCaption = 'Out of range'
-                  if (indicator.field === 'VPPositionText' && isOutOfRange) {
-                    outCaption = 'Position Error'
-                  } else if (usesHighLowCaption && isOutOfRange) {
-                    const { act, min, max } = indicatorStatus
-                    if (act != null && min != null && act < min) {
+                    const isOutOfRange =
+                      indicatorStatus.status === 'out_of_range'
+                    const isInRange = indicatorStatus.status === 'ok'
+                    const usesHighLowCaption =
+                      indicator.field === 'VPTimeText' ||
+                      indicator.field === 'Thickness' ||
+                      indicator.field === 'InjPeakPressure'
+                    let outCaption = 'Out of range'
+                    if (indicator.field === 'VPPositionText' && isOutOfRange) {
+                      outCaption = 'Position Error'
+                    } else if (usesHighLowCaption && isOutOfRange) {
+                      const { act, min, max } = indicatorStatus
+                      if (act != null && min != null && act < min) {
                       outCaption = 'Too Low'
-                    } else if (act != null && max != null && act > max) {
+                      } else if (act != null && max != null && act > max) {
                       outCaption = 'Too High'
-                    } else if (act != null && indicatorStatus.std != null && act > indicatorStatus.std) {
+                      } else if (
+                      act != null &&
+                      indicatorStatus.std != null &&
+                      act > indicatorStatus.std
+                      ) {
                       outCaption = 'Too High'
+                      }
                     }
-                  }
-                  const caption = isLoadingZhafirIndicators
-                    ? 'Checking...'
-                    : isOutOfRange
+                    const caption = isLoadingZhafirIndicators
+                      ? 'Checking...'
+                      : isOutOfRange
                       ? outCaption
                       : isInRange
                         ? 'In range'
                         : 'Data tidak tersedia'
-                  const hasRange =
-                    indicatorStatus.min != null || indicatorStatus.max != null
-                  const detail =
-                    indicatorStatus.act != null
-                      ? hasRange
-                        ? `Act ${formatCompactNumber(indicatorStatus.act)} | Range ${formatCompactNumber(indicatorStatus.min)} - ${formatCompactNumber(indicatorStatus.max)}`
-                        : `Act ${formatCompactNumber(indicatorStatus.act)} | Std ${formatCompactNumber(indicatorStatus.std)}`
-                      : indicator.label
+                    // const detail =
+                    //   indicatorStatus.act != null
+                    //     ? hasRange
+                    //       ? `Act ${formatCompactNumber(indicatorStatus.act)} | Range ${formatCompactNumber(indicatorStatus.min)} - ${formatCompactNumber(indicatorStatus.max)}`
+                    //       : `Act ${formatCompactNumber(indicatorStatus.act)} | Std ${formatCompactNumber(indicatorStatus.std)}`
+                    //     : indicator.label
 
-                  return (
-                    <div
-                      key={indicator.field}
-                      className={`h-[62px] w-[230px] shrink-0 rounded-md border px-2 py-1 ${
-                        isOutOfRange
-                          ? 'border-red-300 bg-red-50'
-                          : isInRange
-                            ? 'border-emerald-300 bg-emerald-50'
-                            : 'border-gray-300 bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex h-full items-start gap-2">
-                        <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-white">
-                          {renderIndicatorIcon(indicator.icon)}
-                        </div>
-                        <div className="min-w-0 flex-1 leading-tight">
-                          <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-gray-600">
-                            {indicator.label}
+                    return (
+                      <div
+                        key={indicator.field}
+                        className={`h-[62px] w-[230px] shrink-0 rounded-md border px-2 py-1 ${
+                          isOutOfRange
+                            ? 'animate-alertBlink border-red-500'
+                            : isInRange
+                              ? 'border-emerald-300 bg-emerald-50'
+                              : 'border-gray-300 bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex h-full items-center gap-2">
+                          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-white">
+                            {renderIndicatorIcon(indicator.icon)}
                           </div>
-                          <div
-                            className={`truncate text-xs font-semibold ${
-                              isOutOfRange
-                                ? 'text-red-700'
-                                : isInRange
-                                  ? 'text-emerald-700'
-                                  : 'text-gray-700'
-                            }`}
-                          >
-                            {caption}
-                          </div>
-                          <div className="mt-0.5 text-[10px] text-gray-700">
+                          <div className="min-w-0 flex-1 leading-tight">
+                            <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                              {indicator.label}
+                            </div>
+                            <div
+                              className={`truncate text-xs font-semibold ${
+                                isOutOfRange
+                                  ? 'text-red-700'
+                                  : isInRange
+                                    ? 'text-emerald-700'
+                                    : 'text-gray-700'
+                              }`}
+                            >
+                              {caption}
+                            </div>
+                            {/* <div className="mt-0.5 text-[10px] text-gray-700">
                             {detail}
+                          </div> */}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              ) : null}
             </div>
           </div>
 

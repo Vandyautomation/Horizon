@@ -28,7 +28,7 @@ type ApiResponse = {
 }
 
 type MaterialContext = {
-  po: string
+  po: string | null
   materialId: string | null
   materialName: string | null
   materialType: string | null
@@ -91,11 +91,39 @@ type SummaryRangeInputProps = {
   actDraft: Record<string, string>
   minDraft: Record<string, string>
   maxDraft: Record<string, string>
+  resolveMinValue?: (fieldKey: string) => string
+  resolveMaxValue?: (fieldKey: string) => string
   onStdChange?: (fieldKey: string, value: string) => void
   onMinChange?: (fieldKey: string, value: string) => void
   onMaxChange?: (fieldKey: string, value: string) => void
+  onManualUnlock?: (fieldKey: string) => void
+  isManualMode?: boolean
   isEditMode: boolean
   isActOverLimit?: boolean
+}
+
+type SummaryRangeAdjustment = {
+  min: number | null
+  max: number | null
+}
+
+type SummaryRangeConfigResponse = {
+  uom: string
+  rules?: Record<
+    string,
+    {
+      min: number | null
+      max: number | null
+      minName: string
+      maxName: string
+    }
+  >
+}
+
+type SectionStyleEntry = {
+  sectionKey: string
+  headerBgColor: string
+  actBgColor: string
 }
 
 const PARA_ID = 'ZHF-STD-001'
@@ -136,11 +164,51 @@ const DB_ONLY_TEMPERATURE_FIELDS = new Set([
 ])
 const SUMMARY_RANGE_FIELDS = [
   'InjectScrewPosition',
+  'InjPeakPressure',
   'VPTimeText',
   'VPPositionText',
   'Thickness',
   'CarriageBwd_SE',
 ] as const
+type SummaryRangeField = (typeof SUMMARY_RANGE_FIELDS)[number]
+const SUMMARY_RANGE_PARAMETER_NAMES: Record<
+  SummaryRangeField,
+  { minName: string; maxName: string } | null
+> = {
+  InjectScrewPosition: {
+    minName: 'min_EndofPlast',
+    maxName: 'max_EndofPlast',
+  },
+  InjPeakPressure: {
+    minName: 'min_injpeakpress',
+    maxName: 'max_injpeakpress',
+  },
+  VPTimeText: {
+    minName: 'min_injTime',
+    maxName: 'max_injTime',
+  },
+  VPPositionText: {
+    minName: 'min_SwitchingPosition',
+    maxName: 'max_SwitchingPosition',
+  },
+  Thickness: {
+    minName: 'min_Cushion',
+    maxName: 'max_Cushion',
+  },
+  CarriageBwd_SE: null,
+}
+const SUMMARY_ADD_FIELDS: Array<{
+  key: SummaryRangeField
+  label: string
+  unit: string
+}> = [
+  { key: 'InjectScrewPosition', label: 'End Of Plastification', unit: 'mm' },
+  { key: 'VPTimeText', label: 'Injection Time', unit: 's' },
+  { key: 'VPPositionText', label: 'Switching Position', unit: 'mm' },
+  { key: 'InjPeakPressure', label: 'Inj Peak Pressure', unit: 'bar' },
+  { key: 'Thickness', label: 'Cushion', unit: 'mm' },
+  { key: 'CarriageBwd_SE', label: 'Carriage Backward SE', unit: 'mm' },
+]
 const ACT_BOX_PRESET_COLORS = [
   '#f3f4f6', // gray
   '#dbeafe', // blue
@@ -174,11 +242,19 @@ type SectionStyleApplySignal = {
 }
 type SectionStyleContextValue = {
   applyToAllSectionStyles: (headerBgColor: string, actBgColor: string) => void
+  saveSectionStyle: (
+    sectionKey: string,
+    headerBgColor: string,
+    actBgColor: string
+  ) => void
   applySignal: SectionStyleApplySignal | null
+  reloadNonce: number
 }
 const SectionStyleContext = React.createContext<SectionStyleContextValue>({
   applyToAllSectionStyles: () => {},
+  saveSectionStyle: () => {},
   applySignal: null,
+  reloadNonce: 0,
 })
 
 function fmt(value: number | string | null | undefined): string {
@@ -236,10 +312,21 @@ export default function ZhafirParameterForm() {
   const [actDraft, setActDraft] = useState<Record<string, string>>({})
   const [minDraft, setMinDraft] = useState<Record<string, string>>({})
   const [maxDraft, setMaxDraft] = useState<Record<string, string>>({})
+  const [summaryRangeAdjustments, setSummaryRangeAdjustments] = useState<
+    Partial<Record<SummaryRangeField, SummaryRangeAdjustment>>
+  >({})
+  const [manualRangeMode, setManualRangeMode] = useState<
+    Partial<Record<SummaryRangeField, boolean>>
+  >({})
+  const [pendingManualRangeField, setPendingManualRangeField] =
+    useState<SummaryRangeField | null>(null)
+  const [showManualRangeConfirmModal, setShowManualRangeConfirmModal] =
+    useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [styleReloadNonce, setStyleReloadNonce] = useState(0)
   const [paletteMode, setPaletteMode] = useState<PaletteMode>('default')
   const [applySignal, setApplySignal] = useState<SectionStyleApplySignal | null>(
     null
@@ -259,7 +346,19 @@ export default function ZhafirParameterForm() {
   const [hourOptions, setHourOptions] = useState<number[]>([])
   const [selectedHour, setSelectedHour] = useState<string>('')
   const [isEditMode, setIsEditMode] = useState(false)
+  const [showWarningIcons, setShowWarningIcons] = useState(true)
   const [showEditPasswordModal, setShowEditPasswordModal] = useState(false)
+  const [showSummaryAddModal, setShowSummaryAddModal] = useState(false)
+  const [summaryAddDraft, setSummaryAddDraft] = useState<
+    Partial<Record<SummaryRangeField, string>>
+  >({})
+  const [summaryAddMaterialId, setSummaryAddMaterialId] = useState('')
+  const [summaryLookupLoading, setSummaryLookupLoading] = useState(false)
+  const [summaryLookupError, setSummaryLookupError] = useState<string | null>(
+    null
+  )
+  const [summaryLookupContext, setSummaryLookupContext] =
+    useState<MaterialContext | null>(null)
   const [editPasswordInput, setEditPasswordInput] = useState('')
   const [editPasswordError, setEditPasswordError] = useState<string | null>(
     null
@@ -310,25 +409,282 @@ export default function ZhafirParameterForm() {
     },
     [SECTION_KEYS, machineId]
   )
+
+  const resolveSectionStyleCandidates = useCallback(
+    (machineKey: string) => {
+      const trimmed = (baseUrl || '').replace(/\/+$/, '')
+      const normalized = trimmed.endsWith('/api')
+        ? trimmed.slice(0, -4)
+        : trimmed
+      const q = `?machine_id=${encodeURIComponent(machineKey)}`
+      const unique = new Set<string>()
+      if (normalized)
+        unique.add(`${normalized}/api/zhafir-ze-3600/section-styles${q}`)
+      unique.add('http://localhost:9999/api/zhafir-ze-3600/section-styles' + q)
+      unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles' + q)
+      unique.add('/be/api/zhafir-ze-3600/section-styles' + q)
+      unique.add('/api/zhafir-ze-3600/section-styles' + q)
+      return Array.from(unique)
+    },
+    [baseUrl]
+  )
+
+  const saveSectionStyle = useCallback(
+    async (sectionKey: string, headerBgColor: string, actBgColor: string) => {
+      const machineKey = (machineId || '').trim()
+      const normalizedSection = (sectionKey || '').trim()
+      if (!machineKey || !normalizedSection) return
+
+      const trimmed = (baseUrl || '').replace(/\/+$/, '')
+      const normalized = trimmed.endsWith('/api')
+        ? trimmed.slice(0, -4)
+        : trimmed
+      const unique = new Set<string>()
+      if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/section-styles`)
+      unique.add('http://localhost:9999/api/zhafir-ze-3600/section-styles')
+      unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles')
+      unique.add('/be/api/zhafir-ze-3600/section-styles')
+      unique.add('/api/zhafir-ze-3600/section-styles')
+
+      for (const url of Array.from(unique)) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              machine_id: machineKey,
+              sectionKey: normalizedSection,
+              headerBgColor,
+              actBgColor,
+            }),
+          })
+          if (!res.ok) continue
+          break
+        } catch {
+          // try next candidate
+        }
+      }
+    },
+    [baseUrl, machineId]
+  )
+
+  useEffect(() => {
+    let active = true
+    const REQUEST_TIMEOUT_MS = 5000
+    const machineKey = (machineId || '').trim()
+    if (!machineKey) return
+
+    const fetchWithTimeout = async (url: string) => {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+      try {
+        return await fetch(url, {
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+
+    const loadSectionStyles = async () => {
+      for (const url of resolveSectionStyleCandidates(machineKey)) {
+        try {
+          const res = await fetchWithTimeout(url)
+          if (!res.ok) continue
+          const data = (await res.json()) as { styles?: SectionStyleEntry[] }
+          if (!active) return
+          const rows = Array.isArray(data.styles) ? data.styles : []
+          rows.forEach((item) => {
+            const sectionIdentity = (item.sectionKey || '').trim()
+            const targets =
+              sectionIdentity === '__all__'
+                ? SECTION_KEYS
+                : sectionIdentity
+                  ? [sectionIdentity]
+                  : []
+            targets.forEach((sectionKey) => {
+              const storageKey = `zhafir:section-style:${machineKey}:${sectionKey}`
+              try {
+                localStorage.setItem(
+                  storageKey,
+                  JSON.stringify({
+                    headerBgColor: item.headerBgColor,
+                    actBgColor: item.actBgColor,
+                  })
+                )
+              } catch {
+                // ignore storage failures
+              }
+            })
+          })
+          setStyleReloadNonce(Date.now())
+          return
+        } catch {
+          // try next candidate
+        }
+      }
+    }
+
+    loadSectionStyles()
+    return () => {
+      active = false
+    }
+  }, [machineId, resolveSectionStyleCandidates])
+
+  useEffect(() => {
+    let active = true
+    const REQUEST_TIMEOUT_MS = 5000
+
+    const buildConfigCandidates = () => {
+      const trimmed = (baseUrl || '').replace(/\/+$/, '')
+      const normalized = trimmed.endsWith('/api')
+        ? trimmed.slice(0, -4)
+        : trimmed
+      const q = '?uom=HAITIAN'
+      const unique = new Set<string>()
+      if (normalized)
+        unique.add(`${normalized}/api/zhafir-ze-3600/summary-range-config${q}`)
+      unique.add(
+        'http://localhost:9999/api/zhafir-ze-3600/summary-range-config' + q
+      )
+      unique.add(
+        'http://127.0.0.1:9999/api/zhafir-ze-3600/summary-range-config' + q
+      )
+      unique.add('/be/api/zhafir-ze-3600/summary-range-config' + q)
+      unique.add('/api/zhafir-ze-3600/summary-range-config' + q)
+      return Array.from(unique)
+    }
+
+    const fetchWithTimeout = async (url: string) => {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+      try {
+        return await fetch(url, {
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+
+    const loadSummaryRangeConfig = async () => {
+      for (const url of buildConfigCandidates()) {
+        try {
+          const res = await fetchWithTimeout(url)
+          if (!res.ok) continue
+          const data = (await res.json()) as SummaryRangeConfigResponse
+          if (!active) return
+          const nextAdjustments: Partial<
+            Record<(typeof SUMMARY_RANGE_FIELDS)[number], SummaryRangeAdjustment>
+          > = {}
+          SUMMARY_RANGE_FIELDS.forEach((fieldKey) => {
+            const rule = data?.rules?.[fieldKey]
+            if (!rule) return
+            const minValue = Number(rule.min)
+            const maxValue = Number(rule.max)
+            nextAdjustments[fieldKey] = {
+              min: Number.isFinite(minValue) ? minValue : null,
+              max: Number.isFinite(maxValue) ? maxValue : null,
+            }
+          })
+          setSummaryRangeAdjustments(nextAdjustments)
+          return
+        } catch {
+          // try next candidate
+        }
+      }
+    }
+
+    loadSummaryRangeConfig()
+    return () => {
+      active = false
+    }
+  }, [baseUrl])
+
+  const parseFiniteNumber = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined || value === '') return null
+    const num = Number(value)
+    return Number.isFinite(num) ? num : null
+  }
+
+  const getStdNumberForRange = (fieldKey: string) =>
+    parseFiniteNumber(stdDraft[fieldKey] ?? values[fieldKey]?.std)
+
+  const getAutoRangeValue = (
+    fieldKey: SummaryRangeField,
+    bound: 'min' | 'max'
+  ) => {
+    const adjustment = summaryRangeAdjustments[fieldKey]
+    if (!adjustment) return null
+    const stdNumber = getStdNumberForRange(fieldKey)
+    if (stdNumber === null) return null
+    const delta = adjustment[bound]
+    if (delta === null || delta === undefined) return null
+    const value = bound === 'min' ? stdNumber - delta : stdNumber + delta
+    return Number.isFinite(value) ? formatNumericDisplay(value, 3) : null
+  }
+
+  const getRangeDisplayValue = (
+    fieldKey: SummaryRangeField,
+    bound: 'min' | 'max'
+  ) => {
+    const draft = bound === 'min' ? minDraft[fieldKey] : maxDraft[fieldKey]
+    if (manualRangeMode[fieldKey]) return draft ?? ''
+    const autoValue = getAutoRangeValue(fieldKey, bound)
+    if (autoValue !== null) return autoValue
+    return draft ?? ''
+  }
+
+  const getRangeNumberForAlert = (
+    fieldKey: SummaryRangeField,
+    bound: 'min' | 'max'
+  ) => parseFiniteNumber(getRangeDisplayValue(fieldKey, bound))
+
+  const confirmManualRangeMode = (fieldKey: SummaryRangeField) => {
+    const currentMin = getRangeDisplayValue(fieldKey, 'min')
+    const currentMax = getRangeDisplayValue(fieldKey, 'max')
+    setManualRangeMode((prev) => ({ ...prev, [fieldKey]: true }))
+    setMinDraft((prev) => ({ ...prev, [fieldKey]: currentMin }))
+    setMaxDraft((prev) => ({ ...prev, [fieldKey]: currentMax }))
+  }
+
+  const requestManualRangeMode = (fieldKey: SummaryRangeField) => {
+    if (!isEditMode) return
+    if (manualRangeMode[fieldKey]) return
+    setPendingManualRangeField(fieldKey)
+    setShowManualRangeConfirmModal(true)
+  }
+
+  const handleConfirmManualRange = () => {
+    if (pendingManualRangeField) {
+      confirmManualRangeMode(pendingManualRangeField)
+    }
+    setPendingManualRangeField(null)
+    setShowManualRangeConfirmModal(false)
+  }
+
+  const handleCancelManualRange = () => {
+    setPendingManualRangeField(null)
+    setShowManualRangeConfirmModal(false)
+  }
+
   // Check if any actual value is over its standard
   const isStdGreaterThanAct = (fieldKey: string) => {
     const actRaw = actDraft[fieldKey] ?? values[fieldKey]?.act ?? ''
     const act = Number(actRaw)
     if (Number.isNaN(act)) return false
 
-    const stdRaw = stdDraft[fieldKey] ?? values[fieldKey]?.std ?? ''
-    const std = Number(stdRaw)
-    const hasStd = !Number.isNaN(std)
-
-    const minRaw = minDraft[fieldKey]
-    const maxRaw = maxDraft[fieldKey]
-    const min = Number(minRaw)
-    const max = Number(maxRaw)
-    const hasMin = minRaw !== undefined && minRaw !== '' && !Number.isNaN(min)
-    const hasMax = maxRaw !== undefined && maxRaw !== '' && !Number.isNaN(max)
+    const summaryField = fieldKey as (typeof SUMMARY_RANGE_FIELDS)[number]
+    const min = getRangeNumberForAlert(summaryField, 'min')
+    const max = getRangeNumberForAlert(summaryField, 'max')
+    const hasMin = min !== null
+    const hasMax = max !== null
 
     const isOutsideMinMax =
-      (hasMin && act < min) || (hasMax && act > max)
+      (hasMin && min !== null && act < min) ||
+      (hasMax && max !== null && act > max)
 
     // Temporarily disable tolerance rule to avoid conflicting with Min/Max range rule.
     const isOutsideTolerance = false
@@ -340,19 +696,19 @@ export default function ZhafirParameterForm() {
     const act = Number(actRaw)
     if (Number.isNaN(act)) return 'Out Of Range'
 
-    const minRaw = minDraft[fieldKey]
-    const maxRaw = maxDraft[fieldKey]
-    const min = Number(minRaw)
-    const max = Number(maxRaw)
-    const hasMin = minRaw !== undefined && minRaw !== '' && !Number.isNaN(min)
-    const hasMax = maxRaw !== undefined && maxRaw !== '' && !Number.isNaN(max)
+    const summaryField = fieldKey as (typeof SUMMARY_RANGE_FIELDS)[number]
+    const min = getRangeNumberForAlert(summaryField, 'min')
+    const max = getRangeNumberForAlert(summaryField, 'max')
+    const hasMin = min !== null
+    const hasMax = max !== null
 
-    if (hasMin && act < min) return 'Too Low'
-    if (hasMax && act > max) return 'Too High'
+    if (hasMin && min !== null && act < min) return 'Too Low'
+    if (hasMax && max !== null && act > max) return 'Too High'
     return 'Out Of Range'
   }
   const getSummaryWarningText = (fieldKey: string) => {
     if (!isStdGreaterThanAct(fieldKey)) return null
+    if (fieldKey === 'InjPeakPressure') return 'Peak Pressure Error'
     if (fieldKey === 'VPTimeText') return injectionTimeAlertLabel
     if (fieldKey === 'VPPositionText') return 'Position Error'
     if (fieldKey === 'Thickness') return cushionAlertLabel
@@ -361,6 +717,7 @@ export default function ZhafirParameterForm() {
   const injectionTimeAlertLabel = getMinMaxAlertLabel('VPTimeText')
   const cushionAlertLabel = getMinMaxAlertLabel('Thickness')
   const injectWarningText = getSummaryWarningText('InjectScrewPosition')
+  const injPeakPressureWarningText = getSummaryWarningText('InjPeakPressure')
   const vpTimeWarningText = getSummaryWarningText('VPTimeText')
   const vpPositionWarningText = getSummaryWarningText('VPPositionText')
   const cushionWarningText = getSummaryWarningText('Thickness')
@@ -795,6 +1152,15 @@ export default function ZhafirParameterForm() {
     return Array.from(unique)
   }
 
+  const resolvedMaterialId = materialContext?.materialId?.trim() || undefined
+  const resolvedMaterialName =
+    materialContext?.materialName?.trim() || undefined
+  const resolvedMaterialLabel =
+    resolvedMaterialId && resolvedMaterialName
+      ? `${resolvedMaterialId} - ${resolvedMaterialName}`
+      : materialParam || undefined
+  const displayedPoName = materialContext?.po?.trim() || poNumber || '-'
+
   const saveField = async (kind: 'actual' | 'std', fieldKey: string) => {
     const rawValue = kind === 'actual' ? actDraft[fieldKey] : stdDraft[fieldKey]
     const numericValue = Number(rawValue)
@@ -820,10 +1186,9 @@ export default function ZhafirParameterForm() {
               field: fieldKey,
               value: numericValue,
               machine_id: machineId || undefined,
-              material:
-                materialContext?.materialId && selectedMaterialType
-                  ? `${materialContext.materialId} - ${selectedMaterialType}`
-                  : materialParam || undefined,
+              material: resolvedMaterialLabel,
+              materialId: resolvedMaterialId,
+              materialName: resolvedMaterialName,
             }),
           })
           if (!res.ok) {
@@ -863,10 +1228,14 @@ export default function ZhafirParameterForm() {
   }
   const handleMinChange = (fieldKey: string, value: string) => {
     if (!isEditMode) return
+    const summaryField = fieldKey as (typeof SUMMARY_RANGE_FIELDS)[number]
+    if (!manualRangeMode[summaryField]) return
     setMinDraft((prev) => ({ ...prev, [fieldKey]: value }))
   }
   const handleMaxChange = (fieldKey: string, value: string) => {
     if (!isEditMode) return
+    const summaryField = fieldKey as (typeof SUMMARY_RANGE_FIELDS)[number]
+    if (!manualRangeMode[summaryField]) return
     setMaxDraft((prev) => ({ ...prev, [fieldKey]: value }))
   }
   const handleActChange = (fieldKey: string, value: string) =>
@@ -883,6 +1252,248 @@ export default function ZhafirParameterForm() {
     setEditPasswordInput('')
     setEditPasswordError(null)
   }
+  const closeSummaryAddModal = () => {
+    setShowSummaryAddModal(false)
+    setSummaryLookupLoading(false)
+    setSummaryLookupError(null)
+    setSummaryLookupContext(null)
+  }
+  const openSummaryAddModal = () => {
+    const seed: Partial<Record<SummaryRangeField, string>> = {}
+    SUMMARY_ADD_FIELDS.forEach(({ key }) => {
+      seed[key] = stdDraft[key] ?? fmt(values[key]?.std)
+    })
+    setSummaryAddDraft(seed)
+    setSummaryAddMaterialId(materialContext?.materialId || '')
+    setSummaryLookupContext(materialContext || null)
+    setSummaryLookupError(null)
+    setShowSummaryAddModal(true)
+  }
+  const resolveMaterialContextByMaterialId = useCallback(
+    async (materialId: string) => {
+    const REQUEST_TIMEOUT_MS = 5000
+    const trimmedMaterialId = (materialId || '').trim()
+    if (!trimmedMaterialId) return null
+
+    const trimmed = (baseUrl || '').replace(/\/+$/, '')
+    const normalized = trimmed.endsWith('/api') ? trimmed.slice(0, -4) : trimmed
+    const q = `?material_id=${encodeURIComponent(trimmedMaterialId)}`
+    const candidates = new Set<string>()
+    if (normalized) {
+      candidates.add(
+        `${normalized}/api/zhafir-ze-3600/material-context-by-material-id${q}`
+      )
+    }
+    candidates.add(
+      'http://localhost:9999/api/zhafir-ze-3600/material-context-by-material-id' +
+        q
+    )
+    candidates.add(
+      'http://127.0.0.1:9999/api/zhafir-ze-3600/material-context-by-material-id' +
+        q
+    )
+    candidates.add('/be/api/zhafir-ze-3600/material-context-by-material-id' + q)
+    candidates.add('/api/zhafir-ze-3600/material-context-by-material-id' + q)
+
+    const fetchWithTimeout = async (url: string) => {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+      try {
+        return await fetch(url, {
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+
+    for (const url of Array.from(candidates)) {
+      try {
+        const res = await fetchWithTimeout(url)
+        if (!res.ok) continue
+        const data = (await res.json()) as MaterialContext
+        return data
+      } catch {
+        // try next candidate
+      }
+    }
+      return null
+    },
+    [baseUrl]
+  )
+  useEffect(() => {
+    if (!showSummaryAddModal) return
+    const trimmedMaterialId = (summaryAddMaterialId || '').trim()
+    if (!trimmedMaterialId) {
+      setSummaryLookupContext(null)
+      setSummaryLookupError(null)
+      setSummaryLookupLoading(false)
+      return
+    }
+
+    let active = true
+    const timer = setTimeout(async () => {
+      setSummaryLookupLoading(true)
+      setSummaryLookupError(null)
+      const resolved = await resolveMaterialContextByMaterialId(trimmedMaterialId)
+      if (!active) return
+      setSummaryLookupLoading(false)
+
+      if (!resolved || !resolved.materialName) {
+        setSummaryLookupContext(null)
+        setSummaryLookupError('Material ID tidak ditemukan di routing.')
+        return
+      }
+
+      setSummaryLookupContext(resolved)
+      setSummaryLookupError(null)
+    }, 350)
+
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [
+    showSummaryAddModal,
+    summaryAddMaterialId,
+    resolveMaterialContextByMaterialId,
+  ])
+  const applySummaryAddModal = async () => {
+    if (!isEditMode) {
+      setError('Summary Add hanya tersedia di mode Edit.')
+      return
+    }
+    if (!machineId) {
+      setError('Machine ID tidak tersedia.')
+      return
+    }
+
+    const updates: Partial<Record<SummaryRangeField, string>> = {}
+    const summaryStdPayload: Record<string, number> = {}
+    for (const { key } of SUMMARY_ADD_FIELDS) {
+      const raw = (summaryAddDraft[key] ?? '').trim()
+      if (!raw) continue
+      const parsed = Number(raw)
+      if (Number.isNaN(parsed)) {
+        setError(`Nilai "${key}" harus angka.`)
+        return
+      }
+      updates[key] = raw
+      summaryStdPayload[key] = parsed
+    }
+    if (Object.keys(summaryStdPayload).length === 0) {
+      setError('Isi minimal 1 nilai STD sebelum Apply.')
+      return
+    }
+
+    setStdDraft((prev) => ({
+      ...prev,
+      ...updates,
+    }))
+    // Force summary fields back to auto min/max mode after bulk input.
+    setManualRangeMode((prev) => {
+      const next = { ...prev }
+      SUMMARY_ADD_FIELDS.forEach(({ key }) => {
+        next[key] = false
+      })
+      return next
+    })
+    setError(null)
+    const trimmedMaterialId = (summaryAddMaterialId || '').trim()
+    if (!trimmedMaterialId) {
+      setError('Material ID wajib diisi.')
+      return
+    }
+
+    const hasMatchedLookup =
+      summaryLookupContext?.materialId &&
+      String(summaryLookupContext.materialId).trim() === trimmedMaterialId
+    const resolved = hasMatchedLookup
+      ? summaryLookupContext
+      : await resolveMaterialContextByMaterialId(trimmedMaterialId)
+    if (!resolved || !resolved.materialName) {
+      setError('Material ID tidak ditemukan di routing.')
+      return
+    }
+    const finalMaterialId = (resolved.materialId || trimmedMaterialId).trim()
+    const finalMaterialName = (resolved.materialName || '').trim()
+    const finalMaterialLabel =
+      finalMaterialId && finalMaterialName
+        ? `${finalMaterialId} - ${finalMaterialName}`
+        : undefined
+
+    setMaterialContext({
+      po: materialContext?.po || poNumber || null,
+      materialId: finalMaterialId,
+      materialName: finalMaterialName,
+      materialType: resolved.materialType || materialContext?.materialType || null,
+      found: true,
+    })
+
+    const stdPayload: Record<string, number | string> = { ...summaryStdPayload }
+    for (const fieldKey of SUMMARY_RANGE_FIELDS) {
+      if (!(fieldKey in summaryStdPayload)) continue
+      const stdValue = summaryStdPayload[fieldKey]
+      const adjustment = summaryRangeAdjustments[fieldKey]
+      if (!adjustment) continue
+      if (adjustment.min !== null && adjustment.min !== undefined) {
+        stdPayload[`${fieldKey}_min`] = stdValue - adjustment.min
+      }
+      if (adjustment.max !== null && adjustment.max !== undefined) {
+        stdPayload[`${fieldKey}_max`] = stdValue + adjustment.max
+      }
+    }
+
+    setSavingKey('summary-apply')
+    let lastError = 'unknown'
+    try {
+      let saved = false
+      for (const url of resolveBulkSaveCandidates()) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              std: stdPayload,
+              machine_id: machineId,
+              material: finalMaterialLabel,
+              materialId: finalMaterialId,
+              materialName: finalMaterialName,
+            }),
+          })
+          if (!res.ok) {
+            lastError = `${res.status} @ ${url}`
+            continue
+          }
+          saved = true
+          break
+        } catch (e) {
+          const name = (e as Error).name || 'Error'
+          lastError = `${name} @ ${url}`
+        }
+      }
+      if (!saved) {
+        setError(`Gagal save summary (${lastError})`)
+        return
+      }
+      setValues((prev) => {
+        const next = { ...prev }
+        for (const [key, value] of Object.entries(summaryStdPayload)) {
+          next[key] = {
+            std: value,
+            act: prev[key]?.act ?? null,
+          }
+        }
+        return next
+      })
+    } finally {
+      setSavingKey(null)
+    }
+
+    setStatusMessage('Summary STD berhasil disimpan.')
+    closeSummaryAddModal()
+  }
   const submitEditPassword = () => {
     if (editPasswordInput !== EDIT_MODE_PASSWORD) {
       setEditPasswordError('Password salah.')
@@ -896,6 +1507,10 @@ export default function ZhafirParameterForm() {
   const toggleEditMode = () => {
     if (isEditMode) {
       setIsEditMode(false)
+      setManualRangeMode({})
+      setPendingManualRangeField(null)
+      setShowManualRangeConfirmModal(false)
+      setShowSummaryAddModal(false)
       setStatusMessage('Mode View aktif.')
       return
     }
@@ -967,9 +1582,10 @@ export default function ZhafirParameterForm() {
       }
     }
     for (const key of SUMMARY_RANGE_FIELDS) {
-      const hasMin = Object.prototype.hasOwnProperty.call(minDraft, key)
-      if (hasMin) {
-        const minRaw = minDraft[key]
+      const hasRangeConfig = Boolean(SUMMARY_RANGE_PARAMETER_NAMES[key])
+      const hasMinDraft = Object.prototype.hasOwnProperty.call(minDraft, key)
+      if (hasRangeConfig || hasMinDraft) {
+        const minRaw = getRangeDisplayValue(key, 'min')
         if (minRaw === '') {
           stdPayload[`${key}_min`] = ''
         } else {
@@ -983,9 +1599,9 @@ export default function ZhafirParameterForm() {
         }
       }
 
-      const hasMax = Object.prototype.hasOwnProperty.call(maxDraft, key)
-      if (hasMax) {
-        const maxRaw = maxDraft[key]
+      const hasMaxDraft = Object.prototype.hasOwnProperty.call(maxDraft, key)
+      if (hasRangeConfig || hasMaxDraft) {
+        const maxRaw = getRangeDisplayValue(key, 'max')
         if (maxRaw === '') {
           stdPayload[`${key}_max`] = ''
         } else {
@@ -1011,10 +1627,9 @@ export default function ZhafirParameterForm() {
             body: JSON.stringify({
               std: stdPayload,
               machine_id: machineId || undefined,
-              material:
-                materialContext?.materialId && selectedMaterialType
-                  ? `${materialContext.materialId} - ${selectedMaterialType}`
-                  : materialParam || undefined,
+              material: resolvedMaterialLabel,
+              materialId: resolvedMaterialId,
+              materialName: resolvedMaterialName,
             }),
           })
           if (!res.ok) {
@@ -1056,7 +1671,12 @@ export default function ZhafirParameterForm() {
       <MachineIdContext.Provider value={machineId}>
         <PaletteContext.Provider value={{ paletteMode, colors: activePaletteColors }}>
           <SectionStyleContext.Provider
-            value={{ applyToAllSectionStyles, applySignal }}
+            value={{
+              applyToAllSectionStyles,
+              saveSectionStyle,
+              applySignal,
+              reloadNonce: styleReloadNonce,
+            }}
           >
             <div className="p-6 text-sm">
       <div className="mb-4 flex h-12 items-center gap-2 border-b px-2">
@@ -1154,7 +1774,7 @@ export default function ZhafirParameterForm() {
               PRO Name
             </div>
             <div className="mt-1 text-sm font-semibold text-gray-900">
-              {poNumber || '-'}
+              {displayedPoName}
             </div>
           </div>
         </div>
@@ -1207,6 +1827,15 @@ export default function ZhafirParameterForm() {
         {isEditMode && (
           <button
             type="button"
+            onClick={openSummaryAddModal}
+            className="rounded-md border px-3 py-1 text-xs bg-slate-900 text-white hover:bg-slate-800"
+          >
+            + Add
+          </button>
+        )}
+        {isEditMode && (
+          <button
+            type="button"
             onClick={saveAll}
             disabled={loading || savingKey === 'bulk'}
             className="rounded-md border px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
@@ -1237,6 +1866,15 @@ export default function ZhafirParameterForm() {
             <option value={10}>10%</option>
           </select>
         </div>
+        {isEditMode && (
+          <button
+            type="button"
+            onClick={() => setShowWarningIcons((prev) => !prev)}
+            className="rounded-md border px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200"
+          >
+            {showWarningIcons ? 'Warning Icon: ON' : 'Warning Icon: OFF'}
+          </button>
+        )}
         {isEditMode && (
           <div className="flex items-center rounded-md border bg-white px-2 py-1">
             <label className="text-xs font-semibold">Color Palette:</label>
@@ -1297,9 +1935,131 @@ export default function ZhafirParameterForm() {
               <button
                 type="button"
                 onClick={submitEditPassword}
-                className="rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800"
+                className="rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Masuk Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showManualRangeConfirmModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={handleCancelManualRange}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-slate-900">
+              Konfirmasi Manual Min/Max
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Apakah anda yakin akan mengedit Min/Max ini secara manual?
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancelManualRange}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmManualRange}
+                className="rounded-lg border border-blue-700 bg-blue-700 px-3 py-1.5 text-xs text-white hover:bg-blue-800"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showSummaryAddModal && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-4"
+          onClick={closeSummaryAddModal}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-1 text-base font-semibold text-slate-900">
+              Add Summary Injection STD
+            </div>
+            <div className="mb-4 text-xs text-slate-500">
+              Isi nilai STD dari End Of Plastification sampai Carriage Backward
+              SE.
+            </div>
+            <div className="mb-3 grid grid-cols-[1fr_140px_40px] items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">
+                Material ID
+              </label>
+              <input
+                type="text"
+                value={summaryAddMaterialId}
+                onChange={(e) => setSummaryAddMaterialId(e.target.value)}
+                className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                placeholder="Material ID"
+              />
+              <span />
+            </div>
+            <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 p-2 text-xs">
+              <div className="grid grid-cols-[120px_1fr] gap-2 items-center">
+                <span className="text-slate-500">Material Name</span>
+                <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 font-medium text-slate-800">
+                  {summaryLookupLoading
+                    ? 'Mencari...'
+                    : summaryLookupContext?.materialName || '-'}
+                </span>
+              </div>
+              {summaryLookupError && (
+                <div className="mt-2 text-[11px] text-red-600">
+                  {summaryLookupError}
+                </div>
+              )}
+              {/* Debug PRO Name hidden by request */}
+            </div>
+            <div className="space-y-2">
+              {SUMMARY_ADD_FIELDS.map((item) => (
+                <div
+                  key={`summary-add-${item.key}`}
+                  className="grid grid-cols-[1fr_140px_40px] items-center gap-2"
+                >
+                  <label className="text-sm text-slate-700">{item.label}</label>
+                  <input
+                    type="text"
+                    value={summaryAddDraft[item.key] ?? ''}
+                    onChange={(e) =>
+                      setSummaryAddDraft((prev) => ({
+                        ...prev,
+                        [item.key]: e.target.value,
+                      }))
+                    }
+                    className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    placeholder="STD"
+                  />
+                  <span className="text-xs text-slate-500">{item.unit}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeSummaryAddModal}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={applySummaryAddModal}
+                disabled={savingKey === 'summary-apply'}
+                className="rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800"
+              >
+                {savingKey === 'summary-apply' ? 'Saving...' : 'Apply STD'}
               </button>
             </div>
           </div>
@@ -1329,10 +2089,12 @@ export default function ZhafirParameterForm() {
                 <span className="flex-1">End Of Plastification</span>
                 <span
                   className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
-                    injectWarningText ? '' : 'invisible'
+                    showWarningIcons && injectWarningText ? '' : 'invisible'
                   }`}
                 >
-                  {injectWarningText ? `\u26A0 ${injectWarningText}` : '\u26A0'}
+                  {showWarningIcons && injectWarningText
+                    ? `\u26A0 ${injectWarningText}`
+                    : '\u26A0'}
                 </span>
               </div>
 
@@ -1344,9 +2106,29 @@ export default function ZhafirParameterForm() {
                   actDraft={actDraft}
                   minDraft={minDraft}
                   maxDraft={maxDraft}
+                  resolveMinValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'min'
+                    )
+                  }
+                  resolveMaxValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'max'
+                    )
+                  }
                   onStdChange={handleStdChange}
                   onMinChange={handleMinChange}
                   onMaxChange={handleMaxChange}
+                  onManualUnlock={(field) =>
+                    requestManualRangeMode(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number]
+                    )
+                  }
+                  isManualMode={Boolean(
+                    manualRangeMode['InjectScrewPosition']
+                  )}
                   isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('InjectScrewPosition')}
                 />
@@ -1367,10 +2149,12 @@ export default function ZhafirParameterForm() {
                 <span className="flex-1">Injection Time</span>
                 <span
                   className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
-                    vpTimeWarningText ? '' : 'invisible'
+                    showWarningIcons && vpTimeWarningText ? '' : 'invisible'
                   }`}
                 >
-                  {vpTimeWarningText ? `\u26A0 ${vpTimeWarningText}` : '\u26A0'}
+                  {showWarningIcons && vpTimeWarningText
+                    ? `\u26A0 ${vpTimeWarningText}`
+                    : '\u26A0'}
                 </span>
               </div>
               <div className="col-span-5">
@@ -1381,9 +2165,27 @@ export default function ZhafirParameterForm() {
                   actDraft={actDraft}
                   minDraft={minDraft}
                   maxDraft={maxDraft}
+                  resolveMinValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'min'
+                    )
+                  }
+                  resolveMaxValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'max'
+                    )
+                  }
                   onStdChange={handleStdChange}
                   onMinChange={handleMinChange}
                   onMaxChange={handleMaxChange}
+                  onManualUnlock={(field) =>
+                    requestManualRangeMode(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number]
+                    )
+                  }
+                  isManualMode={Boolean(manualRangeMode['VPTimeText'])}
                   isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('VPTimeText')}
                 />
@@ -1404,10 +2206,12 @@ export default function ZhafirParameterForm() {
                 <span className="flex-1">Switching Position</span>
                 <span
                   className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
-                    vpPositionWarningText ? '' : 'invisible'
+                    showWarningIcons && vpPositionWarningText ? '' : 'invisible'
                   }`}
                 >
-                  {vpPositionWarningText ? `\u26A0 ${vpPositionWarningText}` : '\u26A0'}
+                  {showWarningIcons && vpPositionWarningText
+                    ? `\u26A0 ${vpPositionWarningText}`
+                    : '\u26A0'}
                 </span>
               </div>
 
@@ -1419,9 +2223,27 @@ export default function ZhafirParameterForm() {
                   actDraft={actDraft}
                   minDraft={minDraft}
                   maxDraft={maxDraft}
+                  resolveMinValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'min'
+                    )
+                  }
+                  resolveMaxValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'max'
+                    )
+                  }
                   onStdChange={handleStdChange}
                   onMinChange={handleMinChange}
                   onMaxChange={handleMaxChange}
+                  onManualUnlock={(field) =>
+                    requestManualRangeMode(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number]
+                    )
+                  }
+                  isManualMode={Boolean(manualRangeMode['VPPositionText'])}
                   isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('VPPositionText')}
                 />
@@ -1436,15 +2258,75 @@ export default function ZhafirParameterForm() {
             <div className="grid grid-cols-12 gap-2 items-center mb-2">
               <div
                 className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
+    ${isStdGreaterThanAct('InjPeakPressure') ? 'text-red-600' : ''}`}
+              >
+                <span className="flex-1">Inj Peak Pressure</span>
+                <span
+                  className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
+                    showWarningIcons && injPeakPressureWarningText ? '' : 'invisible'
+                  }`}
+                >
+                  {showWarningIcons && injPeakPressureWarningText
+                    ? `\u26A0 ${injPeakPressureWarningText}`
+                    : '\u26A0'}
+                </span>
+              </div>
+
+              <div className="col-span-5">
+                <SummaryRangeInput
+                  fieldKey="InjPeakPressure"
+                  values={values}
+                  stdDraft={stdDraft}
+                  actDraft={actDraft}
+                  minDraft={minDraft}
+                  maxDraft={maxDraft}
+                  resolveMinValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'min'
+                    )
+                  }
+                  resolveMaxValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'max'
+                    )
+                  }
+                  onStdChange={handleStdChange}
+                  onMinChange={handleMinChange}
+                  onMaxChange={handleMaxChange}
+                  onManualUnlock={(field) =>
+                    requestManualRangeMode(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number]
+                    )
+                  }
+                  isManualMode={Boolean(manualRangeMode['InjPeakPressure'])}
+                  isEditMode={isEditMode}
+                  isActOverLimit={isStdGreaterThanAct('InjPeakPressure')}
+                />
+              </div>
+
+              <div
+                className={`col-span-2 flex min-h-[44px] items-center justify-center text-xs transition-colors duration-300
+    ${isStdGreaterThanAct('InjPeakPressure') ? 'text-red-600 font-semibold' : ''}`}
+              >
+                bar
+              </div>
+            </div>
+            <div className="grid grid-cols-12 gap-2 items-center mb-2">
+              <div
+                className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
     ${isStdGreaterThanAct('Thickness') ? 'text-red-600' : ''}`}
               >
                 <span className="flex-1">Cushion</span>
                 <span
                   className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
-                    cushionWarningText ? '' : 'invisible'
+                    showWarningIcons && cushionWarningText ? '' : 'invisible'
                   }`}
                 >
-                  {cushionWarningText ? `\u26A0 ${cushionWarningText}` : '\u26A0'}
+                  {showWarningIcons && cushionWarningText
+                    ? `\u26A0 ${cushionWarningText}`
+                    : '\u26A0'}
                 </span>
               </div>
 
@@ -1456,9 +2338,27 @@ export default function ZhafirParameterForm() {
                   actDraft={actDraft}
                   minDraft={minDraft}
                   maxDraft={maxDraft}
+                  resolveMinValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'min'
+                    )
+                  }
+                  resolveMaxValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'max'
+                    )
+                  }
                   onStdChange={handleStdChange}
                   onMinChange={handleMinChange}
                   onMaxChange={handleMaxChange}
+                  onManualUnlock={(field) =>
+                    requestManualRangeMode(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number]
+                    )
+                  }
+                  isManualMode={Boolean(manualRangeMode['Thickness'])}
                   isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('Thickness')}
                 />
@@ -1479,10 +2379,12 @@ export default function ZhafirParameterForm() {
                 <span className="flex-1">Carriage Backward SE</span>
                 <span
                   className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
-                    carriageWarningText ? '' : 'invisible'
+                    showWarningIcons && carriageWarningText ? '' : 'invisible'
                   }`}
                 >
-                  {carriageWarningText ? `\u26A0 ${carriageWarningText}` : '\u26A0'}
+                  {showWarningIcons && carriageWarningText
+                    ? `\u26A0 ${carriageWarningText}`
+                    : '\u26A0'}
                 </span>
               </div>
 
@@ -1494,9 +2396,27 @@ export default function ZhafirParameterForm() {
                   actDraft={actDraft}
                   minDraft={minDraft}
                   maxDraft={maxDraft}
+                  resolveMinValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'min'
+                    )
+                  }
+                  resolveMaxValue={(field) =>
+                    getRangeDisplayValue(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number],
+                      'max'
+                    )
+                  }
                   onStdChange={handleStdChange}
                   onMinChange={handleMinChange}
                   onMaxChange={handleMaxChange}
+                  onManualUnlock={(field) =>
+                    requestManualRangeMode(
+                      field as (typeof SUMMARY_RANGE_FIELDS)[number]
+                    )
+                  }
+                  isManualMode={Boolean(manualRangeMode['CarriageBwd_SE'])}
                   isEditMode={isEditMode}
                   isActOverLimit={isStdGreaterThanAct('CarriageBwd_SE')}
                 />
@@ -2662,7 +3582,8 @@ function Section({
   const isEditMode = useContext(EditModeContext)
   const machineId = useContext(MachineIdContext)
   const { colors: paletteColors } = useContext(PaletteContext)
-  const { applyToAllSectionStyles, applySignal } = useContext(SectionStyleContext)
+  const { applyToAllSectionStyles, saveSectionStyle, applySignal, reloadNonce } =
+    useContext(SectionStyleContext)
   const [headerBgColor, setHeaderBgColor] = useState('#f3f4f6')
   const [actBgColor, setActBgColor] = useState('#f3f4f6')
   const [showStylePanel, setShowStylePanel] = useState(false)
@@ -2687,7 +3608,7 @@ function Section({
     } catch {
       // ignore invalid preset
     }
-  }, [presetStorageKey])
+  }, [presetStorageKey, reloadNonce])
 
   useEffect(() => {
     try {
@@ -2698,7 +3619,17 @@ function Section({
     } catch {
       // ignore storage failures
     }
-  }, [presetStorageKey, headerBgColor, actBgColor])
+    if (isEditMode) {
+      saveSectionStyle(sectionIdentity, headerBgColor, actBgColor)
+    }
+  }, [
+    presetStorageKey,
+    headerBgColor,
+    actBgColor,
+    isEditMode,
+    saveSectionStyle,
+    sectionIdentity,
+  ])
   useEffect(() => {
     if (!applySignal) return
     setHeaderBgColor(applySignal.headerBgColor)
@@ -2908,15 +3839,19 @@ function SummaryRangeInput({
   actDraft,
   minDraft,
   maxDraft,
+  resolveMinValue,
+  resolveMaxValue,
   onStdChange,
   onMinChange,
   onMaxChange,
+  onManualUnlock,
+  isManualMode = false,
   isEditMode,
   isActOverLimit,
 }: SummaryRangeInputProps) {
   const stdValue = stdDraft[fieldKey] ?? fmt(values[fieldKey]?.std)
-  const minValue = minDraft[fieldKey] ?? ''
-  const maxValue = maxDraft[fieldKey] ?? ''
+  const minValue = resolveMinValue ? resolveMinValue(fieldKey) : minDraft[fieldKey] ?? ''
+  const maxValue = resolveMaxValue ? resolveMaxValue(fieldKey) : maxDraft[fieldKey] ?? ''
   const actValue = formatNumericDisplay(
     actDraft[fieldKey] ?? values[fieldKey]?.act ?? '',
     2
@@ -2936,24 +3871,46 @@ function SummaryRangeInput({
         />
       </div>
       <div className="flex flex-col">
-        <span className="text-[10px] leading-3">Min</span>
+        <button
+          type="button"
+          className={`text-[10px] leading-3 text-left ${
+            isEditMode && !isManualMode ? 'underline decoration-dotted' : ''
+          }`}
+          onClick={() => {
+            if (!isEditMode || isManualMode) return
+            onManualUnlock?.(fieldKey)
+          }}
+        >
+          Min
+        </button>
         <input
           value={minValue}
           onChange={(e) => onMinChange?.(fieldKey, e.target.value)}
-          readOnly={!isEditMode}
+          readOnly={!isEditMode || !isManualMode}
           className={`border px-1 py-0.5 rounded w-full ${
-            isEditMode ? 'bg-white' : 'bg-gray-100'
+            isEditMode && isManualMode ? 'bg-white' : 'bg-gray-100'
           }`}
         />
       </div>
       <div className="flex flex-col">
-        <span className="text-[10px] leading-3">Max</span>
+        <button
+          type="button"
+          className={`text-[10px] leading-3 text-left ${
+            isEditMode && !isManualMode ? 'underline decoration-dotted' : ''
+          }`}
+          onClick={() => {
+            if (!isEditMode || isManualMode) return
+            onManualUnlock?.(fieldKey)
+          }}
+        >
+          Max
+        </button>
         <input
           value={maxValue}
           onChange={(e) => onMaxChange?.(fieldKey, e.target.value)}
-          readOnly={!isEditMode}
+          readOnly={!isEditMode || !isManualMode}
           className={`border px-1 py-0.5 rounded w-full ${
-            isEditMode ? 'bg-white' : 'bg-gray-100'
+            isEditMode && isManualMode ? 'bg-white' : 'bg-gray-100'
           }`}
         />
       </div>

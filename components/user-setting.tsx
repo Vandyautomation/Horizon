@@ -30,7 +30,8 @@ export function UserSetting() {
 
   const handleLogout = () => {
     document.cookie = "authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;";
-    localStorage.clear();
+    // Keep non-auth local preferences (e.g. zhafir section colors) after logout.
+    localStorage.removeItem('user');
 
     window.dispatchEvent(new CustomEvent("storage"))
     const pathName = window.location.pathname
