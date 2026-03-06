@@ -6,9 +6,12 @@ import {
   getZhafirActualFromView,
   getZhafirActualFromViewByHour,
   getZhafirAvailableHours,
+  getZhafirSummaryRangeConfig,
+  getZhafirSectionStyles,
   getZhafirMaterialTypeFromRouting,
   checkZhafirParamsetExists,
   getZhafirMaterialContext,
+  getZhafirMaterialContextByMaterialId,
   updateLatestTrxMaterialByMachine,
   updateRoutingMaterialTypeByMaterialId,
   insertZhafirActual,
@@ -16,6 +19,7 @@ import {
   updateHardcodedBulk,
   updateHardcodedStdField,
   upsertZhafirStd,
+  upsertZhafirSectionStyle,
 } from '../controllers/zhafirController';
 import { queryDatabase } from '../utils/queryDatabase';
 
@@ -222,6 +226,97 @@ zhafirRoutes.get('/material-context', async (c) => {
     return c.json({ error: (error as Error).message }, 400);
   }
 });
+
+zhafirRoutes.get('/material-context-by-material-id', async (c) => {
+  try {
+    const materialId = c.req.query('material_id') || c.req.query('materialId');
+    if (!materialId) {
+      return c.json({ error: 'material_id is required' }, 400);
+    }
+    const data = await getZhafirMaterialContextByMaterialId(materialId);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.get('/summary-range-config', async (c) => {
+  try {
+    const uom = c.req.query('uom') || 'HAITIAN';
+    const data = await getZhafirSummaryRangeConfig(uom);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.get('/section-styles', async (c) => {
+  try {
+    const machineId = c.req.query('machine_id') || c.req.query('machineId');
+    const denied = await ensureTemporaryMachineAccess(c, machineId);
+    if (denied) return denied;
+    const data = await getZhafirSectionStyles(String(machineId).trim());
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+zhafirRoutes.get('/section-styles/', async (c) => {
+  try {
+    const machineId = c.req.query('machine_id') || c.req.query('machineId');
+    const denied = await ensureTemporaryMachineAccess(c, machineId);
+    if (denied) return denied;
+    const data = await getZhafirSectionStyles(String(machineId).trim());
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.post('/section-styles', async (c) => {
+  try {
+    const body = await c.req.json();
+    const machineId = (body.machine_id || body.machineId) as string | undefined;
+    const sectionKey = (body.sectionKey || body.section_key) as string | undefined;
+    const headerBgColor = body.headerBgColor as string | undefined;
+    const actBgColor = body.actBgColor as string | undefined;
+
+    const denied = await ensureTemporaryMachineAccess(c, machineId);
+    if (denied) return denied;
+
+    const data = await upsertZhafirSectionStyle(
+      String(machineId).trim(),
+      sectionKey || '',
+      headerBgColor || '',
+      actBgColor || '',
+    );
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+zhafirRoutes.post('/section-styles/', async (c) => {
+  try {
+    const body = await c.req.json();
+    const machineId = (body.machine_id || body.machineId) as string | undefined;
+    const sectionKey = (body.sectionKey || body.section_key) as string | undefined;
+    const headerBgColor = body.headerBgColor as string | undefined;
+    const actBgColor = body.actBgColor as string | undefined;
+
+    const denied = await ensureTemporaryMachineAccess(c, machineId);
+    if (denied) return denied;
+
+    const data = await upsertZhafirSectionStyle(
+      String(machineId).trim(),
+      sectionKey || '',
+      headerBgColor || '',
+      actBgColor || '',
+    );
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
 zhafirRoutes.get('/material-type-routing', async (c) => {
   try {
     const materialId = c.req.query('material_id') || c.req.query('materialId');
@@ -280,6 +375,8 @@ zhafirRoutes.post('/std', async (c) => {
     const section = body.section as string | undefined;
     const machineId = (body.machine_id || body.machineId) as string | undefined;
     const material = body.material as string | undefined;
+    const materialId = (body.material_id || body.materialId) as string | undefined;
+    const materialName = (body.material_name || body.materialName) as string | undefined;
     const values = ((body.values ?? body) as Record<string, unknown>) || {};
 
     const denied = await ensureTemporaryMachineAccess(c, machineId);
@@ -290,7 +387,15 @@ zhafirRoutes.post('/std', async (c) => {
       return c.json({ error: 'paraId is required' }, 400);
     }
 
-    const data = await upsertZhafirStd(paraId, values, section, resolvedMachineId, material);
+    const data = await upsertZhafirStd(
+      paraId,
+      values,
+      section,
+      resolvedMachineId,
+      material,
+      materialId,
+      materialName,
+    );
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
@@ -344,6 +449,8 @@ zhafirRoutes.post('/manual-std', async (c) => {
     const valueRaw = body.value as number | string | undefined;
     const machineId = (body.machine_id || body.machineId) as string | undefined;
     const material = body.material as string | undefined;
+    const materialId = (body.material_id || body.materialId) as string | undefined;
+    const materialName = (body.material_name || body.materialName) as string | undefined;
 
     const denied = await ensureTemporaryMachineAccess(c, machineId);
     if (denied) return denied;
@@ -353,7 +460,14 @@ zhafirRoutes.post('/manual-std', async (c) => {
       return c.json({ error: 'field is required' }, 400);
     }
 
-    const data = await updateHardcodedStdField(field, valueRaw as any, resolvedMachineId, material);
+    const data = await updateHardcodedStdField(
+      field,
+      valueRaw as any,
+      resolvedMachineId,
+      material,
+      materialId,
+      materialName,
+    );
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
@@ -367,11 +481,19 @@ zhafirRoutes.post('/manual-bulk', async (c) => {
     const act = (body.act || {}) as Record<string, number | string>;
     const machineId = (body.machine_id || body.machineId) as string | undefined;
     const material = body.material as string | undefined;
+    const materialId = (body.material_id || body.materialId) as string | undefined;
+    const materialName = (body.material_name || body.materialName) as string | undefined;
     const denied = await ensureTemporaryMachineAccess(c, machineId);
     if (denied) return denied;
     const resolvedMachineId = String(machineId).trim();
 
-    const data = await updateHardcodedBulk({ std, act }, resolvedMachineId, material);
+    const data = await updateHardcodedBulk(
+      { std, act },
+      resolvedMachineId,
+      material,
+      materialId,
+      materialName,
+    );
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);

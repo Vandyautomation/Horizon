@@ -1,7 +1,7 @@
 import { queryDatabase } from '../utils/queryDatabase';
 
 const ZHAFIR_SECTIONS = {
-  inject: ['Inject1Press', 'Inject1To', 'Inject1Velo', 'Inject2Press', 'Inject2To', 'Inject2Velo', 'Inject3Press', 'Inject3To', 'Inject3Velo', 'Inject4Press', 'Inject4Velo', 'InjectScrewPosition', 'InjectTime', 'InjectionPressure', 'InjectSEPosition', 'InjectS1Speed', 'InjectSBPosition', 'InjectSBSpeed', 'InjectSBPressure'],
+  inject: ['Inject1Press', 'Inject1To', 'Inject1Velo', 'Inject2Press', 'Inject2To', 'Inject2Velo', 'Inject3Press', 'Inject3To', 'Inject3Velo', 'Inject4Press', 'Inject4Velo', 'InjectScrewPosition', 'InjectTime', 'InjectionPressure', 'InjPeakPressure', 'InjectSEPosition', 'InjectS1Speed', 'InjectSBPosition', 'InjectSBSpeed', 'InjectSBPressure'],
   holding: ['Hold1Press', 'Hold1To', 'Hold1Velo', 'Hold2Press', 'Hold2To', 'Hold2Velo', 'Hold3Press', 'Hold3To', 'Hold3Velo'],
   charging: ['Plasticise1To', 'Plasticise1Velo', 'Plasticise1Press', 'AfterPlasticisePress', 'AfterPlasticiseTime', 'AfterPlasticiseVelo', 'Plasticise1BackPress', 'Plasticise2To', 'Plasticise2Velo', 'Plasticise2Press', 'AfterPlasticisePosition', 'AfterPlasticiseSpeed', 'AfterPlasticiseBackPress'],
   clamp_mold: ['Close1Press', 'Close1To', 'Close1Velo', 'Close2Press', 'Close2To', 'Close2Velo', 'ProtectPress', 'ProtectTo', 'ProtectVelo', 'HiPressPress', 'HiPressVelo', 'MoldProtectionTime', 'Open1Press', 'Open1To', 'Open1Velo', 'Open2Press', 'Open2To', 'Open2Velo', 'Open3Press', 'Open3To', 'Open3Velo', 'Open4Press', 'Open4To', 'Open4Velo', 'Close0To', 'Close0Velo', 'CloseLPTo', 'CloseLPVelo', 'CloseHPTo', 'CloseHPVelo', 'CloseSETo', 'CloseSEVelo', 'OpenS5To', 'OpenS5Velo', 'OpenS4To', 'OpenS4Velo'],
@@ -100,16 +100,44 @@ const STRING_VALUE_FIELDS = new Set([
 ]);
 const RANGE_TRACKED_FIELDS = new Set([
   'InjectScrewPosition',
+  'InjPeakPressure',
   'VPTimeText',
   'VPPositionText',
-  'InjPeakPressure',
   'Thickness',
   'CarriageBwd_SE',
 ]);
+const SUMMARY_RANGE_PARAMETER_MAP: Record<
+  string,
+  { minName: string; maxName: string }
+> = {
+  InjectScrewPosition: {
+    minName: 'min_EndofPlast',
+    maxName: 'max_EndofPlast',
+  },
+  InjPeakPressure: {
+    minName: 'min_injpeakpress',
+    maxName: 'max_injpeakpress',
+  },
+  VPTimeText: {
+    minName: 'min_injTime',
+    maxName: 'max_injTime',
+  },
+  VPPositionText: {
+    minName: 'min_SwitchingPosition',
+    maxName: 'max_SwitchingPosition',
+  },
+  Thickness: {
+    minName: 'min_Cushion',
+    maxName: 'max_Cushion',
+  },
+};
 
 const ALLOWED_HARD_CODED_ACT_FIELDS = new Set(ZHAFIR_VALUE_FIELDS);
 const MACHINE_STD_TABLE = 'IoT.dbo.MachineParameterSettingSTD';
 const MACHINE_TRX_TABLE = 'IoT.dbo.MachineParameterSettingTRX';
+const PARAMETER_SETTING_TABLE = 'IoT.dbo.parameter_setting';
+const ZHAFIR_STYLE_PARAMETER_ID = 16;
+const ZHAFIR_STYLE_PARAMETER_NAME = 'colorParameter';
 const PARASET_TRX_TABLE = 'ParaSetTRX';
 let paraSetTrxColumnsCache: Set<string> | null = null;
 const zhafirManualChangeAt = new Map<string, number>();
@@ -161,6 +189,139 @@ export async function getZhafirMaterialContext(poName: string) {
     materialName,
     materialType,
     found: true,
+  };
+}
+
+export async function getZhafirMaterialContextByMaterialId(materialId: string) {
+  const trimmedMaterialId = (materialId || '').trim();
+  if (!trimmedMaterialId) {
+    throw new Error('material_id is required');
+  }
+
+  const routingRows = await queryDatabase(
+    `
+      SELECT TOP 1 material_id, material_name, materialtype
+      FROM IoT.dbo.routing
+      WHERE LTRIM(RTRIM(CONVERT(NVARCHAR(255), material_id))) = @MaterialId
+         OR (
+           TRY_CONVERT(BIGINT, LTRIM(RTRIM(CONVERT(NVARCHAR(255), material_id)))) IS NOT NULL
+           AND TRY_CONVERT(BIGINT, @MaterialId) IS NOT NULL
+           AND TRY_CONVERT(BIGINT, LTRIM(RTRIM(CONVERT(NVARCHAR(255), material_id)))) = TRY_CONVERT(BIGINT, @MaterialId)
+         )
+      ORDER BY
+        COALESCE(modified_at, created_at) DESC,
+        id DESC
+    `,
+    { MaterialId: trimmedMaterialId },
+  );
+  const routingRow = routingRows?.[0] as Record<string, unknown> | undefined;
+
+  if (!routingRow) {
+    return {
+      po: null,
+      materialId: trimmedMaterialId,
+      materialName: null,
+      materialType: null,
+      found: false,
+    };
+  }
+
+  const cooisRows = await queryDatabase(
+    `
+      SELECT TOP 1 po_name
+      FROM IoT.dbo.coois
+      WHERE LTRIM(RTRIM(CONVERT(NVARCHAR(255), material_id))) = @MaterialId
+         OR (
+           TRY_CONVERT(BIGINT, LTRIM(RTRIM(CONVERT(NVARCHAR(255), material_id)))) IS NOT NULL
+           AND TRY_CONVERT(BIGINT, @MaterialId) IS NOT NULL
+           AND TRY_CONVERT(BIGINT, LTRIM(RTRIM(CONVERT(NVARCHAR(255), material_id)))) = TRY_CONVERT(BIGINT, @MaterialId)
+         )
+      ORDER BY
+        COALESCE(modified_at, uploaded_at, created_at) DESC,
+        id DESC
+    `,
+    { MaterialId: trimmedMaterialId },
+  );
+  const cooisRow = cooisRows?.[0] as Record<string, unknown> | undefined;
+
+  const po = cooisRow?.po_name ? String(cooisRow.po_name) : null;
+  const resolvedMaterialId = routingRow.material_id
+    ? String(routingRow.material_id)
+    : trimmedMaterialId;
+  const materialName = routingRow.material_name
+    ? String(routingRow.material_name)
+    : null;
+  const materialType = routingRow.materialtype
+    ? String(routingRow.materialtype)
+    : null;
+
+  return {
+    po,
+    materialId: resolvedMaterialId,
+    materialName,
+    materialType,
+    found: true,
+  };
+}
+
+export async function getZhafirSummaryRangeConfig(uom = 'HAITIAN') {
+  const normalizedUom = (uom || 'HAITIAN').trim();
+  const parameterNames = Array.from(
+    new Set(
+      Object.values(SUMMARY_RANGE_PARAMETER_MAP).flatMap((item) => [
+        item.minName,
+        item.maxName,
+      ]),
+    ),
+  );
+
+  const params: Record<string, unknown> = { Uom: normalizedUom };
+  const placeholders = parameterNames.map((name, idx) => {
+    const key = `Name${idx + 1}`;
+    params[key] = name;
+    return `@${key}`;
+  });
+
+  const sqlQuery = `
+    SELECT name, value
+    FROM IoT.dbo.parameter_setting
+    WHERE UPPER(LTRIM(RTRIM(uom))) = UPPER(@Uom)
+      AND name IN (${placeholders.join(', ')})
+  `;
+  const rows = await queryDatabase(sqlQuery, params);
+  const valueMap: Record<string, number | null> = {};
+
+  for (const row of rows || []) {
+    const key = String((row as any).name || '').trim().toLowerCase();
+    if (!key) continue;
+    const num = Number((row as any).value);
+    valueMap[key] = Number.isFinite(num) ? num : null;
+  }
+
+  const rules: Record<
+    string,
+    {
+      min: number | null;
+      max: number | null;
+      minName: string;
+      maxName: string;
+    }
+  > = {};
+
+  Object.entries(SUMMARY_RANGE_PARAMETER_MAP).forEach(([fieldKey, names]) => {
+    const minValue = valueMap[names.minName.toLowerCase()] ?? null;
+    const maxValue = valueMap[names.maxName.toLowerCase()] ?? null;
+    rules[fieldKey] = {
+      min: minValue,
+      max: maxValue,
+      minName: names.minName,
+      maxName: names.maxName,
+    };
+  });
+
+  return {
+    uom: normalizedUom,
+    rules,
   };
 }
 
@@ -345,6 +506,155 @@ export function startZhafirHourlyCarryForwardScheduler() {
   zhafirHourlyTimer = setInterval(runZhafirHourlyCarryForward, 60 * 1000);
 }
 
+async function getZhafirStyleParameterRow() {
+  const rows = await queryDatabase(
+    `
+      SELECT TOP 1 id, value, uom, color, hexacolor
+      FROM ${PARAMETER_SETTING_TABLE}
+      WHERE id = @Id OR name = @Name
+      ORDER BY CASE WHEN id = @Id THEN 0 ELSE 1 END, id ASC
+    `,
+    { Id: ZHAFIR_STYLE_PARAMETER_ID, Name: ZHAFIR_STYLE_PARAMETER_NAME },
+  );
+  return rows?.[0] as Record<string, unknown> | undefined;
+}
+
+function resolveColorNameFromHex(hex: string) {
+  const normalized = (hex || '').trim().toUpperCase();
+  const known: Record<string, string> = {
+    '#F3F4F6': 'gray',
+    '#DBEAFE': 'blue',
+    '#FEF3C7': 'amber',
+    '#DCFCE7': 'green',
+    '#FEE2E2': 'red',
+    '#EDE9FE': 'violet',
+    '#CFFAFE': 'cyan',
+    '#FDECC8': 'beige',
+    '#FDE2E4': 'pink',
+    '#CCD5AE': 'olive',
+    '#1F2937': 'slate',
+    '#111827': 'charcoal',
+    '#FFFFFF': 'white',
+    '#000000': 'black',
+  };
+  return known[normalized] || 'custom';
+}
+
+export async function getZhafirSectionStyles(machineId: string) {
+  const resolvedMachineId = (machineId || '').trim();
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required');
+  }
+  const row = await getZhafirStyleParameterRow();
+  if (!row) {
+    return {
+      machineId: resolvedMachineId,
+      styles: [],
+      source: {
+        id: ZHAFIR_STYLE_PARAMETER_ID,
+        name: ZHAFIR_STYLE_PARAMETER_NAME,
+      },
+    };
+  }
+
+  const hexRaw = row.hexacolor ? String(row.hexacolor).trim() : '';
+  const fallbackHex = row.color ? String(row.color).trim() : '';
+  const resolvedHex = /^#[0-9a-fA-F]{6}$/.test(hexRaw)
+    ? hexRaw
+    : /^#[0-9a-fA-F]{6}$/.test(fallbackHex)
+      ? fallbackHex
+      : '';
+  const isValidHex = /^#[0-9a-fA-F]{6}$/.test(resolvedHex);
+  const styles =
+    isValidHex
+      ? [
+          {
+            sectionKey: '__all__',
+            headerBgColor: resolvedHex,
+            actBgColor: resolvedHex,
+            updatedAt: null,
+          },
+        ]
+      : [];
+
+  return {
+    machineId: resolvedMachineId,
+    styles,
+    source: {
+      id: Number(row.id || ZHAFIR_STYLE_PARAMETER_ID),
+      name: ZHAFIR_STYLE_PARAMETER_NAME,
+      uom: row.uom ? String(row.uom) : null,
+      colorName: row.color ? String(row.color) : null,
+      hexacolor: row.hexacolor ? String(row.hexacolor) : null,
+    },
+  };
+}
+
+export async function upsertZhafirSectionStyle(
+  machineId: string,
+  sectionKey: string,
+  headerBgColor: string,
+  actBgColor: string,
+) {
+  const resolvedMachineId = (machineId || '').trim();
+  const resolvedSectionKey = (sectionKey || '').trim();
+  const resolvedHeader = (headerBgColor || '').trim();
+  const resolvedAct = (actBgColor || '').trim();
+
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required');
+  }
+  if (!resolvedSectionKey) {
+    throw new Error('sectionKey is required');
+  }
+  if (!/^#[0-9a-fA-F]{6}$/.test(resolvedHeader)) {
+    throw new Error('headerBgColor must be hex format #RRGGBB');
+  }
+  if (!/^#[0-9a-fA-F]{6}$/.test(resolvedAct)) {
+    throw new Error('actBgColor must be hex format #RRGGBB');
+  }
+  const resolvedColorName = resolveColorNameFromHex(resolvedHeader);
+
+  const row = await getZhafirStyleParameterRow();
+  if (!row) {
+    throw new Error(
+      `parameter_setting row id=${ZHAFIR_STYLE_PARAMETER_ID} (${ZHAFIR_STYLE_PARAMETER_NAME}) not found`,
+    );
+  }
+  const rowId = Number(row.id);
+  if (!Number.isFinite(rowId)) {
+    throw new Error('Invalid parameter_setting style row id');
+  }
+
+  await queryDatabase(
+    `
+      UPDATE ${PARAMETER_SETTING_TABLE}
+      SET uom = @Uom,
+          color = @Color,
+          hexacolor = @HexaColor
+      WHERE id = @Id
+    `,
+    {
+      Id: rowId,
+      Uom: resolvedMachineId,
+      Color: resolvedColorName,
+      HexaColor: resolvedHeader,
+    },
+  );
+
+  return {
+    machineId: resolvedMachineId,
+    sectionKey: resolvedSectionKey,
+    headerBgColor: resolvedHeader,
+    actBgColor: resolvedAct,
+    saved: true,
+    source: {
+      id: rowId,
+      name: ZHAFIR_STYLE_PARAMETER_NAME,
+    },
+  };
+}
+
 async function getParaSetTrxColumns() {
   if (paraSetTrxColumnsCache) return paraSetTrxColumnsCache;
   const rows = await queryDatabase(`
@@ -459,7 +769,20 @@ function extractRangeValuesFromParamset(paramset: Record<string, unknown>) {
   return ranges;
 }
 
-function parseMaterialInput(materialRaw?: string) {
+function parseMaterialInput(
+  materialRaw?: string,
+  materialIdRaw?: string,
+  materialNameRaw?: string,
+) {
+  const explicitMaterialId = (materialIdRaw || '').trim();
+  const explicitMaterialName = (materialNameRaw || '').trim();
+  if (explicitMaterialId || explicitMaterialName) {
+    return {
+      materialId: explicitMaterialId || null,
+      materialName: explicitMaterialName || null,
+    };
+  }
+
   const source = (materialRaw || '').trim();
   if (!source) {
     return { materialId: null as string | null, materialName: null as string | null };
@@ -577,11 +900,53 @@ async function getLatestStdRowByMachine(machineId: string) {
   return undefined;
 }
 
+async function getLatestStdRowByMachineAndMaterialId(
+  machineId: string,
+  materialId: string,
+) {
+  const resolvedMachineId = (machineId || '').trim();
+  const resolvedMaterialId = (materialId || '').trim();
+  if (!resolvedMachineId || !resolvedMaterialId) {
+    return undefined;
+  }
+
+  const machineColumns = ['machineId'];
+  let lastError: string | null = null;
+
+  for (const machineColumn of machineColumns) {
+    const latestSql = `
+      SELECT TOP 1 *
+      FROM ${MACHINE_STD_TABLE}
+      WHERE ${machineColumn} = @MachineID
+        AND LTRIM(RTRIM(CONVERT(NVARCHAR(255), material_Id))) = @MaterialID
+      ORDER BY created_at DESC, id DESC
+    `;
+    try {
+      const latestRows = await queryDatabase(latestSql, {
+        MachineID: resolvedMachineId,
+        MaterialID: resolvedMaterialId,
+      });
+      if (Array.isArray(latestRows) && latestRows.length > 0) {
+        return latestRows[0] as Record<string, unknown>;
+      }
+    } catch (error) {
+      lastError = (error as Error).message;
+    }
+  }
+
+  if (lastError) {
+    throw new Error(lastError);
+  }
+  return undefined;
+}
+
 async function upsertStdParamsetByMachine(
   machineId: string,
   stdPayload: Record<string, unknown>,
   section?: string,
   materialRaw?: string,
+  materialIdRaw?: string,
+  materialNameRaw?: string,
 ) {
   const resolvedMachineId = (machineId || '').trim();
   if (!resolvedMachineId) {
@@ -596,22 +961,39 @@ async function upsertStdParamsetByMachine(
     ...columns,
     ...dynamicRangeColumns,
   ]);
-  const latestRow = await getLatestStdRowByMachine(resolvedMachineId);
-  const currentParamset = parseStdParamset(getRowValue(latestRow, ['paramset']));
+  const parsedMaterial = parseMaterialInput(
+    materialRaw,
+    materialIdRaw,
+    materialNameRaw,
+  );
+  const latestMachineRow = await getLatestStdRowByMachine(resolvedMachineId);
+  const targetByCombination =
+    parsedMaterial.materialId
+      ? await getLatestStdRowByMachineAndMaterialId(
+          resolvedMachineId,
+          parsedMaterial.materialId,
+        )
+      : undefined;
+  const targetRow = targetByCombination ?? latestMachineRow;
+
+  const currentParamset = parseStdParamset(getRowValue(targetRow, ['paramset']));
   const nextParamset = {
     ...currentParamset,
     ...allowedPayload,
   };
 
-  const parsedMaterial = parseMaterialInput(materialRaw);
-  const currentMaterialId = getRowValue(latestRow, ['material_id', 'material_Id']);
-  const currentMaterialName = getRowValue(latestRow, ['material_name', 'materialName']);
-  const currentCavity = getRowValue(latestRow, ['cavity']);
+  const currentMaterialId = getRowValue(targetRow, ['material_id', 'material_Id']);
+  const currentMaterialName = getRowValue(targetRow, ['material_name', 'materialName']);
+  const currentCavity = getRowValue(targetRow, ['cavity']);
   const materialId = parsedMaterial.materialId ?? (currentMaterialId ? String(currentMaterialId) : null);
   const materialName = parsedMaterial.materialName ?? (currentMaterialName ? String(currentMaterialName) : null);
   const cavity = nextParamset.Cavity ?? currentCavity ?? null;
 
-  const latestId = getRowValue(latestRow, ['id']);
+  const shouldUseCombinationUpdate = Boolean(parsedMaterial.materialId);
+  const updateTargetRow = shouldUseCombinationUpdate
+    ? targetByCombination
+    : targetRow;
+  const latestId = getRowValue(updateTargetRow, ['id']);
   if (latestId !== undefined && latestId !== null) {
     const updateSql = `
       UPDATE ${MACHINE_STD_TABLE}
@@ -760,6 +1142,7 @@ const ACT_VIEW_TO_FIELD_MAP: Record<string, string> = {
   Note_ActInjtTime: 'InjectTime',
   Note_PlastTime: 'AfterPlasticiseTime',
   Note_InjStartPos: 'InjectScrewPosition',
+  Note_InjPeakPressure: 'InjPeakPressure',
   Note_MinCushionPos: 'Thickness',
   Tonnage_Set: 'Tonase',
   CarriageBWD_SE: 'CarriageBwd_SE',
@@ -1142,7 +1525,14 @@ export async function updateHardcodedActField(field: string, value: number | str
   };
 }
 
-export async function updateHardcodedStdField(field: string, value: number | string, machineId?: string, materialRaw?: string) {
+export async function updateHardcodedStdField(
+  field: string,
+  value: number | string,
+  machineId?: string,
+  materialRaw?: string,
+  materialIdRaw?: string,
+  materialNameRaw?: string,
+) {
   if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(field)) {
     throw new Error(`Field "${field}" is not supported for manual STD update.`);
   }
@@ -1162,6 +1552,8 @@ export async function updateHardcodedStdField(field: string, value: number | str
     { [field]: parsedValue },
     undefined,
     materialRaw,
+    materialIdRaw,
+    materialNameRaw,
   );
   return {
     machineId: resolvedMachineId,
@@ -1174,7 +1566,7 @@ export async function updateHardcodedStdField(field: string, value: number | str
 export async function updateHardcodedBulk(payload: {
   std?: Record<string, number | string>;
   act?: Record<string, number | string>;
-}, machineId?: string, materialRaw?: string) {
+}, machineId?: string, materialRaw?: string, materialIdRaw?: string, materialNameRaw?: string) {
   const stdEntries = Object.entries(payload.std || {});
   const actEntries = Object.entries(payload.act || {});
 
@@ -1190,6 +1582,8 @@ export async function updateHardcodedBulk(payload: {
       payload.std || {},
       undefined,
       materialRaw,
+      materialIdRaw,
+      materialNameRaw,
     );
   }
 
@@ -1213,6 +1607,8 @@ export async function upsertZhafirStd(
   section?: string,
   machineId?: string,
   materialRaw?: string,
+  materialIdRaw?: string,
+  materialNameRaw?: string,
 ) {
   if (!machineId || !machineId.trim()) {
     throw new Error('machine_id is required for STD save');
@@ -1224,6 +1620,8 @@ export async function upsertZhafirStd(
     payload,
     section,
     materialRaw,
+    materialIdRaw,
+    materialNameRaw,
   );
 
   return {

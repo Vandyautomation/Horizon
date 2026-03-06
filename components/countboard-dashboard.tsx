@@ -225,7 +225,7 @@ const refreshRateList = ['5000', '15000', '30000', '60000']
 const shiftList = ['1', '2', '3']
 const ZHAFIR_PARA_ID = 'ZHF-STD-001'
 const ZHAFIR_INDICATORS = [
-  
+
   {
     field: 'InjectScrewPosition',
     label: 'END OF PLASTIFICATION',
@@ -238,7 +238,7 @@ const ZHAFIR_INDICATORS = [
   },
   { field: 'VPPositionText', label: 'SWITCHING POSITION', icon: '/admin/Switching position.png' },
   {
-    field:"InjPeakPressure",
+    field: "InjPeakPressure",
     label: 'inject peak pressure',
     icon: '/admin/inj-press.png',
   },
@@ -298,15 +298,15 @@ export default function CountboardDashboard() {
 
   const usersOP: UserOption[] = Array.isArray(data)
     ? data
-        .filter(
-          (u) => u.UserDept === 'OperatorBahan' || u.UserDept === 'Mechanic'
-        )
-        .map((u) => ({
-          id: u.UserRFID,
-          name: u.UserName,
-          dept: u.UserDept,
-          uap: u.UserUAP,
-        }))
+      .filter(
+        (u) => u.UserDept === 'OperatorBahan' || u.UserDept === 'Mechanic'
+      )
+      .map((u) => ({
+        id: u.UserRFID,
+        name: u.UserName,
+        dept: u.UserDept,
+        uap: u.UserUAP,
+      }))
     : []
 
   const [openOPPopup, setOpenOPPopup] = useState(false)
@@ -324,13 +324,13 @@ export default function CountboardDashboard() {
   /*  SPV  */
   const usersSPV: UserOption[] = Array.isArray(data)
     ? data
-        .filter((u) => u.UserDept === 'SPV Production')
-        .map((u) => ({
-          id: u.UserRFID,
-          name: u.UserName,
-          dept: u.UserDept,
-          uap: u.UserUAP,
-        }))
+      .filter((u) => u.UserDept === 'SPV Production')
+      .map((u) => ({
+        id: u.UserRFID,
+        name: u.UserName,
+        dept: u.UserDept,
+        uap: u.UserUAP,
+      }))
     : []
 
   const [openSPVPopup, setOpenSPVPopup] = useState(false)
@@ -637,10 +637,10 @@ export default function CountboardDashboard() {
   const rawCategories = categoryRes as ProblemGroup[] | undefined
   const categories: ProblemGroup[] = Array.isArray(rawCategories)
     ? rawCategories
-        .filter((c) => categoryOrder.includes(c.id))
-        .sort(
-          (a, b) => categoryOrder.indexOf(a.id) - categoryOrder.indexOf(b.id)
-        )
+      .filter((c) => categoryOrder.includes(c.id))
+      .sort(
+        (a, b) => categoryOrder.indexOf(a.id) - categoryOrder.indexOf(b.id)
+      )
     : []
 
   const problemKey = selectedCategoryId
@@ -907,20 +907,20 @@ export default function CountboardDashboard() {
   const from = isLiveMode
     ? shiftStartHour
     : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(
-        6 + (+selectedShift - 1) * 8,
-        0,
-        0,
-        0
-      )
+      6 + (+selectedShift - 1) * 8,
+      0,
+      0,
+      0
+    )
 
   const to = isLiveMode
     ? shiftEndHour // Live mode uses current timestamp
     : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(
-        6 + (+selectedShift - 1) * 8 + 8,
-        0,
-        0,
-        0
-      ) // Set to end of shift
+      6 + (+selectedShift - 1) * 8 + 8,
+      0,
+      0,
+      0
+    ) // Set to end of shift
 
   const {
     data: machines,
@@ -939,18 +939,16 @@ export default function CountboardDashboard() {
   }, [isValidating])
 
   const stateDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state/${
-        selectedMachine.machineName
-      }${
-        !isLiveMode &&
-        new URLSearchParams(window.location.search).get('date') !== null
-          ? `?date=${new URLSearchParams(window.location.search).get(
-              'date'
-            )}&shift=${new URLSearchParams(window.location.search).get(
-              'shift'
-            )}`
-          : ''
-      }`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state/${selectedMachine.machineName
+    }${!isLiveMode &&
+      new URLSearchParams(window.location.search).get('date') !== null
+      ? `?date=${new URLSearchParams(window.location.search).get(
+        'date'
+      )}&shift=${new URLSearchParams(window.location.search).get(
+        'shift'
+      )}`
+      : ''
+    }`
     : null
 
   const { data: stateData } = useSWR<StateData[]>(stateDataKey, fetcher, {
@@ -965,38 +963,38 @@ export default function CountboardDashboard() {
   const ticketRows =
     Array.isArray(stateData) && selectedStateChange
       ? (() => {
-          const sorted = [...stateData].sort(
-            (a, b) =>
-              new Date(a.AdjustedStatusDate).getTime() -
-              new Date(b.AdjustedStatusDate).getTime()
-          )
+        const sorted = [...stateData].sort(
+          (a, b) =>
+            new Date(a.AdjustedStatusDate).getTime() -
+            new Date(b.AdjustedStatusDate).getTime()
+        )
 
-          // 1) cari index state yang diklik
-          const idx = sorted.findIndex((s) => s.ID === selectedStateChange.ID)
-          if (idx === -1) return []
+        // 1) cari index state yang diklik
+        const idx = sorted.findIndex((s) => s.ID === selectedStateChange.ID)
+        if (idx === -1) return []
 
-          const curr = sorted[idx] // ORANGE yang diklik
+        const curr = sorted[idx] // ORANGE yang diklik
 
-          // 2) cari perubahan warna pertama setelahnya yang bukan ORANGE
-          let nextChange: StateData | undefined
-          for (let j = idx + 1; j < sorted.length; j++) {
-            if (sorted[j].Color !== 'ORANGE') {
-              nextChange = sorted[j]
-              break
-            }
+        // 2) cari perubahan warna pertama setelahnya yang bukan ORANGE
+        let nextChange: StateData | undefined
+        for (let j = idx + 1; j < sorted.length; j++) {
+          if (sorted[j].Color !== 'ORANGE') {
+            nextChange = sorted[j]
+            break
           }
+        }
 
-          // 3) tentukan Actual Finish (boleh ke warna apa saja)
-          const to = nextChange ? nextChange.AdjustedStatusDate : null
+        // 3) tentukan Actual Finish (boleh ke warna apa saja)
+        const to = nextChange ? nextChange.AdjustedStatusDate : null
 
-          // 4) kembalikan SATU baris saja
-          return [
-            {
-              from: curr.AdjustedStatusDate,
-              to,
-            },
-          ]
-        })()
+        // 4) kembalikan SATU baris saja
+        return [
+          {
+            from: curr.AdjustedStatusDate,
+            to,
+          },
+        ]
+      })()
       : []
 
   // const ticketRows =
@@ -1522,18 +1520,16 @@ export default function CountboardDashboard() {
   // };
 
   const hourlyDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${
-        selectedMachine.machineName
-      }?type=injection${
-        !isLiveMode &&
-        new URLSearchParams(window.location.search).get('date') !== null
-          ? `&date=${new URLSearchParams(window.location.search).get(
-              'date'
-            )}&shift=${new URLSearchParams(window.location.search).get(
-              'shift'
-            )}`
-          : ''
-      }`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName
+    }?type=injection${!isLiveMode &&
+      new URLSearchParams(window.location.search).get('date') !== null
+      ? `&date=${new URLSearchParams(window.location.search).get(
+        'date'
+      )}&shift=${new URLSearchParams(window.location.search).get(
+        'shift'
+      )}`
+      : ''
+    }`
     : null
 
   const { data: hourlyData } = useSWR<HourlyData[]>(
@@ -1566,18 +1562,16 @@ export default function CountboardDashboard() {
   )
 
   const oeeDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/oee/${
-        selectedMachine.machineName
-      }${
-        !isLiveMode &&
-        new URLSearchParams(window.location.search).get('date') !== null
-          ? `?date=${new URLSearchParams(window.location.search).get(
-              'date'
-            )}&shift=${new URLSearchParams(window.location.search).get(
-              'shift'
-            )}`
-          : ''
-      }`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/oee/${selectedMachine.machineName
+    }${!isLiveMode &&
+      new URLSearchParams(window.location.search).get('date') !== null
+      ? `?date=${new URLSearchParams(window.location.search).get(
+        'date'
+      )}&shift=${new URLSearchParams(window.location.search).get(
+        'shift'
+      )}`
+      : ''
+    }`
     : null
 
   const { data: oeeData } = useSWR<OoeData[]>(oeeDataKey, fetcher, {
@@ -1590,18 +1584,16 @@ export default function CountboardDashboard() {
   const refetchOeeData = () => mutate(oeeDataKey)
 
   const noeeDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${
-        selectedMachine.machineName
-      }${
-        !isLiveMode &&
-        new URLSearchParams(window.location.search).get('date') !== null
-          ? `?date=${new URLSearchParams(window.location.search).get(
-              'date'
-            )}&shift=${new URLSearchParams(window.location.search).get(
-              'shift'
-            )}`
-          : ''
-      }`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${selectedMachine.machineName
+    }${!isLiveMode &&
+      new URLSearchParams(window.location.search).get('date') !== null
+      ? `?date=${new URLSearchParams(window.location.search).get(
+        'date'
+      )}&shift=${new URLSearchParams(window.location.search).get(
+        'shift'
+      )}`
+      : ''
+    }`
     : null
 
   const { data: noeeData } = useSWR<NooeData[]>(noeeDataKey, fetcher, {
@@ -1614,18 +1606,16 @@ export default function CountboardDashboard() {
   const refetchNoeeData = () => mutate(noeeDataKey)
 
   const taskDataKey = selectedMachine?.machineDescription
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tasks/${
-        selectedMachine.machineDescription
-      }${
-        !isLiveMode &&
-        new URLSearchParams(window.location.search).get('date') !== null
-          ? `?date=${new URLSearchParams(window.location.search).get(
-              'date'
-            )}&shift=${new URLSearchParams(window.location.search).get(
-              'shift'
-            )}`
-          : ''
-      }`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tasks/${selectedMachine.machineDescription
+    }${!isLiveMode &&
+      new URLSearchParams(window.location.search).get('date') !== null
+      ? `?date=${new URLSearchParams(window.location.search).get(
+        'date'
+      )}&shift=${new URLSearchParams(window.location.search).get(
+        'shift'
+      )}`
+      : ''
+    }`
     : null
 
   const { data: taskData } = useSWR<TaskData[]>(taskDataKey, fetcher, {
@@ -1674,10 +1664,10 @@ export default function CountboardDashboard() {
 
   const currentMaterial =
     Array.isArray(hourlyData) &&
-    hourlyData &&
-    hourlyData.filter((data) => data?.itemDesc !== null).length > 0
+      hourlyData &&
+      hourlyData.filter((data) => data?.itemDesc !== null).length > 0
       ? hourlyData.filter((data) => data?.itemDesc !== null).slice(-1)[0]
-          .itemDesc
+        .itemDesc
       : selectedPO
         ? `${selectedPO?.materialId} - ${selectedPO?.materialName}`
         : ''
@@ -2261,13 +2251,13 @@ export default function CountboardDashboard() {
         const remainingMinutes = nowDate.getMinutes() * 60
         return (
           total +
-            (itemFromTime < nowTime
-              ? item.target_final * (oeeData?.[0]?.targetTolerance || 1)
-              : Math.floor(
-                  ((item.target_final * (remainingMinutes + remainingSeconds)) /
-                    3600) *
-                    (oeeData?.[0]?.targetTolerance || 1)
-                )) || 0
+          (itemFromTime < nowTime
+            ? item.target_final * (oeeData?.[0]?.targetTolerance || 1)
+            : Math.floor(
+              ((item.target_final * (remainingMinutes + remainingSeconds)) /
+                3600) *
+              (oeeData?.[0]?.targetTolerance || 1)
+            )) || 0
         )
       }, 0)) ||
     0
@@ -2321,9 +2311,8 @@ export default function CountboardDashboard() {
           )
           return activeColor ? (
             <div
-              className={`w-[10px] h-[5px] ${
-                colorMap[activeColor as keyof typeof colorMap]
-              }`}
+              className={`w-[10px] h-[5px] ${colorMap[activeColor as keyof typeof colorMap]
+                }`}
             />
           ) : (
             <div className={`w-[10px] h-[5px] ml-0 bg-none my-0 pt-0 pb-0`} />
@@ -2353,7 +2342,7 @@ export default function CountboardDashboard() {
   }
   const isG2Machine =
     (selectedMachine?.locationName || '').trim().toLowerCase() ===
-      'inj bld g' && String(selectedMachine?.machineNumber || '').trim() === '2'
+    'inj bld g' && String(selectedMachine?.machineNumber || '').trim() === '2'
   const shouldShowZhafirIndicators =
     isG2Machine || Boolean(zhafirAccessStatus?.enabled)
 
@@ -2445,24 +2434,24 @@ export default function CountboardDashboard() {
               <TooltipTrigger asChild>
                 <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base min-w-[390px]">
                   {Array.isArray(hourlyData) &&
-                  hourlyData &&
-                  hourlyData.filter((data) => data?.itemDesc !== null).length >
+                    hourlyData &&
+                    hourlyData.filter((data) => data?.itemDesc !== null).length >
                     0
                     ? hourlyData
-                        .filter((data) => data?.itemDesc !== null)
-                        .slice(-1)[0].itemDesc
+                      .filter((data) => data?.itemDesc !== null)
+                      .slice(-1)[0].itemDesc
                     : 'Material Description'}
                 </Label>
               </TooltipTrigger>
               <TooltipContent>
                 <p className="">
                   {Array.isArray(hourlyData) &&
-                  hourlyData &&
-                  hourlyData.filter((data) => data?.itemDesc !== null).length >
+                    hourlyData &&
+                    hourlyData.filter((data) => data?.itemDesc !== null).length >
                     0
                     ? hourlyData
-                        .filter((data) => data?.itemDesc !== null)
-                        .slice(-1)[0].itemDesc
+                      .filter((data) => data?.itemDesc !== null)
+                      .slice(-1)[0].itemDesc
                     : 'Material Description'}
                 </p>
               </TooltipContent>
@@ -2890,84 +2879,93 @@ export default function CountboardDashboard() {
                   </div>
                 )}
               </div>
-                {shouldShowZhafirIndicators ? (
+              {shouldShowZhafirIndicators ? (
                 <div className="-mt-[1px] flex items-start gap-2 overflow-x-auto pb-1">
                   {ZHAFIR_INDICATORS.map((indicator) => {
-                  const indicatorStatus =
-                    zhafirIndicatorStatusMap?.[indicator.field] ?? {
-                    status: 'unknown',
-                    std: null,
-                    act: null,
-                    min: null,
-                    max: null,
-                    }
+                    const indicatorStatus =
+                      zhafirIndicatorStatusMap?.[indicator.field] ??
+                      ({
+                        status: 'unknown',
+                        std: null,
+                        act: null,
+                        min: null,
+                        max: null,
+                      } as ZhafirIndicatorStatus)
 
-                  const isOutOfRange = indicatorStatus.status === 'out_of_range'
-                  const isInRange = indicatorStatus.status === 'ok'
-                  const usesHighLowCaption =
-                    indicator.field === 'VPTimeText' ||
-                    indicator.field === 'Thickness' ||
-                    indicator.field === 'InjPeakPressure'
-                  let outCaption = 'Out of range'
-                  if (indicator.field === 'VPPositionText' && isOutOfRange) {
-                    outCaption = 'Position Error'
-                  } else if (usesHighLowCaption && isOutOfRange) {
-                    const { act, min, max } = indicatorStatus
-                    if (act != null && min != null && act < min) {
-                    outCaption = 'Too Low'
-                    } else if (act != null && max != null && act > max) {
-                    outCaption = 'Too High'
-                    } else if (
-                    act != null &&
-                    indicatorStatus.std != null &&
-                    act > indicatorStatus.std
-                    ) {
-                    outCaption = 'Too High'
+                    const isOutOfRange =
+                      indicatorStatus.status === 'out_of_range'
+                    const isInRange = indicatorStatus.status === 'ok'
+                    const usesHighLowCaption =
+                      indicator.field === 'VPTimeText' ||
+                      indicator.field === 'Thickness' ||
+                      indicator.field === 'InjPeakPressure'
+                    let outCaption = 'Out of range'
+                    if (indicator.field === 'VPPositionText' && isOutOfRange) {
+                      outCaption = 'Position Error'
+                    } else if (usesHighLowCaption && isOutOfRange) {
+                      const { act, min, max } = indicatorStatus
+                      if (act != null && min != null && act < min) {
+                        outCaption = 'Too Low'
+                      } else if (act != null && max != null && act > max) {
+                        outCaption = 'Too High'
+                      } else if (
+                        act != null &&
+                        indicatorStatus.std != null &&
+                        act > indicatorStatus.std
+                      ) {
+                        outCaption = 'Too High'
+                      }
                     }
-                  }
-                  const caption = isLoadingZhafirIndicators
-                    ? 'Checking...'
-                    : isOutOfRange
-                    ? outCaption
-                    : isInRange
-                      ? 'In range'
-                      : 'Data tidak tersedia'
-
-                  return (
-                    <div
-                    key={indicator.field}
-                    className={`h-[43px] min-w-[160px] shrink-0 rounded-md border px-3 py-1 flex items-center gap-2 ${
-                      isOutOfRange
-                      ? 'animate-alertBlink border-red-500'
-                      : isInRange
-                        ? 'border-emerald-300 bg-emerald-50'
-                        : 'border-gray-300 bg-gray-50'
-                    }`}
-                    >
-                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-white">
-                      {renderIndicatorIcon(indicator.icon)}
-                    </div>
-                    <div className="min-w-0 flex-1 leading-tight">
-                      <div className="truncate text-xs font-semibold uppercase tracking-wide text-gray-600">
-                      {indicator.label}
-                      </div>
-                      <div
-                      className={`truncate text-sm font-semibold ${
-                        isOutOfRange
-                        ? 'text-red-700'
+                    const caption = isLoadingZhafirIndicators
+                      ? 'Checking...'
+                      : isOutOfRange
+                        ? outCaption
                         : isInRange
-                          ? 'text-emerald-700'
-                          : 'text-gray-700'
-                      }`}
+                          ? 'In range'
+                          : 'Data tidak tersedia'
+                    // const detail =
+                    //   indicatorStatus.act != null
+                    //     ? hasRange
+                    //       ? `Act ${formatCompactNumber(indicatorStatus.act)} | Range ${formatCompactNumber(indicatorStatus.min)} - ${formatCompactNumber(indicatorStatus.max)}`
+                    //       : `Act ${formatCompactNumber(indicatorStatus.act)} | Std ${formatCompactNumber(indicatorStatus.std)}`
+                    //     : indicator.label
+
+                    return (
+                      <div
+                        key={indicator.field}
+                        className={`h-[43px] min-w-[160px] shrink-0 rounded-md border px-3 py-1 flex items-center gap-2 ${isOutOfRange
+                            ? 'animate-alertBlink border-red-500'
+                            : isInRange
+                              ? 'border-emerald-300 bg-emerald-50'
+                              : 'border-gray-300 bg-gray-50'
+                          }`}
                       >
-                      {caption}
+                        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-white">
+                          {renderIndicatorIcon(indicator.icon)}
+                        </div>
+                        <div className="min-w-0 flex-1 leading-tight">
+                          <div className="truncate text-xs font-semibold uppercase tracking-wide text-gray-600">
+                            {indicator.label}
+                          </div>
+                          <div
+                            className={`truncate text-sm font-semibold ${isOutOfRange
+                                ? 'text-red-700'
+                                : isInRange
+                                  ? 'text-emerald-700'
+                                  : 'text-gray-700'
+                              }`}
+                          >
+                            {caption}
+                          </div>
+                          {/* <div className="mt-0.5 text-[10px] text-gray-700">
+                            {detail}
+                          </div> */}
+                        </div>
                       </div>
-                    </div>
-                    </div>
-                  )
+                    )
                   })}
                 </div>
-                ) : null}
+              ) : null}
             </div>
           </div>
 
@@ -3004,9 +3002,8 @@ export default function CountboardDashboard() {
 
               <div>
                 <div
-                  className={`text-4xl font-bold ${
-                    totalGap < 0 ? 'text-red-600' : 'text-green-600'
-                  }`}
+                  className={`text-4xl font-bold ${totalGap < 0 ? 'text-red-600' : 'text-green-600'
+                    }`}
                 >
                   {Math.abs(totalGap).toFixed(0)}
                 </div>
@@ -3084,12 +3081,11 @@ export default function CountboardDashboard() {
               </div>
               <div>
                 <div
-                  className={`text-4xl font-bold ${
-                    (oeeData?.[0]?.ooe || 0) * 100.0 >
-                    (oeeData?.[0]?.targetTolerance || 0) * 100.0
+                  className={`text-4xl font-bold ${(oeeData?.[0]?.ooe || 0) * 100.0 >
+                      (oeeData?.[0]?.targetTolerance || 0) * 100.0
                       ? 'text-green-500'
                       : 'text-red-500'
-                  }`}
+                    }`}
                 >
                   {((oeeData?.[0]?.ooe || 0) * 100.0).toFixed(1)}%
                 </div>
@@ -3306,7 +3302,7 @@ export default function CountboardDashboard() {
                           const remainingMinutes = nowDate.getMinutes() * 60
                           const to_datetime = new Date(
                             new Date(row.from_datetime).getTime() -
-                              6 * 60 * 60 * 1000
+                            6 * 60 * 60 * 1000
                           )
                           let textAnimation = 'animate-pulse'
                           var target_show = 0
@@ -3319,7 +3315,7 @@ export default function CountboardDashboard() {
                             )
                             target_show = Math.floor(
                               row.target_final *
-                                (oeeData?.[0]?.targetTolerance || 1)
+                              (oeeData?.[0]?.targetTolerance || 1)
                             )
                             target_show_100 = row.target_final
                             textAnimation = ''
@@ -3334,12 +3330,12 @@ export default function CountboardDashboard() {
                               ((row.target_final *
                                 (remainingMinutes + remainingSeconds)) /
                                 3600) *
-                                (oeeData?.[0]?.targetTolerance || 1)
+                              (oeeData?.[0]?.targetTolerance || 1)
                             )
                             target_show_100 = Math.floor(
                               (row.target_final *
                                 (remainingMinutes + remainingSeconds)) /
-                                3600
+                              3600
                             )
                           }
 
@@ -3349,11 +3345,10 @@ export default function CountboardDashboard() {
                           // }
                           return (
                             <TableRow
-                              className={`h-[56px] ${
-                                index === (hourlyData?.length ?? 0) - 1
+                              className={`h-[56px] ${index === (hourlyData?.length ?? 0) - 1
                                   ? 'border-b border-black'
                                   : ''
-                              }`}
+                                }`}
                               key={row.time}
                             >
                               <TableCell className="h-full text-xl text-nowrap text-black">
@@ -3368,11 +3363,10 @@ export default function CountboardDashboard() {
                                 {target_show}
                               </TableCell>
                               <TableCell
-                                className={`text-center w-[60px] h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0 border-gray-300  ${textAnimation} ${
-                                  row.actual >= target_show
+                                className={`text-center w-[60px] h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0 border-gray-300  ${textAnimation} ${row.actual >= target_show
                                     ? 'text-green-500'
                                     : 'text-red-500'
-                                }`}
+                                  }`}
                               >
                                 {row.actual}
                               </TableCell>
@@ -3412,7 +3406,7 @@ export default function CountboardDashboard() {
                                               style={{
                                                 left: `${Math.min(
                                                   (target_show / maxValue) *
-                                                    100,
+                                                  100,
                                                   100
                                                 )}%`, // Accurate tolerance position
                                               }}
@@ -3422,7 +3416,7 @@ export default function CountboardDashboard() {
                                               style={{
                                                 left: `${Math.min(
                                                   (target_show_100 / maxValue) *
-                                                    100,
+                                                  100,
                                                   100
                                                 )}%`, // Accurate target position
                                               }}
@@ -3441,9 +3435,8 @@ export default function CountboardDashboard() {
                               </Tooltip>
 
                               <TableCell
-                                className={`text-xl text-nowrap  text-black ${
-                                  delta >= 0 ? 'text-green-600' : 'text-red-600'
-                                } border border-r-1 border-b-0 border-l-0 border-gray-300`}
+                                className={`text-xl text-nowrap  text-black ${delta >= 0 ? 'text-green-600' : 'text-red-600'
+                                  } border border-r-1 border-b-0 border-l-0 border-gray-300`}
                               >
                                 {Math.abs(delta).toFixed(0)}
                               </TableCell>
@@ -3587,11 +3580,10 @@ export default function CountboardDashboard() {
                           <TableCell className="w-[250px]"></TableCell>
                           <TableCell className="text-nowrap font-bold text-black">
                             <div
-                              className={`text-xl text-nowrap font-bold ${
-                                totalActual - totalTarget >= 0
+                              className={`text-xl text-nowrap font-bold ${totalActual - totalTarget >= 0
                                   ? 'text-green-600'
                                   : 'text-red-600'
-                              }`}
+                                }`}
                             >
                               {Math.abs(totalActual - totalTarget).toFixed(0)}
                             </div>
@@ -3626,9 +3618,9 @@ export default function CountboardDashboard() {
         </div> */}
           {selectedMachine?.machineName ? (
             stateData != undefined &&
-            stateData.length > 0 &&
-            hourlyData != undefined &&
-            hourlyData.length > 0 ? (
+              stateData.length > 0 &&
+              hourlyData != undefined &&
+              hourlyData.length > 0 ? (
               <div className="w-full  rounded-xl shadow-md border-2 border-gray-250">
                 <ChangeState
                   data={stateData}
@@ -3792,23 +3784,23 @@ export default function CountboardDashboard() {
                             <TableCell>
                               {t.from
                                 ? format(
-                                    new Date(
-                                      new Date(t.from).getTime() -
-                                        7 * 60 * 60 * 1000
-                                    ),
-                                    'dd-MM-yyyy HH:mm:ss'
-                                  )
+                                  new Date(
+                                    new Date(t.from).getTime() -
+                                    7 * 60 * 60 * 1000
+                                  ),
+                                  'dd-MM-yyyy HH:mm:ss'
+                                )
                                 : '-'}
                             </TableCell>
                             <TableCell>
                               {t.to
                                 ? format(
-                                    new Date(
-                                      new Date(t.to).getTime() -
-                                        7 * 60 * 60 * 1000
-                                    ),
-                                    'dd-MM-yyyy HH:mm:ss'
-                                  )
+                                  new Date(
+                                    new Date(t.to).getTime() -
+                                    7 * 60 * 60 * 1000
+                                  ),
+                                  'dd-MM-yyyy HH:mm:ss'
+                                )
                                 : 'Belum selesai (masih ORANGE)'}
                             </TableCell>
                           </TableRow>
@@ -3964,15 +3956,13 @@ export default function CountboardDashboard() {
                           >
                             {selectedAssignTo
                               ? usersOP.find((u) => u.id === selectedAssignTo)
-                                ? `${
-                                    usersOP.find(
-                                      (u) => u.id === selectedAssignTo
-                                    )?.dept
-                                  } - ${
-                                    usersOP.find(
-                                      (u) => u.id === selectedAssignTo
-                                    )?.name
-                                  }`
+                                ? `${usersOP.find(
+                                  (u) => u.id === selectedAssignTo
+                                )?.dept
+                                } - ${usersOP.find(
+                                  (u) => u.id === selectedAssignTo
+                                )?.name
+                                }`
                                 : 'Operator / Mekanik'
                               : 'Operator / Mekanik'}
 
@@ -4028,11 +4018,10 @@ export default function CountboardDashboard() {
                           >
                             {selectedAssignBy
                               ? usersSPV.find((u) => u.id === selectedAssignBy)
-                                ? `${
-                                    usersSPV.find(
-                                      (u) => u.id === selectedAssignBy
-                                    )?.dept
-                                  } - 
+                                ? `${usersSPV.find(
+                                  (u) => u.id === selectedAssignBy
+                                )?.dept
+                                } - 
            ${usersSPV.find((u) => u.id === selectedAssignBy)?.name}`
                                 : 'SPV'
                               : selectedAssignTo
