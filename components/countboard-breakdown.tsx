@@ -11,6 +11,7 @@ import {
   CartesianGrid,
   Cell,
 } from 'recharts'
+import { ArrowUpDown } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -59,8 +60,19 @@ export default function CountboardBreakdown() {
   const location = searchParams.get('location') || ''
   const eskalasiHref = `/countboard/eskalasi`
   const countboardHref = `/countboard?machineNumber=${encodeURIComponent(machineNumber || '')}&location=${encodeURIComponent(location || '')}`
-
-  const ITEMS_PER_PAGE = 10
+  const [sortField, setSortField] = useState<'Location' | 'DuraMin' | null>(
+    null
+  )
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const ITEMS_PER_PAGE = 20
+  const handleSort = (field: 'Location' | 'DuraMin') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
   const fetchData = useCallback(async () => {
     try {
       const lostRes = await fetch(`${API_BASE}/api/countboards/lost-time`)
@@ -130,8 +142,25 @@ export default function CountboardBreakdown() {
     total,
   }))
   // LOST TABLE PAGINATION
-  const lostTotalPages = Math.ceil(lostData.length / ITEMS_PER_PAGE)
-  const lostPaginated = lostData.slice(
+  const sortedLostData = [...lostData].sort((a, b) => {
+    if (!sortField) return 0
+
+    let valueA = a[sortField]
+    let valueB = b[sortField]
+
+    if (sortField === 'Location') {
+      valueA = valueA?.toString().toLowerCase()
+      valueB = valueB?.toString().toLowerCase()
+    }
+
+    if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1
+    if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1
+    return 0
+  })
+
+  const lostTotalPages = Math.ceil(sortedLostData.length / ITEMS_PER_PAGE)
+
+  const lostPaginated = sortedLostData.slice(
     (lostPage - 1) * ITEMS_PER_PAGE,
     lostPage * ITEMS_PER_PAGE
   )
@@ -173,17 +202,34 @@ export default function CountboardBreakdown() {
       <h1 className="text-xl font-semibold">Countboard Breakdown</h1>
       <div className="bg-gradient-to-br from-indigo-50 to-orange-50 shadow-lg rounded-2xl p-6 border border-indigo-100">
         <div className="grid grid-cols-1 lg:grid-cols-[0.5fr_1.7fr_1.7fr] gap-6 items-start">
-          {/* 🔢 BREAKDOWN TOTAL */}
-          <div className="bg-white rounded-2xl p-6 shadow-md border-l-4 border-red-500 hover:shadow-lg transition-shadow">
-            <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">
-              Breakdown
-            </p>
-            <h2 className="text-5xl font-bold text-orange-600 mt-3">
-              {totalBreakdown}
-            </h2>
-            <p className="text-gray-400 text-xs mt-2">Total Lost Time</p>
+          {/* LEFT COLUMN - BREAKDOWN CARDS */}
+          <div className="grid grid-rows-2 gap-6 h-full">
+            {/* 🔢 BREAKDOWN TOTAL */}
+            <div className="bg-white rounded-2xl p-6 shadow-md border-l-4 border-red-500 hover:shadow-lg transition-shadow">
+              <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">
+                Breakdown
+              </p>
+              <h2 className="text-5xl font-bold text-orange-600 mt-3">
+                {totalBreakdown}
+              </h2>
+              <p className="text-gray-400 text-xs mt-2">Total Lost Time</p>
+            </div>
+            {/* 🔢 BREAKDOWN TOTAL */}
+            <div className="bg-white rounded-2xl p-6 shadow-md border-l-4 border-red-500 hover:shadow-lg transition-shadow">
+              <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">
+                Breakdown
+              </p>
+              <h2 className="text-5xl font-bold text-orange-600 mt-3">
+                {
+                  lostData.filter((item) => !item.Problem || !item.ActionPlan)
+                    .length
+                }
+              </h2>
+              <p className="text-gray-400 text-xs mt-2">
+                Missing Problem/Action Plan
+              </p>
+            </div>
           </div>
-
           {/* 📊 PIC SUMMARY */}
           <div className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow border-t-4 border-orange-500">
             <p className="text-sm font-bold text-gray-800 mb-4">
@@ -223,6 +269,17 @@ export default function CountboardBreakdown() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+
+            <div className="flex justify-center gap-6 mt-2 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 bg-red-500 rounded-full" />
+                Mekanik
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 bg-orange-500 rounded-full" />
+                Maintenance / Others
+              </div>
             </div>
           </div>
 
@@ -266,67 +323,131 @@ export default function CountboardBreakdown() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            <div className="flex justify-center gap-6 mt-2 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 bg-blue-500 rounded-full" />
+                Total Tiket per Gedung
+              </div>
+            </div>
           </div>
         </div>
       </div>
       {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-4"></div> */}
-      {/* 📋 TABLE LOST TIME (KIRI) */}
-      <div className="bg-white shadow-md rounded-2xl p-6 border-t-4 border-red-500 hover:shadow-lg transition-shadow">
-        <h2 className="text-lg font-semibold mb-4">Lost Time List</h2>
+      {/* 📋 TABLE LOST TIME */}
+      <div className="bg-white shadow-md rounded-2xl p-4 border-t-4 border-red-500 hover:shadow-lg transition-shadow">
+        <h2 className="text-base font-semibold mb-3">Lost Time List</h2>
+
         <div className="overflow-auto max-h-[600px]">
-          <table className="min-w-full text-xs">
-            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0">
-              <tr>
-                <th className="px-2 py-2">No</th>
-                <th className="px-2 py-2">Location</th>
-                <th className="px-2 py-2">MchID</th>
-                <th className="px-2 py-2">Brand</th>
+          <table className="w-full table-fixed text-xs">
+            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0 z-10">
+              <tr className="text-gray-600">
+                <th className="px-2 py-2 w-[40px]">No</th>
+
+                <th
+                  onClick={() => handleSort('Location')}
+                  className="px-2 py-2 cursor-pointer hover:text-blue-600"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Location
+                    <ArrowUpDown size={12} />
+                    {sortField === 'Location'
+                      ? sortDirection === 'asc'
+                        ? '▲'
+                        : '▼'
+                      : ''}
+                  </div>
+                </th>
+
+                <th className="px-2 py-2 w-[80px]">MchID</th>
+
+                <th className="px-2 py-2 w-[80px]">Brand</th>
+
                 <th className="px-2 py-2">Problem</th>
+
                 <th className="px-2 py-2">Action</th>
-                <th className="px-2 py-2">Ton</th>
-                <th className="px-2 py-2">Duration</th>
+
+                <th className="px-2 py-2 w-[60px]">Ton</th>
+
+                <th
+                  onClick={() => handleSort('DuraMin')}
+                  className="px-2 py-2 cursor-pointer hover:text-blue-600 w-[90px]"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Duration
+                    <ArrowUpDown size={12} />
+                    {sortField === 'DuraMin'
+                      ? sortDirection === 'asc'
+                        ? '▲'
+                        : '▼'
+                      : ''}
+                  </div>
+                </th>
               </tr>
             </thead>
+
             <tbody>
               {lostPaginated.map((item, index) => (
                 <tr
                   key={index}
                   className="text-center hover:bg-gray-50 border-b"
                 >
-                  <td className="p-2 font-medium text-[15px]">
+                  <td className="py-1 font-medium">
                     {(lostPage - 1) * ITEMS_PER_PAGE + index + 1}
                   </td>
-                  <td className="px-2 py-1 text-[15px]">{item.Location}</td>
-                  <td className="px-2 py-1 text-[15px]">{item.MchID}</td>
-                  <td className="px-2 py-1 text-[15px]">{item.Brand}</td>
-                  <td className="px-2 py-1 text-[15px]">{item.Problem}</td>
-                  <td className="px-2 py-1 text-[15px]">{item.ActionPlan}</td>
-                  <td className="px-2 py-1 text-[15px]">{item.MchTon}</td>
-                  <td className="p-2 font-semibold text-[15px] text-red-600">
-                    {(item.DuraMin / 60).toFixed(2)} hrs
+
+                  <td className="py-1">{item.Location}</td>
+
+                  <td className="py-1">{item.MchID}</td>
+
+                  <td className="py-1">{item.Brand}</td>
+
+                  <td className="py-1 truncate max-w-[180px] text-center">
+                    {item.Problem}
+                  </td>
+
+                  <td className="py-1 truncate max-w-[180px] text-center">
+                    {item.ActionPlan}
+                  </td>
+
+                  <td className="py-1">{item.MchTon}</td>
+
+                  <td
+                    className={`py-1 font-semibold
+                    ${
+                      item.DuraMin > 180
+                        ? 'text-red-600'
+                        : item.DuraMin > 60
+                          ? 'text-yellow-600'
+                          : 'text-gray-700'
+                    }`}
+                  >
+                    {(item.DuraMin / 60).toFixed(2)}h
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="flex items-center justify-between mt-4 text-xs">
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-3 text-xs">
             <button
               onClick={() => setLostPage((p) => Math.max(p - 1, 1))}
               disabled={lostPage === 1}
-              className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
             >
               Prev
             </button>
+
             <span className="text-gray-500">
-              Page {lostPage} of {lostTotalPages || 1} | Total:{' '}
-              {lostData.length} items
+              Page {lostPage} / {lostTotalPages || 1} • {lostData.length} items
             </span>
+
             <button
               onClick={() =>
                 setLostPage((p) => Math.min(p + 1, lostTotalPages))
               }
               disabled={lostPage === lostTotalPages || lostTotalPages === 0}
-              className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
             >
               Next
             </button>
@@ -334,56 +455,95 @@ export default function CountboardBreakdown() {
         </div>
       </div>
       {/* 📋 TABLE PROBLEM & ACTION PLAN */}
-      <div className="bg-white shadow-md rounded-2xl p-6 border-t-4 border-orange-500 hover:shadow-lg transition-shadow">
-        <h2 className="text-lg font-semibold mb-4">Problem & Action Plan</h2>
+      <div className="bg-white shadow-md rounded-2xl p-4 border-t-4 border-orange-500 hover:shadow-lg transition-shadow">
+        <h2 className="text-base font-semibold mb-3">Problem & Action Plan</h2>
+
         <div className="overflow-auto max-h-[600px]">
-          <table className="min-w-full text-xs">
-            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0">
-              <tr>
-                <th className="px-2 py-2">No</th>
-                <th className="px-2 py-2">UAP</th>
-                <th className="px-2 py-2">Brand</th>
-                <th className="px-2 py-2">Location</th>
+          <table className="w-full table-fixed text-xs">
+            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0 z-10">
+              <tr className="text-gray-600">
+                <th className="px-2 py-2 w-[40px]">No</th>
+
+                <th className="px-2 py-2 w-[90px]">UAP</th>
+
+                <th className="px-2 py-2 w-[80px]">Brand</th>
+
+                <th className="px-2 py-2 w-[90px]">Location</th>
+
                 <th className="px-2 py-2">Problem</th>
+
                 <th className="px-2 py-2">Action</th>
-                <th className="px-2 py-2">PIC</th>
-                <th className="px-2 py-2">Status</th>
+
+                <th className="px-2 py-2 w-[90px]">PIC</th>
+
+                <th className="px-2 py-2 w-[110px]">Status</th>
               </tr>
             </thead>
+
             <tbody>
               {problemPaginated.map((item, index) => (
                 <tr
                   key={index}
                   className="text-center hover:bg-gray-50 border-b"
                 >
-                  <td className="p-2 font-medium text-[15px]">
+                  <td className="py-1 font-medium">
                     {(problemPage - 1) * ITEMS_PER_PAGE + index + 1}
                   </td>
-                  <td className="px-2 py-1 text-[15px]">{item.UAP}</td>
-                  <td className="px-2 py-1 text-[15px]">{item.Brand}</td>
-                  <td className="px-2 py-1 text-[15px]">{item.Location}</td>
-                  <td className="px-2 py-1 text-[15px]">{item.Problem}</td>
-                  <td className="px-2 py-1 text-[15px]">{item.Action}</td>
-                  <td className="px-2 py-1 font-semibold text-[15px]">
+
+                  <td className="py-1">{item.UAP}</td>
+
+                  <td className="py-1">{item.Brand}</td>
+
+                  <td className="py-1">{item.Location}</td>
+
+                  <td className="py-1 truncate max-w-[200px] text-center ">
+                    {item.Problem}
+                  </td>
+
+                  <td className="py-1 truncate max-w-[200px] text-center ">
+                    {item.Action}
+                  </td>
+
+                  <td className="py-1 font-semibold text-blue-600">
                     {item.pic}
                   </td>
-                  <td className="px-2 py-1 text-[15px]">{item.TicketStatus}</td>
+
+                  <td className="py-1">
+                    <span
+                      className={`px-2 py-[2px] rounded-full text-[11px] font-medium
+                ${
+                  item.TicketStatus?.toLowerCase() === 'open'
+                    ? 'bg-red-100 text-red-600'
+                    : item.TicketStatus?.toLowerCase() === 'progress'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : item.TicketStatus?.toLowerCase() === 'close'
+                        ? 'bg-green-100 text-green-600'
+                        : 'bg-gray-100 text-gray-600'
+                }`}
+                    >
+                      {item.TicketStatus}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="flex items-center justify-between mt-4 text-xs">
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-3 text-xs">
             <button
               onClick={() => setProblemPage((p) => Math.max(p - 1, 1))}
               disabled={problemPage === 1}
-              className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
             >
               Prev
             </button>
+
             <span className="text-gray-500">
-              Page {problemPage} of {problemTotalPages || 1} | Total:{' '}
+              Page {problemPage} / {problemTotalPages || 1} •{' '}
               {problemData.length} items
             </span>
+
             <button
               onClick={() =>
                 setProblemPage((p) => Math.min(p + 1, problemTotalPages))
@@ -391,7 +551,7 @@ export default function CountboardBreakdown() {
               disabled={
                 problemPage === problemTotalPages || problemTotalPages === 0
               }
-              className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40"
             >
               Next
             </button>

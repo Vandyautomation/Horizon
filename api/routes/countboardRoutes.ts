@@ -19,6 +19,7 @@ import {
   updateTicketEskalasi,
   getProblem,
   getLostTime,
+  getLatestMachineStatus,
 } from '../controllers/countboardController'
 //import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
@@ -346,6 +347,17 @@ countboardRoutes.put('/eskalasi', async (c) => {
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500)
   }
+})
+countboardRoutes.get('/machine-status', async (c) => {
+  const mchId = c.req.query('mchId')
+
+  if (!mchId) {
+    return c.json({ error: 'mchId is required' }, 400)
+  }
+
+  const status = await getLatestMachineStatus(mchId)
+
+  return c.json({ statusLight: status })
 })
 countboardRoutes.get('/lost-time', async (c) => {
   try {

@@ -11,7 +11,7 @@ import {
   endOfMonth,
   format,
 } from 'date-fns'
-
+import { Lamp, LoaderCircle, CheckCircle2 } from 'lucide-react'
 import {
   BarChart,
   Bar,
@@ -41,6 +41,7 @@ export default function CountboardEskalasi() {
   const [locationSort, setLocationSort] = useState('asc')
   const [dateSort, setDateSort] = useState('asc')
   const normalize = (val) => val?.toLowerCase().replace(/\s+/g, '')
+  const [machineStatus, setMachineStatus] = useState(null)
   useEffect(() => {
     setTimePage(0)
   }, [range])
@@ -180,7 +181,16 @@ export default function CountboardEskalasi() {
         }
 
         return 0
-      })}, [filteredTickets, timePage, range, mode, locationSort, dateSort, activeSort])
+      })
+  }, [
+    filteredTickets,
+    timePage,
+    range,
+    mode,
+    locationSort,
+    dateSort,
+    activeSort,
+  ])
 
   const pageLabel = useMemo(() => {
     if (!range?.from) return ''
@@ -266,13 +276,22 @@ export default function CountboardEskalasi() {
 
   useEffect(() => {
     if (!selectedTicket) return
-    console.log('Selected Ticket:', selectedTicket)
-    setFormMessage(selectedTicket.Message || '')
 
-    const allowedStatus = ['open', 'on progress', 'close']
-    const statusFromDB = selectedTicket.EskalasiStatus?.toLowerCase()
-
-    setFormStatus(allowedStatus.includes(statusFromDB) ? statusFromDB : 'open')
+    const fetchMachineStatus = async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/countboards/machine-status?mchId=${selectedTicket.MchID}`
+        )
+        const json = await res.json()
+        setMachineStatus(json.statusLight)
+      } catch (err) {
+        console.error(err)
+        setMachineStatus(null)
+      }
+    }
+    console.log('selectedTicket', selectedTicket)
+    console.log('selectedTicket.MchID', selectedTicket.MchID)
+    fetchMachineStatus()
   }, [selectedTicket])
 
   const chartColorMap = {
@@ -619,6 +638,9 @@ export default function CountboardEskalasi() {
                     </button>
                   </div>
                 </th>
+                {deptFilter === 'Mixing' && (
+                  <th className="px-4 py-3">Material Name</th>
+                )}
                 <th className="px-4 py-3">Problem</th>
                 <th className="px-4 py-3">Action Plan</th>
                 <th className="px-4 py-3 w-28">Dept</th>
@@ -631,13 +653,19 @@ export default function CountboardEskalasi() {
             <tbody className="divide-y text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="py-4 text-center">
+                  <td
+                    colSpan={deptFilter === 'Mixing' ? 12 : 11}
+                    className="py-4 text-center"
+                  >
                     Loading...
                   </td>
                 </tr>
               ) : pagedTickets.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-4 text-center">
+                  <td
+                    colSpan={deptFilter === 'Mixing' ? 12 : 11}
+                    className="py-4 text-center"
+                  >
                     Tidak ada data
                   </td>
                 </tr>
@@ -675,15 +703,25 @@ export default function CountboardEskalasi() {
                     <td className="px-3 py-2 whitespace-nowrap">
                       {item.MchLoc || '-'}-{item.MchNumber || '-'}
                     </td>
-
+                    {deptFilter === 'Mixing' && (
+                      <td className="px-3 py-2 max-w-[180px] truncate"
+                      title={item.material_name}>
+                        {item.material_name || '-'}
+                      </td>
+                    )}
                     {/* Problem */}
-                    <td className="px-3 py-2 max-w-[180px] truncate">
+
+                    <td
+                      className="px-3 py-2 max-w-[180px] truncate"
+                      title={item.Problem}
+                    >
                       {item.Problem}
                     </td>
 
                     {/* Action Plan */}
-                    <td className="px-3 py-2 max-w-[180px] truncate">
-                      {item.ActionPlan}
+                    <td className="px-3 py-2 max-w-[180px] truncate"
+                      title={item.ActionPlan}>
+                      {item.ActionPlan || '-'}
                     </td>
 
                     {/* Dept */}
@@ -730,8 +768,20 @@ export default function CountboardEskalasi() {
       {showDialog && selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-xl bg-white p-6">
-            <h3 className="mb-4 text-lg font-semibold">Update Eskalasi</h3>
+            <h3 className="mb-2 text-lg font-semibold">Update Eskalasi</h3>
 
+            {/* 🔥 STATUS LIGHT HEADER */}
+            {machineStatus && (
+              <div
+                className={`mb-4 rounded-lg px-3 py-2 text-sm font-medium ${
+                  machineStatus.toLowerCase() === 'orange'
+                    ? 'border border-orange-500 bg-orange-100 text-orange-700'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                Status Mesin: {machineStatus.toUpperCase()}
+              </div>
+            )}
             <div className="space-y-3">
               <textarea
                 value={formMessage}
@@ -748,7 +798,12 @@ export default function CountboardEskalasi() {
               >
                 <option value="open">Open</option>
                 <option value="on progress">On Progress</option>
-                <option value="close">Close</option>
+                <option
+                  value="close"
+                  disabled={machineStatus?.toLowerCase() === 'orange'}
+                >
+                  Close
+                </option>
               </select>
             </div>
 
@@ -761,7 +816,16 @@ export default function CountboardEskalasi() {
               </button>
               <button
                 onClick={handleSave}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white"
+                disabled={
+                  formStatus === 'close' &&
+                  machineStatus?.toLowerCase() === 'orange'
+                }
+                className={`rounded-lg px-4 py-2 text-sm text-white ${
+                  formStatus === 'close' &&
+                  machineStatus?.toLowerCase() === 'orange'
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600'
+                }`}
               >
                 Save
               </button>
