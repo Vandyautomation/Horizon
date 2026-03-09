@@ -20,6 +20,8 @@ import {
   updateHardcodedStdField,
   upsertZhafirStd,
   upsertZhafirSectionStyle,
+  getSettingPamzhafir,
+  createSettingPamzhafir,
 } from '../controllers/zhafirController';
 import { queryDatabase } from '../utils/queryDatabase';
 
@@ -500,4 +502,26 @@ zhafirRoutes.post('/manual-bulk', async (c) => {
   }
 });
 
+
+zhafirRoutes.get('/Pamzhafir', async (c) => {
+  try {
+    const data = await getSettingPamzhafir()
+    return c.json(data)
+  } catch (error) {
+    console.error('Error fetching Pamzhafir settings:', error)
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
+zhafirRoutes.post('/Pamzhafir', async (c) => {
+  try {
+    const body = await c.req.json()
+
+    await createSettingPamzhafir(body)
+
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('Error creating Pamzhafir:', error)
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
 export default zhafirRoutes;

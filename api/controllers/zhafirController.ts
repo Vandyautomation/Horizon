@@ -1,20 +1,164 @@
-import { queryDatabase } from '../utils/queryDatabase';
+import { queryDatabase } from '../utils/queryDatabase'
+export async function getSettingPamzhafir() {
+  const sqlQuery = `
+    select * from dbo.MachineParameterSettingSTD
+  `
+
+  return await queryDatabase(sqlQuery)
+}
+export async function createSettingPamzhafir(data: {
+  machineId: number
+  material_Id: string
+  material_name: string
+  cavity: number
+  paramset: any
+}) {
+
+  const sqlQuery = `
+    INSERT INTO dbo.MachineParameterSettingSTD
+    (machineId, material_Id, material_name, cavity, paramset)
+    VALUES
+    (@machineId, @material_Id, @material_name, @cavity, @paramset)
+  `
+
+  return await queryDatabase(sqlQuery, {
+    machineId: data.machineId,
+    material_Id: data.material_Id,
+    material_name: data.material_name,
+    cavity: data.cavity,
+
+    // JSON disimpan sebagai string
+    paramset: JSON.stringify(data.paramset)
+  })
+}
 
 const ZHAFIR_SECTIONS = {
-  inject: ['Inject1Press', 'Inject1To', 'Inject1Velo', 'Inject2Press', 'Inject2To', 'Inject2Velo', 'Inject3Press', 'Inject3To', 'Inject3Velo', 'Inject4Press', 'Inject4Velo', 'InjectScrewPosition', 'InjectTime', 'InjectionPressure', 'InjPeakPressure', 'InjectSEPosition', 'InjectS1Speed', 'InjectSBPosition', 'InjectSBSpeed', 'InjectSBPressure'],
-  holding: ['Hold1Press', 'Hold1To', 'Hold1Velo', 'Hold2Press', 'Hold2To', 'Hold2Velo', 'Hold3Press', 'Hold3To', 'Hold3Velo'],
-  charging: ['Plasticise1To', 'Plasticise1Velo', 'Plasticise1Press', 'AfterPlasticisePress', 'AfterPlasticiseTime', 'AfterPlasticiseVelo', 'Plasticise1BackPress', 'Plasticise2To', 'Plasticise2Velo', 'Plasticise2Press', 'AfterPlasticisePosition', 'AfterPlasticiseSpeed', 'AfterPlasticiseBackPress'],
-  clamp_mold: ['Close1Press', 'Close1To', 'Close1Velo', 'Close2Press', 'Close2To', 'Close2Velo', 'ProtectPress', 'ProtectTo', 'ProtectVelo', 'HiPressPress', 'HiPressVelo', 'MoldProtectionTime', 'Open1Press', 'Open1To', 'Open1Velo', 'Open2Press', 'Open2To', 'Open2Velo', 'Open3Press', 'Open3To', 'Open3Velo', 'Open4Press', 'Open4To', 'Open4Velo', 'Close0To', 'Close0Velo', 'CloseLPTo', 'CloseLPVelo', 'CloseHPTo', 'CloseHPVelo', 'CloseSETo', 'CloseSEVelo', 'OpenS5To', 'OpenS5Velo', 'OpenS4To', 'OpenS4Velo'],
+  inject: [
+    'Inject1Press',
+    'Inject1To',
+    'Inject1Velo',
+    'Inject2Press',
+    'Inject2To',
+    'Inject2Velo',
+    'Inject3Press',
+    'Inject3To',
+    'Inject3Velo',
+    'Inject4Press',
+    'Inject4Velo',
+    'InjectScrewPosition',
+    'InjectTime',
+    'InjectionPressure',
+    'InjPeakPressure',
+    'InjectSEPosition',
+    'InjectS1Speed',
+    'InjectSBPosition',
+    'InjectSBSpeed',
+    'InjectSBPressure',
+  ],
+  holding: [
+    'Hold1Press',
+    'Hold1To',
+    'Hold1Velo',
+    'Hold2Press',
+    'Hold2To',
+    'Hold2Velo',
+    'Hold3Press',
+    'Hold3To',
+    'Hold3Velo',
+  ],
+  charging: [
+    'Plasticise1To',
+    'Plasticise1Velo',
+    'Plasticise1Press',
+    'AfterPlasticisePress',
+    'AfterPlasticiseTime',
+    'AfterPlasticiseVelo',
+    'Plasticise1BackPress',
+    'Plasticise2To',
+    'Plasticise2Velo',
+    'Plasticise2Press',
+    'AfterPlasticisePosition',
+    'AfterPlasticiseSpeed',
+    'AfterPlasticiseBackPress',
+  ],
+  clamp_mold: [
+    'Close1Press',
+    'Close1To',
+    'Close1Velo',
+    'Close2Press',
+    'Close2To',
+    'Close2Velo',
+    'ProtectPress',
+    'ProtectTo',
+    'ProtectVelo',
+    'HiPressPress',
+    'HiPressVelo',
+    'MoldProtectionTime',
+    'Open1Press',
+    'Open1To',
+    'Open1Velo',
+    'Open2Press',
+    'Open2To',
+    'Open2Velo',
+    'Open3Press',
+    'Open3To',
+    'Open3Velo',
+    'Open4Press',
+    'Open4To',
+    'Open4Velo',
+    'Close0To',
+    'Close0Velo',
+    'CloseLPTo',
+    'CloseLPVelo',
+    'CloseHPTo',
+    'CloseHPVelo',
+    'CloseSETo',
+    'CloseSEVelo',
+    'OpenS5To',
+    'OpenS5Velo',
+    'OpenS4To',
+    'OpenS4Velo',
+  ],
   temperature: [
     'Nozzle',
-    'Barrel1', 'Barrel2', 'Barrel3', 'Barrel4', 'Barrel5', 'Barrel6',
-    'Temperature_Real_Zone1', 'Temperature_Real_Zone2', 'Temperature_Real_Zone3',
-    'Temperature_Real_Zone4', 'Temperature_Real_Zone5', 'Temperature_Real_Zone6',
-    'Temperature_Set_Zone1', 'Temperature_Set_Zone2', 'Temperature_Set_Zone3',
-    'Temperature_Set_Zone4', 'Temperature_Set_Zone5', 'Temperature_Set_Zone6',
-    'HopperReal', 'HopperSet', 'HopperMax', 'HopperMin',
+    'Barrel1',
+    'Barrel2',
+    'Barrel3',
+    'Barrel4',
+    'Barrel5',
+    'Barrel6',
+    'Temperature_Real_Zone1',
+    'Temperature_Real_Zone2',
+    'Temperature_Real_Zone3',
+    'Temperature_Real_Zone4',
+    'Temperature_Real_Zone5',
+    'Temperature_Real_Zone6',
+    'Temperature_Set_Zone1',
+    'Temperature_Set_Zone2',
+    'Temperature_Set_Zone3',
+    'Temperature_Set_Zone4',
+    'Temperature_Set_Zone5',
+    'Temperature_Set_Zone6',
+    'HopperReal',
+    'HopperSet',
+    'HopperMax',
+    'HopperMin',
   ],
-  ejector_core: ['EjectorMode', 'Forward1Press', 'Forward1To', 'Forward1Velo', 'Forward2Press', 'Forward2To', 'Forward2Velo', 'Backward1Press', 'Backward1To', 'Backward1Velo', 'Backward2Press', 'Backward2To', 'Backward2Velo'],
+  ejector_core: [
+    'EjectorMode',
+    'Forward1Press',
+    'Forward1To',
+    'Forward1Velo',
+    'Forward2Press',
+    'Forward2To',
+    'Forward2Velo',
+    'Backward1Press',
+    'Backward1To',
+    'Backward1Velo',
+    'Backward2Press',
+    'Backward2To',
+    'Backward2Velo',
+  ],
   core_a: [
     'Core_In_Mode_A',
     'Core_Out_Mode_A',
@@ -72,24 +216,28 @@ const ZHAFIR_SECTIONS = {
     'CoreD_Out_Flow',
   ],
   cushion_vp: ['Thickness', 'CycleTime', 'Tonase', 'CoolingTime', 'Cavity'],
-  air_blow: ['AirBlowStart', 'AirBlowDelay', 'AirBlowTime', 'AirBlowCount', 'AirBlowStarPost', 'AirBlowMaleFemale'],
+  air_blow: [
+    'AirBlowStart',
+    'AirBlowDelay',
+    'AirBlowTime',
+    'AirBlowCount',
+    'AirBlowStarPost',
+    'AirBlowMaleFemale',
+  ],
   vp_text: ['VPPositionText', 'VPTimeText', 'VPPosnText', 'CarriageBwd_SE'],
   berat_unit: Array.from({ length: 16 }, (_, i) => `BeratUnit${i + 1}`),
   heater_control: Array.from({ length: 14 }, (_, i) => `HeaterControl${i + 1}`),
-} as const;
+} as const
 
-type ZhafirSectionKey = keyof typeof ZHAFIR_SECTIONS;
+type ZhafirSectionKey = keyof typeof ZHAFIR_SECTIONS
 
-const ZHAFIR_META_FIELDS = ['MchID', 'MoldID'] as const;
+const ZHAFIR_META_FIELDS = ['MchID', 'MoldID'] as const
 const ZHAFIR_ALL_COLUMNS = Array.from(
-  new Set([
-    ...Object.values(ZHAFIR_SECTIONS).flat(),
-    ...ZHAFIR_META_FIELDS,
-  ]),
-);
+  new Set([...Object.values(ZHAFIR_SECTIONS).flat(), ...ZHAFIR_META_FIELDS])
+)
 const ZHAFIR_VALUE_FIELDS = ZHAFIR_ALL_COLUMNS.filter(
-  (col) => !(ZHAFIR_META_FIELDS as readonly string[]).includes(col as any),
-);
+  (col) => !(ZHAFIR_META_FIELDS as readonly string[]).includes(col as any)
+)
 
 const STRING_VALUE_FIELDS = new Set([
   'AirBlowStart',
@@ -97,7 +245,7 @@ const STRING_VALUE_FIELDS = new Set([
   'VPTimeText',
   'VPPosnText',
   'AirBlowMaleFemale',
-]);
+])
 const RANGE_TRACKED_FIELDS = new Set([
   'InjectScrewPosition',
   'InjPeakPressure',
@@ -105,7 +253,7 @@ const RANGE_TRACKED_FIELDS = new Set([
   'VPPositionText',
   'Thickness',
   'CarriageBwd_SE',
-]);
+])
 const SUMMARY_RANGE_PARAMETER_MAP: Record<
   string,
   { minName: string; maxName: string }
@@ -130,34 +278,34 @@ const SUMMARY_RANGE_PARAMETER_MAP: Record<
     minName: 'min_Cushion',
     maxName: 'max_Cushion',
   },
-};
+}
 
-const ALLOWED_HARD_CODED_ACT_FIELDS = new Set(ZHAFIR_VALUE_FIELDS);
-const MACHINE_STD_TABLE = 'IoT.dbo.MachineParameterSettingSTD';
-const MACHINE_TRX_TABLE = 'IoT.dbo.MachineParameterSettingTRX';
-const PARAMETER_SETTING_TABLE = 'IoT.dbo.parameter_setting';
-const ZHAFIR_STYLE_PARAMETER_ID = 16;
-const ZHAFIR_STYLE_PARAMETER_NAME = 'colorParameter';
-const PARASET_TRX_TABLE = 'ParaSetTRX';
-let paraSetTrxColumnsCache: Set<string> | null = null;
-const zhafirManualChangeAt = new Map<string, number>();
+const ALLOWED_HARD_CODED_ACT_FIELDS = new Set(ZHAFIR_VALUE_FIELDS)
+const MACHINE_STD_TABLE = 'IoT.dbo.MachineParameterSettingSTD'
+const MACHINE_TRX_TABLE = 'IoT.dbo.MachineParameterSettingTRX'
+const PARAMETER_SETTING_TABLE = 'IoT.dbo.parameter_setting'
+const ZHAFIR_STYLE_PARAMETER_ID = 16
+const ZHAFIR_STYLE_PARAMETER_NAME = 'colorParameter'
+const PARASET_TRX_TABLE = 'ParaSetTRX'
+let paraSetTrxColumnsCache: Set<string> | null = null
+const zhafirManualChangeAt = new Map<string, number>()
 
 function markZhafirManualChange(machineId?: string | null) {
-  const key = (machineId || '').trim();
-  if (!key) return;
-  zhafirManualChangeAt.set(key, Date.now());
+  const key = (machineId || '').trim()
+  if (!key) return
+  zhafirManualChangeAt.set(key, Date.now())
 }
 
 function hasRecentManualChange(machineId: string, windowMs = 60 * 60 * 1000) {
-  const ts = zhafirManualChangeAt.get(machineId);
-  if (!ts) return false;
-  return Date.now() - ts < windowMs;
+  const ts = zhafirManualChangeAt.get(machineId)
+  if (!ts) return false
+  return Date.now() - ts < windowMs
 }
 
 export async function getZhafirMaterialContext(poName: string) {
-  const trimmedPo = (poName || '').trim();
+  const trimmedPo = (poName || '').trim()
   if (!trimmedPo) {
-    throw new Error('po is required');
+    throw new Error('po is required')
   }
 
   const sqlQuery = `
@@ -165,9 +313,9 @@ export async function getZhafirMaterialContext(poName: string) {
     FROM IoT.dbo.coois
     WHERE po_name = @PoName
     ORDER BY id DESC
-  `;
-  const rows = await queryDatabase(sqlQuery, { PoName: trimmedPo });
-  const row = rows?.[0] as Record<string, unknown> | undefined;
+  `
+  const rows = await queryDatabase(sqlQuery, { PoName: trimmedPo })
+  const row = rows?.[0] as Record<string, unknown> | undefined
 
   if (!row) {
     return {
@@ -176,12 +324,12 @@ export async function getZhafirMaterialContext(poName: string) {
       materialName: null,
       materialType: null,
       found: false,
-    };
+    }
   }
 
-  const materialId = row.material_id ? String(row.material_id) : null;
-  const materialName = row.material_name ? String(row.material_name) : null;
-  const materialType = row.type ? String(row.type) : null;
+  const materialId = row.material_id ? String(row.material_id) : null
+  const materialName = row.material_name ? String(row.material_name) : null
+  const materialType = row.type ? String(row.type) : null
 
   return {
     po: trimmedPo,
@@ -189,13 +337,13 @@ export async function getZhafirMaterialContext(poName: string) {
     materialName,
     materialType,
     found: true,
-  };
+  }
 }
 
 export async function getZhafirMaterialContextByMaterialId(materialId: string) {
-  const trimmedMaterialId = (materialId || '').trim();
+  const trimmedMaterialId = (materialId || '').trim()
   if (!trimmedMaterialId) {
-    throw new Error('material_id is required');
+    throw new Error('material_id is required')
   }
 
   const routingRows = await queryDatabase(
@@ -212,9 +360,9 @@ export async function getZhafirMaterialContextByMaterialId(materialId: string) {
         COALESCE(modified_at, created_at) DESC,
         id DESC
     `,
-    { MaterialId: trimmedMaterialId },
-  );
-  const routingRow = routingRows?.[0] as Record<string, unknown> | undefined;
+    { MaterialId: trimmedMaterialId }
+  )
+  const routingRow = routingRows?.[0] as Record<string, unknown> | undefined
 
   if (!routingRow) {
     return {
@@ -223,7 +371,7 @@ export async function getZhafirMaterialContextByMaterialId(materialId: string) {
       materialName: null,
       materialType: null,
       found: false,
-    };
+    }
   }
 
   const cooisRows = await queryDatabase(
@@ -240,20 +388,20 @@ export async function getZhafirMaterialContextByMaterialId(materialId: string) {
         COALESCE(modified_at, uploaded_at, created_at) DESC,
         id DESC
     `,
-    { MaterialId: trimmedMaterialId },
-  );
-  const cooisRow = cooisRows?.[0] as Record<string, unknown> | undefined;
+    { MaterialId: trimmedMaterialId }
+  )
+  const cooisRow = cooisRows?.[0] as Record<string, unknown> | undefined
 
-  const po = cooisRow?.po_name ? String(cooisRow.po_name) : null;
+  const po = cooisRow?.po_name ? String(cooisRow.po_name) : null
   const resolvedMaterialId = routingRow.material_id
     ? String(routingRow.material_id)
-    : trimmedMaterialId;
+    : trimmedMaterialId
   const materialName = routingRow.material_name
     ? String(routingRow.material_name)
-    : null;
+    : null
   const materialType = routingRow.materialtype
     ? String(routingRow.materialtype)
-    : null;
+    : null
 
   return {
     po,
@@ -261,79 +409,84 @@ export async function getZhafirMaterialContextByMaterialId(materialId: string) {
     materialName,
     materialType,
     found: true,
-  };
+  }
 }
 
 export async function getZhafirSummaryRangeConfig(uom = 'HAITIAN') {
-  const normalizedUom = (uom || 'HAITIAN').trim();
+  const normalizedUom = (uom || 'HAITIAN').trim()
   const parameterNames = Array.from(
     new Set(
       Object.values(SUMMARY_RANGE_PARAMETER_MAP).flatMap((item) => [
         item.minName,
         item.maxName,
-      ]),
-    ),
-  );
+      ])
+    )
+  )
 
-  const params: Record<string, unknown> = { Uom: normalizedUom };
+  const params: Record<string, unknown> = { Uom: normalizedUom }
   const placeholders = parameterNames.map((name, idx) => {
-    const key = `Name${idx + 1}`;
-    params[key] = name;
-    return `@${key}`;
-  });
+    const key = `Name${idx + 1}`
+    params[key] = name
+    return `@${key}`
+  })
 
   const sqlQuery = `
     SELECT name, value
     FROM IoT.dbo.parameter_setting
     WHERE UPPER(LTRIM(RTRIM(uom))) = UPPER(@Uom)
       AND name IN (${placeholders.join(', ')})
-  `;
-  const rows = await queryDatabase(sqlQuery, params);
-  const valueMap: Record<string, number | null> = {};
+  `
+  const rows = await queryDatabase(sqlQuery, params)
+  const valueMap: Record<string, number | null> = {}
 
   for (const row of rows || []) {
-    const key = String((row as any).name || '').trim().toLowerCase();
-    if (!key) continue;
-    const num = Number((row as any).value);
-    valueMap[key] = Number.isFinite(num) ? num : null;
+    const key = String((row as any).name || '')
+      .trim()
+      .toLowerCase()
+    if (!key) continue
+    const num = Number((row as any).value)
+    valueMap[key] = Number.isFinite(num) ? num : null
   }
 
   const rules: Record<
     string,
     {
-      min: number | null;
-      max: number | null;
-      minName: string;
-      maxName: string;
+      min: number | null
+      max: number | null
+      minName: string
+      maxName: string
     }
-  > = {};
+  > = {}
 
   Object.entries(SUMMARY_RANGE_PARAMETER_MAP).forEach(([fieldKey, names]) => {
-    const minValue = valueMap[names.minName.toLowerCase()] ?? null;
-    const maxValue = valueMap[names.maxName.toLowerCase()] ?? null;
+    const minValue = valueMap[names.minName.toLowerCase()] ?? null
+    const maxValue = valueMap[names.maxName.toLowerCase()] ?? null
     rules[fieldKey] = {
       min: minValue,
       max: maxValue,
       minName: names.minName,
       maxName: names.maxName,
-    };
-  });
+    }
+  })
 
   return {
     uom: normalizedUom,
     rules,
-  };
+  }
 }
 
-export async function updateLatestTrxMaterialByMachine(machineId: string, materialType: string) {
-  const resolvedMachineId = (machineId || '').trim();
-  const resolvedMaterial = (materialType || '').trim();
+export async function updateLatestTrxMaterialByMachine(
+  machineId: string,
+  materialType: string
+) {
+  const resolvedMachineId = (machineId || '').trim()
+  const resolvedMaterial = (materialType || '').trim()
 
   if (!resolvedMachineId) {
-    throw new Error('machine_id is required');
+    throw new Error('machine_id is required')
   }
   if (!resolvedMaterial) {
-    throw new Error('material type is required');
+    throw new Error('material type is required')
   }
 
   const latestRows = await queryDatabase(
@@ -343,16 +496,16 @@ export async function updateLatestTrxMaterialByMachine(machineId: string, materi
       WHERE machineId = @MachineID
       ORDER BY id DESC
     `,
-    { MachineID: resolvedMachineId },
-  );
+    { MachineID: resolvedMachineId }
+  )
 
-  const latestId = latestRows?.[0]?.id;
+  const latestId = latestRows?.[0]?.id
   if (!latestId) {
     return {
       machineId: resolvedMachineId,
       updated: false,
       message: 'No MachineParameterSettingTRX row found for this machine',
-    };
+    }
   }
 
   await queryDatabase(
@@ -361,9 +514,9 @@ export async function updateLatestTrxMaterialByMachine(machineId: string, materi
       SET material = @Material
       WHERE id = @Id
     `,
-    { Id: latestId, Material: resolvedMaterial },
-  );
-  markZhafirManualChange(resolvedMachineId);
+    { Id: latestId, Material: resolvedMaterial }
+  )
+  markZhafirManualChange(resolvedMachineId)
 
   return {
     machineId: resolvedMachineId,
@@ -371,12 +524,12 @@ export async function updateLatestTrxMaterialByMachine(machineId: string, materi
     id: latestId,
     material: resolvedMaterial,
     message: 'Material updated on latest trx row',
-  };
+  }
 }
 export async function getZhafirMaterialTypeFromRouting(materialId: string) {
-  const resolvedMaterialId = (materialId || '').trim();
+  const resolvedMaterialId = (materialId || '').trim()
   if (!resolvedMaterialId) {
-    throw new Error('material_id is required');
+    throw new Error('material_id is required')
   }
 
   const rows = await queryDatabase(
@@ -386,29 +539,29 @@ export async function getZhafirMaterialTypeFromRouting(materialId: string) {
       WHERE material_id = @MaterialId
       ORDER BY created_at DESC, id DESC
     `,
-    { MaterialId: resolvedMaterialId },
-  );
+    { MaterialId: resolvedMaterialId }
+  )
 
-  const row = rows?.[0] as Record<string, unknown> | undefined;
-  const materialType = row?.materialtype ? String(row.materialtype) : null;
+  const row = rows?.[0] as Record<string, unknown> | undefined
+  const materialType = row?.materialtype ? String(row.materialtype) : null
 
   return {
     materialId: resolvedMaterialId,
     materialType,
-  };
+  }
 }
 
 export async function updateRoutingMaterialTypeByMaterialId(
   materialId: string,
-  materialType: string,
+  materialType: string
 ) {
-  const resolvedMaterialId = (materialId || '').trim();
-  const resolvedMaterialType = (materialType || '').trim();
+  const resolvedMaterialId = (materialId || '').trim()
+  const resolvedMaterialType = (materialType || '').trim()
   if (!resolvedMaterialId) {
-    throw new Error('material_id is required');
+    throw new Error('material_id is required')
   }
   if (!resolvedMaterialType) {
-    throw new Error('materialType is required');
+    throw new Error('materialType is required')
   }
 
   await queryDatabase(
@@ -422,14 +575,14 @@ export async function updateRoutingMaterialTypeByMaterialId(
     {
       MaterialId: resolvedMaterialId,
       MaterialType: resolvedMaterialType,
-    },
-  );
+    }
+  )
 
   return {
     materialId: resolvedMaterialId,
     materialType: resolvedMaterialType,
     updated: true,
-  };
+  }
 }
 async function syncHourlyTrxMaterialFromLatestValue() {
   const machines = await queryDatabase(
@@ -437,12 +590,12 @@ async function syncHourlyTrxMaterialFromLatestValue() {
       SELECT DISTINCT machineId
       FROM ${MACHINE_TRX_TABLE}
       WHERE machineId IS NOT NULL AND LTRIM(RTRIM(machineId)) <> ''
-    `,
-  );
+    `
+  )
 
   for (const row of machines || []) {
-    const machineId = String((row as any).machineId || '').trim();
-    if (!machineId) continue;
+    const machineId = String((row as any).machineId || '').trim()
+    if (!machineId) continue
 
     const latestCurrentHourRows = await queryDatabase(
       `
@@ -452,18 +605,24 @@ async function syncHourlyTrxMaterialFromLatestValue() {
           AND created_at >= DATEADD(HOUR, DATEDIFF(HOUR, 0, GETDATE()), 0)
         ORDER BY created_at DESC, id DESC
       `,
-      { MachineID: machineId },
-    );
-    const target = latestCurrentHourRows?.[0] as Record<string, unknown> | undefined;
-    const targetId = target?.id ? Number(target.id) : null;
-    if (!targetId) continue;
+      { MachineID: machineId }
+    )
+    const target = latestCurrentHourRows?.[0] as
+      | Record<string, unknown>
+      | undefined
+    const targetId = target?.id ? Number(target.id) : null
+    if (!targetId) continue
 
-    const targetMaterial = target?.material ? String(target.material).trim() : '';
-    if (targetMaterial) continue;
+    const targetMaterial = target?.material
+      ? String(target.material).trim()
+      : ''
+    if (targetMaterial) continue
 
-    const targetCreatedAt = target?.created_at ? new Date(String(target.created_at)).getTime() : NaN;
-    if (!Number.isFinite(targetCreatedAt)) continue;
-    if (Date.now() - targetCreatedAt < 2 * 60 * 1000) continue;
+    const targetCreatedAt = target?.created_at
+      ? new Date(String(target.created_at)).getTime()
+      : NaN
+    if (!Number.isFinite(targetCreatedAt)) continue
+    if (Date.now() - targetCreatedAt < 2 * 60 * 1000) continue
 
     const sourceRows = await queryDatabase(
       `
@@ -475,10 +634,12 @@ async function syncHourlyTrxMaterialFromLatestValue() {
           AND LTRIM(RTRIM(CONVERT(NVARCHAR(255), material))) <> ''
         ORDER BY created_at DESC, id DESC
       `,
-      { MachineID: machineId, TargetID: targetId },
-    );
-    const sourceMaterial = sourceRows?.[0]?.material ? String(sourceRows[0].material).trim() : '';
-    if (!sourceMaterial) continue;
+      { MachineID: machineId, TargetID: targetId }
+    )
+    const sourceMaterial = sourceRows?.[0]?.material
+      ? String(sourceRows[0].material).trim()
+      : ''
+    if (!sourceMaterial) continue
 
     await queryDatabase(
       `
@@ -486,24 +647,24 @@ async function syncHourlyTrxMaterialFromLatestValue() {
         SET material = @Material
         WHERE id = @TargetID
       `,
-      { TargetID: targetId, Material: sourceMaterial },
-    );
+      { TargetID: targetId, Material: sourceMaterial }
+    )
   }
 }
 
 async function runZhafirHourlyCarryForward() {
   try {
-    await syncHourlyTrxMaterialFromLatestValue();
+    await syncHourlyTrxMaterialFromLatestValue()
   } catch (error) {
-    console.error('Failed running zhafir material auto-sync:', error);
+    console.error('Failed running zhafir material auto-sync:', error)
   }
 }
 
-let zhafirHourlyTimer: ReturnType<typeof setInterval> | null = null;
+let zhafirHourlyTimer: ReturnType<typeof setInterval> | null = null
 export function startZhafirHourlyCarryForwardScheduler() {
-  if (zhafirHourlyTimer) return;
-  runZhafirHourlyCarryForward();
-  zhafirHourlyTimer = setInterval(runZhafirHourlyCarryForward, 60 * 1000);
+  if (zhafirHourlyTimer) return
+  runZhafirHourlyCarryForward()
+  zhafirHourlyTimer = setInterval(runZhafirHourlyCarryForward, 60 * 1000)
 }
 
 async function getZhafirStyleParameterRow() {
@@ -514,13 +675,13 @@ async function getZhafirStyleParameterRow() {
       WHERE id = @Id OR name = @Name
       ORDER BY CASE WHEN id = @Id THEN 0 ELSE 1 END, id ASC
     `,
-    { Id: ZHAFIR_STYLE_PARAMETER_ID, Name: ZHAFIR_STYLE_PARAMETER_NAME },
-  );
-  return rows?.[0] as Record<string, unknown> | undefined;
+    { Id: ZHAFIR_STYLE_PARAMETER_ID, Name: ZHAFIR_STYLE_PARAMETER_NAME }
+  )
+  return rows?.[0] as Record<string, unknown> | undefined
 }
 
 function resolveColorNameFromHex(hex: string) {
-  const normalized = (hex || '').trim().toUpperCase();
+  const normalized = (hex || '').trim().toUpperCase()
   const known: Record<string, string> = {
     '#F3F4F6': 'gray',
     '#DBEAFE': 'blue',
@@ -536,16 +697,16 @@ function resolveColorNameFromHex(hex: string) {
     '#111827': 'charcoal',
     '#FFFFFF': 'white',
     '#000000': 'black',
-  };
-  return known[normalized] || 'custom';
+  }
+  return known[normalized] || 'custom'
 }
 
 export async function getZhafirSectionStyles(machineId: string) {
-  const resolvedMachineId = (machineId || '').trim();
+  const resolvedMachineId = (machineId || '').trim()
   if (!resolvedMachineId) {
-    throw new Error('machine_id is required');
+    throw new Error('machine_id is required')
   }
-  const row = await getZhafirStyleParameterRow();
+  const row = await getZhafirStyleParameterRow()
   if (!row) {
     return {
       machineId: resolvedMachineId,
@@ -554,28 +715,27 @@ export async function getZhafirSectionStyles(machineId: string) {
         id: ZHAFIR_STYLE_PARAMETER_ID,
         name: ZHAFIR_STYLE_PARAMETER_NAME,
       },
-    };
+    }
   }
 
-  const hexRaw = row.hexacolor ? String(row.hexacolor).trim() : '';
-  const fallbackHex = row.color ? String(row.color).trim() : '';
+  const hexRaw = row.hexacolor ? String(row.hexacolor).trim() : ''
+  const fallbackHex = row.color ? String(row.color).trim() : ''
   const resolvedHex = /^#[0-9a-fA-F]{6}$/.test(hexRaw)
     ? hexRaw
     : /^#[0-9a-fA-F]{6}$/.test(fallbackHex)
       ? fallbackHex
-      : '';
-  const isValidHex = /^#[0-9a-fA-F]{6}$/.test(resolvedHex);
-  const styles =
-    isValidHex
-      ? [
-          {
-            sectionKey: '__all__',
-            headerBgColor: resolvedHex,
-            actBgColor: resolvedHex,
-            updatedAt: null,
-          },
-        ]
-      : [];
+      : ''
+  const isValidHex = /^#[0-9a-fA-F]{6}$/.test(resolvedHex)
+  const styles = isValidHex
+    ? [
+        {
+          sectionKey: '__all__',
+          headerBgColor: resolvedHex,
+          actBgColor: resolvedHex,
+          updatedAt: null,
+        },
+      ]
+    : []
 
   return {
     machineId: resolvedMachineId,
@@ -587,43 +747,43 @@ export async function getZhafirSectionStyles(machineId: string) {
       colorName: row.color ? String(row.color) : null,
       hexacolor: row.hexacolor ? String(row.hexacolor) : null,
     },
-  };
+  }
 }
 
 export async function upsertZhafirSectionStyle(
   machineId: string,
   sectionKey: string,
   headerBgColor: string,
-  actBgColor: string,
+  actBgColor: string
 ) {
-  const resolvedMachineId = (machineId || '').trim();
-  const resolvedSectionKey = (sectionKey || '').trim();
-  const resolvedHeader = (headerBgColor || '').trim();
-  const resolvedAct = (actBgColor || '').trim();
+  const resolvedMachineId = (machineId || '').trim()
+  const resolvedSectionKey = (sectionKey || '').trim()
+  const resolvedHeader = (headerBgColor || '').trim()
+  const resolvedAct = (actBgColor || '').trim()
 
   if (!resolvedMachineId) {
-    throw new Error('machine_id is required');
+    throw new Error('machine_id is required')
   }
   if (!resolvedSectionKey) {
-    throw new Error('sectionKey is required');
+    throw new Error('sectionKey is required')
   }
   if (!/^#[0-9a-fA-F]{6}$/.test(resolvedHeader)) {
-    throw new Error('headerBgColor must be hex format #RRGGBB');
+    throw new Error('headerBgColor must be hex format #RRGGBB')
   }
   if (!/^#[0-9a-fA-F]{6}$/.test(resolvedAct)) {
-    throw new Error('actBgColor must be hex format #RRGGBB');
+    throw new Error('actBgColor must be hex format #RRGGBB')
   }
-  const resolvedColorName = resolveColorNameFromHex(resolvedHeader);
+  const resolvedColorName = resolveColorNameFromHex(resolvedHeader)
 
-  const row = await getZhafirStyleParameterRow();
+  const row = await getZhafirStyleParameterRow()
   if (!row) {
     throw new Error(
-      `parameter_setting row id=${ZHAFIR_STYLE_PARAMETER_ID} (${ZHAFIR_STYLE_PARAMETER_NAME}) not found`,
-    );
+      `parameter_setting row id=${ZHAFIR_STYLE_PARAMETER_ID} (${ZHAFIR_STYLE_PARAMETER_NAME}) not found`
+    )
   }
-  const rowId = Number(row.id);
+  const rowId = Number(row.id)
   if (!Number.isFinite(rowId)) {
-    throw new Error('Invalid parameter_setting style row id');
+    throw new Error('Invalid parameter_setting style row id')
   }
 
   await queryDatabase(
@@ -639,8 +799,8 @@ export async function upsertZhafirSectionStyle(
       Uom: resolvedMachineId,
       Color: resolvedColorName,
       HexaColor: resolvedHeader,
-    },
-  );
+    }
+  )
 
   return {
     machineId: resolvedMachineId,
@@ -652,187 +812,210 @@ export async function upsertZhafirSectionStyle(
       id: rowId,
       name: ZHAFIR_STYLE_PARAMETER_NAME,
     },
-  };
+  }
 }
 
 async function getParaSetTrxColumns() {
-  if (paraSetTrxColumnsCache) return paraSetTrxColumnsCache;
-  const rows = await queryDatabase(`
+  if (paraSetTrxColumnsCache) return paraSetTrxColumnsCache
+  const rows = await queryDatabase(
+    `
     SELECT COLUMN_NAME
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = @TableName
-  `, { TableName: PARASET_TRX_TABLE });
+  `,
+    { TableName: PARASET_TRX_TABLE }
+  )
   paraSetTrxColumnsCache = new Set(
-    (rows || []).map((r: any) => String(r.COLUMN_NAME || '')),
-  );
-  return paraSetTrxColumnsCache;
+    (rows || []).map((r: any) => String(r.COLUMN_NAME || ''))
+  )
+  return paraSetTrxColumnsCache
 }
 
 function resolveColumns(section?: string): string[] {
-  if (!section) return ZHAFIR_ALL_COLUMNS;
+  if (!section) return ZHAFIR_ALL_COLUMNS
   if (!(section in ZHAFIR_SECTIONS)) {
-    throw new Error(`Invalid section "${section}".`);
+    throw new Error(`Invalid section "${section}".`)
   }
-  return [...ZHAFIR_SECTIONS[section as ZhafirSectionKey], ...ZHAFIR_META_FIELDS];
+  return [
+    ...ZHAFIR_SECTIONS[section as ZhafirSectionKey],
+    ...ZHAFIR_META_FIELDS,
+  ]
 }
 
 function normalizePayload(
   payload: Record<string, unknown>,
-  allowedColumns: string[],
+  allowedColumns: string[]
 ) {
-  const result: Record<string, string | number | null> = {};
+  const result: Record<string, string | number | null> = {}
 
   for (const key of allowedColumns) {
-    if (!(key in payload)) continue;
+    if (!(key in payload)) continue
 
-    const rawValue = payload[key];
+    const rawValue = payload[key]
     if (rawValue === '' || rawValue === null) {
-      result[key] = null;
-      continue;
+      result[key] = null
+      continue
     }
 
-    if (rawValue === undefined) continue;
+    if (rawValue === undefined) continue
 
     if ((ZHAFIR_META_FIELDS as readonly string[]).includes(key)) {
-      result[key] = String(rawValue);
-      continue;
+      result[key] = String(rawValue)
+      continue
     }
 
     if (STRING_VALUE_FIELDS.has(key)) {
-      result[key] = String(rawValue);
-      continue;
+      result[key] = String(rawValue)
+      continue
     }
 
-    const asNumber = Number(rawValue);
+    const asNumber = Number(rawValue)
     if (Number.isNaN(asNumber)) {
-      throw new Error(`Field "${key}" must be numeric.`);
+      throw new Error(`Field "${key}" must be numeric.`)
     }
-    result[key] = asNumber;
+    result[key] = asNumber
   }
 
-  return result;
+  return result
 }
 
-function createStdActMap(stdRow: Record<string, any> | undefined, actualRow: Record<string, any> | undefined, section?: string) {
-  const columns = resolveColumns(section);
-  const fields = columns.filter((c) => !(ZHAFIR_META_FIELDS as readonly string[]).includes(c));
+function createStdActMap(
+  stdRow: Record<string, any> | undefined,
+  actualRow: Record<string, any> | undefined,
+  section?: string
+) {
+  const columns = resolveColumns(section)
+  const fields = columns.filter(
+    (c) => !(ZHAFIR_META_FIELDS as readonly string[]).includes(c)
+  )
 
-  const values: Record<string, { std: number | string | null; act: number | string | null }> = {};
+  const values: Record<
+    string,
+    { std: number | string | null; act: number | string | null }
+  > = {}
   for (const field of fields) {
     values[field] = {
       std: stdRow?.[field] ?? null,
       act: actualRow?.[field] ?? null,
-    };
+    }
   }
 
-  return values;
+  return values
 }
 
 function isSupportedRangeKey(key: string) {
-  if (!key) return false;
+  if (!key) return false
   if (key.endsWith('_min')) {
-    const base = key.slice(0, -4);
-    return RANGE_TRACKED_FIELDS.has(base);
+    const base = key.slice(0, -4)
+    return RANGE_TRACKED_FIELDS.has(base)
   }
   if (key.endsWith('_max')) {
-    const base = key.slice(0, -4);
-    return RANGE_TRACKED_FIELDS.has(base);
+    const base = key.slice(0, -4)
+    return RANGE_TRACKED_FIELDS.has(base)
   }
-  return false;
+  return false
 }
 
 function extractRangeValuesFromParamset(paramset: Record<string, unknown>) {
-  const keyMap: Record<string, string> = {};
+  const keyMap: Record<string, string> = {}
   Object.keys(paramset || {}).forEach((key) => {
-    keyMap[key.toLowerCase()] = key;
-  });
+    keyMap[key.toLowerCase()] = key
+  })
 
   const ranges: Record<
     string,
     { min: string | number | null; max: string | number | null }
-  > = {};
+  > = {}
 
   RANGE_TRACKED_FIELDS.forEach((fieldKey) => {
-    const minKey = keyMap[`${fieldKey}_min`.toLowerCase()];
-    const maxKey = keyMap[`${fieldKey}_max`.toLowerCase()];
-    const minValue = minKey ? (paramset[minKey] as string | number | null) : null;
-    const maxValue = maxKey ? (paramset[maxKey] as string | number | null) : null;
+    const minKey = keyMap[`${fieldKey}_min`.toLowerCase()]
+    const maxKey = keyMap[`${fieldKey}_max`.toLowerCase()]
+    const minValue = minKey
+      ? (paramset[minKey] as string | number | null)
+      : null
+    const maxValue = maxKey
+      ? (paramset[maxKey] as string | number | null)
+      : null
 
     if (minValue !== null || maxValue !== null) {
       ranges[fieldKey] = {
         min: minValue ?? null,
         max: maxValue ?? null,
-      };
+      }
     }
-  });
+  })
 
-  return ranges;
+  return ranges
 }
 
 function parseMaterialInput(
   materialRaw?: string,
   materialIdRaw?: string,
-  materialNameRaw?: string,
+  materialNameRaw?: string
 ) {
-  const explicitMaterialId = (materialIdRaw || '').trim();
-  const explicitMaterialName = (materialNameRaw || '').trim();
+  const explicitMaterialId = (materialIdRaw || '').trim()
+  const explicitMaterialName = (materialNameRaw || '').trim()
   if (explicitMaterialId || explicitMaterialName) {
     return {
       materialId: explicitMaterialId || null,
       materialName: explicitMaterialName || null,
-    };
+    }
   }
 
-  const source = (materialRaw || '').trim();
+  const source = (materialRaw || '').trim()
   if (!source) {
-    return { materialId: null as string | null, materialName: null as string | null };
+    return {
+      materialId: null as string | null,
+      materialName: null as string | null,
+    }
   }
 
   if (source.includes(' - ')) {
-    const [left, ...rest] = source.split(' - ');
+    const [left, ...rest] = source.split(' - ')
     return {
       materialId: left?.trim() || null,
       materialName: rest.join(' - ').trim() || null,
-    };
+    }
   }
 
   return {
     materialId: source,
     materialName: source,
-  };
+  }
 }
 
 function parseStdParamset(raw: unknown) {
-  if (!raw) return {} as Record<string, string | number | null>;
-  if (typeof raw === 'object') return raw as Record<string, string | number | null>;
-  if (typeof raw !== 'string') return {};
+  if (!raw) return {} as Record<string, string | number | null>
+  if (typeof raw === 'object')
+    return raw as Record<string, string | number | null>
+  if (typeof raw !== 'string') return {}
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw)
     if (parsed && typeof parsed === 'object') {
-      return parsed as Record<string, string | number | null>;
+      return parsed as Record<string, string | number | null>
     }
   } catch {
     // ignore malformed JSON and fallback to empty object
   }
-  return {};
+  return {}
 }
 
 function getRowValue(row: Record<string, unknown> | undefined, keys: string[]) {
-  if (!row) return undefined;
-  const keyMap: Record<string, string> = {};
+  if (!row) return undefined
+  const keyMap: Record<string, string> = {}
   Object.keys(row).forEach((key) => {
-    keyMap[key.toLowerCase()] = key;
-  });
+    keyMap[key.toLowerCase()] = key
+  })
   for (const key of keys) {
-    const resolved = keyMap[key.toLowerCase()];
-    if (resolved) return row[resolved];
+    const resolved = keyMap[key.toLowerCase()]
+    if (resolved) return row[resolved]
   }
-  return undefined;
+  return undefined
 }
 
 async function getNearestStdRowByMachine(machineId: string) {
-  const machineColumns = ['machineId'];
-  let lastError: string | null = null;
+  const machineColumns = ['machineId']
+  let lastError: string | null = null
 
   for (const machineColumn of machineColumns) {
     const nearestSql = `
@@ -841,14 +1024,16 @@ async function getNearestStdRowByMachine(machineId: string) {
       WHERE ${machineColumn} = @MachineID
         AND CAST(created_at AS date) = CAST(GETDATE() AS date)
       ORDER BY ABS(DATEDIFF(SECOND, created_at, GETDATE())), id DESC
-    `;
+    `
     try {
-      const nearestRows = await queryDatabase(nearestSql, { MachineID: machineId });
+      const nearestRows = await queryDatabase(nearestSql, {
+        MachineID: machineId,
+      })
       if (Array.isArray(nearestRows) && nearestRows.length > 0) {
-        return nearestRows[0] as Record<string, unknown>;
+        return nearestRows[0] as Record<string, unknown>
       }
     } catch (error) {
-      lastError = (error as Error).message;
+      lastError = (error as Error).message
     }
 
     const latestSql = `
@@ -856,26 +1041,28 @@ async function getNearestStdRowByMachine(machineId: string) {
       FROM ${MACHINE_STD_TABLE}
       WHERE ${machineColumn} = @MachineID
       ORDER BY created_at DESC, id DESC
-    `;
+    `
     try {
-      const latestRows = await queryDatabase(latestSql, { MachineID: machineId });
+      const latestRows = await queryDatabase(latestSql, {
+        MachineID: machineId,
+      })
       if (Array.isArray(latestRows) && latestRows.length > 0) {
-        return latestRows[0] as Record<string, unknown>;
+        return latestRows[0] as Record<string, unknown>
       }
     } catch (error) {
-      lastError = (error as Error).message;
+      lastError = (error as Error).message
     }
   }
 
   if (lastError) {
-    throw new Error(lastError);
+    throw new Error(lastError)
   }
-  return undefined;
+  return undefined
 }
 
 async function getLatestStdRowByMachine(machineId: string) {
-  const machineColumns = ['machineId'];
-  let lastError: string | null = null;
+  const machineColumns = ['machineId']
+  let lastError: string | null = null
 
   for (const machineColumn of machineColumns) {
     const latestSql = `
@@ -883,35 +1070,37 @@ async function getLatestStdRowByMachine(machineId: string) {
       FROM ${MACHINE_STD_TABLE}
       WHERE ${machineColumn} = @MachineID
       ORDER BY created_at DESC, id DESC
-    `;
+    `
     try {
-      const latestRows = await queryDatabase(latestSql, { MachineID: machineId });
+      const latestRows = await queryDatabase(latestSql, {
+        MachineID: machineId,
+      })
       if (Array.isArray(latestRows) && latestRows.length > 0) {
-        return latestRows[0] as Record<string, unknown>;
+        return latestRows[0] as Record<string, unknown>
       }
     } catch (error) {
-      lastError = (error as Error).message;
+      lastError = (error as Error).message
     }
   }
 
   if (lastError) {
-    throw new Error(lastError);
+    throw new Error(lastError)
   }
-  return undefined;
+  return undefined
 }
 
 async function getLatestStdRowByMachineAndMaterialId(
   machineId: string,
-  materialId: string,
+  materialId: string
 ) {
-  const resolvedMachineId = (machineId || '').trim();
-  const resolvedMaterialId = (materialId || '').trim();
+  const resolvedMachineId = (machineId || '').trim()
+  const resolvedMaterialId = (materialId || '').trim()
   if (!resolvedMachineId || !resolvedMaterialId) {
-    return undefined;
+    return undefined
   }
 
-  const machineColumns = ['machineId'];
-  let lastError: string | null = null;
+  const machineColumns = ['machineId']
+  let lastError: string | null = null
 
   for (const machineColumn of machineColumns) {
     const latestSql = `
@@ -920,24 +1109,24 @@ async function getLatestStdRowByMachineAndMaterialId(
       WHERE ${machineColumn} = @MachineID
         AND LTRIM(RTRIM(CONVERT(NVARCHAR(255), material_Id))) = @MaterialID
       ORDER BY created_at DESC, id DESC
-    `;
+    `
     try {
       const latestRows = await queryDatabase(latestSql, {
         MachineID: resolvedMachineId,
         MaterialID: resolvedMaterialId,
-      });
+      })
       if (Array.isArray(latestRows) && latestRows.length > 0) {
-        return latestRows[0] as Record<string, unknown>;
+        return latestRows[0] as Record<string, unknown>
       }
     } catch (error) {
-      lastError = (error as Error).message;
+      lastError = (error as Error).message
     }
   }
 
   if (lastError) {
-    throw new Error(lastError);
+    throw new Error(lastError)
   }
-  return undefined;
+  return undefined
 }
 
 async function upsertStdParamsetByMachine(
@@ -946,54 +1135,63 @@ async function upsertStdParamsetByMachine(
   section?: string,
   materialRaw?: string,
   materialIdRaw?: string,
-  materialNameRaw?: string,
+  materialNameRaw?: string
 ) {
-  const resolvedMachineId = (machineId || '').trim();
+  const resolvedMachineId = (machineId || '').trim()
   if (!resolvedMachineId) {
-    throw new Error('machine_id is required for STD save');
+    throw new Error('machine_id is required for STD save')
   }
 
-  const columns = resolveColumns(section);
+  const columns = resolveColumns(section)
   const dynamicRangeColumns = Object.keys(stdPayload || {}).filter((key) =>
-    isSupportedRangeKey(key),
-  );
+    isSupportedRangeKey(key)
+  )
   const allowedPayload = normalizePayload(stdPayload, [
     ...columns,
     ...dynamicRangeColumns,
-  ]);
+  ])
   const parsedMaterial = parseMaterialInput(
     materialRaw,
     materialIdRaw,
-    materialNameRaw,
-  );
-  const latestMachineRow = await getLatestStdRowByMachine(resolvedMachineId);
-  const targetByCombination =
-    parsedMaterial.materialId
-      ? await getLatestStdRowByMachineAndMaterialId(
-          resolvedMachineId,
-          parsedMaterial.materialId,
-        )
-      : undefined;
-  const targetRow = targetByCombination ?? latestMachineRow;
+    materialNameRaw
+  )
+  const latestMachineRow = await getLatestStdRowByMachine(resolvedMachineId)
+  const targetByCombination = parsedMaterial.materialId
+    ? await getLatestStdRowByMachineAndMaterialId(
+        resolvedMachineId,
+        parsedMaterial.materialId
+      )
+    : undefined
+  const targetRow = targetByCombination ?? latestMachineRow
 
-  const currentParamset = parseStdParamset(getRowValue(targetRow, ['paramset']));
+  const currentParamset = parseStdParamset(getRowValue(targetRow, ['paramset']))
   const nextParamset = {
     ...currentParamset,
     ...allowedPayload,
-  };
+  }
 
-  const currentMaterialId = getRowValue(targetRow, ['material_id', 'material_Id']);
-  const currentMaterialName = getRowValue(targetRow, ['material_name', 'materialName']);
-  const currentCavity = getRowValue(targetRow, ['cavity']);
-  const materialId = parsedMaterial.materialId ?? (currentMaterialId ? String(currentMaterialId) : null);
-  const materialName = parsedMaterial.materialName ?? (currentMaterialName ? String(currentMaterialName) : null);
-  const cavity = nextParamset.Cavity ?? currentCavity ?? null;
+  const currentMaterialId = getRowValue(targetRow, [
+    'material_id',
+    'material_Id',
+  ])
+  const currentMaterialName = getRowValue(targetRow, [
+    'material_name',
+    'materialName',
+  ])
+  const currentCavity = getRowValue(targetRow, ['cavity'])
+  const materialId =
+    parsedMaterial.materialId ??
+    (currentMaterialId ? String(currentMaterialId) : null)
+  const materialName =
+    parsedMaterial.materialName ??
+    (currentMaterialName ? String(currentMaterialName) : null)
+  const cavity = nextParamset.Cavity ?? currentCavity ?? null
 
-  const shouldUseCombinationUpdate = Boolean(parsedMaterial.materialId);
+  const shouldUseCombinationUpdate = Boolean(parsedMaterial.materialId)
   const updateTargetRow = shouldUseCombinationUpdate
     ? targetByCombination
-    : targetRow;
-  const latestId = getRowValue(updateTargetRow, ['id']);
+    : targetRow
+  const latestId = getRowValue(updateTargetRow, ['id'])
   if (latestId !== undefined && latestId !== null) {
     const updateSql = `
       UPDATE ${MACHINE_STD_TABLE}
@@ -1004,7 +1202,7 @@ async function upsertStdParamsetByMachine(
           paramset = @Paramset,
           created_at = GETDATE()
       WHERE id = @Id
-    `;
+    `
     await queryDatabase(updateSql, {
       Id: latestId,
       MachineID: resolvedMachineId,
@@ -1012,7 +1210,7 @@ async function upsertStdParamsetByMachine(
       MaterialName: materialName,
       Cavity: cavity,
       Paramset: JSON.stringify(nextParamset),
-    });
+    })
 
     return {
       action: 'update' as const,
@@ -1020,20 +1218,20 @@ async function upsertStdParamsetByMachine(
       savedColumns: Object.keys(allowedPayload),
       paramset: nextParamset,
       id: latestId,
-    };
+    }
   }
 
   const insertSql = `
     INSERT INTO ${MACHINE_STD_TABLE} (machineId, material_Id, material_name, cavity, paramset, created_at)
     VALUES (@MachineID, @MaterialID, @MaterialName, @Cavity, @Paramset, GETDATE())
-  `;
+  `
   await queryDatabase(insertSql, {
     MachineID: resolvedMachineId,
     MaterialID: materialId,
     MaterialName: materialName,
     Cavity: cavity,
     Paramset: JSON.stringify(nextParamset),
-  });
+  })
 
   return {
     action: 'insert' as const,
@@ -1041,19 +1239,19 @@ async function upsertStdParamsetByMachine(
     savedColumns: Object.keys(allowedPayload),
     paramset: nextParamset,
     id: null,
-  };
+  }
 }
 
 export function getZhafirSections() {
   return Object.entries(ZHAFIR_SECTIONS).map(([section, columns]) => ({
     section,
     columns,
-  }));
+  }))
 }
 
 export function getZhafirQueryTemplates(section?: string) {
-  const columns = resolveColumns(section);
-  const queryColumns = columns.join(', ');
+  const columns = resolveColumns(section)
+  const queryColumns = columns.join(', ')
 
   return {
     selectStd: `SELECT TOP 1 ParaID, ParaDate, ${queryColumns} FROM IoT.dbo.ParaSetMST WHERE ParaID = @ParaID ORDER BY ParaDate DESC;`,
@@ -1070,41 +1268,53 @@ export function getZhafirQueryTemplates(section?: string) {
       'END;',
     ].join('\n'),
     insertActual: `INSERT INTO IoT.dbo.ParaSetTRX (ParaID, SettingDate, Active, /* field */) VALUES (@ParaID, GETDATE(), 1, /* value */);`,
-  };
+  }
 }
 
-export async function getZhafirStdActByParaId(paraId: string, section?: string, machineId?: string) {
+export async function getZhafirStdActByParaId(
+  paraId: string,
+  section?: string,
+  machineId?: string
+) {
   if (!machineId || !machineId.trim()) {
-    throw new Error('machine_id is required');
+    throw new Error('machine_id is required')
   }
-  let std: Record<string, string | number | null> = {};
-  let actual: Record<string, string | number | null> = {};
-  let ranges: Record<string, { min: string | number | null; max: string | number | null }> = {};
-  const resolvedMachineId = machineId.trim();
-  let stdDate = new Date().toISOString();
-  let actualDate = new Date().toISOString();
+  let std: Record<string, string | number | null> = {}
+  let actual: Record<string, string | number | null> = {}
+  let ranges: Record<
+    string,
+    { min: string | number | null; max: string | number | null }
+  > = {}
+  const resolvedMachineId = machineId.trim()
+  let stdDate = new Date().toISOString()
+  let actualDate = new Date().toISOString()
 
-  const nearestStdRow = await getNearestStdRowByMachine(resolvedMachineId);
+  const nearestStdRow = await getNearestStdRowByMachine(resolvedMachineId)
   if (nearestStdRow) {
-    const paramsetRaw = parseStdParamset(getRowValue(nearestStdRow, ['paramset']));
-    const paramset = mapSourceToUiFields(paramsetRaw as Record<string, any>);
+    const paramsetRaw = parseStdParamset(
+      getRowValue(nearestStdRow, ['paramset'])
+    )
+    const paramset = mapSourceToUiFields(paramsetRaw as Record<string, any>)
     ranges = extractRangeValuesFromParamset(
-      paramsetRaw as Record<string, unknown>,
-    );
+      paramsetRaw as Record<string, unknown>
+    )
     std = {
       ...std,
       ...paramset,
-    };
-    const createdAt = getRowValue(nearestStdRow, ['created_at', 'createdAt']);
+    }
+    const createdAt = getRowValue(nearestStdRow, ['created_at', 'createdAt'])
     if (createdAt) {
-      stdDate = new Date(String(createdAt)).toISOString();
+      stdDate = new Date(String(createdAt)).toISOString()
     }
   }
 
-  const actualData = await getZhafirActualFromView(paraId, machineId);
-  actual = (actualData?.values || {}) as Record<string, string | number | null>;
-  actualDate = actualData?.actualDate || actualDate;
-  const actualMeta = (actualData?.meta || {}) as { MchID?: string | null; MoldID?: string | null };
+  const actualData = await getZhafirActualFromView(paraId, machineId)
+  actual = (actualData?.values || {}) as Record<string, string | number | null>
+  actualDate = actualData?.actualDate || actualDate
+  const actualMeta = (actualData?.meta || {}) as {
+    MchID?: string | null
+    MoldID?: string | null
+  }
 
   return {
     paraId,
@@ -1117,7 +1327,7 @@ export async function getZhafirStdActByParaId(paraId: string, section?: string, 
     },
     ranges,
     values: createStdActMap(std, actual, section),
-  };
+  }
 }
 
 const ACT_VIEW_TO_FIELD_MAP: Record<string, string> = {
@@ -1246,36 +1456,41 @@ const ACT_VIEW_TO_FIELD_MAP: Record<string, string> = {
   Temperature_Set_Zone4: 'Temperature_Set_Zone4',
   Temperature_Set_Zone5: 'Temperature_Set_Zone5',
   Temperature_Set_Zone6: 'Temperature_Set_Zone6',
-};
+}
 
 function mapSourceToUiFields(source?: Record<string, any>) {
-  const mapped: Record<string, string | number | null> = {};
-  if (!source) return mapped;
+  const mapped: Record<string, string | number | null> = {}
+  if (!source) return mapped
 
-  const lowerKeyMap: Record<string, string> = {};
+  const lowerKeyMap: Record<string, string> = {}
   Object.keys(source).forEach((key) => {
-    lowerKeyMap[key.toLowerCase()] = key;
-  });
+    lowerKeyMap[key.toLowerCase()] = key
+  })
 
   Array.from(ALLOWED_HARD_CODED_ACT_FIELDS).forEach((fieldKey) => {
-    const resolved = lowerKeyMap[fieldKey.toLowerCase()];
-    if (!resolved) return;
-    const value = source[resolved];
+    const resolved = lowerKeyMap[fieldKey.toLowerCase()]
+    if (!resolved) return
+    const value = source[resolved]
     if (value !== undefined && value !== null && value !== '') {
-      mapped[fieldKey] = value;
+      mapped[fieldKey] = value
     }
-  });
+  })
 
   Object.entries(ACT_VIEW_TO_FIELD_MAP).forEach(([viewKey, fieldKey]) => {
-    if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(fieldKey)) return;
-    const value = source[viewKey];
+    if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(fieldKey)) return
+    const value = source[viewKey]
     if (value !== undefined && value !== null && value !== '') {
-      mapped[fieldKey] = value;
+      mapped[fieldKey] = value
     }
-  });
+  })
 
-  if ((mapped.VPPosnText === null || mapped.VPPosnText === undefined || mapped.VPPosnText === '') && mapped.VPPositionText !== undefined) {
-    mapped.VPPosnText = mapped.VPPositionText;
+  if (
+    (mapped.VPPosnText === null ||
+      mapped.VPPosnText === undefined ||
+      mapped.VPPosnText === '') &&
+    mapped.VPPositionText !== undefined
+  ) {
+    mapped.VPPosnText = mapped.VPPositionText
   }
 
   // Temperature compatibility:
@@ -1283,105 +1498,132 @@ function mapSourceToUiFields(source?: Record<string, any>) {
   // - Fallback to BarrelN for legacy payloads.
   // - Keep BarrelN filled for backward compatibility consumers.
   for (let i = 1; i <= 6; i += 1) {
-    const barrelKey = `Barrel${i}`;
-    const realKey = `Temperature_Real_Zone${i}`;
-    const setKey = `Temperature_Set_Zone${i}`;
+    const barrelKey = `Barrel${i}`
+    const realKey = `Temperature_Real_Zone${i}`
+    const setKey = `Temperature_Set_Zone${i}`
 
-    if ((mapped[realKey] === null || mapped[realKey] === undefined || mapped[realKey] === '') && mapped[barrelKey] !== undefined) {
-      mapped[realKey] = mapped[barrelKey];
+    if (
+      (mapped[realKey] === null ||
+        mapped[realKey] === undefined ||
+        mapped[realKey] === '') &&
+      mapped[barrelKey] !== undefined
+    ) {
+      mapped[realKey] = mapped[barrelKey]
     }
-    if ((mapped[setKey] === null || mapped[setKey] === undefined || mapped[setKey] === '') && mapped[barrelKey] !== undefined) {
-      mapped[setKey] = mapped[barrelKey];
+    if (
+      (mapped[setKey] === null ||
+        mapped[setKey] === undefined ||
+        mapped[setKey] === '') &&
+      mapped[barrelKey] !== undefined
+    ) {
+      mapped[setKey] = mapped[barrelKey]
     }
-    if ((mapped[barrelKey] === null || mapped[barrelKey] === undefined || mapped[barrelKey] === '')) {
-      if (mapped[setKey] !== undefined && mapped[setKey] !== null && mapped[setKey] !== '') {
-        mapped[barrelKey] = mapped[setKey];
-      } else if (mapped[realKey] !== undefined && mapped[realKey] !== null && mapped[realKey] !== '') {
-        mapped[barrelKey] = mapped[realKey];
+    if (
+      mapped[barrelKey] === null ||
+      mapped[barrelKey] === undefined ||
+      mapped[barrelKey] === ''
+    ) {
+      if (
+        mapped[setKey] !== undefined &&
+        mapped[setKey] !== null &&
+        mapped[setKey] !== ''
+      ) {
+        mapped[barrelKey] = mapped[setKey]
+      } else if (
+        mapped[realKey] !== undefined &&
+        mapped[realKey] !== null &&
+        mapped[realKey] !== ''
+      ) {
+        mapped[barrelKey] = mapped[realKey]
       }
     }
   }
 
-  return mapped;
+  return mapped
 }
 
-function mapActualFromViewRow(
-  row: Record<string, any> | undefined,
-) {
+function mapActualFromViewRow(row: Record<string, any> | undefined) {
   const actual: Record<string, string | number | null> = Object.fromEntries(
-    Array.from(ALLOWED_HARD_CODED_ACT_FIELDS).map((key) => [key, null]),
-  );
-  if (!row) return actual;
+    Array.from(ALLOWED_HARD_CODED_ACT_FIELDS).map((key) => [key, null])
+  )
+  if (!row) return actual
 
-  Object.assign(actual, mapSourceToUiFields(row));
+  Object.assign(actual, mapSourceToUiFields(row))
 
-  const rawParamset = getRowValue(row as Record<string, unknown>, ['paramset']);
+  const rawParamset = getRowValue(row as Record<string, unknown>, ['paramset'])
   if (rawParamset) {
-    const paramset = parseStdParamset(rawParamset) as Record<string, any>;
-    Object.assign(actual, mapSourceToUiFields(paramset));
+    const paramset = parseStdParamset(rawParamset) as Record<string, any>
+    Object.assign(actual, mapSourceToUiFields(paramset))
   }
 
-  return actual;
+  return actual
 }
 
 function pickMetaFromRow(row?: Record<string, any>) {
   if (!row) {
-    return { MchID: null, MoldID: null };
+    return { MchID: null, MoldID: null }
   }
-  const keyMap: Record<string, string> = {};
+  const keyMap: Record<string, string> = {}
   for (const key of Object.keys(row)) {
-    keyMap[key.toLowerCase()] = key;
+    keyMap[key.toLowerCase()] = key
   }
-  const mchKey = keyMap['mchid'] || keyMap['machine_id'] || keyMap['machineid'] || keyMap['machineid'];
-  const moldKey = keyMap['moldid'] || keyMap['mold_id'];
+  const mchKey =
+    keyMap['mchid'] ||
+    keyMap['machine_id'] ||
+    keyMap['machineid'] ||
+    keyMap['machineid']
+  const moldKey = keyMap['moldid'] || keyMap['mold_id']
   return {
     MchID: mchKey ? String(row[mchKey]) : null,
     MoldID: moldKey ? String(row[moldKey]) : null,
-  };
+  }
 }
 
-export async function getZhafirActualFromView(paraId?: string, machineId?: string) {
-  const resolvedMachineId = (machineId || '').trim();
+export async function getZhafirActualFromView(
+  paraId?: string,
+  machineId?: string
+) {
+  const resolvedMachineId = (machineId || '').trim()
   const queries = resolvedMachineId
     ? [
-      `
+        `
         SELECT TOP 1 *
         FROM IoT.dbo.MachineParameterSettingTRX
         WHERE machineId = @MachineID
         ORDER BY created_at DESC, id DESC
       `,
-    ]
+      ]
     : [
-      `
+        `
         SELECT TOP 1 *
         FROM IoT.dbo.MachineParameterSettingTRX
         ORDER BY created_at DESC, id DESC
       `,
-    ];
+      ]
 
-  let row: Record<string, any> | undefined;
-  let lastError: string | null = null;
+  let row: Record<string, any> | undefined
+  let lastError: string | null = null
 
   for (const sqlQuery of queries) {
     try {
       const rows = resolvedMachineId
         ? await queryDatabase(sqlQuery, { MachineID: resolvedMachineId })
-        : await queryDatabase(sqlQuery);
-      row = rows?.[0] as Record<string, any> | undefined;
-      if (row) break;
+        : await queryDatabase(sqlQuery)
+      row = rows?.[0] as Record<string, any> | undefined
+      if (row) break
     } catch (error) {
-      lastError = (error as Error).message;
+      lastError = (error as Error).message
     }
   }
 
   if (!row && resolvedMachineId && lastError) {
-    throw new Error(lastError);
+    throw new Error(lastError)
   }
 
-  const actual = mapActualFromViewRow(row);
-  const meta = pickMetaFromRow(row);
+  const actual = mapActualFromViewRow(row)
+  const meta = pickMetaFromRow(row)
   if (resolvedMachineId) {
-    meta.MchID = resolvedMachineId;
+    meta.MchID = resolvedMachineId
   }
 
   return {
@@ -1389,18 +1631,18 @@ export async function getZhafirActualFromView(paraId?: string, machineId?: strin
     actualDate: new Date().toISOString(),
     meta,
     values: actual,
-  };
+  }
 }
 
 export async function getZhafirActualFromViewByHour(
   paraId: string | undefined,
   machineId: string,
   date: string,
-  hour: number,
+  hour: number
 ) {
-  const resolvedMachineId = (machineId || '').trim();
+  const resolvedMachineId = (machineId || '').trim()
   if (!resolvedMachineId) {
-    throw new Error('machine_id is required');
+    throw new Error('machine_id is required')
   }
 
   const sqlQuery = `
@@ -1410,30 +1652,32 @@ export async function getZhafirActualFromViewByHour(
       AND CAST(created_at AS date) = CAST(@DateParam AS date)
       AND DATEPART(hour, created_at) = @HourParam
     ORDER BY created_at DESC, id DESC
-  `;
+  `
   const rows = await queryDatabase(sqlQuery, {
     MachineID: resolvedMachineId,
     DateParam: date,
     HourParam: hour,
-  });
-  const row = rows?.[0] as Record<string, any> | undefined;
-  const actual = mapActualFromViewRow(row);
+  })
+  const row = rows?.[0] as Record<string, any> | undefined
+  const actual = mapActualFromViewRow(row)
 
-  const meta = pickMetaFromRow(row);
-  meta.MchID = resolvedMachineId;
+  const meta = pickMetaFromRow(row)
+  meta.MchID = resolvedMachineId
 
   return {
     paraId: paraId || 'ZHF-STD-001',
-    actualDate: row?.created_at ? new Date(String(row.created_at)).toISOString() : new Date().toISOString(),
+    actualDate: row?.created_at
+      ? new Date(String(row.created_at)).toISOString()
+      : new Date().toISOString(),
     meta,
     values: actual,
-  };
+  }
 }
 
 export async function getZhafirAvailableHours(machineId: string, date: string) {
-  const resolvedMachineId = (machineId || '').trim();
+  const resolvedMachineId = (machineId || '').trim()
   if (!resolvedMachineId) {
-    throw new Error('machine_id is required');
+    throw new Error('machine_id is required')
   }
 
   const sqlQuery = `
@@ -1442,46 +1686,46 @@ export async function getZhafirAvailableHours(machineId: string, date: string) {
     WHERE machineId = @MachineID
       AND CAST(created_at AS date) = CAST(@DateParam AS date)
     ORDER BY hour_slot ASC
-  `;
+  `
   const rows = await queryDatabase(sqlQuery, {
     MachineID: resolvedMachineId,
     DateParam: date,
-  });
+  })
 
   const hours = (rows || [])
     .map((r: any) => Number(r.hour_slot))
-    .filter((v: number) => Number.isInteger(v) && v >= 0 && v <= 23);
+    .filter((v: number) => Number.isInteger(v) && v >= 0 && v <= 23)
 
   return {
     machineId: resolvedMachineId,
     date,
     hours,
-  };
+  }
 }
 
 export async function checkZhafirParamsetExists(machineId: string) {
   const trxQueries = [
     `SELECT TOP 1 machineId FROM IoT.dbo.MachineParameterSettingTRX WHERE machineId = @MachineID`,
-  ];
+  ]
   const stdQueries = [
     `SELECT TOP 1 machineId FROM ${MACHINE_STD_TABLE} WHERE machineId = @MachineID`,
-  ];
-  const queries = [...trxQueries, ...stdQueries];
+  ]
+  const queries = [...trxQueries, ...stdQueries]
 
-  let lastError: string | null = null;
-  let anySuccess = false;
+  let lastError: string | null = null
+  let anySuccess = false
   for (const sqlQuery of queries) {
     try {
-      const rows = await queryDatabase(sqlQuery, { MachineID: machineId });
-      anySuccess = true;
+      const rows = await queryDatabase(sqlQuery, { MachineID: machineId })
+      anySuccess = true
       if (Array.isArray(rows) && rows.length > 0) {
         return {
           machineId,
           exists: true,
-        };
+        }
       }
     } catch (error) {
-      lastError = (error as Error).message;
+      lastError = (error as Error).message
     }
   }
 
@@ -1489,40 +1733,50 @@ export async function checkZhafirParamsetExists(machineId: string) {
     return {
       machineId,
       exists: false,
-    };
+    }
   }
 
-  throw new Error(lastError || 'Failed to check machine id');
+  throw new Error(lastError || 'Failed to check machine id')
 }
 
-export async function updateHardcodedActField(field: string, value: number | string, machineId?: string) {
+export async function updateHardcodedActField(
+  field: string,
+  value: number | string,
+  machineId?: string
+) {
   if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(field)) {
-    throw new Error(`Field "${field}" is not supported for manual ACT update.`);
+    throw new Error(`Field "${field}" is not supported for manual ACT update.`)
   }
 
-  const parsedValue = STRING_VALUE_FIELDS.has(field) ? String(value) : Number(value);
+  const parsedValue = STRING_VALUE_FIELDS.has(field)
+    ? String(value)
+    : Number(value)
   if (!STRING_VALUE_FIELDS.has(field) && Number.isNaN(parsedValue)) {
-    throw new Error(`Field "${field}" must be numeric.`);
+    throw new Error(`Field "${field}" must be numeric.`)
   }
 
-  const resolvedMachineId = (machineId || '').trim();
+  const resolvedMachineId = (machineId || '').trim()
   if (!resolvedMachineId) {
-    throw new Error('machine_id is required for ACT save');
+    throw new Error('machine_id is required for ACT save')
   }
-  markZhafirManualChange(resolvedMachineId);
+  markZhafirManualChange(resolvedMachineId)
 
   const payload: Record<string, unknown> = {
     [field]: parsedValue,
-  };
-  const inserted = await insertZhafirActual('ZHF-STD-001', payload);
-  const saved = Array.isArray((inserted as any).savedColumns) && (inserted as any).savedColumns.length > 0;
+  }
+  const inserted = await insertZhafirActual('ZHF-STD-001', payload)
+  const saved =
+    Array.isArray((inserted as any).savedColumns) &&
+    (inserted as any).savedColumns.length > 0
 
   return {
     machineId: resolvedMachineId,
     field,
     value: parsedValue,
-    message: saved ? 'ACT value saved to database' : 'ACT field is not available in ParaSetTRX schema (skipped)',
-  };
+    message: saved
+      ? 'ACT value saved to database'
+      : 'ACT field is not available in ParaSetTRX schema (skipped)',
+  }
 }
 
 export async function updateHardcodedStdField(
@@ -1531,65 +1785,75 @@ export async function updateHardcodedStdField(
   machineId?: string,
   materialRaw?: string,
   materialIdRaw?: string,
-  materialNameRaw?: string,
+  materialNameRaw?: string
 ) {
   if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(field)) {
-    throw new Error(`Field "${field}" is not supported for manual STD update.`);
+    throw new Error(`Field "${field}" is not supported for manual STD update.`)
   }
 
-  const parsedValue = STRING_VALUE_FIELDS.has(field) ? String(value) : Number(value);
+  const parsedValue = STRING_VALUE_FIELDS.has(field)
+    ? String(value)
+    : Number(value)
   if (!STRING_VALUE_FIELDS.has(field) && Number.isNaN(parsedValue)) {
-    throw new Error(`Field "${field}" must be numeric.`);
+    throw new Error(`Field "${field}" must be numeric.`)
   }
 
-  const resolvedMachineId = (machineId || '').trim();
+  const resolvedMachineId = (machineId || '').trim()
   if (!resolvedMachineId) {
-    throw new Error('machine_id is required for STD save');
+    throw new Error('machine_id is required for STD save')
   }
-  markZhafirManualChange(resolvedMachineId);
+  markZhafirManualChange(resolvedMachineId)
   const saved = await upsertStdParamsetByMachine(
     resolvedMachineId,
     { [field]: parsedValue },
     undefined,
     materialRaw,
     materialIdRaw,
-    materialNameRaw,
-  );
+    materialNameRaw
+  )
   return {
     machineId: resolvedMachineId,
     field,
     value: saved.paramset[field] ?? parsedValue,
     message: `STD value ${saved.action === 'insert' ? 'inserted' : 'updated'} on MachineParameterSettingSTD`,
-  };
+  }
 }
 
-export async function updateHardcodedBulk(payload: {
-  std?: Record<string, number | string>;
-  act?: Record<string, number | string>;
-}, machineId?: string, materialRaw?: string, materialIdRaw?: string, materialNameRaw?: string) {
-  const stdEntries = Object.entries(payload.std || {});
-  const actEntries = Object.entries(payload.act || {});
+export async function updateHardcodedBulk(
+  payload: {
+    std?: Record<string, number | string>
+    act?: Record<string, number | string>
+  },
+  machineId?: string,
+  materialRaw?: string,
+  materialIdRaw?: string,
+  materialNameRaw?: string
+) {
+  const stdEntries = Object.entries(payload.std || {})
+  const actEntries = Object.entries(payload.act || {})
 
-  const resolvedMachineId = (machineId || '').trim();
+  const resolvedMachineId = (machineId || '').trim()
 
   if (stdEntries.length > 0) {
     if (!resolvedMachineId) {
-      throw new Error('machine_id is required for STD save');
+      throw new Error('machine_id is required for STD save')
     }
-    markZhafirManualChange(resolvedMachineId);
+    markZhafirManualChange(resolvedMachineId)
     await upsertStdParamsetByMachine(
       resolvedMachineId,
       payload.std || {},
       undefined,
       materialRaw,
       materialIdRaw,
-      materialNameRaw,
-    );
+      materialNameRaw
+    )
   }
 
   for (const [field, valueRaw] of actEntries) {
-    const value = STRING_VALUE_FIELDS.has(field) ? String(valueRaw) : Number(valueRaw);
-    await updateHardcodedActField(field, value, machineId);
+    const value = STRING_VALUE_FIELDS.has(field)
+      ? String(valueRaw)
+      : Number(valueRaw)
+    await updateHardcodedActField(field, value, machineId)
   }
 
   return {
@@ -1598,7 +1862,7 @@ export async function updateHardcodedBulk(payload: {
     message: 'STD/ACT bulk updated',
     updatedStdCount: stdEntries.length,
     updatedActCount: actEntries.length,
-  };
+  }
 }
 
 export async function upsertZhafirStd(
@@ -1608,12 +1872,12 @@ export async function upsertZhafirStd(
   machineId?: string,
   materialRaw?: string,
   materialIdRaw?: string,
-  materialNameRaw?: string,
+  materialNameRaw?: string
 ) {
   if (!machineId || !machineId.trim()) {
-    throw new Error('machine_id is required for STD save');
+    throw new Error('machine_id is required for STD save')
   }
-  markZhafirManualChange(machineId.trim());
+  markZhafirManualChange(machineId.trim())
 
   const saved = await upsertStdParamsetByMachine(
     machineId.trim(),
@@ -1621,8 +1885,8 @@ export async function upsertZhafirStd(
     section,
     materialRaw,
     materialIdRaw,
-    materialNameRaw,
-  );
+    materialNameRaw
+  )
 
   return {
     message: `STD parameters ${saved.action === 'insert' ? 'inserted' : 'updated'}`,
@@ -1631,26 +1895,26 @@ export async function upsertZhafirStd(
     machineId: machineId.trim(),
     savedColumns: saved.savedColumns,
     stdTableAction: saved.action,
-  };
+  }
 }
 
 export async function insertZhafirActual(
   paraId: string,
   payload: Record<string, unknown>,
-  section?: string,
+  section?: string
 ) {
-  const columns = resolveColumns(section);
-  const allowedPayloadRaw = normalizePayload(payload, columns);
+  const columns = resolveColumns(section)
+  const allowedPayloadRaw = normalizePayload(payload, columns)
   const allowedPayloadNoMeta = Object.fromEntries(
     Object.entries(allowedPayloadRaw).filter(
-      ([key]) => !(ZHAFIR_META_FIELDS as readonly string[]).includes(key),
-    ),
-  ) as Record<string, string | number | null>;
-  const trxColumns = await getParaSetTrxColumns();
+      ([key]) => !(ZHAFIR_META_FIELDS as readonly string[]).includes(key)
+    )
+  ) as Record<string, string | number | null>
+  const trxColumns = await getParaSetTrxColumns()
   const allowedPayload = Object.fromEntries(
-    Object.entries(allowedPayloadNoMeta).filter(([key]) => trxColumns.has(key)),
-  ) as Record<string, string | number | null>;
-  const payloadKeys = Object.keys(allowedPayload);
+    Object.entries(allowedPayloadNoMeta).filter(([key]) => trxColumns.has(key))
+  ) as Record<string, string | number | null>
+  const payloadKeys = Object.keys(allowedPayload)
 
   if (payloadKeys.length === 0) {
     return {
@@ -1659,22 +1923,27 @@ export async function insertZhafirActual(
       section: section || 'all',
       savedColumns: [],
       skippedColumns: Object.keys(allowedPayloadNoMeta),
-    };
+    }
   }
 
-  const insertColumns = ['ParaID', 'SettingDate', 'Active', ...payloadKeys];
-  const insertValues = ['@ParaID', 'GETDATE()', '1', ...payloadKeys.map((key) => `@${key}`)];
+  const insertColumns = ['ParaID', 'SettingDate', 'Active', ...payloadKeys]
+  const insertValues = [
+    '@ParaID',
+    'GETDATE()',
+    '1',
+    ...payloadKeys.map((key) => `@${key}`),
+  ]
 
   const sqlQuery = `
     INSERT INTO IoT.dbo.ParaSetTRX (${insertColumns.join(', ')})
     VALUES (${insertValues.join(', ')})
-  `;
+  `
 
-  await queryDatabase(sqlQuery, { ParaID: paraId, ...allowedPayload });
+  await queryDatabase(sqlQuery, { ParaID: paraId, ...allowedPayload })
   return {
     message: 'ACT parameters saved',
     paraId,
     section: section || 'all',
     savedColumns: payloadKeys,
-  };
+  }
 }
