@@ -42,6 +42,13 @@ export default function MasterData() {
             <Label style={{  fontSize:"1.5rem", cursor:"pointer", fontFamily:"sans-serif", fontWeight:"bold"}}>PROBLEM MASTER</Label>
         </CardContent>
     </Card>
+    <Card className="flex items-center justify-center  hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer" onClick={() => {router.push("/master-data/parameter-zhafir")}}>
+        <CardContent
+            className="text-center"
+        >
+            <Label style={{  fontSize:"1.5rem", cursor:"pointer", fontFamily:"sans-serif", fontWeight:"bold"}}>PARAMETER ZHAFIR</Label>
+        </CardContent>
+    </Card>
     </div>
   )
 }

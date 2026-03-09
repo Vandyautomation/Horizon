@@ -548,6 +548,24 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
             </>
           )}
+          {currentSubPage === 'parameter-zhafir' && !currentSubSubPage && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('master-data', 'Master Data')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink(
+                  'master-data/parameter-zhafir',
+                  'Parameter Zhafir'
+                )}
+              </BreadcrumbItem>
+            </>
+          )}
 
           {currentPage === 'machines' && !currentSubPage && (
             <>

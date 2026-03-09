@@ -128,155 +128,174 @@ export default function ZhafirParameter() {
   if (error) return <div className="text-red-500">Failed to load data</div>
 
   return (
-    <div className="bg-white shadow rounded-lg overflow-hidden">
-      <div className="flex justify-end mb-4 p-4">
-        <Dialog open={open} onOpenChange={setOpen}>
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <div className="flex items-center justify-between p-5 border-b bg-gray-50">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">
+              Zhafir Injection Parameter
+            </h2>
+            <p className="text-sm text-gray-500">
+              Standard parameter configuration
+            </p>
+          </div>
+
           <DialogTrigger asChild>
-            <Button>Add Parameter</Button>
+            <Button className="bg-gray-900 hover:bg-black text-white">
+              Add Parameter
+            </Button>
           </DialogTrigger>
+        </div>
+        <DialogContent className="sm:max-w-[720px] max-h-[85vh] overflow-y-auto p-6">
+          <DialogHeader>
+            <DialogTitle>Add Summary Injection STD</DialogTitle>
+          </DialogHeader>
 
-          <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Add Summary Injection STD</DialogTitle>
-            </DialogHeader>
-
-            {/* MATERIAL SECTION */}
-            <div className="border rounded-lg p-3 bg-gray-50 space-y-3">
-              <div className="text-xs font-semibold text-gray-600 uppercase">
-                Material Information
-              </div>
-
-              <div className="grid grid-cols-[120px_1fr] gap-2 items-center">
-                <label className="text-sm">Machine ID</label>
-                <Input
-                  value={form.machineId}
-                  onChange={(e) =>
-                    setForm({ ...form, machineId: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="grid grid-cols-[120px_1fr] gap-2 items-center">
-                <label className="text-sm">Material ID</label>
-                <Input
-                  value={form.material_Id}
-                  onChange={(e) =>
-                    setForm({ ...form, material_Id: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="grid grid-cols-[120px_1fr] gap-2 items-center">
-                <label className="text-sm">Material Name</label>
-                <Input
-                  value={form.material_name}
-                  onChange={(e) =>
-                    setForm({ ...form, material_name: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="grid grid-cols-[120px_1fr] gap-2 items-center">
-                <label className="text-sm">Cavity</label>
-                <Input
-                  value={form.cavity}
-                  onChange={(e) => setForm({ ...form, cavity: e.target.value })}
-                />
-              </div>
+          {/* MATERIAL SECTION */}
+          <div className="bg-gray-50/70 border border-gray-200 rounded-xl p-5 space-y-4">
+            <div className="text-sm font-semibold text-gray-700">
+              Material Information
             </div>
 
-            {/* SUMMARY INJECTION SECTION */}
-            <div className="border rounded-lg p-3 bg-gray-50 space-y-3">
-              <div className="text-xs font-semibold text-gray-600 uppercase">
-                Summary Injection STD
-              </div>
-
-              <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
-                <label className="text-sm">End Of Plastification</label>
-                <Input
-                  value={form.InjectScrewPosition}
-                  onChange={(e) =>
-                    setForm({ ...form, InjectScrewPosition: e.target.value })
-                  }
-                />
-                <span className="text-xs text-gray-500">mm</span>
-              </div>
-
-              <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
-                <label className="text-sm">Injection Time</label>
-                <Input
-                  value={form.VPTime}
-                  onChange={(e) => setForm({ ...form, VPTime: e.target.value })}
-                />
-                <span className="text-xs text-gray-500">s</span>
-              </div>
-
-              <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
-                <label className="text-sm">Switching Position</label>
-                <Input
-                  value={form.VPPosition}
-                  onChange={(e) =>
-                    setForm({ ...form, VPPosition: e.target.value })
-                  }
-                />
-                <span className="text-xs text-gray-500">mm</span>
-              </div>
-
-              <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
-                <label className="text-sm">Inj Peak Pressure</label>
-                <Input
-                  value={form.InjPeakPressure}
-                  onChange={(e) =>
-                    setForm({ ...form, InjPeakPressure: e.target.value })
-                  }
-                />
-                <span className="text-xs text-gray-500">bar</span>
-              </div>
-
-              <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
-                <label className="text-sm">Cushion</label>
-                <Input
-                  value={form.Thickness}
-                  onChange={(e) =>
-                    setForm({ ...form, Thickness: e.target.value })
-                  }
-                />
-                <span className="text-xs text-gray-500">mm</span>
-              </div>
-
-              <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
-                <label className="text-sm">Carriage Backward SE</label>
-                <Input
-                  value={form.CarriageBwd_SE}
-                  onChange={(e) =>
-                    setForm({ ...form, CarriageBwd_SE: e.target.value })
-                  }
-                />
-                <span className="text-xs text-gray-500">mm</span>
-              </div>
+            <div className="space-y-4">
+              <label className="text-sm font-medium text-gray-600">
+                Machine ID
+              </label>
+              <Input
+                className="mt-1"
+                value={form.machineId}
+                onChange={(e) =>
+                  setForm({ ...form, machineId: e.target.value })
+                }
+              />
             </div>
 
-            <DialogFooter className="mt-4">
-              <Button onClick={handleAdd}>Apply</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <div className="space-y-4">
+              <label className="text-sm font-medium text-gray-600">
+                Material ID
+              </label>
+              <Input
+                value={form.material_Id}
+                onChange={(e) =>
+                  setForm({ ...form, material_Id: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-sm font-medium text-gray-600">
+                Material Name
+              </label>
+              <Input
+                value={form.material_name}
+                onChange={(e) =>
+                  setForm({ ...form, material_name: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-sm font-medium text-gray-600">
+                Cavity
+              </label>
+              <Input
+                value={form.cavity}
+                onChange={(e) => setForm({ ...form, cavity: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {/* SUMMARY INJECTION SECTION */}
+          <div className="border rounded-lg p-3 bg-gray-50 space-y-3">
+            <div className="text-xs font-semibold text-gray-600 uppercase">
+              Summary Injection STD
+            </div>
+
+            <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
+              <label className="text-sm">End Of Plastification</label>
+              <Input
+                value={form.InjectScrewPosition}
+                onChange={(e) =>
+                  setForm({ ...form, InjectScrewPosition: e.target.value })
+                }
+              />
+              <span className="text-xs text-gray-500">mm</span>
+            </div>
+
+            <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
+              <label className="text-sm">Injection Time</label>
+              <Input
+                value={form.VPTime}
+                onChange={(e) => setForm({ ...form, VPTime: e.target.value })}
+              />
+              <span className="text-xs text-gray-500">s</span>
+            </div>
+
+            <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
+              <label className="text-sm">Switching Position</label>
+              <Input
+                value={form.VPPosition}
+                onChange={(e) =>
+                  setForm({ ...form, VPPosition: e.target.value })
+                }
+              />
+              <span className="text-xs text-gray-500">mm</span>
+            </div>
+
+            <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
+              <label className="text-sm">Inj Peak Pressure</label>
+              <Input
+                value={form.InjPeakPressure}
+                onChange={(e) =>
+                  setForm({ ...form, InjPeakPressure: e.target.value })
+                }
+              />
+              <span className="text-xs text-gray-500">bar</span>
+            </div>
+
+            <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
+              <label className="text-sm">Cushion</label>
+              <Input
+                value={form.Thickness}
+                onChange={(e) =>
+                  setForm({ ...form, Thickness: e.target.value })
+                }
+              />
+              <span className="text-xs text-gray-500">mm</span>
+            </div>
+
+            <div className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
+              <label className="text-sm">Carriage Backward SE</label>
+              <Input
+                value={form.CarriageBwd_SE}
+                onChange={(e) =>
+                  setForm({ ...form, CarriageBwd_SE: e.target.value })
+                }
+              />
+              <span className="text-xs text-gray-500">mm</span>
+            </div>
+          </div>
+
+          <Button className="bg-gray-900 hover:bg-black text-white">
+            Apply Parameter
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-100 text-gray-700">
-          <tr>
-            <th className="px-4 py-2 text-left">No</th>
-            <th className="px-4 py-2 text-left">Machine ID</th>
-            <th className="px-4 py-2 text-left">Material ID</th>
-            <th className="px-4 py-2 text-left">Material Name</th>
-            <th className="px-4 py-2 text-left">Cavity</th>
+        <thead className="bg-gray-50 border-b">
+          <tr className="border-b last:border-0 hover:bg-gray-50/70 transition">
+            <th className="px-4 py-3 text-left">No</th>
+            <th className="px-4 py-3 text-left">Machine ID</th>
+            <th className="px-4 py-3 text-left">Material ID</th>
+            <th className="px-4 py-3 text-left">Material Name</th>
+            <th className="px-4 py-3 text-left">Cavity</th>
             {parameterKeys.map((key) => (
-              <th key={key} className="px-3 py-2">
+              <th key={key} className="px-3 py-3">
                 {parameterLabels[key]}
               </th>
             ))}
-            <th className="px-4 py-2 text-left">Created At</th>
+            <th className="px-4 py-3 text-left">Created At</th>
           </tr>
         </thead>
 
@@ -286,19 +305,21 @@ export default function ZhafirParameter() {
 
             return (
               <tr key={item.id} className="border-t hover:bg-gray-50">
-                <td className="px-4 py-2">{index + 1}</td>
-                <td className="px-4 py-2">{item.machineId}</td>
-                <td className="px-4 py-2">{item.material_Id}</td>
-                <td className="px-4 py-2">{item.material_name}</td>
-                <td className="px-4 py-2">{item.cavity}</td>
+                <td className="px-4 py-3">{index + 1}</td>
+                <td className="px-4 py-3">{item.machineId}</td>
+                <td className="px-4 py-3">{item.material_Id}</td>
+                <td className="px-4 py-3" title={item.material_name}>
+                  {item.material_name}
+                </td>
+                <td className="px-4 py-3">{item.cavity}</td>
 
                 {parameterKeys.map((key) => (
-                  <td key={key} className="px-3 py-2">
+                  <td key={key} className="px-3 py-3">
                     {params?.[key]?.std ?? '-'}
                   </td>
                 ))}
 
-                <td className="px-4 py-2">
+                <td className="px-4 py-3">
                   {new Date(item.created_at).toLocaleString()}
                 </td>
               </tr>
