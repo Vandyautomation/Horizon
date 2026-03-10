@@ -4032,7 +4032,6 @@ export default function CountboardDashboard() {
                   const toY = (value: number) =>
                     plotHeight - ((value - yMin) / ySpan) * plotHeight
                   const yTicks = [0, 0.25, 0.5, 0.75, 1]
-                  const xLabelStep = zhafirTrendPoints.length > 12 ? 2 : 1
 
                   const minSegments = buildLineSegments(
                     zhafirTrendPoints,
@@ -4186,8 +4185,19 @@ export default function CountboardDashboard() {
                               if (point.value === null) return null
                               const x = idx * stepX
                               const y = toY(point.value)
+                              const tooltip = `Jam: ${point.hourLabel}\nActual: ${formatCompactNumber(point.value)}\nMin: ${
+                                point.min === null
+                                  ? '-'
+                                  : formatCompactNumber(point.min)
+                              }\nMax: ${
+                                point.max === null
+                                  ? '-'
+                                  : formatCompactNumber(point.max)
+                              }\nStatus: ${point.status}`
                               return (
                                 <g key={`point-${idx}`}>
+                                  <title>{tooltip}</title>
+                                  <circle cx={x} cy={y} r="10" fill="transparent" />
                                   <circle
                                     cx={x}
                                     cy={y}
@@ -4221,7 +4231,6 @@ export default function CountboardDashboard() {
                           </g>
 
                           {zhafirTrendPoints.map((point, idx) => {
-                            if (idx % xLabelStep !== 0) return null
                             const x = marginLeft + idx * stepX
                             return (
                               <text
@@ -4237,8 +4246,8 @@ export default function CountboardDashboard() {
                           })}
 
                           <text
-                            x={16}
-                            y={18}
+                            x={6}
+                            y={10}
                             className="fill-gray-500 text-[10px] font-semibold"
                           >
                             Y (nilai)
