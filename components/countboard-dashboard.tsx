@@ -595,10 +595,6 @@ export default function CountboardDashboard() {
         selectedPO?.materialId !== undefined && selectedPO?.materialId !== null
           ? String(selectedPO.materialId).trim()
           : ''
-      if (!materialIdParam) {
-        toast.error('Material ID wajib. Pilih/attach PO terlebih dahulu.')
-        return
-      }
 
       const hoursBack = hoursBackOverride ?? zhafirTrendHoursBack
       setSelectedTrendIndicator(indicator)

@@ -229,10 +229,6 @@ zhafirRoutes.get('/actual-view-window', async (c) => {
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return c.json({ error: 'date must be in YYYY-MM-DD format' }, 400);
     }
-    if (!materialId || !String(materialId).trim()) {
-      return c.json({ error: 'material_id is required' }, 400);
-    }
-
     const data = await getZhafirActualByHourWindow(resolvedMachineId, {
       paraId,
       endAt,
