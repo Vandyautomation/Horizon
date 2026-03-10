@@ -202,11 +202,36 @@ type ZhafirActualViewResponse = {
   values?: Record<string, number | string | null>
 }
 
+type ZhafirActualViewWindowHour = {
+  hourStart?: string | null
+  hourLabel?: string | null
+  actualDate?: string | null
+  hasData?: boolean
+  values?: Record<string, number | string | null> | null
+}
+
+type ZhafirActualViewWindowResponse = {
+  machineId?: string
+  endAt?: string
+  hoursBack?: number
+  ranges?: Record<
+    string,
+    { min: number | string | null; max: number | string | null }
+  >
+  hours?: ZhafirActualViewWindowHour[]
+}
+
 type ZhafirTemporaryAccessStatus = {
   machineId: string
   enabled: boolean
   runtimeEnabled: boolean
   note?: string
+}
+
+type ZhafirActiveMaterialResponse = {
+  machineId: string
+  materialId: string | null
+  found: boolean
 }
 
 type ZhafirIndicatorStatus = {
@@ -225,7 +250,6 @@ const refreshRateList = ['5000', '15000', '30000', '60000']
 const shiftList = ['1', '2', '3']
 const ZHAFIR_PARA_ID = 'ZHF-STD-001'
 const ZHAFIR_INDICATORS = [
-
   {
     field: 'InjectScrewPosition',
     label: 'END OF PLASTIFICATION',
@@ -236,9 +260,13 @@ const ZHAFIR_INDICATORS = [
     label: 'INJECTION TIME',
     icon: '/admin/Injection time.png',
   },
-  { field: 'VPPositionText', label: 'SWITCHING POSITION', icon: '/admin/Switching position.png' },
   {
-    field: "InjPeakPressure",
+    field: 'VPPositionText',
+    label: 'SWITCHING POSITION',
+    icon: '/admin/Switching position.png',
+  },
+  {
+    field: 'InjPeakPressure',
     label: 'inject peak pressure',
     icon: '/admin/inj-press.png',
   },
@@ -247,6 +275,14 @@ const ZHAFIR_INDICATORS = [
 
 type ZhafirIndicatorField = (typeof ZHAFIR_INDICATORS)[number]['field']
 type ZhafirIndicatorMap = Record<ZhafirIndicatorField, ZhafirIndicatorStatus>
+type ZhafirTrendPoint = {
+  hourLabel: string
+  actualDate: string | null
+  value: number | null
+  min: number | null
+  max: number | null
+  status: 'ok' | 'out_of_range' | 'unknown'
+}
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
@@ -298,15 +334,15 @@ export default function CountboardDashboard() {
 
   const usersOP: UserOption[] = Array.isArray(data)
     ? data
-      .filter(
-        (u) => u.UserDept === 'OperatorBahan' || u.UserDept === 'Mechanic'
-      )
-      .map((u) => ({
-        id: u.UserRFID,
-        name: u.UserName,
-        dept: u.UserDept,
-        uap: u.UserUAP,
-      }))
+        .filter(
+          (u) => u.UserDept === 'OperatorBahan' || u.UserDept === 'Mechanic'
+        )
+        .map((u) => ({
+          id: u.UserRFID,
+          name: u.UserName,
+          dept: u.UserDept,
+          uap: u.UserUAP,
+        }))
     : []
 
   const [openOPPopup, setOpenOPPopup] = useState(false)
@@ -324,13 +360,13 @@ export default function CountboardDashboard() {
   /*  SPV  */
   const usersSPV: UserOption[] = Array.isArray(data)
     ? data
-      .filter((u) => u.UserDept === 'SPV Production')
-      .map((u) => ({
-        id: u.UserRFID,
-        name: u.UserName,
-        dept: u.UserDept,
-        uap: u.UserUAP,
-      }))
+        .filter((u) => u.UserDept === 'SPV Production')
+        .map((u) => ({
+          id: u.UserRFID,
+          name: u.UserName,
+          dept: u.UserDept,
+          uap: u.UserUAP,
+        }))
     : []
 
   const [openSPVPopup, setOpenSPVPopup] = useState(false)
@@ -389,6 +425,17 @@ export default function CountboardDashboard() {
   const [isLiveMode, setIsLiveMode] = useState(true)
   const [isEscalated, setIsEscalated] = useState<0 | 1 | null>(null)
   const [escalationTarget, setEscalationTarget] = useState<string | null>(null)
+  const [isZhafirTrendDialogOpen, setIsZhafirTrendDialogOpen] = useState(false)
+  const [selectedTrendIndicator, setSelectedTrendIndicator] = useState<
+    (typeof ZHAFIR_INDICATORS)[number] | null
+  >(null)
+  const [zhafirTrendPoints, setZhafirTrendPoints] = useState<
+    ZhafirTrendPoint[]
+  >([])
+  const [zhafirTrendHoursBack, setZhafirTrendHoursBack] = useState<8 | 24>(24)
+  const [isTrendChartFullscreen, setIsTrendChartFullscreen] = useState(false)
+  const [isLoadingZhafirTrend, setIsLoadingZhafirTrend] = useState(false)
+  const [zhafirTrendError, setZhafirTrendError] = useState<string | null>(null)
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<
     string | undefined
@@ -544,6 +591,144 @@ export default function CountboardDashboard() {
     },
     []
   )
+  const openZhafirIndicatorTrend = useCallback(
+    async (
+      indicator: (typeof ZHAFIR_INDICATORS)[number],
+      indicatorThreshold?: ZhafirIndicatorStatus,
+      hoursBackOverride?: 8 | 24,
+      dateOverride?: string
+    ) => {
+      const machineName = selectedMachine?.machineName
+      if (!machineName) return
+
+      const hoursBack = hoursBackOverride ?? zhafirTrendHoursBack
+      setSelectedTrendIndicator(indicator)
+      setIsZhafirTrendDialogOpen(true)
+      setIsLoadingZhafirTrend(true)
+      setZhafirTrendError(null)
+
+      try {
+        const materialCandidates = resolveZhafirCandidates(
+          `material-active?machine_id=${encodeURIComponent(machineName)}`
+        )
+        let activeMaterial: ZhafirActiveMaterialResponse | null = null
+        let materialError = ''
+        for (const url of materialCandidates) {
+          try {
+            const res = await fetch(url, { cache: 'no-store' })
+            if (!res.ok) {
+              const errJson = await res.json().catch(() => ({}))
+              materialError =
+                errJson?.error || `Failed material-active (${res.status})`
+              continue
+            }
+            activeMaterial = (await res.json()) as ZhafirActiveMaterialResponse
+            break
+          } catch {
+            // try next candidate
+          }
+        }
+        const materialIdParam = (activeMaterial?.materialId || '').trim()
+        if (!materialIdParam) {
+          setZhafirTrendPoints([])
+          setZhafirTrendError(
+            materialError ||
+              'Material aktif tidak ditemukan dari source Zhafir untuk mesin ini'
+          )
+          return
+        }
+
+        const dateParam =
+          dateOverride ||
+          (selectedDate instanceof Date
+            ? format(selectedDate, 'yyyy-MM-dd')
+            : null)
+        const trendQuery = `actual-view-window?machine_id=${encodeURIComponent(machineName)}&hoursBack=${hoursBack}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}${
+          dateParam ? `&date=${encodeURIComponent(dateParam)}` : ''
+        }`
+        const candidates = resolveZhafirCandidates(trendQuery)
+
+        let data: ZhafirActualViewWindowResponse | null = null
+        for (const url of candidates) {
+          try {
+            const res = await fetch(url, { cache: 'no-store' })
+            if (!res.ok) continue
+            data = (await res.json()) as ZhafirActualViewWindowResponse
+            break
+          } catch {
+            // try next candidate
+          }
+        }
+
+        if (!data || !Array.isArray(data.hours)) {
+          setZhafirTrendPoints([])
+          setZhafirTrendError('Data trend tidak tersedia')
+          return
+        }
+
+        const rangeFromStd = data.ranges?.[indicator.field]
+        const rangeMin = parseFiniteNumber(rangeFromStd?.min)
+        const rangeMax = parseFiniteNumber(rangeFromStd?.max)
+        const threshold = indicatorThreshold ?? {
+          status: 'unknown' as const,
+          std: null,
+          act: null,
+          min: rangeMin,
+          max: rangeMax,
+        }
+        const points: ZhafirTrendPoint[] = data.hours.map((hour) => {
+          const rawValue = hour?.values?.[indicator.field]
+          const value = parseFiniteNumber(rawValue)
+          const min = rangeMin ?? threshold.min
+          const max = rangeMax ?? threshold.max
+          const hasRange = min !== null || max !== null
+          const isOutOfRange =
+            value === null
+              ? false
+              : hasRange
+                ? (min !== null && value < min) || (max !== null && value > max)
+                : threshold.std !== null
+                  ? value > threshold.std
+                  : false
+          const status: ZhafirTrendPoint['status'] =
+            value === null ? 'unknown' : isOutOfRange ? 'out_of_range' : 'ok'
+
+          const hourDate = hour?.hourStart
+            ? new Date(hour.hourStart)
+            : hour?.actualDate
+              ? new Date(hour.actualDate)
+              : null
+          const hourLabel =
+            (hour?.hourLabel ? String(hour.hourLabel) : null) ||
+            (hourDate && !Number.isNaN(hourDate.getTime())
+              ? format(hourDate, 'HH:mm')
+              : '-')
+
+          return {
+            hourLabel,
+            actualDate: hour?.actualDate ? String(hour.actualDate) : null,
+            value,
+            min,
+            max,
+            status,
+          }
+        })
+
+        setZhafirTrendPoints(points)
+      } catch (error) {
+        setZhafirTrendPoints([])
+        setZhafirTrendError((error as Error).message)
+      } finally {
+        setIsLoadingZhafirTrend(false)
+      }
+    },
+    [
+      resolveZhafirCandidates,
+      selectedDate,
+      selectedMachine?.machineName,
+      zhafirTrendHoursBack,
+    ]
+  )
   const [isSavingZhafirAccess, setIsSavingZhafirAccess] = useState(false)
   const fetchZhafirTemporaryAccessStatus = useCallback(
     async (machineName: string): Promise<ZhafirTemporaryAccessStatus> => {
@@ -637,10 +822,10 @@ export default function CountboardDashboard() {
   const rawCategories = categoryRes as ProblemGroup[] | undefined
   const categories: ProblemGroup[] = Array.isArray(rawCategories)
     ? rawCategories
-      .filter((c) => categoryOrder.includes(c.id))
-      .sort(
-        (a, b) => categoryOrder.indexOf(a.id) - categoryOrder.indexOf(b.id)
-      )
+        .filter((c) => categoryOrder.includes(c.id))
+        .sort(
+          (a, b) => categoryOrder.indexOf(a.id) - categoryOrder.indexOf(b.id)
+        )
     : []
 
   const problemKey = selectedCategoryId
@@ -907,20 +1092,20 @@ export default function CountboardDashboard() {
   const from = isLiveMode
     ? shiftStartHour
     : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(
-      6 + (+selectedShift - 1) * 8,
-      0,
-      0,
-      0
-    )
+        6 + (+selectedShift - 1) * 8,
+        0,
+        0,
+        0
+      )
 
   const to = isLiveMode
     ? shiftEndHour // Live mode uses current timestamp
     : new Date(new Date(selectedDate.getTime() - 1000 * 60 * 60 * 24)).setHours(
-      6 + (+selectedShift - 1) * 8 + 8,
-      0,
-      0,
-      0
-    ) // Set to end of shift
+        6 + (+selectedShift - 1) * 8 + 8,
+        0,
+        0,
+        0
+      ) // Set to end of shift
 
   const {
     data: machines,
@@ -939,16 +1124,18 @@ export default function CountboardDashboard() {
   }, [isValidating])
 
   const stateDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state/${selectedMachine.machineName
-    }${!isLiveMode &&
-      new URLSearchParams(window.location.search).get('date') !== null
-      ? `?date=${new URLSearchParams(window.location.search).get(
-        'date'
-      )}&shift=${new URLSearchParams(window.location.search).get(
-        'shift'
-      )}`
-      : ''
-    }`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state/${
+        selectedMachine.machineName
+      }${
+        !isLiveMode &&
+        new URLSearchParams(window.location.search).get('date') !== null
+          ? `?date=${new URLSearchParams(window.location.search).get(
+              'date'
+            )}&shift=${new URLSearchParams(window.location.search).get(
+              'shift'
+            )}`
+          : ''
+      }`
     : null
 
   const { data: stateData } = useSWR<StateData[]>(stateDataKey, fetcher, {
@@ -963,38 +1150,38 @@ export default function CountboardDashboard() {
   const ticketRows =
     Array.isArray(stateData) && selectedStateChange
       ? (() => {
-        const sorted = [...stateData].sort(
-          (a, b) =>
-            new Date(a.AdjustedStatusDate).getTime() -
-            new Date(b.AdjustedStatusDate).getTime()
-        )
+          const sorted = [...stateData].sort(
+            (a, b) =>
+              new Date(a.AdjustedStatusDate).getTime() -
+              new Date(b.AdjustedStatusDate).getTime()
+          )
 
-        // 1) cari index state yang diklik
-        const idx = sorted.findIndex((s) => s.ID === selectedStateChange.ID)
-        if (idx === -1) return []
+          // 1) cari index state yang diklik
+          const idx = sorted.findIndex((s) => s.ID === selectedStateChange.ID)
+          if (idx === -1) return []
 
-        const curr = sorted[idx] // ORANGE yang diklik
+          const curr = sorted[idx] // ORANGE yang diklik
 
-        // 2) cari perubahan warna pertama setelahnya yang bukan ORANGE
-        let nextChange: StateData | undefined
-        for (let j = idx + 1; j < sorted.length; j++) {
-          if (sorted[j].Color !== 'ORANGE') {
-            nextChange = sorted[j]
-            break
+          // 2) cari perubahan warna pertama setelahnya yang bukan ORANGE
+          let nextChange: StateData | undefined
+          for (let j = idx + 1; j < sorted.length; j++) {
+            if (sorted[j].Color !== 'ORANGE') {
+              nextChange = sorted[j]
+              break
+            }
           }
-        }
 
-        // 3) tentukan Actual Finish (boleh ke warna apa saja)
-        const to = nextChange ? nextChange.AdjustedStatusDate : null
+          // 3) tentukan Actual Finish (boleh ke warna apa saja)
+          const to = nextChange ? nextChange.AdjustedStatusDate : null
 
-        // 4) kembalikan SATU baris saja
-        return [
-          {
-            from: curr.AdjustedStatusDate,
-            to,
-          },
-        ]
-      })()
+          // 4) kembalikan SATU baris saja
+          return [
+            {
+              from: curr.AdjustedStatusDate,
+              to,
+            },
+          ]
+        })()
       : []
 
   // const ticketRows =
@@ -1520,16 +1707,18 @@ export default function CountboardDashboard() {
   // };
 
   const hourlyDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.machineName
-    }?type=injection${!isLiveMode &&
-      new URLSearchParams(window.location.search).get('date') !== null
-      ? `&date=${new URLSearchParams(window.location.search).get(
-        'date'
-      )}&shift=${new URLSearchParams(window.location.search).get(
-        'shift'
-      )}`
-      : ''
-    }`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${
+        selectedMachine.machineName
+      }?type=injection${
+        !isLiveMode &&
+        new URLSearchParams(window.location.search).get('date') !== null
+          ? `&date=${new URLSearchParams(window.location.search).get(
+              'date'
+            )}&shift=${new URLSearchParams(window.location.search).get(
+              'shift'
+            )}`
+          : ''
+      }`
     : null
 
   const { data: hourlyData } = useSWR<HourlyData[]>(
@@ -1562,16 +1751,18 @@ export default function CountboardDashboard() {
   )
 
   const oeeDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/oee/${selectedMachine.machineName
-    }${!isLiveMode &&
-      new URLSearchParams(window.location.search).get('date') !== null
-      ? `?date=${new URLSearchParams(window.location.search).get(
-        'date'
-      )}&shift=${new URLSearchParams(window.location.search).get(
-        'shift'
-      )}`
-      : ''
-    }`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/oee/${
+        selectedMachine.machineName
+      }${
+        !isLiveMode &&
+        new URLSearchParams(window.location.search).get('date') !== null
+          ? `?date=${new URLSearchParams(window.location.search).get(
+              'date'
+            )}&shift=${new URLSearchParams(window.location.search).get(
+              'shift'
+            )}`
+          : ''
+      }`
     : null
 
   const { data: oeeData } = useSWR<OoeData[]>(oeeDataKey, fetcher, {
@@ -1584,16 +1775,18 @@ export default function CountboardDashboard() {
   const refetchOeeData = () => mutate(oeeDataKey)
 
   const noeeDataKey = selectedMachine?.machineName
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${selectedMachine.machineName
-    }${!isLiveMode &&
-      new URLSearchParams(window.location.search).get('date') !== null
-      ? `?date=${new URLSearchParams(window.location.search).get(
-        'date'
-      )}&shift=${new URLSearchParams(window.location.search).get(
-        'shift'
-      )}`
-      : ''
-    }`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/noee/${
+        selectedMachine.machineName
+      }${
+        !isLiveMode &&
+        new URLSearchParams(window.location.search).get('date') !== null
+          ? `?date=${new URLSearchParams(window.location.search).get(
+              'date'
+            )}&shift=${new URLSearchParams(window.location.search).get(
+              'shift'
+            )}`
+          : ''
+      }`
     : null
 
   const { data: noeeData } = useSWR<NooeData[]>(noeeDataKey, fetcher, {
@@ -1606,16 +1799,18 @@ export default function CountboardDashboard() {
   const refetchNoeeData = () => mutate(noeeDataKey)
 
   const taskDataKey = selectedMachine?.machineDescription
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tasks/${selectedMachine.machineDescription
-    }${!isLiveMode &&
-      new URLSearchParams(window.location.search).get('date') !== null
-      ? `?date=${new URLSearchParams(window.location.search).get(
-        'date'
-      )}&shift=${new URLSearchParams(window.location.search).get(
-        'shift'
-      )}`
-      : ''
-    }`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/tasks/${
+        selectedMachine.machineDescription
+      }${
+        !isLiveMode &&
+        new URLSearchParams(window.location.search).get('date') !== null
+          ? `?date=${new URLSearchParams(window.location.search).get(
+              'date'
+            )}&shift=${new URLSearchParams(window.location.search).get(
+              'shift'
+            )}`
+          : ''
+      }`
     : null
 
   const { data: taskData } = useSWR<TaskData[]>(taskDataKey, fetcher, {
@@ -1664,10 +1859,10 @@ export default function CountboardDashboard() {
 
   const currentMaterial =
     Array.isArray(hourlyData) &&
-      hourlyData &&
-      hourlyData.filter((data) => data?.itemDesc !== null).length > 0
+    hourlyData &&
+    hourlyData.filter((data) => data?.itemDesc !== null).length > 0
       ? hourlyData.filter((data) => data?.itemDesc !== null).slice(-1)[0]
-        .itemDesc
+          .itemDesc
       : selectedPO
         ? `${selectedPO?.materialId} - ${selectedPO?.materialName}`
         : ''
@@ -2251,13 +2446,13 @@ export default function CountboardDashboard() {
         const remainingMinutes = nowDate.getMinutes() * 60
         return (
           total +
-          (itemFromTime < nowTime
-            ? item.target_final * (oeeData?.[0]?.targetTolerance || 1)
-            : Math.floor(
-              ((item.target_final * (remainingMinutes + remainingSeconds)) /
-                3600) *
-              (oeeData?.[0]?.targetTolerance || 1)
-            )) || 0
+            (itemFromTime < nowTime
+              ? item.target_final * (oeeData?.[0]?.targetTolerance || 1)
+              : Math.floor(
+                  ((item.target_final * (remainingMinutes + remainingSeconds)) /
+                    3600) *
+                    (oeeData?.[0]?.targetTolerance || 1)
+                )) || 0
         )
       }, 0)) ||
     0
@@ -2311,8 +2506,9 @@ export default function CountboardDashboard() {
           )
           return activeColor ? (
             <div
-              className={`w-[10px] h-[5px] ${colorMap[activeColor as keyof typeof colorMap]
-                }`}
+              className={`w-[10px] h-[5px] ${
+                colorMap[activeColor as keyof typeof colorMap]
+              }`}
             />
           ) : (
             <div className={`w-[10px] h-[5px] ml-0 bg-none my-0 pt-0 pb-0`} />
@@ -2342,9 +2538,43 @@ export default function CountboardDashboard() {
   }
   const isG2Machine =
     (selectedMachine?.locationName || '').trim().toLowerCase() ===
-    'inj bld g' && String(selectedMachine?.machineNumber || '').trim() === '2'
+      'inj bld g' && String(selectedMachine?.machineNumber || '').trim() === '2'
   const shouldShowZhafirIndicators =
     isG2Machine || Boolean(zhafirAccessStatus?.enabled)
+  const buildLineSegments = (
+    points: ZhafirTrendPoint[],
+    pick: (point: ZhafirTrendPoint) => number | null,
+    width: number,
+    height: number,
+    minY: number,
+    maxY: number
+  ) => {
+    const span = Math.max(maxY - minY, 1)
+    const stepX = points.length > 1 ? width / (points.length - 1) : width
+    const toY = (value: number) => height - ((value - minY) / span) * height
+    const segments: string[] = []
+    let current: string[] = []
+
+    points.forEach((point, index) => {
+      const value = pick(point)
+      if (value === null || !Number.isFinite(value)) {
+        if (current.length > 1) {
+          segments.push(current.join(' '))
+        }
+        current = []
+        return
+      }
+      const x = index * stepX
+      const y = toY(value)
+      current.push(`${x},${y}`)
+    })
+
+    if (current.length > 1) {
+      segments.push(current.join(' '))
+    }
+
+    return segments
+  }
 
   return (
     <div className="p-0 space-y-2 w-full">
@@ -2434,24 +2664,24 @@ export default function CountboardDashboard() {
               <TooltipTrigger asChild>
                 <Label className="px-3 py-2 flex items-center border border-gray-250 rounded-md align-middle text-base min-w-[390px]">
                   {Array.isArray(hourlyData) &&
-                    hourlyData &&
-                    hourlyData.filter((data) => data?.itemDesc !== null).length >
+                  hourlyData &&
+                  hourlyData.filter((data) => data?.itemDesc !== null).length >
                     0
                     ? hourlyData
-                      .filter((data) => data?.itemDesc !== null)
-                      .slice(-1)[0].itemDesc
+                        .filter((data) => data?.itemDesc !== null)
+                        .slice(-1)[0].itemDesc
                     : 'Material Description'}
                 </Label>
               </TooltipTrigger>
               <TooltipContent>
                 <p className="">
                   {Array.isArray(hourlyData) &&
-                    hourlyData &&
-                    hourlyData.filter((data) => data?.itemDesc !== null).length >
+                  hourlyData &&
+                  hourlyData.filter((data) => data?.itemDesc !== null).length >
                     0
                     ? hourlyData
-                      .filter((data) => data?.itemDesc !== null)
-                      .slice(-1)[0].itemDesc
+                        .filter((data) => data?.itemDesc !== null)
+                        .slice(-1)[0].itemDesc
                     : 'Material Description'}
                 </p>
               </TooltipContent>
@@ -2933,33 +3163,49 @@ export default function CountboardDashboard() {
                     return (
                       <div
                         key={indicator.field}
-                        className={`h-[43px] min-w-[160px] shrink-0 rounded-md border px-3 py-1 flex items-center gap-2 ${isOutOfRange
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          openZhafirIndicatorTrend(indicator, indicatorStatus)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            openZhafirIndicatorTrend(indicator, indicatorStatus)
+                          }
+                        }}
+                        className={`h-[43px] shrink-0 rounded-md border px-2 py-1 ${
+                          isOutOfRange
                             ? 'animate-alertBlink border-red-500'
                             : isInRange
                               ? 'border-emerald-300 bg-emerald-50'
                               : 'border-gray-300 bg-gray-50'
-                          }`}
+                        } cursor-pointer`}
+                        title="Klik untuk lihat trend 24 jam"
                       >
-                        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-white">
-                          {renderIndicatorIcon(indicator.icon)}
-                        </div>
-                        <div className="min-w-0 flex-1 leading-tight">
-                          <div className="truncate text-xs font-semibold uppercase tracking-wide text-gray-600">
-                            {indicator.label}
+                        <div className="flex h-full items-center gap-2">
+                          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-white">
+                            {renderIndicatorIcon(indicator.icon)}
                           </div>
-                          <div
-                            className={`truncate text-sm font-semibold ${isOutOfRange
-                                ? 'text-red-700'
-                                : isInRange
-                                  ? 'text-emerald-700'
-                                  : 'text-gray-700'
+                          <div className="min-w-0 flex-1 leading-tight">
+                            <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                              {indicator.label}
+                            </div>
+                            <div
+                              className={`truncate text-xs font-semibold ${
+                                isOutOfRange
+                                  ? 'text-red-700'
+                                  : isInRange
+                                    ? 'text-emerald-700'
+                                    : 'text-gray-700'
                               }`}
-                          >
-                            {caption}
-                          </div>
-                          {/* <div className="mt-0.5 text-[10px] text-gray-700">
+                            >
+                              {caption}
+                            </div>
+                            {/* <div className="mt-0.5 text-[10px] text-gray-700">
                             {detail}
                           </div> */}
+                          </div>
                         </div>
                       </div>
                     )
@@ -3002,8 +3248,9 @@ export default function CountboardDashboard() {
 
               <div>
                 <div
-                  className={`text-4xl font-bold ${totalGap < 0 ? 'text-red-600' : 'text-green-600'
-                    }`}
+                  className={`text-4xl font-bold ${
+                    totalGap < 0 ? 'text-red-600' : 'text-green-600'
+                  }`}
                 >
                   {Math.abs(totalGap).toFixed(0)}
                 </div>
@@ -3081,11 +3328,12 @@ export default function CountboardDashboard() {
               </div>
               <div>
                 <div
-                  className={`text-4xl font-bold ${(oeeData?.[0]?.ooe || 0) * 100.0 >
-                      (oeeData?.[0]?.targetTolerance || 0) * 100.0
+                  className={`text-4xl font-bold ${
+                    (oeeData?.[0]?.ooe || 0) * 100.0 >
+                    (oeeData?.[0]?.targetTolerance || 0) * 100.0
                       ? 'text-green-500'
                       : 'text-red-500'
-                    }`}
+                  }`}
                 >
                   {((oeeData?.[0]?.ooe || 0) * 100.0).toFixed(1)}%
                 </div>
@@ -3302,7 +3550,7 @@ export default function CountboardDashboard() {
                           const remainingMinutes = nowDate.getMinutes() * 60
                           const to_datetime = new Date(
                             new Date(row.from_datetime).getTime() -
-                            6 * 60 * 60 * 1000
+                              6 * 60 * 60 * 1000
                           )
                           let textAnimation = 'animate-pulse'
                           var target_show = 0
@@ -3315,7 +3563,7 @@ export default function CountboardDashboard() {
                             )
                             target_show = Math.floor(
                               row.target_final *
-                              (oeeData?.[0]?.targetTolerance || 1)
+                                (oeeData?.[0]?.targetTolerance || 1)
                             )
                             target_show_100 = row.target_final
                             textAnimation = ''
@@ -3330,12 +3578,12 @@ export default function CountboardDashboard() {
                               ((row.target_final *
                                 (remainingMinutes + remainingSeconds)) /
                                 3600) *
-                              (oeeData?.[0]?.targetTolerance || 1)
+                                (oeeData?.[0]?.targetTolerance || 1)
                             )
                             target_show_100 = Math.floor(
                               (row.target_final *
                                 (remainingMinutes + remainingSeconds)) /
-                              3600
+                                3600
                             )
                           }
 
@@ -3345,10 +3593,11 @@ export default function CountboardDashboard() {
                           // }
                           return (
                             <TableRow
-                              className={`h-[56px] ${index === (hourlyData?.length ?? 0) - 1
+                              className={`h-[56px] ${
+                                index === (hourlyData?.length ?? 0) - 1
                                   ? 'border-b border-black'
                                   : ''
-                                }`}
+                              }`}
                               key={row.time}
                             >
                               <TableCell className="h-full text-xl text-nowrap text-black">
@@ -3363,10 +3612,11 @@ export default function CountboardDashboard() {
                                 {target_show}
                               </TableCell>
                               <TableCell
-                                className={`text-center w-[60px] h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0 border-gray-300  ${textAnimation} ${row.actual >= target_show
+                                className={`text-center w-[60px] h-full text-xl text-nowrap text-black border border-r-0 border-l-1 border-t-0 border-b-0 border-gray-300  ${textAnimation} ${
+                                  row.actual >= target_show
                                     ? 'text-green-500'
                                     : 'text-red-500'
-                                  }`}
+                                }`}
                               >
                                 {row.actual}
                               </TableCell>
@@ -3406,7 +3656,7 @@ export default function CountboardDashboard() {
                                               style={{
                                                 left: `${Math.min(
                                                   (target_show / maxValue) *
-                                                  100,
+                                                    100,
                                                   100
                                                 )}%`, // Accurate tolerance position
                                               }}
@@ -3416,7 +3666,7 @@ export default function CountboardDashboard() {
                                               style={{
                                                 left: `${Math.min(
                                                   (target_show_100 / maxValue) *
-                                                  100,
+                                                    100,
                                                   100
                                                 )}%`, // Accurate target position
                                               }}
@@ -3435,8 +3685,9 @@ export default function CountboardDashboard() {
                               </Tooltip>
 
                               <TableCell
-                                className={`text-xl text-nowrap  text-black ${delta >= 0 ? 'text-green-600' : 'text-red-600'
-                                  } border border-r-1 border-b-0 border-l-0 border-gray-300`}
+                                className={`text-xl text-nowrap  text-black ${
+                                  delta >= 0 ? 'text-green-600' : 'text-red-600'
+                                } border border-r-1 border-b-0 border-l-0 border-gray-300`}
                               >
                                 {Math.abs(delta).toFixed(0)}
                               </TableCell>
@@ -3580,10 +3831,11 @@ export default function CountboardDashboard() {
                           <TableCell className="w-[250px]"></TableCell>
                           <TableCell className="text-nowrap font-bold text-black">
                             <div
-                              className={`text-xl text-nowrap font-bold ${totalActual - totalTarget >= 0
+                              className={`text-xl text-nowrap font-bold ${
+                                totalActual - totalTarget >= 0
                                   ? 'text-green-600'
                                   : 'text-red-600'
-                                }`}
+                              }`}
                             >
                               {Math.abs(totalActual - totalTarget).toFixed(0)}
                             </div>
@@ -3618,9 +3870,9 @@ export default function CountboardDashboard() {
         </div> */}
           {selectedMachine?.machineName ? (
             stateData != undefined &&
-              stateData.length > 0 &&
-              hourlyData != undefined &&
-              hourlyData.length > 0 ? (
+            stateData.length > 0 &&
+            hourlyData != undefined &&
+            hourlyData.length > 0 ? (
               <div className="w-full  rounded-xl shadow-md border-2 border-gray-250">
                 <ChangeState
                   data={stateData}
@@ -3639,6 +3891,484 @@ export default function CountboardDashboard() {
             // ></iframe>
             <></>
           )}
+
+          <Dialog
+            open={isZhafirTrendDialogOpen}
+            onOpenChange={(open) => {
+              setIsZhafirTrendDialogOpen(open)
+              if (!open) setIsTrendChartFullscreen(false)
+            }}
+          >
+            <DialogContent
+              className={`${
+                isTrendChartFullscreen
+                  ? 'w-[99vw] max-w-[99vw] h-[96vh]'
+                  : 'w-[96vw] max-w-6xl'
+              } rounded-2xl border-slate-200 bg-gradient-to-b from-white to-slate-50`}
+            >
+              <DialogHeader>
+                <DialogTitle>
+                  SPC Trend ({zhafirTrendHoursBack}h) -{' '}
+                  {selectedTrendIndicator?.label || '-'}
+                </DialogTitle>
+                <DialogDescription className="p-0 m-0">
+                  Line chart actual dengan batas min/max dari
+                  MachineParameterSettingSTD.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-8 px-3"
+                  onClick={() => setIsTrendChartFullscreen((prev) => !prev)}
+                >
+                  {isTrendChartFullscreen ? (
+                    <>
+                      <Minimize className="mr-1 h-4 w-4" />
+                      Exit Fullscreen
+                    </>
+                  ) : (
+                    <>
+                      <Maximize className="mr-1 h-4 w-4" />
+                      Fullscreen
+                    </>
+                  )}
+                </Button>
+                <Input
+                  type="date"
+                  className="h-8 w-[170px]"
+                  value={
+                    selectedDate instanceof Date
+                      ? format(selectedDate, 'yyyy-MM-dd')
+                      : ''
+                  }
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (!value) return
+                    const parsedDate = new Date(`${value}T00:00:00`)
+                    if (Number.isNaN(parsedDate.getTime())) return
+                    setSelectedDate(parsedDate)
+                    if (selectedTrendIndicator) {
+                      openZhafirIndicatorTrend(
+                        selectedTrendIndicator,
+                        zhafirIndicatorStatusMap?.[
+                          selectedTrendIndicator.field
+                        ],
+                        zhafirTrendHoursBack,
+                        value
+                      )
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant={zhafirTrendHoursBack === 8 ? 'default' : 'outline'}
+                  className="h-8 px-3"
+                  onClick={() => {
+                    setZhafirTrendHoursBack(8)
+                    if (selectedTrendIndicator) {
+                      openZhafirIndicatorTrend(
+                        selectedTrendIndicator,
+                        zhafirIndicatorStatusMap?.[
+                          selectedTrendIndicator.field
+                        ],
+                        8
+                      )
+                    }
+                  }}
+                >
+                  Last 8h
+                </Button>
+                <Button
+                  type="button"
+                  variant={zhafirTrendHoursBack === 24 ? 'default' : 'outline'}
+                  className="h-8 px-3"
+                  onClick={() => {
+                    setZhafirTrendHoursBack(24)
+                    if (selectedTrendIndicator) {
+                      openZhafirIndicatorTrend(
+                        selectedTrendIndicator,
+                        zhafirIndicatorStatusMap?.[
+                          selectedTrendIndicator.field
+                        ],
+                        24
+                      )
+                    }
+                  }}
+                >
+                  Last 24h
+                </Button>
+              </div>
+
+              {isLoadingZhafirTrend ? (
+                <div className="py-8 text-center text-sm text-gray-500">
+                  Loading trend...
+                </div>
+              ) : zhafirTrendError ? (
+                <div className="py-8 text-center text-sm text-red-600">
+                  {zhafirTrendError}
+                </div>
+              ) : (
+                (() => {
+                  const chartWidth = isTrendChartFullscreen ? 1780 : 1220
+                  const chartHeight = isTrendChartFullscreen ? 760 : 410
+                  const marginLeft = 68
+                  const marginRight = 22
+                  const marginTop = 20
+                  const marginBottom = 60
+                  const plotWidth = chartWidth - marginLeft - marginRight
+                  const plotHeight = chartHeight - marginTop - marginBottom
+                  const allYValues = zhafirTrendPoints
+                    .flatMap((point) => [point.value, point.min, point.max])
+                    .filter((value): value is number => value !== null)
+
+                  const rawMin =
+                    allYValues.length > 0 ? Math.min(...allYValues) : 0
+                  const rawMax =
+                    allYValues.length > 0 ? Math.max(...allYValues) : 1
+                  const padding = Math.max((rawMax - rawMin) * 0.1, 1)
+                  const yMin = rawMin - padding
+                  const yMax = rawMax + padding
+                  const ySpan = Math.max(yMax - yMin, 1)
+                  const stepX =
+                    zhafirTrendPoints.length > 1
+                      ? plotWidth / (zhafirTrendPoints.length - 1)
+                      : plotWidth
+                  const toY = (value: number) =>
+                    plotHeight - ((value - yMin) / ySpan) * plotHeight
+                  const yTicks = [0, 0.25, 0.5, 0.75, 1]
+                  // const xLabelStep = zhafirTrendPoints.length > 12 ? 2 : 1
+
+                  const minSegments = buildLineSegments(
+                    zhafirTrendPoints,
+                    (point) => point.min,
+                    plotWidth,
+                    plotHeight,
+                    yMin,
+                    yMax
+                  )
+                  const maxSegments = buildLineSegments(
+                    zhafirTrendPoints,
+                    (point) => point.max,
+                    plotWidth,
+                    plotHeight,
+                    yMin,
+                    yMax
+                  )
+                  const actualSegments = buildLineSegments(
+                    zhafirTrendPoints,
+                    (point) => point.value,
+                    plotWidth,
+                    plotHeight,
+                    yMin,
+                    yMax
+                  )
+                  const firstWithRange = zhafirTrendPoints.find(
+                    (point) => point.min !== null && point.max !== null
+                  )
+                  const hasRangeBand = Boolean(firstWithRange)
+                  const rangeBandTop = hasRangeBand
+                    ? toY((firstWithRange?.max as number) ?? 0)
+                    : 0
+                  const rangeBandBottom = hasRangeBand
+                    ? toY((firstWithRange?.min as number) ?? 0)
+                    : 0
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                        <svg
+                          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                          className={`${isTrendChartFullscreen ? 'h-[72vh]' : 'h-[460px]'} w-full`}
+                          role="img"
+                          aria-label="SPC trend chart"
+                        >
+                          <defs>
+                            <linearGradient
+                              id="actualAreaGradient"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="0%"
+                                stopColor="#2563eb"
+                                stopOpacity="0.24"
+                              />
+                              <stop
+                                offset="100%"
+                                stopColor="#2563eb"
+                                stopOpacity="0.03"
+                              />
+                            </linearGradient>
+                            <filter
+                              id="lineGlow"
+                              x="-30%"
+                              y="-30%"
+                              width="160%"
+                              height="160%"
+                            >
+                              <feGaussianBlur
+                                stdDeviation="2.4"
+                                result="blur"
+                              />
+                              <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                              </feMerge>
+                            </filter>
+                          </defs>
+                          <g
+                            transform={`translate(${marginLeft},${marginTop})`}
+                          >
+                            {hasRangeBand ? (
+                              <rect
+                                x="0"
+                                y={Math.min(rangeBandTop, rangeBandBottom)}
+                                width={plotWidth}
+                                height={Math.abs(
+                                  rangeBandBottom - rangeBandTop
+                                )}
+                                fill="#dcfce7"
+                                opacity="0.45"
+                              />
+                            ) : null}
+
+                            {yTicks.map((ratio, idx) => {
+                              const y = plotHeight * ratio
+                              const yValue = yMax - ratio * (yMax - yMin)
+                              return (
+                                <g key={`grid-${idx}`}>
+                                  <line
+                                    x1="0"
+                                    y1={y}
+                                    x2={plotWidth}
+                                    y2={y}
+                                    stroke="#cbd5e1"
+                                    strokeWidth="1"
+                                  />
+                                  <text
+                                    x={-8}
+                                    y={y + 3}
+                                    textAnchor="end"
+                                    className="fill-gray-500 text-[10px]"
+                                  >
+                                    {formatCompactNumber(yValue)}
+                                  </text>
+                                </g>
+                              )
+                            })}
+
+                            {minSegments.map((segment, idx) => (
+                              <polyline
+                                key={`min-${idx}`}
+                                points={segment}
+                                fill="none"
+                                stroke="#f59e0b"
+                                strokeWidth="2.5"
+                                strokeDasharray="7 5"
+                              />
+                            ))}
+
+                            {maxSegments.map((segment, idx) => (
+                              <polyline
+                                key={`max-${idx}`}
+                                points={segment}
+                                fill="none"
+                                stroke="#ef4444"
+                                strokeWidth="2.5"
+                                strokeDasharray="7 5"
+                              />
+                            ))}
+
+                            {actualSegments.map((segment, idx) => {
+                              const points = segment.split(' ')
+                              const first = points[0]
+                              const last = points[points.length - 1]
+                              const firstX = first?.split(',')[0] || '0'
+                              const lastX = last?.split(',')[0] || '0'
+                              return (
+                                <polygon
+                                  key={`act-area-${idx}`}
+                                  points={`${segment} ${lastX},${plotHeight} ${firstX},${plotHeight}`}
+                                  fill="url(#actualAreaGradient)"
+                                />
+                              )
+                            })}
+
+                            {actualSegments.map((segment, idx) => (
+                              <polyline
+                                key={`act-${idx}`}
+                                points={segment}
+                                fill="none"
+                                stroke="#1d4ed8"
+                                strokeWidth="3.5"
+                                filter="url(#lineGlow)"
+                              />
+                            ))}
+
+                            {zhafirTrendPoints.map((point, idx) => {
+                              if (point.value === null) return null
+                              const x = idx * stepX
+                              const y = toY(point.value)
+                              const tooltip = `Jam: ${point.hourLabel}\nActual: ${formatCompactNumber(point.value)}\nMin: ${
+                                point.min === null
+                                  ? '-'
+                                  : formatCompactNumber(point.min)
+                              }\nMax: ${
+                                point.max === null
+                                  ? '-'
+                                  : formatCompactNumber(point.max)
+                              }\nStatus: ${point.status}`
+                              return (
+                                <g key={`point-${idx}`}>
+                                  <circle
+                                    cx={x}
+                                    cy={y}
+                                    r="6"
+                                    fill={
+                                      point.status === 'out_of_range'
+                                        ? '#dc2626'
+                                        : '#1d4ed8'
+                                    }
+                                  />
+                                      <text
+                                    x={x}
+                                    y={y - 14}
+                                    textAnchor="middle"
+                                    fontSize="12"
+                                    fontWeight="bold"
+                                    fill="#111827"
+                                    stroke="white"
+                                    strokeWidth="3"
+                                    paintOrder="stroke"
+                                  >
+                                    {formatCompactNumber(point.value)}
+                                  </text>
+
+                                  <title>
+                                    {point.hourLabel}
+                                    {'\n'}Actual: {point.value}
+                                    {'\n'}Min: {point.min}
+                                    {'\n'}Max: {point.max}
+                                  </title>
+                                </g>
+                              )
+                            })}
+
+                            <line
+                              x1="0"
+                              y1={plotHeight}
+                              x2={plotWidth}
+                              y2={plotHeight}
+                              stroke="#64748b"
+                              strokeWidth="1"
+                            />
+                          </g>
+
+                          {zhafirTrendPoints.map((point, idx) => {
+                            // if (idx % xLabelStep !== 0) return null
+                            const x = marginLeft + idx * stepX
+                            return (
+                              <text
+                                key={`xlabel-${idx}`}
+                                x={x}
+                                y={chartHeight - 18}
+                                textAnchor="middle"
+                                className="fill-gray-600 text-[10px]"
+                              >
+                                {point.hourLabel}
+                              </text>
+                            )
+                          })}
+
+                          <text
+                            x={16}
+                            y={18}
+                            className="fill-gray-500 text-[10px] font-semibold"
+                          >
+                            Y (nilai)
+                          </text>
+                          <text
+                            x={chartWidth - 56}
+                            y={chartHeight - 4}
+                            className="fill-gray-500 text-[10px] font-semibold"
+                          >
+                            X (jam)
+                          </text>
+                        </svg>
+
+                        <div className="mt-2 flex flex-wrap gap-4 text-xs">
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-blue-700 shadow-sm" />
+                            Actual
+                          </div>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-amber-500 shadow-sm" />
+                            Min (STD)
+                          </div>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-red-500 shadow-sm" />
+                            Max (STD)
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`${
+                          isTrendChartFullscreen ? 'max-h-[20vh]' : 'max-h-48'
+                        } overflow-auto rounded-md border`}
+                      >
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Hour</TableHead>
+                              <TableHead>Actual</TableHead>
+                              <TableHead>Min</TableHead>
+                              <TableHead>Max</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {zhafirTrendPoints.map((point, idx) => (
+                              <TableRow key={`${point.hourLabel}-row-${idx}`}>
+                                <TableCell>{point.hourLabel}</TableCell>
+                                <TableCell>
+                                  {point.value === null
+                                    ? '-'
+                                    : formatCompactNumber(point.value)}
+                                </TableCell>
+                                <TableCell>
+                                  {point.min === null
+                                    ? '-'
+                                    : formatCompactNumber(point.min)}
+                                </TableCell>
+                                <TableCell>
+                                  {point.max === null
+                                    ? '-'
+                                    : formatCompactNumber(point.max)}
+                                </TableCell>
+                                <TableCell>
+                                  {point.status === 'out_of_range'
+                                    ? 'Out of range'
+                                    : point.status === 'ok'
+                                      ? 'In range'
+                                      : 'No data'}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )
+                })()
+              )}
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={isStateDialogOpen} onOpenChange={setIsStateDialogOpen}>
             <DialogContent>
@@ -3784,23 +4514,23 @@ export default function CountboardDashboard() {
                             <TableCell>
                               {t.from
                                 ? format(
-                                  new Date(
-                                    new Date(t.from).getTime() -
-                                    7 * 60 * 60 * 1000
-                                  ),
-                                  'dd-MM-yyyy HH:mm:ss'
-                                )
+                                    new Date(
+                                      new Date(t.from).getTime() -
+                                        7 * 60 * 60 * 1000
+                                    ),
+                                    'dd-MM-yyyy HH:mm:ss'
+                                  )
                                 : '-'}
                             </TableCell>
                             <TableCell>
                               {t.to
                                 ? format(
-                                  new Date(
-                                    new Date(t.to).getTime() -
-                                    7 * 60 * 60 * 1000
-                                  ),
-                                  'dd-MM-yyyy HH:mm:ss'
-                                )
+                                    new Date(
+                                      new Date(t.to).getTime() -
+                                        7 * 60 * 60 * 1000
+                                    ),
+                                    'dd-MM-yyyy HH:mm:ss'
+                                  )
                                 : 'Belum selesai (masih ORANGE)'}
                             </TableCell>
                           </TableRow>
@@ -3956,13 +4686,15 @@ export default function CountboardDashboard() {
                           >
                             {selectedAssignTo
                               ? usersOP.find((u) => u.id === selectedAssignTo)
-                                ? `${usersOP.find(
-                                  (u) => u.id === selectedAssignTo
-                                )?.dept
-                                } - ${usersOP.find(
-                                  (u) => u.id === selectedAssignTo
-                                )?.name
-                                }`
+                                ? `${
+                                    usersOP.find(
+                                      (u) => u.id === selectedAssignTo
+                                    )?.dept
+                                  } - ${
+                                    usersOP.find(
+                                      (u) => u.id === selectedAssignTo
+                                    )?.name
+                                  }`
                                 : 'Operator / Mekanik'
                               : 'Operator / Mekanik'}
 
@@ -4018,10 +4750,11 @@ export default function CountboardDashboard() {
                           >
                             {selectedAssignBy
                               ? usersSPV.find((u) => u.id === selectedAssignBy)
-                                ? `${usersSPV.find(
-                                  (u) => u.id === selectedAssignBy
-                                )?.dept
-                                } - 
+                                ? `${
+                                    usersSPV.find(
+                                      (u) => u.id === selectedAssignBy
+                                    )?.dept
+                                  } - 
            ${usersSPV.find((u) => u.id === selectedAssignBy)?.name}`
                                 : 'SPV'
                               : selectedAssignTo

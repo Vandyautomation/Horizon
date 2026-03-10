@@ -1352,12 +1352,10 @@ const ACT_VIEW_TO_FIELD_MAP: Record<string, string> = {
   Note_ActInjtTime: 'InjectTime',
   Note_PlastTime: 'AfterPlasticiseTime',
   Note_InjStartPos: 'InjectScrewPosition',
-  Note_InjPeakPressure: 'InjPeakPressure',
-  Note_MinCushionPos: 'Thickness',
+  InjPeakPressure: 'InjPeakPressure',
   Tonnage_Set: 'Tonase',
   CarriageBWD_SE: 'CarriageBwd_SE',
   VP_Position: 'VPPositionText',
-  VP_Time: 'VPTimeText',
   Temperature_Max_Hopper: 'HopperMax',
   Temperature_Min_Hopper: 'HopperMin',
   Temperature_Real_Hopper: 'HopperReal',
@@ -1548,13 +1546,12 @@ function mapActualFromViewRow(row: Record<string, any> | undefined) {
   )
   if (!row) return actual
 
-  Object.assign(actual, mapSourceToUiFields(row))
-
   const rawParamset = getRowValue(row as Record<string, unknown>, ['paramset'])
   if (rawParamset) {
     const paramset = parseStdParamset(rawParamset) as Record<string, any>
     Object.assign(actual, mapSourceToUiFields(paramset))
   }
+  Object.assign(actual, mapSourceToUiFields(row))
 
   return actual
 }
@@ -1587,7 +1584,8 @@ export async function getZhafirActualFromView(
   const queries = resolvedMachineId
     ? [
         `
-        SELECT TOP 1 *
+        SELECT TOP 1 *,
+          JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_ActInjtTime') AS VPTimeText
         FROM IoT.dbo.MachineParameterSettingTRX
         WHERE machineId = @MachineID
         ORDER BY created_at DESC, id DESC
@@ -1595,7 +1593,8 @@ export async function getZhafirActualFromView(
       ]
     : [
         `
-        SELECT TOP 1 *
+        SELECT TOP 1 *,
+          JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_ActInjtTime') AS VPTimeText
         FROM IoT.dbo.MachineParameterSettingTRX
         ORDER BY created_at DESC, id DESC
       `,
@@ -1646,7 +1645,8 @@ export async function getZhafirActualFromViewByHour(
   }
 
   const sqlQuery = `
-    SELECT TOP 1 *
+    SELECT TOP 1 *,
+      JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_ActInjtTime') AS VPTimeText
     FROM IoT.dbo.MachineParameterSettingTRX
     WHERE machineId = @MachineID
       AND CAST(created_at AS date) = CAST(@DateParam AS date)
@@ -1699,6 +1699,226 @@ export async function getZhafirAvailableHours(machineId: string, date: string) {
   return {
     machineId: resolvedMachineId,
     date,
+    hours,
+  }
+}
+
+export async function getZhafirActiveMaterialByMachine(machineId: string) {
+  const resolvedMachineId = (machineId || '').trim()
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required')
+  }
+
+  const sqlQuery = `
+    SELECT TOP 1 material
+    FROM IoT.dbo.MachineParameterSettingTRX
+    WHERE machineId = @MachineID
+      AND material IS NOT NULL
+      AND LTRIM(RTRIM(CONVERT(NVARCHAR(255), material))) <> ''
+    ORDER BY created_at DESC, id DESC
+  `
+  const rows = await queryDatabase(sqlQuery, {
+    MachineID: resolvedMachineId,
+  })
+  const materialIdRaw = rows?.[0]?.material
+  let materialId = materialIdRaw ? String(materialIdRaw).trim() : null
+
+  // Fallback: if TRX material is empty, use latest STD material_Id for this machine
+  if (!materialId) {
+    const stdRow = await getLatestStdRowByMachine(resolvedMachineId)
+    const stdMaterialId = getRowValue(stdRow, ['material_Id', 'material_id'])
+    materialId = stdMaterialId ? String(stdMaterialId).trim() : null
+  }
+
+  return {
+    machineId: resolvedMachineId,
+    materialId,
+    found: Boolean(materialId),
+  }
+}
+
+export async function getZhafirActualByHourWindow(
+  machineId: string,
+  options?: {
+    paraId?: string
+    endAt?: string
+    date?: string
+    hoursBack?: number
+  }
+) {
+  const resolvedMachineId = (machineId || '').trim()
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required')
+  }
+
+  const requestedHoursBack = Number(options?.hoursBack ?? 24)
+  if (!Number.isInteger(requestedHoursBack) || requestedHoursBack < 1) {
+    throw new Error('hoursBack must be integer >= 1')
+  }
+
+  const formatLocalDate = (date: Date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  const formatSqlDateTimeLocal = (date: Date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    const hh = String(date.getHours()).padStart(2, '0')
+    const mm = String(date.getMinutes()).padStart(2, '0')
+    const ss = String(date.getSeconds()).padStart(2, '0')
+    const ms = String(date.getMilliseconds()).padStart(3, '0')
+    return `${y}-${m}-${d} ${hh}:${mm}:${ss}.${ms}`
+  }
+  const formatHourLabel = (input: unknown) => {
+    if (!input) return null
+    if (input instanceof Date && !Number.isNaN(input.getTime())) {
+      // Tedious commonly returns DATETIME as UTC Date. Use UTC hour to keep DB hour.
+      const hh = String(input.getUTCHours()).padStart(2, '0')
+      const mm = String(input.getUTCMinutes()).padStart(2, '0')
+      return `${hh}:${mm}`
+    }
+    const text = String(input)
+    const match = text.match(/(\d{2}):(\d{2})/)
+    return match ? `${match[1]}:${match[2]}` : null
+  }
+
+  let endDate: Date
+  if (options?.endAt) {
+    endDate = new Date(options.endAt)
+  } else if (options?.date) {
+    const trimmedDate = options.date.trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
+      throw new Error('date must be in YYYY-MM-DD format')
+    }
+    const now = new Date()
+    const isToday = trimmedDate === formatLocalDate(now)
+    endDate = isToday ? now : new Date(`${trimmedDate}T23:59:59.999`)
+  } else {
+    endDate = new Date()
+  }
+  if (Number.isNaN(endDate.getTime())) {
+    throw new Error('endAt must be a valid datetime')
+  }
+
+  const sqlQuery = `
+    ;WITH HourSlots AS (
+      SELECT
+        0 AS slot_index,
+        DATEADD(hour, DATEDIFF(hour, 0, @EndAt), 0) AS slot_start
+      UNION ALL
+      SELECT
+        slot_index + 1,
+        DATEADD(hour, -1, slot_start)
+      FROM HourSlots
+      WHERE slot_index + 1 < @HoursBack
+    ),
+    LatestPerHour AS (
+      SELECT
+        DATEADD(hour, DATEDIFF(hour, 0, created_at), 0) AS slot_start,
+        created_at,
+        JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_InjStartPos') AS InjectScrewPosition,
+        JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_ActInjtTime') AS VPTimeText,
+        JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.VP_Position') AS VPPositionText,
+        JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.InjPeakPressure') AS InjPeakPressure,
+        JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_Cushion') AS Thickness,
+        ROW_NUMBER() OVER (
+          PARTITION BY DATEADD(hour, DATEDIFF(hour, 0, created_at), 0)
+          ORDER BY created_at DESC, id DESC
+        ) AS rn
+      FROM IoT.dbo.MachineParameterSettingTRX
+      WHERE machineId = @MachineID
+        AND created_at >= DATEADD(
+          hour,
+          -(@HoursBack - 1),
+          DATEADD(hour, DATEDIFF(hour, 0, @EndAt), 0)
+        )
+        AND created_at < DATEADD(
+          hour,
+          1,
+          DATEADD(hour, DATEDIFF(hour, 0, @EndAt), 0)
+        )
+    )
+    SELECT
+      hs.slot_start,
+      CONVERT(VARCHAR(5), hs.slot_start, 108) AS hour_label,
+      lph.created_at,
+      lph.InjectScrewPosition,
+      lph.VPTimeText,
+      lph.VPPositionText,
+      lph.InjPeakPressure,
+      lph.Thickness
+    FROM HourSlots hs
+    LEFT JOIN LatestPerHour lph
+      ON lph.slot_start = hs.slot_start
+      AND lph.rn = 1
+    ORDER BY hs.slot_start ASC
+    OPTION (MAXRECURSION 32767)
+  `
+
+  const rows = await queryDatabase(sqlQuery, {
+    MachineID: resolvedMachineId,
+    EndAt: formatSqlDateTimeLocal(endDate),
+    HoursBack: requestedHoursBack,
+  })
+
+  let ranges: Record<
+    string,
+    { min: string | number | null; max: string | number | null }
+  > = {}
+  const nearestStdRow = await getNearestStdRowByMachine(resolvedMachineId)
+  if (nearestStdRow) {
+    const paramsetRaw = parseStdParamset(
+      getRowValue(nearestStdRow, ['paramset'])
+    )
+    ranges = extractRangeValuesFromParamset(
+      paramsetRaw as Record<string, unknown>
+    )
+  }
+
+  const hours = (rows || []).map((row: any) => {
+    const slotStart = row?.slot_start
+      ? new Date(String(row.slot_start)).toISOString()
+      : null
+    const actualDate = row?.created_at
+      ? new Date(String(row.created_at)).toISOString()
+      : null
+    const hasData = Boolean(row?.created_at)
+
+    return {
+      hourStart: slotStart,
+      hourLabel:
+        (row?.hour_label ? String(row.hour_label) : null) ||
+        formatHourLabel(row?.slot_start),
+      actualDate,
+      hasData,
+      values: hasData
+        ? {
+            InjectScrewPosition: row?.InjectScrewPosition ?? null,
+            VPTimeText: row?.VPTimeText ?? null,
+            VPPositionText: row?.VPPositionText ?? null,
+            InjPeakPressure: row?.InjPeakPressure ?? null,
+            Thickness: row?.Thickness ?? null,
+          }
+        : null,
+    }
+  })
+
+  return {
+    paraId: options?.paraId || 'ZHF-STD-001',
+    machineId: resolvedMachineId,
+    date: options?.date || null,
+    endAt: endDate.toISOString(),
+    hoursBack: requestedHoursBack,
+    ranges: {
+      InjectScrewPosition: ranges.InjectScrewPosition ?? { min: null, max: null },
+      VPTimeText: ranges.VPTimeText ?? { min: null, max: null },
+      VPPositionText: ranges.VPPositionText ?? { min: null, max: null },
+      InjPeakPressure: ranges.InjPeakPressure ?? { min: null, max: null },
+      Thickness: ranges.Thickness ?? { min: null, max: null },
+    },
     hours,
   }
 }

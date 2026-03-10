@@ -6,6 +6,8 @@ import {
   getZhafirActualFromView,
   getZhafirActualFromViewByHour,
   getZhafirAvailableHours,
+  getZhafirActiveMaterialByMachine,
+  getZhafirActualByHourWindow,
   getZhafirSummaryRangeConfig,
   getZhafirSectionStyles,
   getZhafirMaterialTypeFromRouting,
@@ -20,8 +22,6 @@ import {
   updateHardcodedStdField,
   upsertZhafirStd,
   upsertZhafirSectionStyle,
-  getSettingPamzhafir,
-  createSettingPamzhafir,
 } from '../controllers/zhafirController';
 import { queryDatabase } from '../utils/queryDatabase';
 
@@ -198,6 +198,57 @@ zhafirRoutes.get('/actual-hours', async (c) => {
       return c.json({ error: 'date is required (YYYY-MM-DD)' }, 400);
     }
     const data = await getZhafirAvailableHours(resolvedMachineId, date);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.get('/material-active', async (c) => {
+  try {
+    const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
+    const denied = await ensureTemporaryMachineAccess(c, machineId);
+    if (denied) return denied;
+    const resolvedMachineId = String(machineId).trim();
+    const data = await getZhafirActiveMaterialByMachine(resolvedMachineId);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.get('/actual-view-window', async (c) => {
+  try {
+    const paraId = c.req.query('paraId') || undefined;
+    const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
+    const endAt = c.req.query('endAt') || undefined;
+    const date = c.req.query('date') || undefined;
+    const hoursBackRaw = c.req.query('hoursBack') || undefined;
+
+    const denied = await ensureTemporaryMachineAccess(c, machineId);
+    if (denied) return denied;
+
+    const resolvedMachineId = String(machineId).trim();
+    const hoursBack = hoursBackRaw ? Number(hoursBackRaw) : 24;
+    if (!Number.isInteger(hoursBack) || hoursBack < 1 || hoursBack > 720) {
+      return c.json({ error: 'hoursBack must be integer 1..720' }, 400);
+    }
+    if (endAt) {
+      const parsedEndAt = new Date(endAt);
+      if (Number.isNaN(parsedEndAt.getTime())) {
+        return c.json({ error: 'endAt must be valid datetime' }, 400);
+      }
+    }
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return c.json({ error: 'date must be in YYYY-MM-DD format' }, 400);
+    }
+
+    const data = await getZhafirActualByHourWindow(resolvedMachineId, {
+      paraId,
+      endAt,
+      date,
+      hoursBack,
+    });
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
@@ -502,26 +553,4 @@ zhafirRoutes.post('/manual-bulk', async (c) => {
   }
 });
 
-
-zhafirRoutes.get('/Pamzhafir', async (c) => {
-  try {
-    const data = await getSettingPamzhafir()
-    return c.json(data)
-  } catch (error) {
-    console.error('Error fetching Pamzhafir settings:', error)
-    return c.json({ error: (error as Error).message }, 500)
-  }
-})
-zhafirRoutes.post('/Pamzhafir', async (c) => {
-  try {
-    const body = await c.req.json()
-
-    await createSettingPamzhafir(body)
-
-    return c.json({ success: true })
-  } catch (error) {
-    console.error('Error creating Pamzhafir:', error)
-    return c.json({ error: (error as Error).message }, 500)
-  }
-})
 export default zhafirRoutes;
