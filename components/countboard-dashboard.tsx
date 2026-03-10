@@ -213,6 +213,10 @@ type ZhafirActualViewWindowResponse = {
   machineId?: string
   endAt?: string
   hoursBack?: number
+  ranges?: Record<
+    string,
+    { min: number | string | null; max: number | string | null }
+  >
   hours?: ZhafirActualViewWindowHour[]
 }
 
@@ -265,6 +269,8 @@ type ZhafirTrendPoint = {
   hourLabel: string
   actualDate: string | null
   value: number | null
+  min: number | null
+  max: number | null
   status: 'ok' | 'out_of_range' | 'unknown'
 }
 
@@ -416,6 +422,7 @@ export default function CountboardDashboard() {
   const [zhafirTrendPoints, setZhafirTrendPoints] = useState<ZhafirTrendPoint[]>(
     []
   )
+  const [zhafirTrendHoursBack, setZhafirTrendHoursBack] = useState<8 | 24>(24)
   const [isLoadingZhafirTrend, setIsLoadingZhafirTrend] = useState(false)
   const [zhafirTrendError, setZhafirTrendError] = useState<string | null>(null)
 
@@ -576,11 +583,13 @@ export default function CountboardDashboard() {
   const openZhafirIndicatorTrend = useCallback(
     async (
       indicator: (typeof ZHAFIR_INDICATORS)[number],
-      indicatorThreshold?: ZhafirIndicatorStatus
+      indicatorThreshold?: ZhafirIndicatorStatus,
+      hoursBackOverride?: 8 | 24
     ) => {
       const machineName = selectedMachine?.machineName
       if (!machineName) return
 
+      const hoursBack = hoursBackOverride ?? zhafirTrendHoursBack
       setSelectedTrendIndicator(indicator)
       setIsZhafirTrendDialogOpen(true)
       setIsLoadingZhafirTrend(true)
@@ -588,7 +597,7 @@ export default function CountboardDashboard() {
 
       try {
         const candidates = resolveZhafirCandidates(
-          `actual-view-window?machine_id=${encodeURIComponent(machineName)}&hoursBack=24&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}`
+          `actual-view-window?machine_id=${encodeURIComponent(machineName)}&hoursBack=${hoursBack}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}`
         )
 
         let data: ZhafirActualViewWindowResponse | null = null
@@ -609,23 +618,27 @@ export default function CountboardDashboard() {
           return
         }
 
+        const rangeFromStd = data.ranges?.[indicator.field]
+        const rangeMin = parseFiniteNumber(rangeFromStd?.min)
+        const rangeMax = parseFiniteNumber(rangeFromStd?.max)
         const threshold = indicatorThreshold ?? {
           status: 'unknown' as const,
           std: null,
           act: null,
-          min: null,
-          max: null,
+          min: rangeMin,
+          max: rangeMax,
         }
         const points: ZhafirTrendPoint[] = data.hours.map((hour) => {
           const rawValue = hour?.values?.[indicator.field]
           const value = parseFiniteNumber(rawValue)
-          const hasRange = threshold.min !== null || threshold.max !== null
+          const min = rangeMin ?? threshold.min
+          const max = rangeMax ?? threshold.max
+          const hasRange = min !== null || max !== null
           const isOutOfRange =
             value === null
               ? false
               : hasRange
-                ? (threshold.min !== null && value < threshold.min) ||
-                  (threshold.max !== null && value > threshold.max)
+                ? (min !== null && value < min) || (max !== null && value > max)
                 : threshold.std !== null
                   ? value > threshold.std
                   : false
@@ -646,6 +659,8 @@ export default function CountboardDashboard() {
             hourLabel,
             actualDate: hour?.actualDate ? String(hour.actualDate) : null,
             value,
+            min,
+            max,
             status,
           }
         })
@@ -658,7 +673,7 @@ export default function CountboardDashboard() {
         setIsLoadingZhafirTrend(false)
       }
     },
-    [resolveZhafirCandidates, selectedMachine?.machineName]
+    [resolveZhafirCandidates, selectedMachine?.machineName, zhafirTrendHoursBack]
   )
   const [isSavingZhafirAccess, setIsSavingZhafirAccess] = useState(false)
   const fetchZhafirTemporaryAccessStatus = useCallback(
@@ -2472,6 +2487,40 @@ export default function CountboardDashboard() {
       'inj bld g' && String(selectedMachine?.machineNumber || '').trim() === '2'
   const shouldShowZhafirIndicators =
     isG2Machine || Boolean(zhafirAccessStatus?.enabled)
+  const buildLineSegments = (
+    points: ZhafirTrendPoint[],
+    pick: (point: ZhafirTrendPoint) => number | null,
+    width: number,
+    height: number,
+    minY: number,
+    maxY: number
+  ) => {
+    const span = Math.max(maxY - minY, 1)
+    const stepX = points.length > 1 ? width / (points.length - 1) : width
+    const toY = (value: number) => height - ((value - minY) / span) * height
+    const segments: string[] = []
+    let current: string[] = []
+
+    points.forEach((point, index) => {
+      const value = pick(point)
+      if (value === null || !Number.isFinite(value)) {
+        if (current.length > 1) {
+          segments.push(current.join(' '))
+        }
+        current = []
+        return
+      }
+      const x = index * stepX
+      const y = toY(value)
+      current.push(`${x},${y}`)
+    })
+
+    if (current.length > 1) {
+      segments.push(current.join(' '))
+    }
+
+    return segments
+  }
 
   return (
     <div className="p-0 space-y-2 w-full">
@@ -3796,12 +3845,50 @@ export default function CountboardDashboard() {
             <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
                 <DialogTitle>
-                  Trend 24 Jam - {selectedTrendIndicator?.label || '-'}
+                  SPC Trend ({zhafirTrendHoursBack}h) -{' '}
+                  {selectedTrendIndicator?.label || '-'}
                 </DialogTitle>
                 <DialogDescription className="p-0 m-0">
-                  Nilai actual per jam untuk parameter yang dipilih.
+                  Line chart actual dengan batas min/max dari MachineParameterSettingSTD.
                 </DialogDescription>
               </DialogHeader>
+
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant={zhafirTrendHoursBack === 8 ? 'default' : 'outline'}
+                  className="h-8 px-3"
+                  onClick={() => {
+                    setZhafirTrendHoursBack(8)
+                    if (selectedTrendIndicator) {
+                      openZhafirIndicatorTrend(
+                        selectedTrendIndicator,
+                        zhafirIndicatorStatusMap?.[selectedTrendIndicator.field],
+                        8
+                      )
+                    }
+                  }}
+                >
+                  Last 8h
+                </Button>
+                <Button
+                  type="button"
+                  variant={zhafirTrendHoursBack === 24 ? 'default' : 'outline'}
+                  className="h-8 px-3"
+                  onClick={() => {
+                    setZhafirTrendHoursBack(24)
+                    if (selectedTrendIndicator) {
+                      openZhafirIndicatorTrend(
+                        selectedTrendIndicator,
+                        zhafirIndicatorStatusMap?.[selectedTrendIndicator.field],
+                        24
+                      )
+                    }
+                  }}
+                >
+                  Last 24h
+                </Button>
+              </div>
 
               {isLoadingZhafirTrend ? (
                 <div className="py-8 text-center text-sm text-gray-500">
@@ -3812,50 +3899,231 @@ export default function CountboardDashboard() {
                   {zhafirTrendError}
                 </div>
               ) : (() => {
-                  const numericValues = zhafirTrendPoints
-                    .map((item) => item.value)
+                  const chartWidth = 920
+                  const chartHeight = 300
+                  const marginLeft = 56
+                  const marginRight = 16
+                  const marginTop = 12
+                  const marginBottom = 44
+                  const plotWidth = chartWidth - marginLeft - marginRight
+                  const plotHeight = chartHeight - marginTop - marginBottom
+                  const allYValues = zhafirTrendPoints
+                    .flatMap((point) => [point.value, point.min, point.max])
                     .filter((value): value is number => value !== null)
-                  const minValue =
-                    numericValues.length > 0 ? Math.min(...numericValues) : 0
-                  const maxValue =
-                    numericValues.length > 0 ? Math.max(...numericValues) : 0
-                  const rangeValue = Math.max(maxValue - minValue, 1)
+
+                  const rawMin =
+                    allYValues.length > 0 ? Math.min(...allYValues) : 0
+                  const rawMax =
+                    allYValues.length > 0 ? Math.max(...allYValues) : 1
+                  const padding = Math.max((rawMax - rawMin) * 0.1, 1)
+                  const yMin = rawMin - padding
+                  const yMax = rawMax + padding
+                  const ySpan = Math.max(yMax - yMin, 1)
+                  const stepX =
+                    zhafirTrendPoints.length > 1
+                      ? plotWidth / (zhafirTrendPoints.length - 1)
+                      : plotWidth
+                  const toY = (value: number) =>
+                    plotHeight - ((value - yMin) / ySpan) * plotHeight
+                  const yTicks = [0, 0.25, 0.5, 0.75, 1]
+                  const xLabelStep = zhafirTrendPoints.length > 12 ? 2 : 1
+
+                  const minSegments = buildLineSegments(
+                    zhafirTrendPoints,
+                    (point) => point.min,
+                    plotWidth,
+                    plotHeight,
+                    yMin,
+                    yMax
+                  )
+                  const maxSegments = buildLineSegments(
+                    zhafirTrendPoints,
+                    (point) => point.max,
+                    plotWidth,
+                    plotHeight,
+                    yMin,
+                    yMax
+                  )
+                  const actualSegments = buildLineSegments(
+                    zhafirTrendPoints,
+                    (point) => point.value,
+                    plotWidth,
+                    plotHeight,
+                    yMin,
+                    yMax
+                  )
+                  const firstWithRange = zhafirTrendPoints.find(
+                    (point) => point.min !== null && point.max !== null
+                  )
+                  const hasRangeBand = Boolean(firstWithRange)
+                  const rangeBandTop = hasRangeBand
+                    ? toY((firstWithRange?.max as number) ?? 0)
+                    : 0
+                  const rangeBandBottom = hasRangeBand
+                    ? toY((firstWithRange?.min as number) ?? 0)
+                    : 0
 
                   return (
                     <div className="space-y-4">
-                      <div className="h-48 rounded-md border bg-gray-50 p-3">
-                        <div className="flex h-full items-end gap-1">
-                          {zhafirTrendPoints.map((point, idx) => {
-                            const hasValue = point.value !== null
-                            const normalized = hasValue
-                              ? ((point.value as number) - minValue) / rangeValue
-                              : 0
-                            const barHeight = hasValue
-                              ? Math.max(8, Math.round(normalized * 140))
-                              : 6
-                            const barColor =
-                              point.status === 'out_of_range'
-                                ? 'bg-red-500'
-                                : point.status === 'ok'
-                                  ? 'bg-emerald-500'
-                                  : 'bg-gray-300'
+                      <div className="rounded-md border bg-[#f8fafc] p-3">
+                        <svg
+                          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                          className="h-64 w-full"
+                          role="img"
+                          aria-label="SPC trend chart"
+                        >
+                          <g transform={`translate(${marginLeft},${marginTop})`}>
+                            {hasRangeBand ? (
+                              <rect
+                                x="0"
+                                y={Math.min(rangeBandTop, rangeBandBottom)}
+                                width={plotWidth}
+                                height={Math.abs(rangeBandBottom - rangeBandTop)}
+                                fill="#dcfce7"
+                                opacity="0.45"
+                              />
+                            ) : null}
 
+                            {yTicks.map((ratio, idx) => {
+                              const y = plotHeight * ratio
+                              const yValue = yMax - ratio * (yMax - yMin)
+                              return (
+                                <g key={`grid-${idx}`}>
+                                  <line
+                                    x1="0"
+                                    y1={y}
+                                    x2={plotWidth}
+                                    y2={y}
+                                    stroke="#cbd5e1"
+                                    strokeWidth="1"
+                                  />
+                                  <text
+                                    x={-8}
+                                    y={y + 3}
+                                    textAnchor="end"
+                                    className="fill-gray-500 text-[10px]"
+                                  >
+                                    {formatCompactNumber(yValue)}
+                                  </text>
+                                </g>
+                              )
+                            })}
+
+                            {minSegments.map((segment, idx) => (
+                              <polyline
+                                key={`min-${idx}`}
+                                points={segment}
+                                fill="none"
+                                stroke="#f59e0b"
+                                strokeWidth="2"
+                                strokeDasharray="6 4"
+                              />
+                            ))}
+
+                            {maxSegments.map((segment, idx) => (
+                              <polyline
+                                key={`max-${idx}`}
+                                points={segment}
+                                fill="none"
+                                stroke="#ef4444"
+                                strokeWidth="2"
+                                strokeDasharray="6 4"
+                              />
+                            ))}
+
+                            {actualSegments.map((segment, idx) => (
+                              <polyline
+                                key={`act-${idx}`}
+                                points={segment}
+                                fill="none"
+                                stroke="#1d4ed8"
+                                strokeWidth="3"
+                              />
+                            ))}
+
+                            {zhafirTrendPoints.map((point, idx) => {
+                              if (point.value === null) return null
+                              const x = idx * stepX
+                              const y = toY(point.value)
+                              return (
+                                <g key={`point-${idx}`}>
+                                  <circle
+                                    cx={x}
+                                    cy={y}
+                                    r="3"
+                                    fill={
+                                      point.status === 'out_of_range'
+                                        ? '#dc2626'
+                                        : '#1d4ed8'
+                                    }
+                                  />
+                                  <text
+                                    x={x}
+                                    y={y - 6}
+                                    textAnchor="middle"
+                                    className="fill-gray-700 text-[9px] font-semibold"
+                                  >
+                                    {formatCompactNumber(point.value)}
+                                  </text>
+                                </g>
+                              )
+                            })}
+
+                            <line
+                              x1="0"
+                              y1={plotHeight}
+                              x2={plotWidth}
+                              y2={plotHeight}
+                              stroke="#64748b"
+                              strokeWidth="1"
+                            />
+                          </g>
+
+                          {zhafirTrendPoints.map((point, idx) => {
+                            if (idx % xLabelStep !== 0) return null
+                            const x = marginLeft + idx * stepX
                             return (
-                              <div
-                                key={`${point.hourLabel}-${idx}`}
-                                className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
-                                title={`${point.hourLabel} | ${point.value === null ? '-' : formatCompactNumber(point.value)}`}
+                              <text
+                                key={`xlabel-${idx}`}
+                                x={x}
+                                y={chartHeight - 18}
+                                textAnchor="middle"
+                                className="fill-gray-600 text-[10px]"
                               >
-                                <div
-                                  className={`w-full rounded-sm ${barColor}`}
-                                  style={{ height: `${barHeight}px` }}
-                                />
-                                <span className="text-[10px] text-gray-600">
-                                  {point.hourLabel}
-                                </span>
-                              </div>
+                                {point.hourLabel}
+                              </text>
                             )
                           })}
+
+                          <text
+                            x={16}
+                            y={18}
+                            className="fill-gray-500 text-[10px] font-semibold"
+                          >
+                            Y (nilai)
+                          </text>
+                          <text
+                            x={chartWidth - 56}
+                            y={chartHeight - 4}
+                            className="fill-gray-500 text-[10px] font-semibold"
+                          >
+                            X (jam)
+                          </text>
+                        </svg>
+
+                        <div className="mt-2 flex flex-wrap gap-4 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-block h-2.5 w-6 rounded bg-blue-700" />
+                            Actual
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-block h-2.5 w-6 rounded bg-amber-500" />
+                            Min (STD)
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-block h-2.5 w-6 rounded bg-red-500" />
+                            Max (STD)
+                          </div>
                         </div>
                       </div>
 
@@ -3865,6 +4133,8 @@ export default function CountboardDashboard() {
                             <TableRow>
                               <TableHead>Hour</TableHead>
                               <TableHead>Actual</TableHead>
+                              <TableHead>Min</TableHead>
+                              <TableHead>Max</TableHead>
                               <TableHead>Status</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -3876,6 +4146,16 @@ export default function CountboardDashboard() {
                                   {point.value === null
                                     ? '-'
                                     : formatCompactNumber(point.value)}
+                                </TableCell>
+                                <TableCell>
+                                  {point.min === null
+                                    ? '-'
+                                    : formatCompactNumber(point.min)}
+                                </TableCell>
+                                <TableCell>
+                                  {point.max === null
+                                    ? '-'
+                                    : formatCompactNumber(point.max)}
                                 </TableCell>
                                 <TableCell>
                                   {point.status === 'out_of_range'

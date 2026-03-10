@@ -1798,6 +1798,20 @@ export async function getZhafirActualByHourWindow(
     HoursBack: requestedHoursBack,
   })
 
+  let ranges: Record<
+    string,
+    { min: string | number | null; max: string | number | null }
+  > = {}
+  const nearestStdRow = await getNearestStdRowByMachine(resolvedMachineId)
+  if (nearestStdRow) {
+    const paramsetRaw = parseStdParamset(
+      getRowValue(nearestStdRow, ['paramset'])
+    )
+    ranges = extractRangeValuesFromParamset(
+      paramsetRaw as Record<string, unknown>
+    )
+  }
+
   const hours = (rows || []).map((row: any) => {
     const slotStart = row?.slot_start
       ? new Date(String(row.slot_start)).toISOString()
@@ -1828,6 +1842,13 @@ export async function getZhafirActualByHourWindow(
     machineId: resolvedMachineId,
     endAt: endDate.toISOString(),
     hoursBack: requestedHoursBack,
+    ranges: {
+      InjectScrewPosition: ranges.InjectScrewPosition ?? { min: null, max: null },
+      VPTimeText: ranges.VPTimeText ?? { min: null, max: null },
+      VPPositionText: ranges.VPPositionText ?? { min: null, max: null },
+      InjPeakPressure: ranges.InjPeakPressure ?? { min: null, max: null },
+      Thickness: ranges.Thickness ?? { min: null, max: null },
+    },
     hours,
   }
 }
