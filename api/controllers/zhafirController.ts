@@ -1352,8 +1352,7 @@ const ACT_VIEW_TO_FIELD_MAP: Record<string, string> = {
   Note_ActInjtTime: 'InjectTime',
   Note_PlastTime: 'AfterPlasticiseTime',
   Note_InjStartPos: 'InjectScrewPosition',
-  Note_InjPeakPressure: 'InjPeakPressure',
-  Note_MinCushionPos: 'Thickness',
+  InjPeakPressure: 'InjPeakPressure',
   Tonnage_Set: 'Tonase',
   CarriageBWD_SE: 'CarriageBwd_SE',
   VP_Position: 'VPPositionText',
@@ -1709,6 +1708,7 @@ export async function getZhafirActualByHourWindow(
   options?: {
     paraId?: string
     endAt?: string
+    date?: string
     hoursBack?: number
   }
 ) {
@@ -1722,7 +1722,49 @@ export async function getZhafirActualByHourWindow(
     throw new Error('hoursBack must be integer >= 1')
   }
 
-  const endDate = options?.endAt ? new Date(options.endAt) : new Date()
+  const formatLocalDate = (date: Date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  const formatSqlDateTimeLocal = (date: Date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    const hh = String(date.getHours()).padStart(2, '0')
+    const mm = String(date.getMinutes()).padStart(2, '0')
+    const ss = String(date.getSeconds()).padStart(2, '0')
+    const ms = String(date.getMilliseconds()).padStart(3, '0')
+    return `${y}-${m}-${d} ${hh}:${mm}:${ss}.${ms}`
+  }
+  const formatHourLabel = (input: unknown) => {
+    if (!input) return null
+    if (input instanceof Date && !Number.isNaN(input.getTime())) {
+      // Tedious commonly returns DATETIME as UTC Date. Use UTC hour to keep DB hour.
+      const hh = String(input.getUTCHours()).padStart(2, '0')
+      const mm = String(input.getUTCMinutes()).padStart(2, '0')
+      return `${hh}:${mm}`
+    }
+    const text = String(input)
+    const match = text.match(/(\d{2}):(\d{2})/)
+    return match ? `${match[1]}:${match[2]}` : null
+  }
+
+  let endDate: Date
+  if (options?.endAt) {
+    endDate = new Date(options.endAt)
+  } else if (options?.date) {
+    const trimmedDate = options.date.trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
+      throw new Error('date must be in YYYY-MM-DD format')
+    }
+    const now = new Date()
+    const isToday = trimmedDate === formatLocalDate(now)
+    endDate = isToday ? now : new Date(`${trimmedDate}T23:59:59.999`)
+  } else {
+    endDate = new Date()
+  }
   if (Number.isNaN(endDate.getTime())) {
     throw new Error('endAt must be a valid datetime')
   }
@@ -1745,20 +1787,9 @@ export async function getZhafirActualByHourWindow(
         created_at,
         JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_InjStartPos') AS InjectScrewPosition,
         JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_ActInjtTime') AS VPTimeText,
-        COALESCE(
-          JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.VP_Position'),
-          JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.VPPositionText'),
-          JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.VPPosnText')
-        ) AS VPPositionText,
-        COALESCE(
-          JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_InjPeakPressure'),
-          JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.InjPeakPressure')
-        ) AS InjPeakPressure,
-        COALESCE(
-          JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_Cushion'),
-          JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_MinCushionPos'),
-          JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Thickness')
-        ) AS Thickness,
+        JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.VP_Position') AS VPPositionText,
+        JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.InjPeakPressure') AS InjPeakPressure,
+        JSON_VALUE(CONVERT(NVARCHAR(MAX), paramset), '$.Note_Cushion') AS Thickness,
         ROW_NUMBER() OVER (
           PARTITION BY DATEADD(hour, DATEDIFF(hour, 0, created_at), 0)
           ORDER BY created_at DESC, id DESC
@@ -1778,6 +1809,7 @@ export async function getZhafirActualByHourWindow(
     )
     SELECT
       hs.slot_start,
+      CONVERT(VARCHAR(5), hs.slot_start, 108) AS hour_label,
       lph.created_at,
       lph.InjectScrewPosition,
       lph.VPTimeText,
@@ -1794,7 +1826,7 @@ export async function getZhafirActualByHourWindow(
 
   const rows = await queryDatabase(sqlQuery, {
     MachineID: resolvedMachineId,
-    EndAt: endDate.toISOString(),
+    EndAt: formatSqlDateTimeLocal(endDate),
     HoursBack: requestedHoursBack,
   })
 
@@ -1823,6 +1855,9 @@ export async function getZhafirActualByHourWindow(
 
     return {
       hourStart: slotStart,
+      hourLabel:
+        (row?.hour_label ? String(row.hour_label) : null) ||
+        formatHourLabel(row?.slot_start),
       actualDate,
       hasData,
       values: hasData
@@ -1840,6 +1875,7 @@ export async function getZhafirActualByHourWindow(
   return {
     paraId: options?.paraId || 'ZHF-STD-001',
     machineId: resolvedMachineId,
+    date: options?.date || null,
     endAt: endDate.toISOString(),
     hoursBack: requestedHoursBack,
     ranges: {

@@ -39,7 +39,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "api/config/database.js"
-, "components/zhafir-ze-3600.jsx"  ],
+  ],
   "exclude": [
     "node_modules"
   ]

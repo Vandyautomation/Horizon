@@ -204,6 +204,7 @@ type ZhafirActualViewResponse = {
 
 type ZhafirActualViewWindowHour = {
   hourStart?: string | null
+  hourLabel?: string | null
   actualDate?: string | null
   hasData?: boolean
   values?: Record<string, number | string | null> | null
@@ -423,6 +424,7 @@ export default function CountboardDashboard() {
     []
   )
   const [zhafirTrendHoursBack, setZhafirTrendHoursBack] = useState<8 | 24>(24)
+  const [isTrendChartFullscreen, setIsTrendChartFullscreen] = useState(false)
   const [isLoadingZhafirTrend, setIsLoadingZhafirTrend] = useState(false)
   const [zhafirTrendError, setZhafirTrendError] = useState<string | null>(null)
 
@@ -584,7 +586,8 @@ export default function CountboardDashboard() {
     async (
       indicator: (typeof ZHAFIR_INDICATORS)[number],
       indicatorThreshold?: ZhafirIndicatorStatus,
-      hoursBackOverride?: 8 | 24
+      hoursBackOverride?: 8 | 24,
+      dateOverride?: string
     ) => {
       const machineName = selectedMachine?.machineName
       if (!machineName) return
@@ -596,8 +599,16 @@ export default function CountboardDashboard() {
       setZhafirTrendError(null)
 
       try {
+        const dateParam =
+          dateOverride ||
+          (selectedDate instanceof Date
+            ? format(selectedDate, 'yyyy-MM-dd')
+            : null)
+        const trendQuery = `actual-view-window?machine_id=${encodeURIComponent(machineName)}&hoursBack=${hoursBack}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}${
+          dateParam ? `&date=${encodeURIComponent(dateParam)}` : ''
+        }`
         const candidates = resolveZhafirCandidates(
-          `actual-view-window?machine_id=${encodeURIComponent(machineName)}&hoursBack=${hoursBack}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}`
+          trendQuery
         )
 
         let data: ZhafirActualViewWindowResponse | null = null
@@ -651,9 +662,10 @@ export default function CountboardDashboard() {
               ? new Date(hour.actualDate)
               : null
           const hourLabel =
-            hourDate && !Number.isNaN(hourDate.getTime())
+            (hour?.hourLabel ? String(hour.hourLabel) : null) ||
+            (hourDate && !Number.isNaN(hourDate.getTime())
               ? format(hourDate, 'HH:mm')
-              : '-'
+              : '-')
 
           return {
             hourLabel,
@@ -673,7 +685,12 @@ export default function CountboardDashboard() {
         setIsLoadingZhafirTrend(false)
       }
     },
-    [resolveZhafirCandidates, selectedMachine?.machineName, zhafirTrendHoursBack]
+    [
+      resolveZhafirCandidates,
+      selectedDate,
+      selectedMachine?.machineName,
+      zhafirTrendHoursBack,
+    ]
   )
   const [isSavingZhafirAccess, setIsSavingZhafirAccess] = useState(false)
   const fetchZhafirTemporaryAccessStatus = useCallback(
@@ -3840,9 +3857,18 @@ export default function CountboardDashboard() {
 
           <Dialog
             open={isZhafirTrendDialogOpen}
-            onOpenChange={setIsZhafirTrendDialogOpen}
+            onOpenChange={(open) => {
+              setIsZhafirTrendDialogOpen(open)
+              if (!open) setIsTrendChartFullscreen(false)
+            }}
           >
-            <DialogContent className="sm:max-w-3xl">
+            <DialogContent
+              className={`${
+                isTrendChartFullscreen
+                  ? 'w-[99vw] max-w-[99vw] h-[96vh]'
+                  : 'w-[96vw] max-w-6xl'
+              } rounded-2xl border-slate-200 bg-gradient-to-b from-white to-slate-50`}
+            >
               <DialogHeader>
                 <DialogTitle>
                   SPC Trend ({zhafirTrendHoursBack}h) -{' '}
@@ -3854,6 +3880,50 @@ export default function CountboardDashboard() {
               </DialogHeader>
 
               <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-8 px-3"
+                  onClick={() =>
+                    setIsTrendChartFullscreen((prev) => !prev)
+                  }
+                >
+                  {isTrendChartFullscreen ? (
+                    <>
+                      <Minimize className="mr-1 h-4 w-4" />
+                      Exit Fullscreen
+                    </>
+                  ) : (
+                    <>
+                      <Maximize className="mr-1 h-4 w-4" />
+                      Fullscreen
+                    </>
+                  )}
+                </Button>
+                <Input
+                  type="date"
+                  className="h-8 w-[170px]"
+                  value={
+                    selectedDate instanceof Date
+                      ? format(selectedDate, 'yyyy-MM-dd')
+                      : ''
+                  }
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (!value) return
+                    const parsedDate = new Date(`${value}T00:00:00`)
+                    if (Number.isNaN(parsedDate.getTime())) return
+                    setSelectedDate(parsedDate)
+                    if (selectedTrendIndicator) {
+                      openZhafirIndicatorTrend(
+                        selectedTrendIndicator,
+                        zhafirIndicatorStatusMap?.[selectedTrendIndicator.field],
+                        zhafirTrendHoursBack,
+                        value
+                      )
+                    }
+                  }}
+                />
                 <Button
                   type="button"
                   variant={zhafirTrendHoursBack === 8 ? 'default' : 'outline'}
@@ -3899,12 +3969,12 @@ export default function CountboardDashboard() {
                   {zhafirTrendError}
                 </div>
               ) : (() => {
-                  const chartWidth = 920
-                  const chartHeight = 300
-                  const marginLeft = 56
-                  const marginRight = 16
-                  const marginTop = 12
-                  const marginBottom = 44
+                  const chartWidth = isTrendChartFullscreen ? 1780 : 1220
+                  const chartHeight = isTrendChartFullscreen ? 760 : 410
+                  const marginLeft = 68
+                  const marginRight = 22
+                  const marginTop = 20
+                  const marginBottom = 60
                   const plotWidth = chartWidth - marginLeft - marginRight
                   const plotHeight = chartHeight - marginTop - marginBottom
                   const allYValues = zhafirTrendPoints
@@ -3965,13 +4035,32 @@ export default function CountboardDashboard() {
 
                   return (
                     <div className="space-y-4">
-                      <div className="rounded-md border bg-[#f8fafc] p-3">
+                      <div className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm">
                         <svg
                           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                          className="h-64 w-full"
+                          className={`${isTrendChartFullscreen ? 'h-[72vh]' : 'h-[460px]'} w-full`}
                           role="img"
                           aria-label="SPC trend chart"
                         >
+                          <defs>
+                            <linearGradient
+                              id="actualAreaGradient"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.24" />
+                              <stop offset="100%" stopColor="#2563eb" stopOpacity="0.03" />
+                            </linearGradient>
+                            <filter id="lineGlow" x="-30%" y="-30%" width="160%" height="160%">
+                              <feGaussianBlur stdDeviation="2.4" result="blur" />
+                              <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                              </feMerge>
+                            </filter>
+                          </defs>
                           <g transform={`translate(${marginLeft},${marginTop})`}>
                             {hasRangeBand ? (
                               <rect
@@ -4015,8 +4104,8 @@ export default function CountboardDashboard() {
                                 points={segment}
                                 fill="none"
                                 stroke="#f59e0b"
-                                strokeWidth="2"
-                                strokeDasharray="6 4"
+                                strokeWidth="2.5"
+                                strokeDasharray="7 5"
                               />
                             ))}
 
@@ -4026,10 +4115,25 @@ export default function CountboardDashboard() {
                                 points={segment}
                                 fill="none"
                                 stroke="#ef4444"
-                                strokeWidth="2"
-                                strokeDasharray="6 4"
+                                strokeWidth="2.5"
+                                strokeDasharray="7 5"
                               />
                             ))}
+
+                            {actualSegments.map((segment, idx) => {
+                              const points = segment.split(' ')
+                              const first = points[0]
+                              const last = points[points.length - 1]
+                              const firstX = first?.split(',')[0] || '0'
+                              const lastX = last?.split(',')[0] || '0'
+                              return (
+                                <polygon
+                                  key={`act-area-${idx}`}
+                                  points={`${segment} ${lastX},${plotHeight} ${firstX},${plotHeight}`}
+                                  fill="url(#actualAreaGradient)"
+                                />
+                              )
+                            })}
 
                             {actualSegments.map((segment, idx) => (
                               <polyline
@@ -4037,7 +4141,8 @@ export default function CountboardDashboard() {
                                 points={segment}
                                 fill="none"
                                 stroke="#1d4ed8"
-                                strokeWidth="3"
+                                strokeWidth="3.5"
+                                filter="url(#lineGlow)"
                               />
                             ))}
 
@@ -4050,7 +4155,7 @@ export default function CountboardDashboard() {
                                   <circle
                                     cx={x}
                                     cy={y}
-                                    r="3"
+                                    r="4"
                                     fill={
                                       point.status === 'out_of_range'
                                         ? '#dc2626'
@@ -4112,22 +4217,26 @@ export default function CountboardDashboard() {
                         </svg>
 
                         <div className="mt-2 flex flex-wrap gap-4 text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-block h-2.5 w-6 rounded bg-blue-700" />
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-blue-700 shadow-sm" />
                             Actual
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="inline-block h-2.5 w-6 rounded bg-amber-500" />
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-amber-500 shadow-sm" />
                             Min (STD)
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="inline-block h-2.5 w-6 rounded bg-red-500" />
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-red-500 shadow-sm" />
                             Max (STD)
                           </div>
                         </div>
                       </div>
 
-                      <div className="max-h-48 overflow-auto rounded-md border">
+                      <div
+                        className={`${
+                          isTrendChartFullscreen ? 'max-h-[20vh]' : 'max-h-48'
+                        } overflow-auto rounded-md border`}
+                      >
                         <Table>
                           <TableHeader>
                             <TableRow>

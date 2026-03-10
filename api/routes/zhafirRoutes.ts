@@ -208,6 +208,7 @@ zhafirRoutes.get('/actual-view-window', async (c) => {
     const paraId = c.req.query('paraId') || undefined;
     const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
     const endAt = c.req.query('endAt') || undefined;
+    const date = c.req.query('date') || undefined;
     const hoursBackRaw = c.req.query('hoursBack') || undefined;
 
     const denied = await ensureTemporaryMachineAccess(c, machineId);
@@ -224,10 +225,14 @@ zhafirRoutes.get('/actual-view-window', async (c) => {
         return c.json({ error: 'endAt must be valid datetime' }, 400);
       }
     }
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return c.json({ error: 'date must be in YYYY-MM-DD format' }, 400);
+    }
 
     const data = await getZhafirActualByHourWindow(resolvedMachineId, {
       paraId,
       endAt,
+      date,
       hoursBack,
     });
     return c.json(data);
