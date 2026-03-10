@@ -207,6 +207,7 @@ zhafirRoutes.get('/actual-view-window', async (c) => {
   try {
     const paraId = c.req.query('paraId') || undefined;
     const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
+    const materialId = c.req.query('material_id') || c.req.query('materialId') || undefined;
     const endAt = c.req.query('endAt') || undefined;
     const date = c.req.query('date') || undefined;
     const hoursBackRaw = c.req.query('hoursBack') || undefined;
@@ -228,12 +229,16 @@ zhafirRoutes.get('/actual-view-window', async (c) => {
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return c.json({ error: 'date must be in YYYY-MM-DD format' }, 400);
     }
+    if (!materialId || !String(materialId).trim()) {
+      return c.json({ error: 'material_id is required' }, 400);
+    }
 
     const data = await getZhafirActualByHourWindow(resolvedMachineId, {
       paraId,
       endAt,
       date,
       hoursBack,
+      materialId,
     });
     return c.json(data);
   } catch (error) {

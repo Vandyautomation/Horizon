@@ -591,6 +591,14 @@ export default function CountboardDashboard() {
     ) => {
       const machineName = selectedMachine?.machineName
       if (!machineName) return
+      const materialIdParam =
+        selectedPO?.materialId !== undefined && selectedPO?.materialId !== null
+          ? String(selectedPO.materialId).trim()
+          : ''
+      if (!materialIdParam) {
+        toast.error('Material ID wajib. Pilih/attach PO terlebih dahulu.')
+        return
+      }
 
       const hoursBack = hoursBackOverride ?? zhafirTrendHoursBack
       setSelectedTrendIndicator(indicator)
@@ -606,6 +614,10 @@ export default function CountboardDashboard() {
             : null)
         const trendQuery = `actual-view-window?machine_id=${encodeURIComponent(machineName)}&hoursBack=${hoursBack}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}${
           dateParam ? `&date=${encodeURIComponent(dateParam)}` : ''
+        }${
+          materialIdParam
+            ? `&material_id=${encodeURIComponent(materialIdParam)}`
+            : ''
         }`
         const candidates = resolveZhafirCandidates(
           trendQuery
@@ -689,6 +701,7 @@ export default function CountboardDashboard() {
       resolveZhafirCandidates,
       selectedDate,
       selectedMachine?.machineName,
+      selectedPO?.materialId,
       zhafirTrendHoursBack,
     ]
   )
@@ -3969,12 +3982,12 @@ export default function CountboardDashboard() {
                   {zhafirTrendError}
                 </div>
               ) : (() => {
-                  const chartWidth = isTrendChartFullscreen ? 1780 : 1220
-                  const chartHeight = isTrendChartFullscreen ? 760 : 410
-                  const marginLeft = 68
+                  const chartWidth = isTrendChartFullscreen ? 1880 : 1320
+                  const chartHeight = isTrendChartFullscreen ? 860 : 500
+                  const marginLeft = 76
                   const marginRight = 22
                   const marginTop = 20
-                  const marginBottom = 60
+                  const marginBottom = 74
                   const plotWidth = chartWidth - marginLeft - marginRight
                   const plotHeight = chartHeight - marginTop - marginBottom
                   const allYValues = zhafirTrendPoints
@@ -4038,7 +4051,7 @@ export default function CountboardDashboard() {
                       <div className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm">
                         <svg
                           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                          className={`${isTrendChartFullscreen ? 'h-[72vh]' : 'h-[460px]'} w-full`}
+                          className={`${isTrendChartFullscreen ? 'h-[76vh]' : 'h-[560px]'} w-full`}
                           role="img"
                           aria-label="SPC trend chart"
                         >
@@ -4090,7 +4103,7 @@ export default function CountboardDashboard() {
                                     x={-8}
                                     y={y + 3}
                                     textAnchor="end"
-                                    className="fill-gray-500 text-[10px]"
+                                    className="fill-gray-500 text-[12px] font-medium"
                                   >
                                     {formatCompactNumber(yValue)}
                                   </text>
@@ -4155,7 +4168,7 @@ export default function CountboardDashboard() {
                                   <circle
                                     cx={x}
                                     cy={y}
-                                    r="4"
+                                    r="5"
                                     fill={
                                       point.status === 'out_of_range'
                                         ? '#dc2626'
@@ -4166,7 +4179,7 @@ export default function CountboardDashboard() {
                                     x={x}
                                     y={y - 6}
                                     textAnchor="middle"
-                                    className="fill-gray-700 text-[9px] font-semibold"
+                                    className="fill-gray-700 text-[11px] font-semibold"
                                   >
                                     {formatCompactNumber(point.value)}
                                   </text>
@@ -4193,7 +4206,7 @@ export default function CountboardDashboard() {
                                 x={x}
                                 y={chartHeight - 18}
                                 textAnchor="middle"
-                                className="fill-gray-600 text-[10px]"
+                                className="fill-gray-600 text-[11px] font-medium"
                               >
                                 {point.hourLabel}
                               </text>
@@ -4203,29 +4216,29 @@ export default function CountboardDashboard() {
                           <text
                             x={16}
                             y={18}
-                            className="fill-gray-500 text-[10px] font-semibold"
+                            className="fill-gray-500 text-[12px] font-semibold"
                           >
                             Y (nilai)
                           </text>
                           <text
                             x={chartWidth - 56}
                             y={chartHeight - 4}
-                            className="fill-gray-500 text-[10px] font-semibold"
+                            className="fill-gray-500 text-[12px] font-semibold"
                           >
                             X (jam)
                           </text>
                         </svg>
 
-                        <div className="mt-2 flex flex-wrap gap-4 text-xs">
-                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                        <div className="mt-2 flex flex-wrap gap-4 text-sm">
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5">
                             <span className="inline-block h-2.5 w-6 rounded bg-blue-700 shadow-sm" />
                             Actual
                           </div>
-                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5">
                             <span className="inline-block h-2.5 w-6 rounded bg-amber-500 shadow-sm" />
                             Min (STD)
                           </div>
-                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5">
                             <span className="inline-block h-2.5 w-6 rounded bg-red-500 shadow-sm" />
                             Max (STD)
                           </div>

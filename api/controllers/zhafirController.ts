@@ -1710,6 +1710,7 @@ export async function getZhafirActualByHourWindow(
     endAt?: string
     date?: string
     hoursBack?: number
+    materialId?: string
   }
 ) {
   const resolvedMachineId = (machineId || '').trim()
@@ -1720,6 +1721,10 @@ export async function getZhafirActualByHourWindow(
   const requestedHoursBack = Number(options?.hoursBack ?? 24)
   if (!Number.isInteger(requestedHoursBack) || requestedHoursBack < 1) {
     throw new Error('hoursBack must be integer >= 1')
+  }
+  const resolvedMaterialId = (options?.materialId || '').trim()
+  if (!resolvedMaterialId) {
+    throw new Error('material_id is required')
   }
 
   const formatLocalDate = (date: Date) => {
@@ -1769,6 +1774,19 @@ export async function getZhafirActualByHourWindow(
     throw new Error('endAt must be a valid datetime')
   }
 
+  const materialFilterSql = resolvedMaterialId
+    ? `
+        AND (
+          LTRIM(RTRIM(CONVERT(NVARCHAR(255), material))) = @MaterialID
+          OR (
+            TRY_CONVERT(BIGINT, LTRIM(RTRIM(CONVERT(NVARCHAR(255), material)))) IS NOT NULL
+            AND TRY_CONVERT(BIGINT, @MaterialID) IS NOT NULL
+            AND TRY_CONVERT(BIGINT, LTRIM(RTRIM(CONVERT(NVARCHAR(255), material)))) = TRY_CONVERT(BIGINT, @MaterialID)
+          )
+        )
+      `
+    : ''
+
   const sqlQuery = `
     ;WITH HourSlots AS (
       SELECT
@@ -1796,6 +1814,7 @@ export async function getZhafirActualByHourWindow(
         ) AS rn
       FROM IoT.dbo.MachineParameterSettingTRX
       WHERE machineId = @MachineID
+        ${materialFilterSql}
         AND created_at >= DATEADD(
           hour,
           -(@HoursBack - 1),
@@ -1828,13 +1847,19 @@ export async function getZhafirActualByHourWindow(
     MachineID: resolvedMachineId,
     EndAt: formatSqlDateTimeLocal(endDate),
     HoursBack: requestedHoursBack,
+    ...(resolvedMaterialId ? { MaterialID: resolvedMaterialId } : {}),
   })
 
   let ranges: Record<
     string,
     { min: string | number | null; max: string | number | null }
   > = {}
-  const nearestStdRow = await getNearestStdRowByMachine(resolvedMachineId)
+  const nearestStdRow = resolvedMaterialId
+    ? await getLatestStdRowByMachineAndMaterialId(
+        resolvedMachineId,
+        resolvedMaterialId
+      )
+    : await getNearestStdRowByMachine(resolvedMachineId)
   if (nearestStdRow) {
     const paramsetRaw = parseStdParamset(
       getRowValue(nearestStdRow, ['paramset'])
@@ -1875,6 +1900,7 @@ export async function getZhafirActualByHourWindow(
   return {
     paraId: options?.paraId || 'ZHF-STD-001',
     machineId: resolvedMachineId,
+    materialId: resolvedMaterialId || null,
     date: options?.date || null,
     endAt: endDate.toISOString(),
     hoursBack: requestedHoursBack,
