@@ -6,6 +6,7 @@ import {
   getZhafirActualFromView,
   getZhafirActualFromViewByHour,
   getZhafirAvailableHours,
+  getZhafirActiveMaterialByMachine,
   getZhafirActualByHourWindow,
   getZhafirSummaryRangeConfig,
   getZhafirSectionStyles,
@@ -197,6 +198,19 @@ zhafirRoutes.get('/actual-hours', async (c) => {
       return c.json({ error: 'date is required (YYYY-MM-DD)' }, 400);
     }
     const data = await getZhafirAvailableHours(resolvedMachineId, date);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.get('/material-active', async (c) => {
+  try {
+    const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
+    const denied = await ensureTemporaryMachineAccess(c, machineId);
+    if (denied) return denied;
+    const resolvedMachineId = String(machineId).trim();
+    const data = await getZhafirActiveMaterialByMachine(resolvedMachineId);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);

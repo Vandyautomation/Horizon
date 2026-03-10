@@ -1703,6 +1703,40 @@ export async function getZhafirAvailableHours(machineId: string, date: string) {
   }
 }
 
+export async function getZhafirActiveMaterialByMachine(machineId: string) {
+  const resolvedMachineId = (machineId || '').trim()
+  if (!resolvedMachineId) {
+    throw new Error('machine_id is required')
+  }
+
+  const sqlQuery = `
+    SELECT TOP 1 material
+    FROM IoT.dbo.MachineParameterSettingTRX
+    WHERE machineId = @MachineID
+      AND material IS NOT NULL
+      AND LTRIM(RTRIM(CONVERT(NVARCHAR(255), material))) <> ''
+    ORDER BY created_at DESC, id DESC
+  `
+  const rows = await queryDatabase(sqlQuery, {
+    MachineID: resolvedMachineId,
+  })
+  const materialIdRaw = rows?.[0]?.material
+  let materialId = materialIdRaw ? String(materialIdRaw).trim() : null
+
+  // Fallback: if TRX material is empty, use latest STD material_Id for this machine
+  if (!materialId) {
+    const stdRow = await getLatestStdRowByMachine(resolvedMachineId)
+    const stdMaterialId = getRowValue(stdRow, ['material_Id', 'material_id'])
+    materialId = stdMaterialId ? String(stdMaterialId).trim() : null
+  }
+
+  return {
+    machineId: resolvedMachineId,
+    materialId,
+    found: Boolean(materialId),
+  }
+}
+
 export async function getZhafirActualByHourWindow(
   machineId: string,
   options?: {

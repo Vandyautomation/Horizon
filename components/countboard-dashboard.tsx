@@ -228,6 +228,12 @@ type ZhafirTemporaryAccessStatus = {
   note?: string
 }
 
+type ZhafirActiveMaterialResponse = {
+  machineId: string
+  materialId: string | null
+  found: boolean
+}
+
 type ZhafirIndicatorStatus = {
   status: 'ok' | 'out_of_range' | 'unknown'
   std: number | null
@@ -599,6 +605,36 @@ export default function CountboardDashboard() {
       setZhafirTrendError(null)
 
       try {
+        const materialCandidates = resolveZhafirCandidates(
+          `material-active?machine_id=${encodeURIComponent(machineName)}`
+        )
+        let activeMaterial: ZhafirActiveMaterialResponse | null = null
+        let materialError = ''
+        for (const url of materialCandidates) {
+          try {
+            const res = await fetch(url, { cache: 'no-store' })
+            if (!res.ok) {
+              const errJson = await res.json().catch(() => ({}))
+              materialError =
+                errJson?.error || `Failed material-active (${res.status})`
+              continue
+            }
+            activeMaterial = (await res.json()) as ZhafirActiveMaterialResponse
+            break
+          } catch {
+            // try next candidate
+          }
+        }
+        const materialIdParam = (activeMaterial?.materialId || '').trim()
+        if (!materialIdParam) {
+          setZhafirTrendPoints([])
+          setZhafirTrendError(
+            materialError ||
+              'Material aktif tidak ditemukan dari source Zhafir untuk mesin ini'
+          )
+          return
+        }
+
         const dateParam =
           dateOverride ||
           (selectedDate instanceof Date
