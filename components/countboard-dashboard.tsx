@@ -202,6 +202,20 @@ type ZhafirActualViewResponse = {
   values?: Record<string, number | string | null>
 }
 
+type ZhafirActualViewWindowHour = {
+  hourStart?: string | null
+  actualDate?: string | null
+  hasData?: boolean
+  values?: Record<string, number | string | null> | null
+}
+
+type ZhafirActualViewWindowResponse = {
+  machineId?: string
+  endAt?: string
+  hoursBack?: number
+  hours?: ZhafirActualViewWindowHour[]
+}
+
 type ZhafirTemporaryAccessStatus = {
   machineId: string
   enabled: boolean
@@ -247,6 +261,12 @@ const ZHAFIR_INDICATORS = [
 
 type ZhafirIndicatorField = (typeof ZHAFIR_INDICATORS)[number]['field']
 type ZhafirIndicatorMap = Record<ZhafirIndicatorField, ZhafirIndicatorStatus>
+type ZhafirTrendPoint = {
+  hourLabel: string
+  actualDate: string | null
+  value: number | null
+  status: 'ok' | 'out_of_range' | 'unknown'
+}
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
@@ -389,6 +409,15 @@ export default function CountboardDashboard() {
   const [isLiveMode, setIsLiveMode] = useState(true)
   const [isEscalated, setIsEscalated] = useState<0 | 1 | null>(null)
   const [escalationTarget, setEscalationTarget] = useState<string | null>(null)
+  const [isZhafirTrendDialogOpen, setIsZhafirTrendDialogOpen] = useState(false)
+  const [selectedTrendIndicator, setSelectedTrendIndicator] = useState<
+    (typeof ZHAFIR_INDICATORS)[number] | null
+  >(null)
+  const [zhafirTrendPoints, setZhafirTrendPoints] = useState<ZhafirTrendPoint[]>(
+    []
+  )
+  const [isLoadingZhafirTrend, setIsLoadingZhafirTrend] = useState(false)
+  const [zhafirTrendError, setZhafirTrendError] = useState<string | null>(null)
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<
     string | undefined
@@ -543,6 +572,93 @@ export default function CountboardDashboard() {
       return map
     },
     []
+  )
+  const openZhafirIndicatorTrend = useCallback(
+    async (
+      indicator: (typeof ZHAFIR_INDICATORS)[number],
+      indicatorThreshold?: ZhafirIndicatorStatus
+    ) => {
+      const machineName = selectedMachine?.machineName
+      if (!machineName) return
+
+      setSelectedTrendIndicator(indicator)
+      setIsZhafirTrendDialogOpen(true)
+      setIsLoadingZhafirTrend(true)
+      setZhafirTrendError(null)
+
+      try {
+        const candidates = resolveZhafirCandidates(
+          `actual-view-window?machine_id=${encodeURIComponent(machineName)}&hoursBack=24&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}`
+        )
+
+        let data: ZhafirActualViewWindowResponse | null = null
+        for (const url of candidates) {
+          try {
+            const res = await fetch(url, { cache: 'no-store' })
+            if (!res.ok) continue
+            data = (await res.json()) as ZhafirActualViewWindowResponse
+            break
+          } catch {
+            // try next candidate
+          }
+        }
+
+        if (!data || !Array.isArray(data.hours)) {
+          setZhafirTrendPoints([])
+          setZhafirTrendError('Data trend tidak tersedia')
+          return
+        }
+
+        const threshold = indicatorThreshold ?? {
+          status: 'unknown' as const,
+          std: null,
+          act: null,
+          min: null,
+          max: null,
+        }
+        const points: ZhafirTrendPoint[] = data.hours.map((hour) => {
+          const rawValue = hour?.values?.[indicator.field]
+          const value = parseFiniteNumber(rawValue)
+          const hasRange = threshold.min !== null || threshold.max !== null
+          const isOutOfRange =
+            value === null
+              ? false
+              : hasRange
+                ? (threshold.min !== null && value < threshold.min) ||
+                  (threshold.max !== null && value > threshold.max)
+                : threshold.std !== null
+                  ? value > threshold.std
+                  : false
+          const status: ZhafirTrendPoint['status'] =
+            value === null ? 'unknown' : isOutOfRange ? 'out_of_range' : 'ok'
+
+          const hourDate = hour?.hourStart
+            ? new Date(hour.hourStart)
+            : hour?.actualDate
+              ? new Date(hour.actualDate)
+              : null
+          const hourLabel =
+            hourDate && !Number.isNaN(hourDate.getTime())
+              ? format(hourDate, 'HH:mm')
+              : '-'
+
+          return {
+            hourLabel,
+            actualDate: hour?.actualDate ? String(hour.actualDate) : null,
+            value,
+            status,
+          }
+        })
+
+        setZhafirTrendPoints(points)
+      } catch (error) {
+        setZhafirTrendPoints([])
+        setZhafirTrendError((error as Error).message)
+      } finally {
+        setIsLoadingZhafirTrend(false)
+      }
+    },
+    [resolveZhafirCandidates, selectedMachine?.machineName]
   )
   const [isSavingZhafirAccess, setIsSavingZhafirAccess] = useState(false)
   const fetchZhafirTemporaryAccessStatus = useCallback(
@@ -2944,13 +3060,25 @@ export default function CountboardDashboard() {
                     return (
                       <div
                         key={indicator.field}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          openZhafirIndicatorTrend(indicator, indicatorStatus)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            openZhafirIndicatorTrend(indicator, indicatorStatus)
+                          }
+                        }}
                         className={`h-[62px] w-[230px] shrink-0 rounded-md border px-2 py-1 ${
                           isOutOfRange
                             ? 'animate-alertBlink border-red-500'
                             : isInRange
                               ? 'border-emerald-300 bg-emerald-50'
                               : 'border-gray-300 bg-gray-50'
-                        }`}
+                        } cursor-pointer`}
+                        title="Klik untuk lihat trend 24 jam"
                       >
                         <div className="flex h-full items-center gap-2">
                           <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-white">
@@ -3660,6 +3788,112 @@ export default function CountboardDashboard() {
             // ></iframe>
             <></>
           )}
+
+          <Dialog
+            open={isZhafirTrendDialogOpen}
+            onOpenChange={setIsZhafirTrendDialogOpen}
+          >
+            <DialogContent className="sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>
+                  Trend 24 Jam - {selectedTrendIndicator?.label || '-'}
+                </DialogTitle>
+                <DialogDescription className="p-0 m-0">
+                  Nilai actual per jam untuk parameter yang dipilih.
+                </DialogDescription>
+              </DialogHeader>
+
+              {isLoadingZhafirTrend ? (
+                <div className="py-8 text-center text-sm text-gray-500">
+                  Loading trend...
+                </div>
+              ) : zhafirTrendError ? (
+                <div className="py-8 text-center text-sm text-red-600">
+                  {zhafirTrendError}
+                </div>
+              ) : (() => {
+                  const numericValues = zhafirTrendPoints
+                    .map((item) => item.value)
+                    .filter((value): value is number => value !== null)
+                  const minValue =
+                    numericValues.length > 0 ? Math.min(...numericValues) : 0
+                  const maxValue =
+                    numericValues.length > 0 ? Math.max(...numericValues) : 0
+                  const rangeValue = Math.max(maxValue - minValue, 1)
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="h-48 rounded-md border bg-gray-50 p-3">
+                        <div className="flex h-full items-end gap-1">
+                          {zhafirTrendPoints.map((point, idx) => {
+                            const hasValue = point.value !== null
+                            const normalized = hasValue
+                              ? ((point.value as number) - minValue) / rangeValue
+                              : 0
+                            const barHeight = hasValue
+                              ? Math.max(8, Math.round(normalized * 140))
+                              : 6
+                            const barColor =
+                              point.status === 'out_of_range'
+                                ? 'bg-red-500'
+                                : point.status === 'ok'
+                                  ? 'bg-emerald-500'
+                                  : 'bg-gray-300'
+
+                            return (
+                              <div
+                                key={`${point.hourLabel}-${idx}`}
+                                className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
+                                title={`${point.hourLabel} | ${point.value === null ? '-' : formatCompactNumber(point.value)}`}
+                              >
+                                <div
+                                  className={`w-full rounded-sm ${barColor}`}
+                                  style={{ height: `${barHeight}px` }}
+                                />
+                                <span className="text-[10px] text-gray-600">
+                                  {point.hourLabel}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="max-h-48 overflow-auto rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Hour</TableHead>
+                              <TableHead>Actual</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {zhafirTrendPoints.map((point, idx) => (
+                              <TableRow key={`${point.hourLabel}-row-${idx}`}>
+                                <TableCell>{point.hourLabel}</TableCell>
+                                <TableCell>
+                                  {point.value === null
+                                    ? '-'
+                                    : formatCompactNumber(point.value)}
+                                </TableCell>
+                                <TableCell>
+                                  {point.status === 'out_of_range'
+                                    ? 'Out of range'
+                                    : point.status === 'ok'
+                                      ? 'In range'
+                                      : 'No data'}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )
+                })()}
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={isStateDialogOpen} onOpenChange={setIsStateDialogOpen}>
             <DialogContent>
