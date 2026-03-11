@@ -2,6 +2,7 @@
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import albeaLogo from '@/public/albea-white.png'
+import * as XLSX from 'xlsx'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
   Select,
@@ -252,25 +253,25 @@ const ZHAFIR_PARA_ID = 'ZHF-STD-001'
 const ZHAFIR_INDICATORS = [
   {
     field: 'InjectScrewPosition',
-    label: 'END OF PLASTIFICATION',
+    label: 'Inj Start Position',
     icon: '/admin/End of plastification (dosing).png',
   },
   {
-    field: 'VPTimeText',
-    label: 'INJECTION TIME',
-    icon: '/admin/Injection time.png',
-  },
-  {
     field: 'VPPositionText',
-    label: 'SWITCHING POSITION',
+    label: 'V/P Position',
     icon: '/admin/Switching position.png',
   },
   {
     field: 'InjPeakPressure',
-    label: 'inject peak pressure',
+    label: 'Inj Peak Press',
     icon: '/admin/inj-press.png',
   },
   { field: 'Thickness', label: 'CUSHION', icon: '/admin/Cushion.png' },
+  {
+    field: 'VPTimeText',
+    label: 'Injection Time',
+    icon: '/admin/Injection time.png',
+  },
 ] as const
 
 type ZhafirIndicatorField = (typeof ZHAFIR_INDICATORS)[number]['field']
@@ -816,7 +817,49 @@ export default function CountboardDashboard() {
       revalidateOnReconnect: false,
     }
   )
+  const sanitizeSheetName = (name: string) => {
+    return name
+      .replace(/[:\\/?*\[\]]/g, '') // hapus karakter terlarang
+      .substring(0, 31) // Excel max 31 karakter
+  }
+  const handleExportTrendExcel = () => {
+    if (!selectedTrendIndicator || zhafirTrendPoints.length === 0) return
 
+    const rows = zhafirTrendPoints.map((p, i) => ({
+      No: i + 1,
+      Hour: p.hourLabel,
+      Actual: p.value ?? '',
+      Min_STD: p.min ?? '',
+      Max_STD: p.max ?? '',
+      Status:
+        p.status === 'out_of_range'
+          ? 'Out of Range'
+          : p.status === 'ok'
+            ? 'In Range'
+            : 'No Data',
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+
+    const workbook = XLSX.utils.book_new()
+    const sheetName = sanitizeSheetName(selectedTrendIndicator.label)
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
+
+    const buffer = XLSX.write(workbook, {
+      type: 'array',
+      bookType: 'xlsx',
+    })
+
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `SPC_Trend_${selectedTrendIndicator.label}.xlsx`
+    link.click()
+  }
   const categoryOrder = [2, 3, 4, 5, 6, 7, 8, 1]
 
   const rawCategories = categoryRes as ProblemGroup[] | undefined
@@ -3921,6 +3964,14 @@ export default function CountboardDashboard() {
                 <Button
                   type="button"
                   variant="outline"
+                  className="h-8 px-3 bg-green-500 text-white"
+                  onClick={handleExportTrendExcel}
+                >
+                  Export Excel
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
                   className="h-8 px-3"
                   onClick={() => setIsTrendChartFullscreen((prev) => !prev)}
                 >
@@ -4235,7 +4286,7 @@ export default function CountboardDashboard() {
                                         : '#1d4ed8'
                                     }
                                   />
-                                      <text
+                                  <text
                                     x={x}
                                     y={y - 14}
                                     textAnchor="middle"
@@ -4284,21 +4335,6 @@ export default function CountboardDashboard() {
                               </text>
                             )
                           })}
-
-                          <text
-                            x={16}
-                            y={18}
-                            className="fill-gray-500 text-[10px] font-semibold"
-                          >
-                            Y (nilai)
-                          </text>
-                          <text
-                            x={chartWidth - 56}
-                            y={chartHeight - 4}
-                            className="fill-gray-500 text-[10px] font-semibold"
-                          >
-                            X (jam)
-                          </text>
                         </svg>
 
                         <div className="mt-2 flex flex-wrap gap-4 text-xs">
@@ -4313,6 +4349,14 @@ export default function CountboardDashboard() {
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block h-2.5 w-6 rounded bg-red-500 shadow-sm" />
                             Max (STD)
+                          </div>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-green-500 shadow-sm" />
+                            Y (nilai)
+                          </div>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-blue-500 shadow-sm" />
+                            X (jam)
                           </div>
                         </div>
                       </div>
