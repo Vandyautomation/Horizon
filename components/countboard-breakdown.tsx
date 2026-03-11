@@ -171,6 +171,21 @@ export default function CountboardBreakdown() {
     (problemPage - 1) * ITEMS_PER_PAGE,
     problemPage * ITEMS_PER_PAGE
   )
+  const handleExportBreakdown = async () => {
+    try {
+      const url = `${API_BASE}/api/exportBreak/breakdown`
+
+      const res = await fetch(url)
+      const blob = await res.blob()
+
+      const link = document.createElement('a')
+      link.href = window.URL.createObjectURL(blob)
+      link.download = 'breakdown.xlsx'
+      link.click()
+    } catch (error) {
+      console.error('Export error', error)
+    }
+  }
   return (
     <div className="p-4 space-y-4 text-sm">
       <Breadcrumb>
@@ -200,6 +215,12 @@ export default function CountboardBreakdown() {
       </Breadcrumb>
       {/* HEADER */}
       <h1 className="text-xl font-semibold">Countboard Breakdown</h1>
+      <button
+        onClick={handleExportBreakdown}
+        className="bg-green-600 text-white px-3 py-2 rounded-lg text-xs"
+      >
+        Export Excel
+      </button>
       <div className="bg-gradient-to-br from-indigo-50 to-orange-50 shadow-lg rounded-2xl p-6 border border-indigo-100">
         <div className="grid grid-cols-1 lg:grid-cols-[0.5fr_1.7fr_1.7fr] gap-6 items-start">
           {/* LEFT COLUMN - BREAKDOWN CARDS */}

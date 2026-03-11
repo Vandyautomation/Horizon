@@ -18,6 +18,7 @@ import problemMasterDataRouter from './problemMasterRoutes';
 import hrzRoutes from './hrzRoutes';
 import exportRoutes from './exportRoutes'
 import zhafirRoutes from './zhafirRoutes';
+import exportRoutesBreak from './exportRouteBreak';
 
 
 const router = new Hono();
@@ -45,6 +46,7 @@ router.route('/zhafir-ze-3600', zhafirRoutes);
 
 
 router.route('/export', exportRoutes);
+router.route('/exportBreak', exportRoutesBreak);
 
 
 
