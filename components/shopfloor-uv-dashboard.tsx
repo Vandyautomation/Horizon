@@ -1,50 +1,82 @@
-"use client"
+'use client'
 
-import { useState, useEffect, Suspense, useMemo } from "react"
-import albeaLogo from "@/public/albea-white.png"
-import Image from "next/image";
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useState, useEffect, Suspense, useMemo, useCallback } from 'react'
+import albeaLogo from '@/public/albea-white.png'
+import Image from 'next/image'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
   OrbitControls,
   Html,
   useGLTF,
   Text,
   CameraControls,
-} from '@react-three/drei';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+} from '@react-three/drei'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/select'
 
-import mqtt from "mqtt";
+import mqtt from 'mqtt'
 
-import { Color, Mesh, MeshStandardMaterial, PCFSoftShadowMap } from 'three';
-import { Button } from './ui/button';
-import useSWR from 'swr';
-import { Label } from './ui/label';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Calculator, Power, Zap } from 'lucide-react';
-import { toast } from "react-hot-toast";
-import { getMqttClient, closeMqttClient } from '@/lib/mqtt';
+import { Color, Mesh, MeshStandardMaterial, PCFSoftShadowMap } from 'three'
+import { Button } from './ui/button'
+import useSWR, { mutate } from 'swr'
+import { Label } from './ui/label'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { Calculator, Power, Zap } from 'lucide-react'
+import { toast } from 'react-hot-toast'
+import { getMqttClient, closeMqttClient } from '@/lib/mqtt'
 
+type HourlyData = {
+  hourlyId: number
+  from_datetime: Date
+  time: string
+  task_id: number
+  itemNo: string
+  itemDesc: string
+  target: number
+  target_tolerance: number
+  target_final: number
+  actual: number
+  actual_in: number
+  delta: number
+  gap: number
+  scrap: number
+  rework: number
+  reject_a: number | 0
+  reject_b: number | 0
+  reject_c: number | 0
+  reject_d: number | 0
+  reject_e: number | 0
+  causes: string
+  comments: string
+  problem: string
+  action: string
+  reject_a_name: string
+  reject_b_name: string
+  reject_c_name: string
+  reject_d_name: string
+  reject_e_name: string
+  process: string
+}
 interface Machine {
-  id: string;
-  position: any;
-  rotation: any;
-  MchID: string;
-  MchLoc: string;
-  MchNumber: string;
-  consumption: number;
-  cycletime: number;
-  target_cycletime: number;
-  cavity: number;
-  target_cavity: number;
-  oee: number;
-  ooe: number;
+  id: string
+  position: any
+  rotation: any
+  MchID: string
+  MchLoc: string
+  MchNumber: string
+  consumption: number
+  cycletime: number
+  target_cycletime: number
+  cavity: number
+  target_cavity: number
+  oee: number
+  ooe: number
   status:
     | 'GREEN'
     | 'WHITE'
@@ -53,22 +85,39 @@ interface Machine {
     | 'PURPLE'
     | 'RED'
     | 'YELLOW'
-    | 'GREY';
+    | 'GREY'
 }
 
 interface Building {
-  id: number;
-  name: string;
-  oee: number;
-  ooe: number;
-  machines: Machine[];
+  id: number
+  name: string
+  oee: number
+  ooe: number
+  machines: Machine[]
+}
+
+type MachineDetail = {
+  machineId: number
+  machineName: string
+  machineTonage: string
+  machineDescription: string
+  machineNumber: string
+  locationId: number
+  locationName: string
+  machineStatus: string
+  machineType: string
+}
+
+type Spindle = {
+  SpindleSTD: number
+  SpindleACT: number
 }
 
 interface Andon {
-  MchID: string;
-  MchNumber: number;
-  MchLoc: string;
-  StatusLight: string;
+  MchID: string
+  MchNumber: number
+  MchLoc: string
+  StatusLight: string
 }
 
 const statusColors = {
@@ -80,18 +129,18 @@ const statusColors = {
   PURPLE: '#a855f7', // Purple
   YELLOW: 'yellow', // Yellow
   GREY: '#6b7280', // Grey
-};
+}
 
 function Wall({
   position,
   rotation,
   size,
-  building
+  building,
 }: {
-  position: [number, number, number];
-  rotation?: [number, number, number];
-  size: [number, number, number];
-  building?: string;
+  position: [number, number, number]
+  rotation?: [number, number, number]
+  size: [number, number, number]
+  building?: string
 }) {
   return (
     <mesh position={position} rotation={rotation || [0, 0, 0]}>
@@ -108,39 +157,37 @@ function Wall({
       <boxGeometry args={size} />
       <meshStandardMaterial color="#94a3b8" />
     </mesh>
-  );
+  )
 }
-
-
 
 function InjectionMoldingMachine({
   machine,
   onClick,
   isSelected,
 }: {
-  machine: Machine;
-  onClick: () => void;
-  isSelected: boolean;
+  machine: Machine
+  onClick: () => void
+  isSelected: boolean
 }) {
-  const { scene } = useGLTF('/admin/assets/3d/spray-booth-color.glb');
-  const clonedScene = useMemo(() => scene?.clone(), [scene]);
+  const { scene } = useGLTF('/admin/assets/3d/spray-booth-color.glb')
+  const clonedScene = useMemo(() => scene?.clone(), [scene])
 
   useEffect(() => {
     if (clonedScene) {
       clonedScene.traverse((child) => {
         if ((child as any).isMesh && (child as Mesh).material) {
           // const originalColor = new Color(statusColors[machine?.status]);
-          (child as any).material = new MeshStandardMaterial({
+          ;(child as any).material = new MeshStandardMaterial({
             ...((child as any).material as any),
             // color: originalColor,
             // emissive: originalColor.clone().multiplyScalar(0.3),
             metalness: 0.9,
             roughness: 0.3,
-          });
+          })
         }
-      });
+      })
     }
-  }, [clonedScene, machine?.status]);
+  }, [clonedScene, machine?.status])
 
   return (
     <group position={machine.position} onClick={onClick}>
@@ -173,10 +220,11 @@ function InjectionMoldingMachine({
             isSelected ? 'font-bold' : ''
           }`}
         >
-          {machine.MchLoc}{machine.MchNumber}
+          {machine.MchLoc}
+          {machine.MchNumber}
         </div>
       </Html>
-      
+
       <Html position={[0, 0, -3]} center>
         <div
           style={{
@@ -187,7 +235,7 @@ function InjectionMoldingMachine({
             isSelected ? 'font-bold' : ''
           }`}
         >
-          {machine.consumption} { machine.consumption != null ? 'kWh': '-'}
+          {machine.consumption} {machine.consumption != null ? 'kWh' : '-'}
         </div>
       </Html>
       <Html position={[0, 0, 3]} center>
@@ -200,7 +248,7 @@ function InjectionMoldingMachine({
             isSelected ? 'font-bold' : ''
           }`}
         >
-          {machine.cycletime} { machine.cycletime != null ? 's': '-'}
+          {machine.cycletime} {machine.cycletime != null ? 's' : '-'}
         </div>
       </Html>
       {/* <group position={[0, 3, -3]} rotation={[0, Math.PI / 2, 0]}>
@@ -220,39 +268,39 @@ function InjectionMoldingMachine({
         </Text>
       </group> */}
     </group>
-  );
+  )
 }
 
 function YoureHere({
   position,
   rotation,
 }: {
-  position: [number, number, number];
-  rotation?: [number, number, number];
+  position: [number, number, number]
+  rotation?: [number, number, number]
 }) {
-  const { scene } = useGLTF('/admin/assets/3d/human.glb');
-  const clonedScene = useMemo(() => scene?.clone(), [scene]);
+  const { scene } = useGLTF('/admin/assets/3d/human.glb')
+  const clonedScene = useMemo(() => scene?.clone(), [scene])
   return (
     <primitive
-        object={clonedScene}
-        position={position}
-        rotation={rotation || [0, 0, 0]}
-        scale={[1.5, 1.5, 1.5]}
-      />
-  );
+      object={clonedScene}
+      position={position}
+      rotation={rotation || [0, 0, 0]}
+      scale={[1.5, 1.5, 1.5]}
+    />
+  )
 }
 
 function CameraLogger() {
-  const { camera } = useThree();
-  const [position, setPosition] = useState({ x: '0', y: '0', z: '0' });
+  const { camera } = useThree()
+  const [position, setPosition] = useState({ x: '0', y: '0', z: '0' })
 
   useFrame(() => {
     setPosition({
       x: camera.position.x.toFixed(2),
       y: camera.position.y.toFixed(2),
       z: camera.position.z.toFixed(2),
-    });
-  });
+    })
+  })
 
   return (
     <Html position={[0, 0, 0]} center>
@@ -270,34 +318,34 @@ function CameraLogger() {
         zoom: {camera.zoom}
       </div>
     </Html>
-  );
+  )
 }
 
 function Floor() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[45, 0, 50]}>
       <planeGeometry args={[30, 30]} />
-      <meshStandardMaterial color="#c7d2e1" /> 
+      <meshStandardMaterial color="#c7d2e1" />
     </mesh>
-  );
+  )
 }
 
 function FloorM() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-10, 0, 0]}>
       <planeGeometry args={[30, 30]} />
-      <meshStandardMaterial color="#c7d2e1" /> 
+      <meshStandardMaterial color="#c7d2e1" />
     </mesh>
-  );
+  )
 }
 
 function FloorK() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-45, 0, 0]}>
       <planeGeometry args={[30, 30]} />
-      <meshStandardMaterial color="#c7d2e1" /> 
+      <meshStandardMaterial color="#c7d2e1" />
     </mesh>
-  );
+  )
 }
 
 function FloorMiddle() {
@@ -306,7 +354,7 @@ function FloorMiddle() {
       <planeGeometry args={[30, 10]} />
       <meshStandardMaterial color="grey" />
     </mesh>
-  );
+  )
 }
 
 function FloorRoad() {
@@ -315,105 +363,189 @@ function FloorRoad() {
       <planeGeometry args={[5, 30]} />
       <meshStandardMaterial color="grey" />
     </mesh>
-  );
+  )
 }
-
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 export default function ShopfloorUvDashboard() {
-  const [buildings, setBuildings] = useState<Building[] | undefined>(undefined);
-  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
-  const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
-  const [, setMqttClient] = useState<ReturnType<typeof mqtt.connect> | null>(null);
+  const [buildings, setBuildings] = useState<Building[] | undefined>(undefined)
+  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(
+    null
+  )
+  const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null)
+  // const [machineDetail, setMachineDetail] = useState<MachineDetail | null>(null)
+  const [, setMqttClient] = useState<ReturnType<typeof mqtt.connect> | null>(
+    null
+  )
   const [refreshTime, setRefreshTime] = useState('')
-  const [startHour, setStartHour] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [startHour, setStartHour] = useState(0)
+  const [loading, setLoading] = useState(false)
+  // const [selectedMachine2, setSelectedMachine2] =
+  //   useState<MachineDetail | null>(null)
+  const [andon, setAndon] = useState<Andon[] | null>(null)
 
-  const [andon, setAndon] = useState<Andon[] | null>(null);
+  //spindles
+  const spindleDataKey = selectedMachine?.MchID
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/spindle/${selectedMachine.MchID}`
+    : null
+  //hourly data
+  const hourlyDataKey = selectedMachine?.MchID
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/hourly/${selectedMachine.MchID}?type=uv`
+    : null
 
-    useEffect(() => {
-    const now = new Date();
-    const hour = now.getHours();
-    
-    if (hour >= 6 && hour < 14) {
-      setStartHour(6);
-    } else if (hour >= 14 && hour < 22) {
-      setStartHour(14);
-    } else {
-      setStartHour(22);
+  // console.log('selectedMachine:', hourlyDataKey)
+  // console.log('selectedMachine:', selectedMachine)
+  // console.log('selectedMachine.MchID:', selectedMachine?.MchID)
+  //  const spindleDataKey = selectedMachine2?.machineName
+  //   ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/spindle/${
+  //       selectedMachine2.machineName
+  // }${
+  //   !isLiveMode &&
+  //   new URLSearchParams(window.location.search).get('date') !== null
+  //     ? `?date=${new URLSearchParams(window.location.search).get(
+  //         'date'
+  //       )}&shift=${new URLSearchParams(window.location.search).get(
+  //         'shift'
+  //       )}`
+  //     : ''
+  // }`
+  // : null
+  console.log('selectedMachine:', selectedMachine)
+  const { data: spindleData } = useSWR<Spindle[]>(spindleDataKey, fetcher, {
+    revalidateOnMount: true,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  })
+  // console.log(`spindle data: ${JSON.stringify(spindleData)}`)
+  // const refetchSpindleData = useCallback(
+  //   () => mutate(spindleDataKey),
+  //   [spindleDataKey]
+  // )
+  const latestSpindle = spindleData?.[spindleData.length - 1]
+  const { data: hourlyData } = useSWR<HourlyData[]>(
+    hourlyDataKey,
+    async (url) => {
+      const promise = fetch(url).then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        return res.json()
+      })
+
+      toast.promise(promise, {
+        loading: 'Loading...',
+        error: 'Failed to load data',
+      })
+
+      return promise
+    },
+    {
+      revalidateOnFocus: false,
     }
-  }, []);
+  )
+  // console.log(`hourly data: ${JSON.stringify(hourlyData)}`)
+  // const refetchHourlyData = useCallback(
+  //   () => mutate(hourlyDataKey),
+  //   [hourlyDataKey]
+  // )
+  const spindleACT = latestSpindle?.SpindleACT ?? 0
+  const spindleSTD = latestSpindle?.SpindleSTD ?? 0
+  const displayACT = spindleACT > spindleSTD ? spindleSTD : spindleACT
+  // console.log(
+  //   `spindleACT: ${spindleACT}, spindleSTD: ${spindleSTD}, displayACT: ${displayACT}`
+  // )
 
-    useEffect(() => {
-      const client = getMqttClient();
-      client.subscribe(`uns/andon/uv`);
-      
-      client.on("message", (topic, message) => {
-        try {
-          const messageData = JSON.parse(message.toString());
-          setAndon(messageData);
+  const totalActual =
+    (Array.isArray(hourlyData) &&
+      hourlyData?.reduce((total, item) => total + (item.actual || 0), 0)) ||
+    0
+  const totalActualIn =
+    (Array.isArray(hourlyData) &&
+      hourlyData?.reduce((total, item) => total + (item.actual_in || 0), 0)) ||
+    0
 
-          setBuildings((prevBuildings) => {
-            if (!prevBuildings) return prevBuildings;
+  useEffect(() => {
+    const now = new Date()
+    const hour = now.getHours()
 
-            const updatedBuildings = prevBuildings.map((building) => {
-              const updatedMachines = building.machines.map((machine) => {
-                if (machine.MchID === messageData.MchID) {
-                  return {
-                    ...machine,
-                    status: messageData.StatusLight,
-                  };
+    if (hour >= 6 && hour < 14) {
+      setStartHour(6)
+    } else if (hour >= 14 && hour < 22) {
+      setStartHour(14)
+    } else {
+      setStartHour(22)
+    }
+  }, [])
+
+  useEffect(() => {
+    const client = getMqttClient()
+    client.subscribe(`uns/andon/uv`)
+
+    client.on('message', (topic, message) => {
+      try {
+        const messageData = JSON.parse(message.toString())
+        setAndon(messageData)
+
+        setBuildings((prevBuildings) => {
+          if (!prevBuildings) return prevBuildings
+
+          const updatedBuildings = prevBuildings.map((building) => {
+            const updatedMachines = building.machines.map((machine) => {
+              if (machine.MchID === messageData.MchID) {
+                return {
+                  ...machine,
+                  status: messageData.StatusLight,
                 }
-                return machine;
-              });
+              }
+              return machine
+            })
 
-              return {
-                ...building,
-                machines: updatedMachines,
-              };
-            });
+            return {
+              ...building,
+              machines: updatedMachines,
+            }
+          })
 
-            return updatedBuildings;
-          });
-        } catch (error) {
-          console.error("Error parsing MQTT message:", error);
-        }
-      });
+          return updatedBuildings
+        })
+      } catch (error) {
+        console.error('Error parsing MQTT message:', error)
+      }
+    })
 
-      setMqttClient(client);
+    setMqttClient(client)
 
-      return () => {
-        client.unsubscribe(`uns/andon/uv`);
-        setMqttClient(null);
-      };
-    }, []);
+    return () => {
+      client.unsubscribe(`uns/andon/uv`)
+      setMqttClient(null)
+    }
+  }, [])
 
   // const fetcher = (url: string) => fetch(url).then((res) => res.json());
   // const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings`;
   // const { data: rawBuildings, error, isLoading } = useSWR<Building[]>(key, fetcher, {
   //   refreshInterval: 5000,
   // });
-  
-  const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings/uv`;
+
+  const key = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/andon/buildings/uv`
   const { data: rawBuildings, error } = useSWR<Building[]>(
-    key, 
+    key,
     async (url) => {
-      const promise = fetch(url).then(res => {
-        if (!res.ok) throw new Error("Failed to fetch");
-        return res.json();
-      });
-      
+      const promise = fetch(url).then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        return res.json()
+      })
+
       toast.promise(promise, {
         loading: 'Refreshing cycle and energy...',
-        error: 'Failed to load buildings'
-      });
+        error: 'Failed to load buildings',
+      })
 
       setRefreshTime(new Date().toLocaleTimeString())
-      
-      return promise;
+
+      return promise
     },
     {
       refreshInterval: 30000,
     }
-  );
+  )
 
   // Log fetch results
   // useEffect(() => {
@@ -426,84 +558,95 @@ export default function ShopfloorUvDashboard() {
 
   // Filter out machines with null positions and update state
   useEffect(() => {
-      if (!rawBuildings || !Array.isArray(rawBuildings) ||!rawBuildings.length) return;
-      
-      const filteredBuildings = rawBuildings.map(building => {
-        // First filter out machines without positions
-        const updatedMachines = building.machines
-        .filter(machine => machine.position != null)
-        .map(machine => {
+    if (!rawBuildings || !Array.isArray(rawBuildings) || !rawBuildings.length)
+      return
+
+    const filteredBuildings = rawBuildings.map((building) => {
+      // First filter out machines without positions
+      const updatedMachines = building.machines
+        .filter((machine) => machine.position != null)
+        .map((machine) => {
           // If we have andon data for this machine, update its status
           if (andon) {
-            const matchingAndon = andon.find(a => a.MchID === machine.MchID);
+            const matchingAndon = andon.find((a) => a.MchID === machine.MchID)
             if (matchingAndon) {
               // Cast the status to a valid Machine status type if it matches one of the allowed values
-              const statusLight = matchingAndon.StatusLight as Machine['status'];
+              const statusLight = matchingAndon.StatusLight as Machine['status']
               return {
                 ...machine,
-                status: statusLight
-              };
+                status: statusLight,
+              }
             }
           }
-          return machine;
-        });
-        
-        return {
+          return machine
+        })
+
+      return {
         ...building,
         machines: updatedMachines,
-        };
-      });
-  
-      // console.log(`filtered buildings: ${JSON.stringify(filteredBuildings)}`)
-      
-      setBuildings(filteredBuildings as Building[]);
-      setRefreshTime(new Date().toLocaleTimeString())
+      }
+    })
 
-    
+    // console.log(`filtered buildings: ${JSON.stringify(filteredBuildings)}`)
+
+    setBuildings(filteredBuildings as Building[])
+    setRefreshTime(new Date().toLocaleTimeString())
+
     // Only update selectedBuilding if it exists but don't include it in the dependency array
     if (selectedBuilding) {
-      const updatedSelectedBuilding = filteredBuildings.find(building => building.id === selectedBuilding.id) || null;
-      
+      const updatedSelectedBuilding =
+        filteredBuildings.find(
+          (building) => building.id === selectedBuilding.id
+        ) || null
+
       // Only set if there's an actual change to prevent infinite loops
-      if (JSON.stringify(updatedSelectedBuilding) !== JSON.stringify(selectedBuilding)) {
-        setSelectedMachine(null); // Reset selected machine when building updates
-        setSelectedBuilding(updatedSelectedBuilding);
-        console.log("Selected building updated:", updatedSelectedBuilding);
+      if (
+        JSON.stringify(updatedSelectedBuilding) !==
+        JSON.stringify(selectedBuilding)
+      ) {
+        setSelectedMachine(null) // Reset selected machine when building updates
+        setSelectedBuilding(updatedSelectedBuilding)
+        console.log('Selected building updated:', updatedSelectedBuilding)
       }
     }
-  }, [rawBuildings]); // Remove selectedBuilding from dependencies
+  }, [rawBuildings]) // Remove selectedBuilding from dependencies
 
-
-  const router = useRouter();
-  const pathname = usePathname();
+  const router = useRouter()
+  const pathname = usePathname()
   useEffect(() => {
     if (buildings && buildings.length > 0 && !selectedBuilding) {
-      setSelectedBuilding(buildings[0]);
-      console.log(buildings[0]);
+      setSelectedBuilding(buildings[0])
+      console.log(buildings[0])
     }
-  }, [buildings, selectedBuilding]);
+  }, [buildings, selectedBuilding])
 
-    const searchParams = useSearchParams()
-    const params = new URLSearchParams(searchParams);
+  const searchParams = useSearchParams()
+  const params = new URLSearchParams(searchParams)
 
-  let queryLocation = searchParams.get('building') || '';
-    if (queryLocation == '') {
-    queryLocation = 'INJ Bld G';
-    params.set('building', 'INJ Bld G');
+  let queryLocation = searchParams.get('building') || ''
+  if (queryLocation == '') {
+    queryLocation = 'INJ Bld G'
+    params.set('building', 'INJ Bld G')
   }
 
   useEffect(() => {
-    if (queryLocation && buildings && Array.isArray(buildings) && queryLocation !== selectedBuilding?.name) {
-      setLoading(true);
-      const foundBuilding = buildings.find(building => building.name === queryLocation);
+    if (
+      queryLocation &&
+      buildings &&
+      Array.isArray(buildings) &&
+      queryLocation !== selectedBuilding?.name
+    ) {
+      setLoading(true)
+      const foundBuilding = buildings.find(
+        (building) => building.name === queryLocation
+      )
       if (foundBuilding) {
-        router.push(`${pathname}?${params.toString()}`);
-        setSelectedBuilding(foundBuilding);
-        
+        router.push(`${pathname}?${params.toString()}`)
+        setSelectedBuilding(foundBuilding)
       }
     }
-    setLoading(false);
-  }, [queryLocation, buildings]);
+    setLoading(false)
+  }, [queryLocation, buildings])
 
   // console.log(`data andon : ${JSON.stringify(andon)}`);
 
@@ -516,39 +659,58 @@ export default function ShopfloorUvDashboard() {
       <div className="grid grid-cols-3 gap-2 m-0">
         <Card className="absolute top-[70px] left-6 z-10">
           <CardContent className="pb-2 pt-2 px-2">
-            <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/>
+            <Image
+              src={albeaLogo}
+              alt="Albea"
+              width={200}
+              height={100}
+              className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"
+            />
             <Select
               value={selectedBuilding?.id.toString() || ''}
               onValueChange={(value) => {
-              const building = buildings?.find(
-                (b) => b.id.toString() === value
-              );
-              const buildingName = building?.name || '';
-              params.set('building', buildingName);
-              setLoading(true);
-              router.push(`${pathname}?${params.toString()}`);
-              setSelectedMachine(null);
+                const building = buildings?.find(
+                  (b) => b.id.toString() === value
+                )
+                const buildingName = building?.name || ''
+                params.set('building', buildingName)
+                setLoading(true)
+                router.push(`${pathname}?${params.toString()}`)
+                setSelectedMachine(null)
               }}
               disabled={loading}
             >
               <SelectTrigger>
-              <SelectValue placeholder={loading ? "Loading..." : "Select a building"} />
+                <SelectValue
+                  placeholder={loading ? 'Loading...' : 'Select a building'}
+                />
               </SelectTrigger>
               <SelectContent>
-              {Array.isArray(buildings) &&
-                buildings?.map((building) => (
-                <SelectItem
-                  key={building.id}
-                  value={building.id.toString()}
-                >
-                  {building.name}
-                </SelectItem>
-                ))}
+                {Array.isArray(buildings) &&
+                  buildings?.map((building) => (
+                    <SelectItem
+                      key={building.id}
+                      value={building.id.toString()}
+                    >
+                      {building.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
-            {loading && <div className="text-sm text-muted-foreground mt-2">Loading building data...</div>}
+            {loading && (
+              <div className="text-sm text-muted-foreground mt-2">
+                Loading building data...
+              </div>
+            )}
 
-            {selectedBuilding?.machines.length == 0 && <Label>Please define the machine position in this <a href="/admin/machines" className="text-blue-500">link</a></Label>}
+            {selectedBuilding?.machines.length == 0 && (
+              <Label>
+                Please define the machine position in this{' '}
+                <a href="/admin/machines" className="text-blue-500">
+                  link
+                </a>
+              </Label>
+            )}
           </CardContent>
         </Card>
         {/* <Card className="absolute top-24 right-6 z-10">
@@ -569,16 +731,20 @@ export default function ShopfloorUvDashboard() {
           <CardTitle className="flex justify-between items-center pb-0 mb-0">
             <div className="flex gap-x-8 ">
               <Label className="text-lg">
-                OOE <strong>{((selectedBuilding?.ooe || 0)* 100).toFixed(2)}%</strong>
+                OOE{' '}
+                <strong>
+                  {((selectedBuilding?.ooe || 0) * 100).toFixed(2)}%
+                </strong>
               </Label>
               <Label className="text-lg">
-                OEE <strong>{((selectedBuilding?.oee || 0)* 100).toFixed(2)}%</strong>
+                OEE{' '}
+                <strong>
+                  {((selectedBuilding?.oee || 0) * 100).toFixed(2)}%
+                </strong>
               </Label>
             </div>
             <div>
-              <Label>
-                Data is from {startHour}:00 to now
-              </Label>
+              <Label>Data is from {startHour}:00 to now</Label>
             </div>
           </CardTitle>
         </CardHeader>
@@ -587,7 +753,7 @@ export default function ShopfloorUvDashboard() {
             {Object.entries(statusColors).map(([status, color]) => {
               const count = selectedBuilding?.machines.filter(
                 (machine) => machine.status === status
-              ).length;
+              ).length
               return (
                 <div
                   key={status}
@@ -598,28 +764,34 @@ export default function ShopfloorUvDashboard() {
                     style={{ backgroundColor: color }}
                   />
                   <span className="text-sm">
-                    <strong>{count}</strong>  {status === 'GREEN' ? 'Running' :
-                     status === 'WHITE' ? 'PlannedStop' :
-                     status === 'BLUE' ? 'Changeover' :
-                     status === 'ORANGE' ? 'Breakdown' :
-                     status === 'RED' ? 'NonQuality' :
-                     status === 'PURPLE' ? 'OrgDisfunction' :
-                     status === 'YELLOW' ? 'Microstop' :
-                     status === 'GREY' ? 'Unclassified' :
-                     status}
+                    <strong>{count}</strong>{' '}
+                    {status === 'GREEN'
+                      ? 'Running'
+                      : status === 'WHITE'
+                        ? 'PlannedStop'
+                        : status === 'BLUE'
+                          ? 'Changeover'
+                          : status === 'ORANGE'
+                            ? 'Breakdown'
+                            : status === 'RED'
+                              ? 'NonQuality'
+                              : status === 'PURPLE'
+                                ? 'OrgDisfunction'
+                                : status === 'YELLOW'
+                                  ? 'Microstop'
+                                  : status === 'GREY'
+                                    ? 'Unclassified'
+                                    : status}
                   </span>
                 </div>
-              );
+              )
             })}
             <div className="flex flex-shrink items-center gap-2">
               <span className="text-sm">
                 <strong>{selectedBuilding?.machines.length}</strong> Total
               </span>
             </div>
-            <Label className="text-xs">
-                last refresh at{' '}
-                {refreshTime}
-              </Label>
+            <Label className="text-xs">last refresh at {refreshTime}</Label>
           </div>
         </CardContent>
       </Card>
@@ -648,33 +820,70 @@ export default function ShopfloorUvDashboard() {
                 <span className="font-semibold">Energy</span>{' '}
                 {selectedMachine?.consumption} kWh
               </div> */}
-                <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                   <span className="font-semibold">Cycle Time</span>{' '}
                   <div>
                   <span className={selectedMachine?.cycletime <= selectedMachine?.target_cycletime ? "text-green-500" : "text-red-500"}>
                     {selectedMachine?.cycletime}
                   </span> / {selectedMachine?.target_cycletime} s
                   </div>
+                </div> */}
+              <div className="flex items-center justify-between">
+                <span className="font-semibold">Spindle</span>
+                <div>
+                  <span
+                    className={
+                      spindleACT <= spindleSTD
+                        ? 'text-green-500'
+                        : 'text-red-500'
+                    }
+                  >
+                    {displayACT}
+                  </span>{' '}
+                  / {spindleSTD}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">Cavity</span>{' '}
-                  <div>
-                  <span className={selectedMachine?.cavity >= selectedMachine?.target_cavity ? "text-green-500" : "text-red-500"}>
+              </div>
+              {/* <div className="flex items-center justify-between">
+                <span className="font-semibold">Cavity</span>{' '}
+                <div>
+                  <span
+                    className={
+                      selectedMachine?.cavity >= selectedMachine?.target_cavity
+                        ? 'text-green-500'
+                        : 'text-red-500'
+                    }
+                  >
                     {selectedMachine?.cavity}
-                  </span> / {selectedMachine?.target_cavity}
-                  </div>
+                  </span>{' '}
+                  / {selectedMachine?.target_cavity}
                 </div>
-                <div className="flex items-center justify-between">
+              </div> */}
+              <div className="flex items-center justify-between">
+                <span className="font-semibold">Output</span>{' '}
+                <div>
+                  {totalActual > totalActualIn ? totalActual : totalActualIn}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-semibold">Gap</span>{' '}
+                <div>
+                  {totalActual > totalActualIn
+                    ? 0
+                    : Math.abs(totalActualIn - totalActual)}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="font-semibold">OEE & OOE</span>{' '}
-                  {((selectedMachine?.oee || 0) * 100).toFixed(2)}% & {((selectedMachine?.ooe || 0) * 100).toFixed(2)}%
-                </div>
+                {((selectedMachine?.oee || 0) * 100).toFixed(2)}% &{' '}
+                {((selectedMachine?.ooe || 0) * 100).toFixed(2)}%
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <Button
                   onClick={() => {
                     window.open(
                       `/admin/countboard/uv/?machineNumber=${selectedMachine?.MchNumber}&location=${selectedMachine?.MchLoc}`,
                       '_blank'
-                    );
+                    )
                   }}
                 >
                   <Calculator />
@@ -686,7 +895,7 @@ export default function ShopfloorUvDashboard() {
                     window.open(
                       `/admin/ems/?machineNumber=${selectedMachine?.MchNumber}&location=${selectedMachine?.MchLoc}`,
                       '_blank'
-                    );
+                    )
                   }}
                 >
                   <Zap />
@@ -710,10 +919,10 @@ export default function ShopfloorUvDashboard() {
           }}
           shadows
           onCreated={({ gl }) => {
-            gl.setClearColor('#808080');
-            gl.toneMappingExposure = 1.2; // Lower exposure for better balance
-            gl.shadowMap.enabled = false;
-            gl.shadowMap.type = PCFSoftShadowMap; // Softer shadows
+            gl.setClearColor('#808080')
+            gl.toneMappingExposure = 1.2 // Lower exposure for better balance
+            gl.shadowMap.enabled = false
+            gl.shadowMap.type = PCFSoftShadowMap // Softer shadows
           }}
         >
           <Suspense fallback={null}>
@@ -722,10 +931,14 @@ export default function ShopfloorUvDashboard() {
             <directionalLight position={[0, -100, 0]} intensity={2} />{' '}
             <directionalLight position={[100, 0, 0]} intensity={2} />{' '}
             <directionalLight position={[-100, 0, 0]} intensity={2} />{' '}
-            <directionalLight position={[50, 50, 50]} intensity={2} castShadow/>{' '}
+            <directionalLight
+              position={[50, 50, 50]}
+              intensity={2}
+              castShadow
+            />{' '}
             <directionalLight position={[-50, 50, 50]} intensity={2} />{' '}
             <directionalLight position={[-50, 0, -50]} intensity={2} />{' '}
-              <spotLight
+            <spotLight
               position={[0, 50, 0]}
               angle={0.3}
               penumbra={1}
@@ -734,36 +947,48 @@ export default function ShopfloorUvDashboard() {
               shadow-mapSize-width={1024}
               shadow-mapSize-height={1024}
             />
-  
             <Floor />
             {/* <FloorMiddle /> */}
             {/* <FloorRoad /> */}
-            <Wall position={[45, 5, 65]} size={[30, 10, 0.5]} building="Building E"/>
+            <Wall
+              position={[45, 5, 65]}
+              size={[30, 10, 0.5]}
+              building="Building E"
+            />
             <Wall
               building=""
               position={[60, 5, 50]}
               rotation={[0, Math.PI / 2, 0]}
               size={[30, 10, 0.5]}
             />
-
-            <Wall building="Building M" position={[-10, 5, 15]} size={[30, 10, 0.5]} />
-            
-            <FloorK/>
-            <Wall building="Building K" position={[-45, 5, 15]} size={[30, 10, 0.5]} />
-            <FloorM/>
+            <Wall
+              building="Building M"
+              position={[-10, 5, 15]}
+              size={[30, 10, 0.5]}
+            />
+            <FloorK />
+            <Wall
+              building="Building K"
+              position={[-45, 5, 15]}
+              size={[30, 10, 0.5]}
+            />
+            <FloorM />
             {Array.isArray(selectedBuilding?.machines)
               ? selectedBuilding?.machines.map((machine) => (
                   <InjectionMoldingMachine
                     // key={machine?.id}
                     machine={machine}
                     onClick={() => setSelectedMachine(machine)}
-                    isSelected={selectedMachine?.id === machine?.id && selectedMachine.MchID === machine.MchID}
+                    isSelected={
+                      selectedMachine?.id === machine?.id &&
+                      selectedMachine.MchID === machine.MchID
+                    }
                   />
                 ))
               : null}
-            <YoureHere position={[50, 0, 40]}/>
-            <YoureHere position={[-22, 0, 0]} rotation={[0, 3.14, 0]}/>
-            <YoureHere position={[-40, 0, -10]} rotation={[0, 0, 0]}/>
+            <YoureHere position={[50, 0, 40]} />
+            <YoureHere position={[-22, 0, 0]} rotation={[0, 3.14, 0]} />
+            <YoureHere position={[-40, 0, -10]} rotation={[0, 0, 0]} />
             {/* <CameraLogger /> */}
             <OrbitControls
               target={[0, 0, 20]}
@@ -777,6 +1002,5 @@ export default function ShopfloorUvDashboard() {
         </Canvas>
       </div>
     </div>
-  );
+  )
 }
-

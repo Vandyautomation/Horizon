@@ -1922,10 +1922,10 @@ export default function CountboardDashboardUv() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="text-lg font-bold text-nowrap p-0 flex items-center justify-center gap-2 space-y-0 flex-row pb-2">
+            <CardHeader className="ext-lg font-bold text-nowrap p-0 flex items-center justify-center gap-4 space-y-0 flex-row pb-2">
               Sensor Product Status
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-6 p-2 pr-4">
+            <CardContent className="grid grid-cols-3 gap-8 p-2 pr-6">
               <div>
                 <div className={`text-3xl font-bold`}>
                   {totalActual > totalActualIn ? totalActual : totalActualIn}
