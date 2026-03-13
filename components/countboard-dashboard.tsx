@@ -3989,7 +3989,7 @@ export default function CountboardDashboard() {
                 </Button>
                 <Input
                   type="date"
-                  className="h-8 w-[170px]"
+                  className="h-8 w-[140px]"
                   value={
                     selectedDate instanceof Date
                       ? format(selectedDate, 'yyyy-MM-dd')
