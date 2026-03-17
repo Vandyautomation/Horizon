@@ -3062,8 +3062,7 @@ export default function CountboardDashboard() {
                 </Select>
               </>
             )}
-            <div className="flex items-start gap-2">
-              <div className="relative inline-block w-48">
+            <div className="relative inline-block w-48">
                 <Button
                   onClick={() =>
                     setOpenCell(openCell === 'row1-col2' ? null : 'row1-col2')
@@ -3152,6 +3151,8 @@ export default function CountboardDashboard() {
                   </div>
                 )}
               </div>
+            <div className="flex items-start gap-2">
+              
               {shouldShowZhafirIndicators ? (
                 <div className="-mt-[1px] flex items-start gap-2 overflow-x-auto pb-1">
                   {ZHAFIR_INDICATORS.map((indicator) => {

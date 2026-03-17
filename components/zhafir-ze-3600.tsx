@@ -1665,50 +1665,7 @@ export default function ZhafirParameterForm() {
       setSavingKey(null)
     }
   }
- const paramset = {
-    InjectScrewPosition: {
-      std: stdDraft.InjectScrewPosition,
-      min: minDraft.InjectScrewPosition,
-      max: maxDraft.InjectScrewPosition,
-      act: actDraft.InjectScrewPosition,
-    },
-    VPTimeText: {
-      std: stdDraft.VPTimeText,
-      min: minDraft.VPTimeText,
-      max: maxDraft.VPTimeText,
-      act: actDraft.VPTimeText,
-    },
-    VPPositionText: {
-      std: stdDraft.VPPositionText,
-      min: minDraft.VPPositionText,
-      max: maxDraft.VPPositionText,
-      act: actDraft.VPPositionText,
-    },
-    InjPeakPressure: {
-      std: stdDraft.InjPeakPressure,
-      min: minDraft.InjPeakPressure,
-      max: maxDraft.InjPeakPressure,
-      act: actDraft.InjPeakPressure,
-    },
-    Thickness: {
-      std: stdDraft.Thickness,
-      min: minDraft.Thickness,
-      max: maxDraft.Thickness,
-      act: actDraft.Thickness,
-    },
-    CarriageBwd_SE: {
-      std: stdDraft.CarriageBwd_SE,
-      min: minDraft.CarriageBwd_SE,
-      max: maxDraft.CarriageBwd_SE,
-      act: actDraft.CarriageBwd_SE,
-    },
-  }
-console.log("values:", values)
-console.log("stdDraft:", stdDraft)
-console.log("minDraft:", minDraft)
-console.log("maxDraft:", maxDraft)
-console.log("actDraft:", actDraft)
-  console.log("PARAMSET JSON:", paramset)
+
   return (
     <EditModeContext.Provider value={isEditMode}>
       <MachineIdContext.Provider value={machineId}>
