@@ -123,6 +123,10 @@ export default function SidebarLeft({
             url: 'ems_setting/device-management',
           },
           {
+            title: 'Update Andon Building',
+            url: 'ems_setting/update-andon-building',
+          },
+          {
             title: 'Firmware OTA',
             url: 'ems_setting/firmware-ota',
           },

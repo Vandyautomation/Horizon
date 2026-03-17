@@ -23,6 +23,16 @@ export default function EmsSettingPage() {
             </CardContent>
           </Card>
         </Link>
+        <Link href="/ems_setting/update-andon-building" className="block">
+          <Card className="h-full hover:border-primary/60">
+            <CardHeader>
+              <CardTitle className="text-base">Update Andon Building</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Send command 50101-50104 and update building/device identity.
+            </CardContent>
+          </Card>
+        </Link>
         <Link href="/ems_setting/ota" className="block">
           <Card className="h-full hover:border-primary/60">
             <CardHeader>

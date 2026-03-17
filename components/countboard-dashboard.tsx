@@ -2,6 +2,7 @@
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import albeaLogo from '@/public/albea-white.png'
+import * as XLSX from 'xlsx'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
   Select,
@@ -249,25 +250,38 @@ const refreshRateList = ['5000', '15000', '30000', '60000']
 
 const shiftList = ['1', '2', '3']
 const ZHAFIR_PARA_ID = 'ZHF-STD-001'
+const ZHAFIR_UI_G_MACHINE_ALLOWLIST = new Set([
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+])
 const ZHAFIR_INDICATORS = [
-  
   {
     field: 'InjectScrewPosition',
-    label: 'END OF PLASTIFICATION',
+    label: 'Inj Start Position',
     icon: '/admin/End of plastification (dosing).png',
   },
   {
-    field: 'VPTimeText',
-    label: 'INJECTION TIME',
-    icon: '/admin/Injection time.png',
+    field: 'VPPositionText',
+    label: 'V/P Position',
+    icon: '/admin/Switching position.png',
   },
-  { field: 'VPPositionText', label: 'SWITCHING POSITION', icon: '/admin/Switching position.png' },
   {
-    field:"InjPeakPressure",
-    label: 'inject peak pressure',
+    field: 'InjPeakPressure',
+    label: 'Inj Peak Press',
     icon: '/admin/inj-press.png',
   },
   { field: 'Thickness', label: 'CUSHION', icon: '/admin/Cushion.png' },
+  {
+    field: 'VPTimeText',
+    label: 'Injection Time',
+    icon: '/admin/Injection time.png',
+  },
 ] as const
 
 type ZhafirIndicatorField = (typeof ZHAFIR_INDICATORS)[number]['field']
@@ -426,9 +440,9 @@ export default function CountboardDashboard() {
   const [selectedTrendIndicator, setSelectedTrendIndicator] = useState<
     (typeof ZHAFIR_INDICATORS)[number] | null
   >(null)
-  const [zhafirTrendPoints, setZhafirTrendPoints] = useState<ZhafirTrendPoint[]>(
-    []
-  )
+  const [zhafirTrendPoints, setZhafirTrendPoints] = useState<
+    ZhafirTrendPoint[]
+  >([])
   const [zhafirTrendHoursBack, setZhafirTrendHoursBack] = useState<8 | 24>(24)
   const [isTrendChartFullscreen, setIsTrendChartFullscreen] = useState(false)
   const [isLoadingZhafirTrend, setIsLoadingZhafirTrend] = useState(false)
@@ -598,11 +612,27 @@ export default function CountboardDashboard() {
       const machineName = selectedMachine?.machineName
       if (!machineName) return
 
+      const normalizedLocation = (
+        selectedMachine?.locationName || ''
+      ).trim().toLowerCase()
+      const normalizedMachineNo = String(
+        selectedMachine?.machineNumber || ''
+      ).trim()
+      const isG2ZhafirMachine =
+        normalizedLocation === 'inj bld g' && normalizedMachineNo === '2'
+
       const hoursBack = hoursBackOverride ?? zhafirTrendHoursBack
       setSelectedTrendIndicator(indicator)
       setIsZhafirTrendDialogOpen(true)
       setIsLoadingZhafirTrend(true)
       setZhafirTrendError(null)
+
+      if (!isG2ZhafirMachine) {
+        setZhafirTrendPoints([])
+        setZhafirTrendError('Data not found')
+        setIsLoadingZhafirTrend(false)
+        return
+      }
 
       try {
         const materialCandidates = resolveZhafirCandidates(
@@ -643,9 +673,7 @@ export default function CountboardDashboard() {
         const trendQuery = `actual-view-window?machine_id=${encodeURIComponent(machineName)}&hoursBack=${hoursBack}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}${
           dateParam ? `&date=${encodeURIComponent(dateParam)}` : ''
         }`
-        const candidates = resolveZhafirCandidates(
-          trendQuery
-        )
+        const candidates = resolveZhafirCandidates(trendQuery)
 
         let data: ZhafirActualViewWindowResponse | null = null
         for (const url of candidates) {
@@ -661,7 +689,7 @@ export default function CountboardDashboard() {
 
         if (!data || !Array.isArray(data.hours)) {
           setZhafirTrendPoints([])
-          setZhafirTrendError('Data trend tidak tersedia')
+          setZhafirTrendError('Data not found')
           return
         }
 
@@ -724,6 +752,8 @@ export default function CountboardDashboard() {
     [
       resolveZhafirCandidates,
       selectedDate,
+      selectedMachine?.locationName,
+      selectedMachine?.machineNumber,
       selectedMachine?.machineName,
       zhafirTrendHoursBack,
     ]
@@ -815,7 +845,49 @@ export default function CountboardDashboard() {
       revalidateOnReconnect: false,
     }
   )
+  const sanitizeSheetName = (name: string) => {
+    return name
+      .replace(/[:\\/?*\[\]]/g, '') // hapus karakter terlarang
+      .substring(0, 31) // Excel max 31 karakter
+  }
+  const handleExportTrendExcel = () => {
+    if (!selectedTrendIndicator || zhafirTrendPoints.length === 0) return
 
+    const rows = zhafirTrendPoints.map((p, i) => ({
+      No: i + 1,
+      Hour: p.hourLabel,
+      Actual: p.value ?? '',
+      Min_STD: p.min ?? '',
+      Max_STD: p.max ?? '',
+      Status:
+        p.status === 'out_of_range'
+          ? 'Out of Range'
+          : p.status === 'ok'
+            ? 'In Range'
+            : 'No Data',
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+
+    const workbook = XLSX.utils.book_new()
+    const sheetName = sanitizeSheetName(selectedTrendIndicator.label)
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
+
+    const buffer = XLSX.write(workbook, {
+      type: 'array',
+      bookType: 'xlsx',
+    })
+
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `SPC_Trend_${selectedTrendIndicator.label}.xlsx`
+    link.click()
+  }
   const categoryOrder = [2, 3, 4, 5, 6, 7, 8, 1]
 
   const rawCategories = categoryRes as ProblemGroup[] | undefined
@@ -2521,7 +2593,7 @@ export default function CountboardDashboard() {
   ) => {
     if (typeof icon === 'string' && icon.startsWith('/')) {
       return (
-        <img src={icon} alt="indicator" className="w-10 h-10 object-contain" />
+        <img src={icon} alt="indicator" className="w-14 h-14 object-contain" />
       )
     }
     if (icon === '/admin/inj-press.png')
@@ -2535,11 +2607,15 @@ export default function CountboardDashboard() {
 
     return <CircleDot className="w-10 h-10 text-purple-500" />
   }
-  const isG2Machine =
-    (selectedMachine?.locationName || '').trim().toLowerCase() ===
-      'inj bld g' && String(selectedMachine?.machineNumber || '').trim() === '2'
+  const normalizedLocationName = (
+    selectedMachine?.locationName || ''
+  ).trim().toLowerCase()
+  const normalizedMachineNumber = String(
+    selectedMachine?.machineNumber || ''
+  ).trim()
   const shouldShowZhafirIndicators =
-    isG2Machine || Boolean(zhafirAccessStatus?.enabled)
+    normalizedLocationName === 'inj bld g' &&
+    ZHAFIR_UI_G_MACHINE_ALLOWLIST.has(normalizedMachineNumber)
   const buildLineSegments = (
     points: ZhafirTrendPoint[],
     pick: (point: ZhafirTrendPoint) => number | null,
@@ -3018,69 +3094,68 @@ export default function CountboardDashboard() {
                 </Select>
               </>
             )}
-            <div className="flex items-start gap-2">
-              <div className="relative inline-block w-48">
-                <Button
-                  onClick={() =>
-                    setOpenCell(openCell === 'row1-col2' ? null : 'row1-col2')
-                  }
-                  className={`h-[43px] px-4 bg-black text-white flex items-center justify-between w-full
+            <div className="relative inline-block w-48">
+              <Button
+                onClick={() =>
+                  setOpenCell(openCell === 'row1-col2' ? null : 'row1-col2')
+                }
+                className={`h-[43px] px-4 bg-black text-white flex items-center justify-between w-full
           ${openCell === 'row1-col2' ? 'rounded-t-md' : 'rounded-md'}
         `}
-                >
-                  <div className="flex items-center">
-                    <User className="w-4 h-4 mr-2" />
-                    {selectedUsers['row1-col2'] || 'Operator'}
-                  </div>
-                  <ChevronDown
-                    className={`w-4 h-4 transition-transform duration-200
+              >
+                <div className="flex items-center">
+                  <User className="w-4 h-4 mr-2" />
+                  {selectedUsers['row1-col2'] || 'Operator'}
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform duration-200
                   ${openCell === 'row1-col2' ? 'rotate-180' : ''}
                 `}
-                  />
-                </Button>
+                />
+              </Button>
 
-                {/* Dropdown */}
-                {openCell === 'row1-col2' && (
-                  <div className="absolute top-full left-0 w-full bg-black text-white rounded-b-md shadow z-20">
-                    {/* Search */}
-                    <div className="p-2 border-b border-gray-700">
-                      <input
-                        type="text"
-                        placeholder="Cari user..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full px-2 py-1 text-sm bg-gray-900 text-white rounded outline-none"
-                      />
-                    </div>
+              {/* Dropdown */}
+              {openCell === 'row1-col2' && (
+                <div className="absolute top-full left-0 w-full bg-black text-white rounded-b-md shadow z-20">
+                  {/* Search */}
+                  <div className="p-2 border-b border-gray-700">
+                    <input
+                      type="text"
+                      placeholder="Cari user..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full px-2 py-1 text-sm bg-gray-900 text-white rounded outline-none"
+                    />
+                  </div>
 
-                    {/* List */}
-                    <div className="max-h-20 overflow-y-auto">
-                      {search.length > 0 &&
-                        (filteredUsers.length > 0 ? (
-                          filteredUsers.map((u) => (
-                            <div
-                              key={u}
-                              onClick={() => {
-                                setSelectedUsers((prev) => ({
-                                  ...prev,
-                                  ['row1-col2']: u,
-                                }))
-                                setOpenCell(null)
-                                setSearch('')
-                              }}
-                              className="px-3 py-2 cursor-pointer hover:bg-gray-700 flex items-center"
-                            >
-                              <User className="w-4 h-4 mr-2 text-gray-400" />
-                              {u}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="px-3 py-2 text-gray-400 text-sm">
-                            User tidak ditemukan
+                  {/* List */}
+                  <div className="max-h-20 overflow-y-auto">
+                    {search.length > 0 &&
+                      (filteredUsers.length > 0 ? (
+                        filteredUsers.map((u) => (
+                          <div
+                            key={u}
+                            onClick={() => {
+                              setSelectedUsers((prev) => ({
+                                ...prev,
+                                ['row1-col2']: u,
+                              }))
+                              setOpenCell(null)
+                              setSearch('')
+                            }}
+                            className="px-3 py-2 cursor-pointer hover:bg-gray-700 flex items-center"
+                          >
+                            <User className="w-4 h-4 mr-2 text-gray-400" />
+                            {u}
                           </div>
-                        ))}
-                    </div>
-                    {/* <div className="max-h-32 overflow-y-auto">
+                        ))
+                      ) : (
+                        <div className="px-3 py-2 text-gray-400 text-sm">
+                          User tidak ditemukan
+                        </div>
+                      ))}
+                  </div>
+                  {/* <div className="max-h-32 overflow-y-auto">
                       {filteredUsers.length > 0 ? (
                         filteredUsers.map((u) => (
                           <div
@@ -3105,11 +3180,12 @@ export default function CountboardDashboard() {
                         </div>
                       )}
                     </div> */}
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
+            </div>
+            <div className="flex items-start gap-2">
               {shouldShowZhafirIndicators ? (
-                <div className="-mt-[1px] flex items-start gap-2 overflow-x-auto pb-1">
+                <div className="-mt-[1px] flex items-start gap-3 overflow-x-auto pb-1">
                   {ZHAFIR_INDICATORS.map((indicator) => {
                     const indicatorStatus =
                       zhafirIndicatorStatusMap?.[indicator.field] ??
@@ -3124,40 +3200,14 @@ export default function CountboardDashboard() {
                     const isOutOfRange =
                       indicatorStatus.status === 'out_of_range'
                     const isInRange = indicatorStatus.status === 'ok'
-                    const usesHighLowCaption =
-                      indicator.field === 'VPTimeText' ||
-                      indicator.field === 'Thickness' ||
-                      indicator.field === 'InjPeakPressure'
-                    let outCaption = 'Out of range'
-                    if (indicator.field === 'VPPositionText' && isOutOfRange) {
-                      outCaption = 'Position Error'
-                    } else if (usesHighLowCaption && isOutOfRange) {
-                      const { act, min, max } = indicatorStatus
-                      if (act != null && min != null && act < min) {
-                      outCaption = 'Too Low'
-                      } else if (act != null && max != null && act > max) {
-                      outCaption = 'Too High'
-                      } else if (
-                      act != null &&
-                      indicatorStatus.std != null &&
-                      act > indicatorStatus.std
-                      ) {
-                      outCaption = 'Too High'
-                      }
-                    }
+
                     const caption = isLoadingZhafirIndicators
                       ? 'Checking...'
                       : isOutOfRange
-                      ? outCaption
-                      : isInRange
-                        ? 'In range'
-                        : 'Data tidak tersedia'
-                    // const detail =
-                    //   indicatorStatus.act != null
-                    //     ? hasRange
-                    //       ? `Act ${formatCompactNumber(indicatorStatus.act)} | Range ${formatCompactNumber(indicatorStatus.min)} - ${formatCompactNumber(indicatorStatus.max)}`
-                    //       : `Act ${formatCompactNumber(indicatorStatus.act)} | Std ${formatCompactNumber(indicatorStatus.std)}`
-                    //     : indicator.label
+                        ? 'Out of range'
+                        : isInRange
+                          ? 'In range'
+                          : 'Data not found'
 
                     return (
                       <div
@@ -3167,31 +3217,26 @@ export default function CountboardDashboard() {
                         onClick={() =>
                           openZhafirIndicatorTrend(indicator, indicatorStatus)
                         }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            openZhafirIndicatorTrend(indicator, indicatorStatus)
-                          }
-                        }}
-                        className={`h-[62px] w-[230px] shrink-0 rounded-md border px-2 py-1 ${
+                        className={`flex-none h-[72px] min-w-[220px] rounded-lg border px-3 py-2 ${
                           isOutOfRange
                             ? 'animate-alertBlink border-red-500'
                             : isInRange
                               ? 'border-emerald-300 bg-emerald-50'
                               : 'border-gray-300 bg-gray-50'
                         } cursor-pointer`}
-                        title="Klik untuk lihat trend 24 jam"
                       >
-                        <div className="flex h-full items-center gap-2">
-                          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-white">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-md bg-white">
                             {renderIndicatorIcon(indicator.icon)}
                           </div>
-                          <div className="min-w-0 flex-1 leading-tight">
-                            <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+
+                          <div className="flex flex-col leading-tight">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-gray-600">
                               {indicator.label}
                             </div>
+
                             <div
-                              className={`truncate text-xs font-semibold ${
+                              className={`text-sm font-semibold ${
                                 isOutOfRange
                                   ? 'text-red-700'
                                   : isInRange
@@ -3201,9 +3246,6 @@ export default function CountboardDashboard() {
                             >
                               {caption}
                             </div>
-                            {/* <div className="mt-0.5 text-[10px] text-gray-700">
-                            {detail}
-                          </div> */}
                           </div>
                         </div>
                       </div>
@@ -3911,7 +3953,8 @@ export default function CountboardDashboard() {
                   {selectedTrendIndicator?.label || '-'}
                 </DialogTitle>
                 <DialogDescription className="p-0 m-0">
-                  Line chart actual dengan batas min/max dari MachineParameterSettingSTD.
+                  Line chart actual dengan batas min/max dari
+                  MachineParameterSettingSTD.
                 </DialogDescription>
               </DialogHeader>
 
@@ -3919,10 +3962,16 @@ export default function CountboardDashboard() {
                 <Button
                   type="button"
                   variant="outline"
+                  className="h-8 px-3 bg-green-500 text-white"
+                  onClick={handleExportTrendExcel}
+                >
+                  Export Excel
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
                   className="h-8 px-3"
-                  onClick={() =>
-                    setIsTrendChartFullscreen((prev) => !prev)
-                  }
+                  onClick={() => setIsTrendChartFullscreen((prev) => !prev)}
                 >
                   {isTrendChartFullscreen ? (
                     <>
@@ -3938,7 +3987,7 @@ export default function CountboardDashboard() {
                 </Button>
                 <Input
                   type="date"
-                  className="h-8 w-[170px]"
+                  className="h-8 w-[140px]"
                   value={
                     selectedDate instanceof Date
                       ? format(selectedDate, 'yyyy-MM-dd')
@@ -3953,7 +4002,9 @@ export default function CountboardDashboard() {
                     if (selectedTrendIndicator) {
                       openZhafirIndicatorTrend(
                         selectedTrendIndicator,
-                        zhafirIndicatorStatusMap?.[selectedTrendIndicator.field],
+                        zhafirIndicatorStatusMap?.[
+                          selectedTrendIndicator.field
+                        ],
                         zhafirTrendHoursBack,
                         value
                       )
@@ -3969,7 +4020,9 @@ export default function CountboardDashboard() {
                     if (selectedTrendIndicator) {
                       openZhafirIndicatorTrend(
                         selectedTrendIndicator,
-                        zhafirIndicatorStatusMap?.[selectedTrendIndicator.field],
+                        zhafirIndicatorStatusMap?.[
+                          selectedTrendIndicator.field
+                        ],
                         8
                       )
                     }
@@ -3986,7 +4039,9 @@ export default function CountboardDashboard() {
                     if (selectedTrendIndicator) {
                       openZhafirIndicatorTrend(
                         selectedTrendIndicator,
-                        zhafirIndicatorStatusMap?.[selectedTrendIndicator.field],
+                        zhafirIndicatorStatusMap?.[
+                          selectedTrendIndicator.field
+                        ],
                         24
                       )
                     }
@@ -4004,7 +4059,8 @@ export default function CountboardDashboard() {
                 <div className="py-8 text-center text-sm text-red-600">
                   {zhafirTrendError}
                 </div>
-              ) : (() => {
+              ) : (
+                (() => {
                   const chartWidth = isTrendChartFullscreen ? 1780 : 1220
                   const chartHeight = isTrendChartFullscreen ? 760 : 410
                   const marginLeft = 68
@@ -4032,6 +4088,7 @@ export default function CountboardDashboard() {
                   const toY = (value: number) =>
                     plotHeight - ((value - yMin) / ySpan) * plotHeight
                   const yTicks = [0, 0.25, 0.5, 0.75, 1]
+                  // const xLabelStep = zhafirTrendPoints.length > 12 ? 2 : 1
 
                   const minSegments = buildLineSegments(
                     zhafirTrendPoints,
@@ -4085,24 +4142,45 @@ export default function CountboardDashboard() {
                               x2="0"
                               y2="1"
                             >
-                              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.24" />
-                              <stop offset="100%" stopColor="#2563eb" stopOpacity="0.03" />
+                              <stop
+                                offset="0%"
+                                stopColor="#2563eb"
+                                stopOpacity="0.24"
+                              />
+                              <stop
+                                offset="100%"
+                                stopColor="#2563eb"
+                                stopOpacity="0.03"
+                              />
                             </linearGradient>
-                            <filter id="lineGlow" x="-30%" y="-30%" width="160%" height="160%">
-                              <feGaussianBlur stdDeviation="2.4" result="blur" />
+                            <filter
+                              id="lineGlow"
+                              x="-30%"
+                              y="-30%"
+                              width="160%"
+                              height="160%"
+                            >
+                              <feGaussianBlur
+                                stdDeviation="2.4"
+                                result="blur"
+                              />
                               <feMerge>
                                 <feMergeNode in="blur" />
                                 <feMergeNode in="SourceGraphic" />
                               </feMerge>
                             </filter>
                           </defs>
-                          <g transform={`translate(${marginLeft},${marginTop})`}>
+                          <g
+                            transform={`translate(${marginLeft},${marginTop})`}
+                          >
                             {hasRangeBand ? (
                               <rect
                                 x="0"
                                 y={Math.min(rangeBandTop, rangeBandBottom)}
                                 width={plotWidth}
-                                height={Math.abs(rangeBandBottom - rangeBandTop)}
+                                height={Math.abs(
+                                  rangeBandBottom - rangeBandTop
+                                )}
                                 fill="#dcfce7"
                                 opacity="0.45"
                               />
@@ -4196,12 +4274,10 @@ export default function CountboardDashboard() {
                               }\nStatus: ${point.status}`
                               return (
                                 <g key={`point-${idx}`}>
-                                  <title>{tooltip}</title>
-                                  <circle cx={x} cy={y} r="10" fill="transparent" />
                                   <circle
                                     cx={x}
                                     cy={y}
-                                    r="4"
+                                    r="6"
                                     fill={
                                       point.status === 'out_of_range'
                                         ? '#dc2626'
@@ -4210,12 +4286,24 @@ export default function CountboardDashboard() {
                                   />
                                   <text
                                     x={x}
-                                    y={y - 6}
+                                    y={y - 14}
                                     textAnchor="middle"
-                                    className="fill-gray-700 text-[9px] font-semibold"
+                                    fontSize="12"
+                                    fontWeight="bold"
+                                    fill="#111827"
+                                    stroke="white"
+                                    strokeWidth="3"
+                                    paintOrder="stroke"
                                   >
                                     {formatCompactNumber(point.value)}
                                   </text>
+
+                                  <title>
+                                    {point.hourLabel}
+                                    {'\n'}Actual: {point.value}
+                                    {'\n'}Min: {point.min}
+                                    {'\n'}Max: {point.max}
+                                  </title>
                                 </g>
                               )
                             })}
@@ -4231,6 +4319,7 @@ export default function CountboardDashboard() {
                           </g>
 
                           {zhafirTrendPoints.map((point, idx) => {
+                            // if (idx % xLabelStep !== 0) return null
                             const x = marginLeft + idx * stepX
                             return (
                               <text
@@ -4244,21 +4333,6 @@ export default function CountboardDashboard() {
                               </text>
                             )
                           })}
-
-                          <text
-                            x={6}
-                            y={10}
-                            className="fill-gray-500 text-[10px] font-semibold"
-                          >
-                            Y (nilai)
-                          </text>
-                          <text
-                            x={chartWidth - 56}
-                            y={chartHeight - 4}
-                            className="fill-gray-500 text-[10px] font-semibold"
-                          >
-                            X (jam)
-                          </text>
                         </svg>
 
                         <div className="mt-2 flex flex-wrap gap-4 text-xs">
@@ -4273,6 +4347,14 @@ export default function CountboardDashboard() {
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block h-2.5 w-6 rounded bg-red-500 shadow-sm" />
                             Max (STD)
+                          </div>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-green-500 shadow-sm" />
+                            Y (nilai)
+                          </div>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-blue-500 shadow-sm" />
+                            X (jam)
                           </div>
                         </div>
                       </div>
@@ -4325,7 +4407,8 @@ export default function CountboardDashboard() {
                       </div>
                     </div>
                   )
-                })()}
+                })()
+              )}
             </DialogContent>
           </Dialog>
 
