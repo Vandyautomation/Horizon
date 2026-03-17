@@ -3151,112 +3151,107 @@ export default function CountboardDashboard() {
                   </div>
                 )}
               </div>
-            <div className="flex items-start gap-2">
-              
-              {shouldShowZhafirIndicators ? (
-                <div className="-mt-[1px] flex items-start gap-2 overflow-x-auto pb-1">
-                  {ZHAFIR_INDICATORS.map((indicator) => {
-                    const indicatorStatus =
-                      zhafirIndicatorStatusMap?.[indicator.field] ??
-                      ({
-                        status: 'unknown',
-                        std: null,
-                        act: null,
-                        min: null,
-                        max: null,
-                      } as ZhafirIndicatorStatus)
+           <div className="flex items-start gap-2">
+  {shouldShowZhafirIndicators ? (
+    <div className="-mt-[1px] flex items-start gap-2 overflow-x-auto pb-1">
+      {ZHAFIR_INDICATORS.map((indicator) => {
+        const indicatorStatus =
+          zhafirIndicatorStatusMap?.[indicator.field] ?? ({
+            status: 'unknown',
+            std: null,
+            act: null,
+            min: null,
+            max: null,
+          } as ZhafirIndicatorStatus)
 
-                    const isOutOfRange =
-                      indicatorStatus.status === 'out_of_range'
-                    const isInRange = indicatorStatus.status === 'ok'
-                    const usesHighLowCaption =
-                      indicator.field === 'VPTimeText' ||
-                      indicator.field === 'Thickness' ||
-                      indicator.field === 'InjPeakPressure'
-                    let outCaption = 'Out of range'
-                    if (indicator.field === 'VPPositionText' && isOutOfRange) {
-                      outCaption = 'Position Error'
-                    } else if (usesHighLowCaption && isOutOfRange) {
-                      const { act, min, max } = indicatorStatus
-                      if (act != null && min != null && act < min) {
-                        outCaption = 'Too Low'
-                      } else if (act != null && max != null && act > max) {
-                        outCaption = 'Too High'
-                      } else if (
-                        act != null &&
-                        indicatorStatus.std != null &&
-                        act > indicatorStatus.std
-                      ) {
-                        outCaption = 'Too High'
-                      }
-                    }
-                    const caption = isLoadingZhafirIndicators
-                      ? 'Checking...'
-                      : isOutOfRange
-                        ? outCaption
-                        : isInRange
-                          ? 'In range'
-                          : 'Data tidak tersedia'
-                    // const detail =
-                    //   indicatorStatus.act != null
-                    //     ? hasRange
-                    //       ? `Act ${formatCompactNumber(indicatorStatus.act)} | Range ${formatCompactNumber(indicatorStatus.min)} - ${formatCompactNumber(indicatorStatus.max)}`
-                    //       : `Act ${formatCompactNumber(indicatorStatus.act)} | Std ${formatCompactNumber(indicatorStatus.std)}`
-                    //     : indicator.label
+        const isOutOfRange = indicatorStatus.status === 'out_of_range'
+        const isInRange = indicatorStatus.status === 'ok'
 
-                    return (
-                      <div
-                        key={indicator.field}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() =>
-                          openZhafirIndicatorTrend(indicator, indicatorStatus)
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            openZhafirIndicatorTrend(indicator, indicatorStatus)
-                          }
-                        }}
-                        className={`h-[43px] shrink-0 rounded-md border px-2 py-1 ${
-                          isOutOfRange
-                            ? 'animate-alertBlink border-red-500'
-                            : isInRange
-                              ? 'border-emerald-300 bg-emerald-50'
-                              : 'border-gray-300 bg-gray-50'
-                        } cursor-pointer`}
-                        title="Klik untuk lihat trend 24 jam"
-                      >
-                        <div className="flex h-full items-center gap-2">
-                          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-white">
-                            {renderIndicatorIcon(indicator.icon)}
-                          </div>
-                          <div className="min-w-0 flex-1 leading-tight">
-                            <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-gray-600">
-                              {indicator.label}
-                            </div>
-                            <div
-                              className={`truncate text-xs font-semibold ${
-                                isOutOfRange
-                                  ? 'text-red-700'
-                                  : isInRange
-                                    ? 'text-emerald-700'
-                                    : 'text-gray-700'
-                              }`}
-                            >
-                              {caption}
-                            </div>
-                            {/* <div className="mt-0.5 text-[10px] text-gray-700">
-                            {detail}
-                          </div> */}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+        const usesHighLowCaption =
+          indicator.field === 'VPTimeText' ||
+          indicator.field === 'Thickness' ||
+          indicator.field === 'InjPeakPressure'
+
+        let outCaption = 'Out of range'
+
+        if (indicator.field === 'VPPositionText' && isOutOfRange) {
+          outCaption = 'Out of range'
+        } else if (usesHighLowCaption && isOutOfRange) {
+          const { act, min, max } = indicatorStatus
+
+          if (act != null && min != null && act < min) {
+            outCaption = 'Out of range'
+          } else if (act != null && max != null && act > max) {
+            outCaption = 'Out of range'
+          } else if (
+            act != null &&
+            indicatorStatus.std != null &&
+            act > indicatorStatus.std
+          ) {
+            outCaption = 'Out of range'
+          }
+        }
+
+        const caption = isLoadingZhafirIndicators
+          ? 'Checking...'
+          : isOutOfRange
+            ? outCaption
+            : isInRange
+              ? 'In range'
+              : 'Data tidak tersedia'
+
+        return (
+          <div
+            key={indicator.field}
+            role="button"
+            tabIndex={0}
+            onClick={() =>
+              openZhafirIndicatorTrend(indicator, indicatorStatus)
+            }
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                openZhafirIndicatorTrend(indicator, indicatorStatus)
+              }
+            }}
+            className={`flex-none h-[43px] min-w-[180px] rounded-md border px-2 py-1 ${
+              isOutOfRange
+                ? 'animate-alertBlink border-red-500'
+                : isInRange
+                  ? 'border-emerald-300 bg-emerald-50'
+                  : 'border-gray-300 bg-gray-50'
+            } cursor-pointer`}
+            title="Klik untuk lihat trend 24 jam"
+          >
+            <div className="flex h-full items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-white">
+                {renderIndicatorIcon(indicator.icon)}
+              </div>
+
+              <div className="min-w-0 flex-1 leading-tight">
+                <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                  {indicator.label}
                 </div>
-              ) : null}
+
+                <div
+                  className={`truncate text-xs font-semibold ${
+                    isOutOfRange
+                      ? 'text-red-700'
+                      : isInRange
+                        ? 'text-emerald-700'
+                        : 'text-gray-700'
+                  }`}
+                >
+                  {caption}
+                </div>
+              </div>
             </div>
+          </div>
+        )
+      })}
+    </div>
+  ) : null}
+</div>
           </div>
 
           {/* Second row - Controls
