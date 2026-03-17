@@ -3194,7 +3194,7 @@ export default function CountboardDashboard() {
                         } cursor-pointer`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-md bg-white">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-md bg-white">
                             {renderIndicatorIcon(indicator.icon)}
                           </div>
 
