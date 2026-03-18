@@ -545,9 +545,18 @@ export default function CountboardDashboard() {
       const stdData = await fetchFirstOkJson<ZhafirStdActResponse>(
         buildCandidates('')
       )
-      const actualData = await fetchFirstOkJson<ZhafirActualViewResponse>(
-        buildCandidates('/actual-view')
-      )
+      const actualData = await fetchFirstOkJson<ZhafirActualViewResponse>([
+        ...(normalizedBase
+          ? [
+              `${normalizedBase}/api/zhafircountboard/live?machine_id=${encodeURIComponent(machineName)}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}`,
+            ]
+          : []),
+        `http://localhost:9999/api/zhafircountboard/live?machine_id=${encodeURIComponent(machineName)}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}`,
+        `http://127.0.0.1:9999/api/zhafircountboard/live?machine_id=${encodeURIComponent(machineName)}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}`,
+        `/be/api/zhafircountboard/live?machine_id=${encodeURIComponent(machineName)}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}`,
+        `/api/zhafircountboard/live?machine_id=${encodeURIComponent(machineName)}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}`,
+        ...buildCandidates('/actual-view'),
+      ])
 
       const fallbackMap = Object.fromEntries(
         ZHAFIR_INDICATORS.map((item) => [
