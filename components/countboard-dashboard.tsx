@@ -4262,7 +4262,7 @@ export default function CountboardDashboard() {
                                 key={`act-${idx}`}
                                 points={segment}
                                 fill="none"
-                                stroke="#1d4ed8"
+                                stroke="#16a34a"
                                 strokeWidth="3.5"
                                 filter="url(#lineGlow)"
                               />
@@ -4290,7 +4290,7 @@ export default function CountboardDashboard() {
                                     fill={
                                       point.status === 'out_of_range'
                                         ? '#dc2626'
-                                        : '#1d4ed8'
+                                        : '#16a34a'
                                     }
                                   />
                                   <text
@@ -4346,7 +4346,7 @@ export default function CountboardDashboard() {
 
                         <div className="mt-2 flex flex-wrap gap-4 text-xs">
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-                            <span className="inline-block h-2.5 w-6 rounded bg-blue-700 shadow-sm" />
+                            <span className="inline-block h-2.5 w-6 rounded bg-green-700 shadow-sm" />
                             Actual
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
