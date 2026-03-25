@@ -250,6 +250,16 @@ const refreshRateList = ['5000', '15000', '30000', '60000']
 
 const shiftList = ['1', '2', '3']
 const ZHAFIR_PARA_ID = 'ZHF-STD-001'
+const ZHAFIR_UI_G_MACHINE_ALLOWLIST = new Set([
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+])
 const ZHAFIR_INDICATORS = [
   {
     field: 'InjectScrewPosition',
@@ -602,11 +612,27 @@ export default function CountboardDashboard() {
       const machineName = selectedMachine?.machineName
       if (!machineName) return
 
+      const normalizedLocation = (
+        selectedMachine?.locationName || ''
+      ).trim().toLowerCase()
+      const normalizedMachineNo = String(
+        selectedMachine?.machineNumber || ''
+      ).trim()
+      const isG2ZhafirMachine =
+        normalizedLocation === 'inj bld g' && normalizedMachineNo === '2'
+
       const hoursBack = hoursBackOverride ?? zhafirTrendHoursBack
       setSelectedTrendIndicator(indicator)
       setIsZhafirTrendDialogOpen(true)
       setIsLoadingZhafirTrend(true)
       setZhafirTrendError(null)
+
+      if (!isG2ZhafirMachine) {
+        setZhafirTrendPoints([])
+        setZhafirTrendError('Data not found')
+        setIsLoadingZhafirTrend(false)
+        return
+      }
 
       try {
         const materialCandidates = resolveZhafirCandidates(
@@ -663,7 +689,7 @@ export default function CountboardDashboard() {
 
         if (!data || !Array.isArray(data.hours)) {
           setZhafirTrendPoints([])
-          setZhafirTrendError('Data trend tidak tersedia')
+          setZhafirTrendError('Data not found')
           return
         }
 
@@ -726,6 +752,8 @@ export default function CountboardDashboard() {
     [
       resolveZhafirCandidates,
       selectedDate,
+      selectedMachine?.locationName,
+      selectedMachine?.machineNumber,
       selectedMachine?.machineName,
       zhafirTrendHoursBack,
     ]
@@ -2565,7 +2593,7 @@ export default function CountboardDashboard() {
   ) => {
     if (typeof icon === 'string' && icon.startsWith('/')) {
       return (
-        <img src={icon} alt="indicator" className="w-10 h-10 object-contain" />
+        <img src={icon} alt="indicator" className="w-14 h-14 object-contain" />
       )
     }
     if (icon === '/admin/inj-press.png')
@@ -2579,11 +2607,15 @@ export default function CountboardDashboard() {
 
     return <CircleDot className="w-10 h-10 text-purple-500" />
   }
-  const isG2Machine =
-    (selectedMachine?.locationName || '').trim().toLowerCase() ===
-      'inj bld g' && String(selectedMachine?.machineNumber || '').trim() === '2'
+  const normalizedLocationName = (
+    selectedMachine?.locationName || ''
+  ).trim().toLowerCase()
+  const normalizedMachineNumber = String(
+    selectedMachine?.machineNumber || ''
+  ).trim()
   const shouldShowZhafirIndicators =
-    isG2Machine || Boolean(zhafirAccessStatus?.enabled)
+    normalizedLocationName === 'inj bld g' &&
+    ZHAFIR_UI_G_MACHINE_ALLOWLIST.has(normalizedMachineNumber)
   const buildLineSegments = (
     points: ZhafirTrendPoint[],
     pick: (point: ZhafirTrendPoint) => number | null,
@@ -3175,7 +3207,7 @@ export default function CountboardDashboard() {
                         ? 'Out of range'
                         : isInRange
                           ? 'In range'
-                          : 'Data tidak tersedia'
+                          : 'Data not found'
 
                     return (
                       <div
@@ -4184,7 +4216,7 @@ export default function CountboardDashboard() {
                                 key={`min-${idx}`}
                                 points={segment}
                                 fill="none"
-                                stroke="#f59e0b"
+                                stroke="#ef4444"
                                 strokeWidth="2.5"
                                 strokeDasharray="7 5"
                               />
@@ -4221,9 +4253,9 @@ export default function CountboardDashboard() {
                                 key={`act-${idx}`}
                                 points={segment}
                                 fill="none"
-                                stroke="#1d4ed8"
+                                stroke="#16a34a"
                                 strokeWidth="3.5"
-                                filter="url(#lineGlow)"
+                                // filter="url(#lineGlow)"
                               />
                             ))}
 
@@ -4249,7 +4281,7 @@ export default function CountboardDashboard() {
                                     fill={
                                       point.status === 'out_of_range'
                                         ? '#dc2626'
-                                        : '#1d4ed8'
+                                        : '#16a34a'
                                     }
                                   />
                                   <text
@@ -4309,11 +4341,11 @@ export default function CountboardDashboard() {
                             Actual
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-                            <span className="inline-block h-2.5 w-6 rounded bg-amber-500 shadow-sm" />
+                            <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
                             Min (STD)
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-                            <span className="inline-block h-2.5 w-6 rounded bg-red-500 shadow-sm" />
+                            <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
                             Max (STD)
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
