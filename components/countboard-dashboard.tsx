@@ -4225,7 +4225,7 @@ export default function CountboardDashboard() {
                                 key={`min-${idx}`}
                                 points={segment}
                                 fill="none"
-                                stroke="#f59e0b"
+                                stroke="#ef4444"
                                 strokeWidth="2.5"
                                 strokeDasharray="7 5"
                               />
@@ -4350,11 +4350,11 @@ export default function CountboardDashboard() {
                             Actual
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-                            <span className="inline-block h-2.5 w-6 rounded bg-amber-500 shadow-sm" />
+                            <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
                             Min (STD)
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-                            <span className="inline-block h-2.5 w-6 rounded bg-red-500 shadow-sm" />
+                            <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
                             Max (STD)
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
