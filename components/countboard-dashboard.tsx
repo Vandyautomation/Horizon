@@ -4867,15 +4867,30 @@ export default function CountboardDashboard() {
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-2 border-dashed border-green-600" />
-                            Standard
+                            <span>Standard</span>
+                            <span className="font-bold text-black">
+                              {stdReference === null
+                                ? '-'
+                                : formatCompactNumber(stdReference, valueDecimals)}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
-                            Min (STD)
+                            <span>Min (STD)</span>
+                            <span className="font-bold text-black">
+                              {minReference === null
+                                ? '-'
+                                : formatCompactNumber(minReference, valueDecimals)}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
-                            Max (STD)
+                            <span>Max (STD)</span>
+                            <span className="font-bold text-black">
+                              {maxReference === null
+                                ? '-'
+                                : formatCompactNumber(maxReference, valueDecimals)}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block h-2.5 w-6 rounded bg-green-500 shadow-sm" />
