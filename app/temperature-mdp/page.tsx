@@ -31,12 +31,12 @@ type Series = {
 const LOWER_LIMIT = 60;
 const UPPER_LIMIT = 80;
 
-const chartConfig = {
+const chartConfig: ChartConfig = {
   temp: {
     label: "Temperature",
     color: "var(--chart-1)",
   },
-} satisfies ChartConfig;
+};
 
 function makeSeries(label: string, count = 30): Series {
   const values = Array.from({ length: count }, () => {
@@ -92,15 +92,15 @@ function TemperatureChart({
   return (
     <Card className="shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle>{series.label}</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-base sm:text-lg">{series.label}</CardTitle>
+        <CardDescription className="text-[11px] leading-relaxed sm:text-xs">
           {start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
           {" - "}
           {end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} | Batas atas {UPPER_LIMIT} C | Batas bawah {LOWER_LIMIT} C
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
-        <ChartContainer config={chartConfig} className="h-48 w-full aspect-auto">
+        <ChartContainer config={chartConfig} className="h-56 w-full aspect-auto sm:h-64">
           <BarChart
             accessibilityLayer
             data={chartData}
@@ -202,8 +202,14 @@ export default function TemperatureMdpPage() {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [historyView, setHistoryView] = useState<"auto" | "card" | "table">(
+    "auto",
+  );
 
-  const data = useMemo(() => buildData(positions), [seed, positions]);
+  const data = useMemo(() => {
+    void seed;
+    return buildData(positions);
+  }, [seed, positions]);
   useEffect(() => {
     if (activeIndex >= data.length) setActiveIndex(0);
   }, [activeIndex, data.length]);
@@ -349,7 +355,7 @@ export default function TemperatureMdpPage() {
     setModalOpen(false);
   };
 
-  const downloadCsv = (filename: string, rows: Array<Record<string, any>>) => {
+  const downloadCsv = (filename: string, rows: Array<Record<string, unknown>>) => {
     if (!rows.length) return;
     const headers = Object.keys(rows[0]);
     const csv = [
@@ -415,8 +421,9 @@ export default function TemperatureMdpPage() {
   };
 
   return (
-    <div className="p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-white px-2 py-1.5">
+    <div className="p-3 sm:p-4">
+      <div className="mb-3 rounded-md border bg-white p-2 sm:px-2 sm:py-1.5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-800">
           <span>Temperature MDP</span>
           <select
@@ -425,7 +432,7 @@ export default function TemperatureMdpPage() {
               setMdpId(Number(e.target.value));
               setSeed((v) => v + 1);
             }}
-            className="rounded border bg-white px-2 py-1 text-xs font-normal text-gray-700"
+            className="h-9 min-w-[88px] rounded border bg-white px-2 py-1 text-xs font-normal text-gray-700"
           >
             <option value={1}>MDP 1</option>
             <option value={2}>MDP 2</option>
@@ -433,32 +440,32 @@ export default function TemperatureMdpPage() {
             <option value={4}>MDP 4</option>
           </select>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <label className="text-[11px] text-gray-500">Tanggal</label>
+        <div className="grid grid-cols-1 gap-2 text-xs sm:flex sm:flex-wrap sm:items-center">
+          <label className="text-[11px] text-gray-500 sm:mr-[-4px]">Tanggal</label>
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="rounded border bg-white px-2 py-1 text-xs"
+            className="h-9 rounded border bg-white px-2 py-1 text-xs"
           />
-          <label className="text-[11px] text-gray-500">Interval</label>
+          <label className="text-[11px] text-gray-500 sm:ml-1 sm:mr-[-4px]">Interval</label>
           <select
             value={intervalMinutes}
             onChange={(e) => setIntervalMinutes(Number(e.target.value))}
-            className="rounded border bg-white px-2 py-1 text-xs"
+            className="h-9 rounded border bg-white px-2 py-1 text-xs"
           >
             <option value={1}>1 menit</option>
             <option value={5}>5 menit</option>
             <option value={15}>15 menit</option>
             <option value={60}>1 jam</option>
           </select>
-          <label className="text-[11px] text-gray-500">Shift</label>
+          <label className="text-[11px] text-gray-500 sm:ml-1 sm:mr-[-4px]">Shift</label>
           <select
             value={shiftFilter}
             onChange={(e) =>
               setShiftFilter(e.target.value as "all" | "s1" | "s2" | "s3")
             }
-            className="rounded border bg-white px-2 py-1 text-xs"
+            className="h-9 rounded border bg-white px-2 py-1 text-xs"
           >
             <option value="all">Semua</option>
             <option value="s1">Shift 1 (06-14)</option>
@@ -475,7 +482,7 @@ export default function TemperatureMdpPage() {
                 setIsRefreshing(false);
               }, 500);
             }}
-            className="rounded border px-3 py-1 bg-gray-100 hover:bg-gray-200 disabled:opacity-60"
+            className="h-9 rounded border px-3 py-1 bg-gray-100 hover:bg-gray-200 disabled:opacity-60"
             disabled={isRefreshing}
           >
             {isRefreshing ? (
@@ -490,10 +497,11 @@ export default function TemperatureMdpPage() {
           <button
             type="button"
             onClick={() => setManageOpen(true)}
-            className="rounded border px-3 py-1 bg-white hover:bg-gray-50"
+            className="h-9 rounded border px-3 py-1 bg-white hover:bg-gray-50"
           >
             Manage Positions
           </button>
+        </div>
         </div>
       </div>
 
@@ -501,7 +509,7 @@ export default function TemperatureMdpPage() {
         Shift aktif: <span className="font-semibold">{currentShift}</span>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {data.map((series, idx) => {
           const last = series.values[series.values.length - 1];
           const isActive = idx === activeIndex;
@@ -519,7 +527,7 @@ export default function TemperatureMdpPage() {
             >
               <div className="text-xs text-gray-600">ID {series.label}</div>
               <div className="text-[11px] text-gray-500">{positionLabel}</div>
-              <div className="mt-1 text-2xl font-semibold text-gray-900">
+              <div className="mt-1 text-xl font-semibold text-gray-900 sm:text-2xl">
                 {last} C
               </div>
               <div className="mt-2 text-[11px] text-gray-500">
@@ -551,13 +559,13 @@ export default function TemperatureMdpPage() {
         )}
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_320px]">
+      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_320px]">
         <div className={`rounded-xl border bg-white p-3 shadow-sm transition-opacity ${isAnimating ? "opacity-80" : "opacity-100"}`}>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs font-semibold text-gray-800">
             History ID {data[activeIndex]?.label} - {positions[activeIndex]?.label || "-"}
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-gray-500">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
             <span>Tanggal: {selectedDate}</span>
             <span>
               Per {intervalMinutes === 60 ? "1 jam" : `${intervalMinutes} menit`}
@@ -579,9 +587,44 @@ export default function TemperatureMdpPage() {
             >
               Export Historical
             </button>
+            <div className="inline-flex items-center rounded border bg-white p-0.5">
+              <button
+                type="button"
+                onClick={() => setHistoryView("auto")}
+                className={`rounded px-2 py-1 text-[10px] ${
+                  historyView === "auto"
+                    ? "bg-gray-900 text-white"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Auto
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryView("card")}
+                className={`rounded px-2 py-1 text-[10px] ${
+                  historyView === "card"
+                    ? "bg-gray-900 text-white"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Card
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryView("table")}
+                className={`rounded px-2 py-1 text-[10px] ${
+                  historyView === "table"
+                    ? "bg-gray-900 text-white"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Table
+              </button>
+            </div>
           </div>
         </div>
-        <div className={`overflow-x-auto transition-opacity ${isAnimating ? "opacity-80" : "opacity-100"}`}>
+        <div className={`transition-opacity ${isAnimating ? "opacity-80" : "opacity-100"}`}>
           {isRefreshing ? (
             <div className="space-y-2">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -589,6 +632,105 @@ export default function TemperatureMdpPage() {
               ))}
             </div>
           ) : (
+            <>
+            <div
+              className={
+                historyView === "table"
+                  ? "hidden"
+                  : historyView === "card"
+                    ? "space-y-2"
+                    : "space-y-2 sm:hidden"
+              }
+            >
+              {history.map((row, idx) => {
+                const key = `${row.point}-${row.timestamp.toISOString()}`;
+                const override = notes[key];
+                const cause = override?.cause ?? row.cause;
+                const action = override?.action ?? row.action;
+                const state = row.state;
+                const isSpike = row.value > UPPER_LIMIT;
+                const isLow = row.value < LOWER_LIMIT;
+                const rowId = idx + 1;
+                return (
+                  <div
+                    key={`${row.point}-${idx}`}
+                    className={[
+                      "rounded-lg border bg-white p-2.5",
+                      isSpike
+                        ? "border-red-300"
+                        : isLow
+                          ? "border-blue-300"
+                          : "border-gray-200",
+                    ].join(" ")}
+                  >
+                    <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-gray-700">ID {rowId}</span>
+                      <span className="text-gray-500">
+                        {row.timestamp.toLocaleTimeString("id-ID", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-lg font-semibold text-gray-900">{row.value} C</span>
+                      <span
+                        className={
+                          state === "High"
+                            ? "inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700"
+                            : state === "Low"
+                              ? "inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700"
+                              : "inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700"
+                        }
+                      >
+                        {state === "High" ? "▲" : state === "Low" ? "▼" : "•"} {state}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openModal(key, cause, action, {
+                            point: String(rowId),
+                            positionLabel: positions[activeIndex]?.label,
+                            timestamp: row.timestamp,
+                            value: row.value,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] text-gray-700 hover:bg-gray-50"
+                      >
+                        {cause}
+                        <span className="text-[9px] text-gray-400">edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openModal(key, cause, action, {
+                            point: String(rowId),
+                            positionLabel: positions[activeIndex]?.label,
+                            timestamp: row.timestamp,
+                            value: row.value,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] text-gray-700 hover:bg-gray-50"
+                      >
+                        {action}
+                        <span className="text-[9px] text-gray-400">edit</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div
+              className={
+                historyView === "card"
+                  ? "hidden"
+                  : historyView === "table"
+                    ? "overflow-x-auto"
+                    : "hidden overflow-x-auto sm:block"
+              }
+            >
             <table className="w-full table-fixed text-[11px]">
             <colgroup>
               <col className="w-10" />
@@ -698,6 +840,8 @@ export default function TemperatureMdpPage() {
               })}
             </tbody>
           </table>
+          </div>
+          </>
           )}
         </div>
       </div>
@@ -816,9 +960,9 @@ export default function TemperatureMdpPage() {
 
             <div className="mb-3">
               <label className="mb-1 block text-xs text-gray-600">Cause</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <select
-                  className="w-40 rounded border px-2 py-1 text-xs bg-white"
+                  className="w-full rounded border bg-white px-2 py-1 text-xs sm:w-40"
                   value={modalCause}
                   onChange={(e) => setModalCause(e.target.value)}
                 >
@@ -841,9 +985,9 @@ export default function TemperatureMdpPage() {
               <label className="mb-1 block text-xs text-gray-600">
                 Comment/Actions
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <select
-                  className="w-56 rounded border px-2 py-1 text-xs bg-white"
+                  className="w-full rounded border bg-white px-2 py-1 text-xs sm:w-56"
                   value={modalAction}
                   onChange={(e) => setModalAction(e.target.value)}
                 >
@@ -900,7 +1044,7 @@ export default function TemperatureMdpPage() {
               </button>
             </div>
             <div className="text-[11px] text-gray-600 mb-2">
-              ID {data[activeIndex]?.label} — {positions[activeIndex]?.label || "-"} | {selectedDate} |{" "}
+              ID {data[activeIndex]?.label} - {positions[activeIndex]?.label || "-"} | {selectedDate} |{" "}
               {shiftFilter === "all"
                 ? "Semua Shift"
                 : shiftFilter === "s1"

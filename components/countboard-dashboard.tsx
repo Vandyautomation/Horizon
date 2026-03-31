@@ -322,7 +322,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 const ZHAFIR_Y_AXIS_CONFIG: Record<ZhafirIndicatorField, ZhafirYAxisConfig> = {
   InjectScrewPosition: {
-    decimals: 2,
+    decimals: 1,
     minTickStep: 1,
     tickStep: 0.2,
     initialZoom: 2.48,
@@ -332,7 +332,7 @@ const ZHAFIR_Y_AXIS_CONFIG: Record<ZhafirIndicatorField, ZhafirYAxisConfig> = {
     clampMinZero: true,
   },
   VPPositionText: {
-    decimals: 2,
+    decimals: 1,
     minTickStep: 0.1,
     tickStep: 0.1,
     initialZoom: 2.44,
@@ -350,7 +350,7 @@ const ZHAFIR_Y_AXIS_CONFIG: Record<ZhafirIndicatorField, ZhafirYAxisConfig> = {
     clampMinZero: true,
   },
   Thickness: {
-    decimals: 2,
+    decimals: 1,
     minTickStep: 0.5,
     tickStep: 0.5,
     initialZoom: 1.97,
@@ -4392,7 +4392,7 @@ export default function CountboardDashboard() {
                     selectedTrendIndicator?.field !== undefined
                       ? ZHAFIR_Y_AXIS_CONFIG[selectedTrendIndicator.field]
                       : ({
-                          decimals: 2,
+                          decimals: 1,
                           minTickStep: 0.1,
                           minPaddingAbs: 0.05,
                           tickCount: 5,
@@ -4542,7 +4542,7 @@ export default function CountboardDashboard() {
                     },
                     {
                       key: 'std',
-                      label: 'Std',
+                      label: 'Nominal',
                       value: stdReference,
                       color: '#16a34a',
                     },
@@ -4621,12 +4621,12 @@ export default function CountboardDashboard() {
                             >
                               <stop
                                 offset="0%"
-                                stopColor="#2563eb"
+                                stopColor="#ffffff"
                                 stopOpacity="0.24"
                               />
                               <stop
                                 offset="100%"
-                                stopColor="#2563eb"
+                                stopColor="#ffffff"
                                 stopOpacity="0.03"
                               />
                             </linearGradient>
@@ -4771,7 +4771,7 @@ export default function CountboardDashboard() {
                                 fill="none"
                                 stroke="#16a34a"
                                 strokeWidth="3.5"
-                                filter="url(#lineGlow)"
+                                // filter="url(#lineGlow)"
                               />
                             ))}
 
@@ -4867,7 +4867,7 @@ export default function CountboardDashboard() {
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-2 border-dashed border-green-600" />
-                            <span>Standard</span>
+                            <span>Nominal</span>
                             <span className="font-bold text-black">
                               {stdReference === null
                                 ? '-'
@@ -4912,7 +4912,7 @@ export default function CountboardDashboard() {
                           <TableHeader>
                             <TableRow>
                               <TableHead>Hour</TableHead>
-                              <TableHead>STD</TableHead>
+                              <TableHead>Nominal</TableHead>
                               <TableHead>Actual</TableHead>
                               <TableHead>Min</TableHead>
                               <TableHead>Max</TableHead>

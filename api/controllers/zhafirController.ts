@@ -1,7 +1,10 @@
 import { queryDatabase } from '../utils/queryDatabase'
 export async function getSettingPamzhafir() {
   const sqlQuery = `
-    select * from dbo.MachineParameterSettingSTD
+    SELECT
+      *,
+      CONVERT(varchar(19), created_at, 120) AS created_at_local
+    FROM dbo.MachineParameterSettingSTD
   `
 
   return await queryDatabase(sqlQuery)
@@ -15,10 +18,18 @@ export async function createSettingPamzhafir(data: {
 }) {
 
   const sqlQuery = `
-    INSERT INTO dbo.MachineParameterSettingSTD
-    (machineId, material_Id, material_name, cavity, paramset)
-    VALUES
-    (@machineId, @material_Id, @material_name, @cavity, @paramset)
+    MERGE INTO dbo.MachineParameterSettingSTD AS target
+    USING (SELECT @machineId AS mId, @material_Id AS matId) AS source
+    ON target.machineId = source.mId AND target.material_Id = source.matId
+    WHEN MATCHED THEN
+      UPDATE SET 
+        material_name = @material_name,
+        cavity = @cavity,
+        paramset = @paramset,
+        created_at = GETDATE()
+    WHEN NOT MATCHED THEN
+      INSERT (machineId, material_Id, material_name, cavity, paramset, created_at)
+      VALUES (@machineId, @material_Id, @material_name, @cavity, @paramset, GETDATE());
   `
 
   return await queryDatabase(sqlQuery, {
@@ -30,6 +41,86 @@ export async function createSettingPamzhafir(data: {
     // JSON disimpan sebagai string
     paramset: JSON.stringify(data.paramset)
   })
+}
+
+export async function getZhafirActiveMachines(keyword?: string) {
+  const search = (keyword || '').trim()
+  const likeKeyword = `%${search}%`
+  const likePrefix = `${search}%`
+
+  const sqlQuery = `
+    SELECT TOP 20
+      CAST(MchID AS NVARCHAR(100)) AS machineId,
+      CAST(MchDesc AS NVARCHAR(255)) AS machineName,
+      CAST(Active AS INT) AS active
+    FROM IoT.dbo.MachineMST
+    WHERE Active = 1
+      AND MchDesc IS NOT NULL
+      AND LTRIM(RTRIM(MchDesc)) <> ''
+      AND (
+        @Search = ''
+        OR MchDesc LIKE @LikeKeyword
+        OR MchID LIKE @LikeKeyword
+      )
+    ORDER BY
+      CASE
+        WHEN @Search <> '' AND MchDesc LIKE @LikePrefix THEN 0
+        ELSE 1
+      END,
+      MchDesc ASC
+  `
+
+  const rows = await queryDatabase(sqlQuery, {
+    Search: search,
+    LikeKeyword: likeKeyword,
+    LikePrefix: likePrefix,
+  })
+
+  return (rows || []).map((row: any) => ({
+    machineId: row.machineId ? String(row.machineId).trim() : '',
+    machineName: row.machineName ? String(row.machineName).trim() : '',
+    active:
+      row.active === 1 || row.active === true || String(row.active) === '1',
+  }))
+}
+
+export async function getZhafirRoutingMaterials(keyword?: string) {
+  const search = (keyword || '').trim()
+  const likeKeyword = `%${search}%`
+  const likePrefix = `${search}%`
+
+  const sqlQuery = `
+    SELECT TOP 20
+      CAST(r.material_id AS NVARCHAR(255)) AS materialId,
+      CAST(r.material_name AS NVARCHAR(255)) AS materialName
+    FROM IoT.dbo.routing r
+    WHERE r.material_id IS NOT NULL
+      AND r.material_name IS NOT NULL
+      AND LTRIM(RTRIM(CONVERT(NVARCHAR(255), r.material_name))) <> ''
+      AND (
+        @Search = ''
+        OR r.material_name LIKE @LikeKeyword
+        OR CONVERT(NVARCHAR(255), r.material_id) LIKE @LikeKeyword
+      )
+    GROUP BY r.material_id, r.material_name
+    ORDER BY
+      CASE
+        WHEN @Search <> '' AND r.material_name LIKE @LikePrefix THEN 0
+        ELSE 1
+      END,
+      r.material_name ASC
+  `
+
+  const rows = await queryDatabase(sqlQuery, {
+    Search: search,
+    LikeKeyword: likeKeyword,
+    LikePrefix: likePrefix,
+  })
+
+  return (rows || []).map((row: Record<string, unknown>) => ({
+    materialId: row.materialId ? String(row.materialId).trim() : '',
+    materialName: row.materialName ? String(row.materialName).trim() : '',
+  }))
 }
 
 const ZHAFIR_SECTIONS = {

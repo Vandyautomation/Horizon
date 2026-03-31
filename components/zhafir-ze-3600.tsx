@@ -1339,11 +1339,14 @@ export default function ZhafirParameterForm() {
       if (!active) return
       setSummaryLookupLoading(false)
 
-      if (!resolved || !resolved.materialName) {
-        setSummaryLookupContext(null)
-        setSummaryLookupError('Material ID tidak ditemukan di routing.')
-        return
-      }
+if (!resolved || !resolved.materialName) {
+  if (!summaryLookupContext?.materialName) {
+    setSummaryLookupError('Material ID tidak ditemukan di routing.')
+  } else {
+    console.warn('API return kosong, pakai data lama')
+  }
+  return
+}
 
       setSummaryLookupContext(resolved)
       setSummaryLookupError(null)
@@ -4044,4 +4047,3 @@ function Input({
     </div>
   )
 }
-
