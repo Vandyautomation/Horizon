@@ -1559,7 +1559,11 @@ function mapSourceToUiFields(source?: Record<string, any>) {
   Array.from(ALLOWED_HARD_CODED_ACT_FIELDS).forEach((fieldKey) => {
     const resolved = lowerKeyMap[fieldKey.toLowerCase()]
     if (!resolved) return
-    const value = source[resolved]
+    let value = source[resolved]
+    // Jika value adalah object { std: ... }, ambil nilai std-nya saja untuk mencegah [object Object]
+    if (value !== null && typeof value === 'object' && 'std' in value) {
+      value = value.std
+    }
     if (value !== undefined && value !== null && value !== '') {
       mapped[fieldKey] = value
     }

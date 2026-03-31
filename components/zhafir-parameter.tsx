@@ -116,50 +116,27 @@ export default function ZhafirParameter() {
       material_name: form.material_name,
       cavity: form.cavity ? Number(form.cavity) : null,
 
+      // Simpan langsung nilainya (flat) agar tidak muncul [object Object] di monitoring
       paramset: {
-        InjectScrewPosition: {
-          std: Number(form.InjectScrewPosition),
-        },
-        VPTimeText: {
-          std: Number(form.VPTimeText),
-        },
-        VPPositionText: {
-          std: Number(form.VPPositionText),
-        },
-        InjPeakPressure: {
-          std: Number(form.InjPeakPressure),
-        },
-        Thickness: {
-          std: Number(form.Thickness),
-        },
-        CarriageBwd_SE: {
-          std: Number(form.CarriageBwd_SE),
-        },
+        InjectScrewPosition: Number(form.InjectScrewPosition),
+        VPTimeText: Number(form.VPTimeText),
+        VPPositionText: Number(form.VPPositionText),
+        InjPeakPressure: Number(form.InjPeakPressure),
+        Thickness: Number(form.Thickness),
+        CarriageBwd_SE: Number(form.CarriageBwd_SE),
       },
     }
 
-    console.log('PARAMSET:', payload)
-
     try {
-      const res = await fetch(endpoint, {
+      await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-
-      if (!res.ok) {
-        console.error('Failed to add parameter')
-        return
-      }
-
-      mutate(endpoint)
-
+      await mutate(endpoint)
       setOpen(false)
       setShowMachineSuggestions(false)
       setShowMaterialSuggestions(false)
-
       setForm({
         machineId: '',
         machine_name: '',
@@ -455,7 +432,8 @@ export default function ZhafirParameter() {
 
                 {parameterKeys.map((key) => (
                   <td key={key} className="px-3 py-3">
-                    {params?.[key]?.std ?? '-'}
+                    {/* Support format lama (.std) dan format baru (langsung nilai) */}
+                    {params?.[key]?.std ?? params?.[key] ?? '-'}
                   </td>
                 ))}
 
