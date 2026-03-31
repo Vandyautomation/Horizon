@@ -3,6 +3,7 @@
 import useSWR, { mutate } from 'swr'
 import { useMemo, useState } from 'react'
 
+import { toast } from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -101,8 +102,7 @@ export default function ZhafirParameter() {
 
   const handleAdd = async () => {
     if (!form.machineId) {
-      console.error('Machine ID is required')
-      alert('Machine ID harus diisi!')
+      toast.error('Machine ID harus diisi!')
       return
     }
 
@@ -128,12 +128,19 @@ export default function ZhafirParameter() {
     }
 
     try {
-      await fetch(endpoint, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Gagal menyimpan ke database')
+      }
+
       await mutate(endpoint)
+      toast.success('Parameter berhasil diperbarui!')
       setOpen(false)
       setShowMachineSuggestions(false)
       setShowMaterialSuggestions(false)
@@ -152,6 +159,7 @@ export default function ZhafirParameter() {
       })
     } catch (err) {
       console.error('Add failed', err)
+      toast.error(err instanceof Error ? err.message : 'Terjadi kesalahan sistem')
     }
   }
 
