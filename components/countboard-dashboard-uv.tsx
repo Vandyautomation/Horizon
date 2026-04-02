@@ -61,6 +61,7 @@ import { CameraFeed } from './uv-scrap/camera-feed'
 import Link from 'next/link'
 import { Badge } from './ui/badge'
 import { GearIcon } from '@radix-ui/react-icons'
+import { log } from 'console'
 
 type MachineDetail = {
   machineId: number
@@ -947,6 +948,7 @@ export default function CountboardDashboardUv() {
     (Array.isArray(hourlyData) &&
       hourlyData?.reduce((total, item) => total + (item.top_actual || 0), 0)) ||
     0
+    console.log(`totalActualEK : ${totalActualEK}`)
   const totalTopActual =
     (Array.isArray(hourlyData) &&
       hourlyData?.reduce((total, item) => total + (item.top_actual || 0), 0)) ||
@@ -974,7 +976,10 @@ export default function CountboardDashboardUv() {
     (Array.isArray(hourlyData) &&
       hourlyData?.reduce((total, item) => total + (item.actual_in || 0), 0)) ||
     0
-  const gap = totalActualIn + totalTopActualIn - (totalActual + totalTopActual)
+  const gapEK =
+    totalActualIn + totalTopActualIn - (totalActual + totalTopActual)
+  const gap = totalActualIn - totalActual
+  console.log(`totalActualIn : ${totalSensorOutput}`)
   const totalTarget =
     (Array.isArray(hourlyData) &&
       hourlyData?.reduce((total, item) => {
@@ -1000,10 +1005,13 @@ export default function CountboardDashboardUv() {
         )
       }, 0)) ||
     0
-  console.log(`totalActual : ${totalSensorInput}`)
+  console.log(`totalActual : ${totalActual}`)
   console.log(`totalTarget : ${totalTarget}`)
 
+  const totalGapEK = totalActualEK - totalTarget
   const totalGap = totalActual - totalTarget
+
+  console.log(`totalGap : ${totalGap}`)
   const totalGapSpindle =
     (Array.isArray(hourlyData) &&
       hourlyData?.reduce((total, item) => total + item.gap, 0)) ||
@@ -1844,9 +1852,21 @@ export default function CountboardDashboardUv() {
 
               <div>
                 <div
-                  className={`text-3xl font-bold ${totalGap < 0 ? 'text-red-600' : 'text-green-600'}`}
+                  className={`text-3xl font-bold ${
+                    (selectedMachine?.locationName === 'E' ||
+                    selectedMachine?.locationName === 'K'
+                      ? totalGapEK
+                      : totalGap) < 0
+                      ? 'text-red-600'
+                      : 'text-green-600'
+                  }`}
                 >
-                  {Math.abs(totalGap).toFixed(0)}
+                  {Math.abs(
+                    selectedMachine?.locationName === 'E' ||
+                      selectedMachine?.locationName === 'K'
+                      ? totalGapEK
+                      : totalGap
+                  ).toFixed(0)}
                 </div>
                 <div className="text-lg ">Delta</div>
               </div>
@@ -1876,12 +1896,28 @@ export default function CountboardDashboardUv() {
               <div>
                 <div
                   className={`text-3xl font-bold ${
-                    gap > 0 ? 'text-red-500' : 'text-green-500'
+                    (selectedMachine?.locationName === 'E' ||
+                    selectedMachine?.locationName === 'K'
+                      ? gapEK
+                      : gap) > 0
+                      ? 'text-red-600'
+                      : 'text-green-600'
                   }`}
                 >
-                  {Math.abs(gap)}
+                  {((selectedMachine?.locationName === 'E' ||
+                  selectedMachine?.locationName === 'K'
+                    ? gapEK
+                    : gap) < 0
+                    ? 0
+                    : Math.abs(
+                        selectedMachine?.locationName === 'E' ||
+                          selectedMachine?.locationName === 'K'
+                          ? gapEK
+                          : gap
+                      )
+                  ).toFixed(0)}
                 </div>
-                <div className="text-lg">Gap</div>
+                <div className="text-lg ">Drop</div>
               </div>
             </CardContent>
           </Card>
@@ -2147,238 +2183,452 @@ export default function CountboardDashboardUv() {
               <CardContent>
                 <div className="w-full flex overflow-x-auto">
                   <Table>
-                      <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]"></TableHead>
-                  <TableHead className="w-[60px]"></TableHead>
-                  <TableHead className="w-[60px]"></TableHead>
-                  <TableHead className="w-[150px] text-center"></TableHead>
-                  <TableHead colSpan={4} className="w-[60px] text-center text-lg text-nowrap font-bold">Scrap</TableHead>
-                  <TableHead colSpan={3} className="w-[60px] text-center text-lg text-nowrap font-bold">Top 5 Scrap</TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead className="w-[150px] truncate text-center"></TableHead>
-                  <TableHead className="w-[150px] truncate text-center"></TableHead>
-                </TableRow>
-                <TableRow>
-                  <TableHead className="w-[60px] text-lg text-nowrap font-bold">Time</TableHead>
-                  <TableHead className="w-[60px] text-lg text-nowrap font-bold">ItemNo</TableHead>
-                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold">Target</TableHead>
-                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold">Actual Qty</TableHead>
-                  <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold">Gap</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold">Scrap Qty</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold">% Scrap</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold">A</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold">B</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold">C</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold">D</TableHead>
-                  <TableHead className="w-[50px] text-center text-lg font-bold">E</TableHead>
-                  <TableHead className="w-[70px] text-center border border-r-1 border-l-1 border-t-0 border-b-0 text-lg text-nowrap font-bold px-0 gap-0 mx-0">NOOE
-                    <div className="flex grid-cols-7 items-center justify-center gap-0 mx-0 px-0">
-                    <div className="bg-gray-100 w-[10px] h-[5px] mb-0"/>
-                    <div className="bg-[#118DFF] w-[10px] h-[5px] mb-0"/>
-                    <div className="bg-[#FF0000] w-[10px] h-[5px] mb-0"/>
-                    <div className="bg-[#FF7400] w-[10px] h-[5px] mb-0"/>
-                    <div className="bg-[#6A4C93] w-[10px] h-[5px] mb-0"/>
-                    <div className="bg-[#FFFF00] w-[10px] h-[5px] mb-0"/>
-                    <div className="bg-[#AAAAAA] w-[10px] h-[5px] mb-0"/>
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[250px] truncate text-center text-lg font-bold">Causes</TableHead>
-                  <TableHead className="w-[150px] truncate text-center text-lg font-bold">Comments/Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-                     <TableBody>
-                {Array.isArray(hourlyData) && hourlyData?.length === 0 ? (
-                  <TableRow className="h-12">
-                    <TableCell colSpan={15} className="text-center">No data available</TableCell>
-                  </TableRow>
-                ) : (
-                    hourlyData?.map((row, index) => {
-                    const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"});
-                    const nowDate = new Date(now);
-                    const remainingSeconds = nowDate.getSeconds();
-                    const remainingMinutes = nowDate.getMinutes() * 60;
-                    const to_datetime = new Date( new Date(row.from_datetime).getTime() - 6 * 60 * 60 * 1000);
-                    let textAnimation = 'animate-pulse'
-                    var target_show = 0;
-                    var target_show_100 = 0;
-                    if(to_datetime < nowDate || row.target == 0){
-                      console.log('to_datetime < nowDate', to_datetime, nowDate);
-                      target_show = Math.floor(row.target_final * (oeeData?.[0]?.targetToleranceUv || 1));
-                      target_show_100 = row.target_final;
-                      textAnimation = ''
-                    } else {
-                      console.log('to_datetime > nowDate', to_datetime, nowDate);
-                      textAnimation = 'animate-pulse'
-                      target_show = Math.floor((row.target_final * (remainingMinutes + remainingSeconds) / 3600) * (oeeData?.[0]?.targetToleranceUv || 1));
-                      target_show_100 = Math.floor((row.target_final * (remainingMinutes + remainingSeconds) / 3600));
-                    }
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]"></TableHead>
+                        <TableHead className="w-[60px]"></TableHead>
+                        <TableHead className="w-[60px]"></TableHead>
+                        <TableHead className="w-[150px] text-center"></TableHead>
+                        <TableHead
+                          colSpan={4}
+                          className="w-[60px] text-center text-lg text-nowrap font-bold"
+                        >
+                          Scrap
+                        </TableHead>
+                        <TableHead
+                          colSpan={3}
+                          className="w-[60px] text-center text-lg text-nowrap font-bold"
+                        >
+                          Top 5 Scrap
+                        </TableHead>
+                        <TableHead></TableHead>
+                        <TableHead></TableHead>
+                        <TableHead></TableHead>
+                        <TableHead className="w-[150px] truncate text-center"></TableHead>
+                        <TableHead className="w-[150px] truncate text-center"></TableHead>
+                      </TableRow>
+                      <TableRow>
+                        <TableHead className="w-[60px] text-lg text-nowrap font-bold">
+                          Time
+                        </TableHead>
+                        <TableHead className="w-[60px] text-lg text-nowrap font-bold">
+                          ItemNo
+                        </TableHead>
+                        <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold">
+                          Target
+                        </TableHead>
+                        <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold">
+                          Actual Qty
+                        </TableHead>
+                        <TableHead className="w-[60px] text-center text-lg text-nowrap font-bold">
+                          Gap
+                        </TableHead>
+                        <TableHead className="w-[50px] text-center text-lg font-bold">
+                          Scrap Qty
+                        </TableHead>
+                        <TableHead className="w-[50px] text-center text-lg font-bold">
+                          % Scrap
+                        </TableHead>
+                        <TableHead className="w-[50px] text-center text-lg font-bold">
+                          A
+                        </TableHead>
+                        <TableHead className="w-[50px] text-center text-lg font-bold">
+                          B
+                        </TableHead>
+                        <TableHead className="w-[50px] text-center text-lg font-bold">
+                          C
+                        </TableHead>
+                        <TableHead className="w-[50px] text-center text-lg font-bold">
+                          D
+                        </TableHead>
+                        <TableHead className="w-[50px] text-center text-lg font-bold">
+                          E
+                        </TableHead>
+                        <TableHead className="w-[70px] text-center border border-r-1 border-l-1 border-t-0 border-b-0 text-lg text-nowrap font-bold px-0 gap-0 mx-0">
+                          NOOE
+                          <div className="flex grid-cols-7 items-center justify-center gap-0 mx-0 px-0">
+                            <div className="bg-gray-100 w-[10px] h-[5px] mb-0" />
+                            <div className="bg-[#118DFF] w-[10px] h-[5px] mb-0" />
+                            <div className="bg-[#FF0000] w-[10px] h-[5px] mb-0" />
+                            <div className="bg-[#FF7400] w-[10px] h-[5px] mb-0" />
+                            <div className="bg-[#6A4C93] w-[10px] h-[5px] mb-0" />
+                            <div className="bg-[#FFFF00] w-[10px] h-[5px] mb-0" />
+                            <div className="bg-[#AAAAAA] w-[10px] h-[5px] mb-0" />
+                          </div>
+                        </TableHead>
+                        <TableHead className="w-[250px] truncate text-center text-lg font-bold">
+                          Causes
+                        </TableHead>
+                        <TableHead className="w-[150px] truncate text-center text-lg font-bold">
+                          Comments/Actions
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.isArray(hourlyData) && hourlyData?.length === 0 ? (
+                        <TableRow className="h-12">
+                          <TableCell colSpan={15} className="text-center">
+                            No data available
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        hourlyData?.map((row, index) => {
+                          const now = new Date().toLocaleString('en-US', {
+                            timeZone: 'Asia/Jakarta',
+                          })
+                          const nowDate = new Date(now)
+                          const remainingSeconds = nowDate.getSeconds()
+                          const remainingMinutes = nowDate.getMinutes() * 60
+                          const to_datetime = new Date(
+                            new Date(row.from_datetime).getTime() -
+                              6 * 60 * 60 * 1000
+                          )
+                          let textAnimation = 'animate-pulse'
+                          var target_show = 0
+                          var target_show_100 = 0
+                          if (to_datetime < nowDate || row.target == 0) {
+                            console.log(
+                              'to_datetime < nowDate',
+                              to_datetime,
+                              nowDate
+                            )
+                            target_show = Math.floor(
+                              row.target_final *
+                                (oeeData?.[0]?.targetToleranceUv || 1)
+                            )
+                            target_show_100 = row.target_final
+                            textAnimation = ''
+                          } else {
+                            console.log(
+                              'to_datetime > nowDate',
+                              to_datetime,
+                              nowDate
+                            )
+                            textAnimation = 'animate-pulse'
+                            target_show = Math.floor(
+                              ((row.target_final *
+                                (remainingMinutes + remainingSeconds)) /
+                                3600) *
+                                (oeeData?.[0]?.targetToleranceUv || 1)
+                            )
+                            target_show_100 = Math.floor(
+                              (row.target_final *
+                                (remainingMinutes + remainingSeconds)) /
+                                3600
+                            )
+                          }
 
-                    // var delta = row.actual - target_show;
-                    var delta = row.actual - row.actual_in;
-                    var top_delta = (row.top_actual || 0) - (row.top_actual_in || 0);
-                    
-                    const isEK = selectedMachine.locationName == "E" || selectedMachine.locationName == "K";
-                    const displayActual = isEK ? (row.top_actual || 0) : row.actual;
-                    const displayDelta = isEK ? top_delta : delta;
+                          // var delta = row.actual - target_show;
+                          var delta = row.actual - row.actual_in
+                          var top_delta =
+                            (row.top_actual || 0) - (row.top_actual_in || 0)
 
-                    // if(delta < 0){
-                    //   delta = 0;
-                    // }
-                    return(
-                    <TableRow className="h-12" key={row.time}>
-                      <TableCell className="h-full">{row.time}</TableCell>
-                      <TableCell className="h-full">{row.itemNo}</TableCell>
-                      <TableCell className={`text-center h-full text-nowrap border border-r-0 border-l-1 border-t-0 border-b-0 ${textAnimation}`}>{target_show}</TableCell>
-                      <TableCell className="relative overflow-hidden h-full">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                      <div className="flex items-center h-full w-full">
-                        {(() => {
-                          const maxValue = hourlyData?.reduce((max, item) => {
-                            return Math.max(max, isEK ? (item.top_actual || 0) : item.actual, target_show_100*1.1);
-                          }, 0) || 100;
-                          
+                          const isEK =
+                            selectedMachine.locationName == 'E' ||
+                            selectedMachine.locationName == 'K'
+                          const displayActual = isEK
+                            ? row.top_actual || 0
+                            : row.actual
+                          const displayDelta = isEK ? top_delta : delta
+
+                          // if(delta < 0){
+                          //   delta = 0;
+                          // }
                           return (
-                            <>
+                            <TableRow className="h-12" key={row.time}>
+                              <TableCell className="h-full">
+                                {row.time}
+                              </TableCell>
+                              <TableCell className="h-full">
+                                {row.itemNo}
+                              </TableCell>
+                              <TableCell
+                                className={`text-center h-full text-nowrap border border-r-0 border-l-1 border-t-0 border-b-0 ${textAnimation}`}
+                              >
+                                {target_show}
+                              </TableCell>
+                              <TableCell className="relative overflow-hidden h-full">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center h-full w-full">
+                                      {(() => {
+                                        const maxValue =
+                                          hourlyData?.reduce((max, item) => {
+                                            return Math.max(
+                                              max,
+                                              isEK
+                                                ? item.top_actual || 0
+                                                : item.actual,
+                                              target_show_100 * 1.1
+                                            )
+                                          }, 0) || 100
 
-                              <div
-                                className={`absolute inset-0 h-full rounded ${getBarColor(displayActual, row.target, target_show)}`}
-                                style={{
-                                  width: `${Math.min((displayActual / maxValue) * 100, 100)}%`,
-                                  maxWidth: "250px",
-                                }}
-                              />
-                              <div
-                                className="absolute inset-0 h-full w-[1px] border-dashed border-r-4 border-green-600"
-                                style={{
-                                  left: `${Math.min((target_show / maxValue) * 100, 100)}%`, // Accurate tolerance position
-                                }}
-                              />
-                              <div
-                                className="absolute inset-0 h-full w-[1px] border-r-4 border-green-600"
-                                style={{
-                                  left: `${Math.min((target_show_100 / maxValue) * 100, 100)}%`, // Accurate target position
-                                }}
-                              />
-                            </>
-                          );
-                        })()}
-                        <span className="relative z-10 ml-2">{displayActual}</span>
-                      </div>
-                      </TooltipTrigger>
-                        <TooltipContent>
-                          <p>- - - Target : {target_show}</p>
-                          <p>⸺ Target : {target_show_100}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      </TableCell>
+                                        return (
+                                          <>
+                                            <div
+                                              className={`absolute inset-0 h-full rounded ${getBarColor(displayActual, row.target, target_show)}`}
+                                              style={{
+                                                width: `${Math.min((displayActual / maxValue) * 100, 100)}%`,
+                                                maxWidth: '250px',
+                                              }}
+                                            />
+                                            <div
+                                              className="absolute inset-0 h-full w-[1px] border-dashed border-r-4 border-green-600"
+                                              style={{
+                                                left: `${Math.min((target_show / maxValue) * 100, 100)}%`, // Accurate tolerance position
+                                              }}
+                                            />
+                                            <div
+                                              className="absolute inset-0 h-full w-[1px] border-r-4 border-green-600"
+                                              style={{
+                                                left: `${Math.min((target_show_100 / maxValue) * 100, 100)}%`, // Accurate target position
+                                              }}
+                                            />
+                                          </>
+                                        )
+                                      })()}
+                                      <span className="relative z-10 ml-2">
+                                        {displayActual}
+                                      </span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>- - - Target : {target_show}</p>
+                                    <p>⸺ Target : {target_show_100}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TableCell>
 
-                      <TableCell className={displayDelta >= 0 ? "text-green-600 text-center" : "text-red-600 text-center"}>{displayDelta}</TableCell>
+                              <TableCell
+                                className={
+                                  displayDelta >= 0
+                                    ? 'text-green-600 text-center'
+                                    : 'text-red-600 text-center'
+                                }
+                              >
+                                {displayDelta}
+                              </TableCell>
 
-                      <TableCell className="text-center">{row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e || 0}</TableCell>
-                      <TableCell className="text-center">{isNaN(((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / (row.actual + row.top_actual) || 0)*100) ? 0 : (((row.reject_a + row.reject_b + row.reject_c + row.reject_d + row.reject_e) / (row.actual + row.top_actual) || 0)*100).toFixed(2)} %</TableCell>
-                      <TableCell className="text-center">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-center">{row.reject_a || 0}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>{row.reject_a_name}</TooltipContent>
-                      </Tooltip>
-                      </TableCell>
+                              <TableCell className="text-center">
+                                {row.reject_a +
+                                  row.reject_b +
+                                  row.reject_c +
+                                  row.reject_d +
+                                  row.reject_e || 0}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {isNaN(
+                                  ((row.reject_a +
+                                    row.reject_b +
+                                    row.reject_c +
+                                    row.reject_d +
+                                    row.reject_e) /
+                                    (row.actual + row.top_actual) || 0) * 100
+                                )
+                                  ? 0
+                                  : (
+                                      ((row.reject_a +
+                                        row.reject_b +
+                                        row.reject_c +
+                                        row.reject_d +
+                                        row.reject_e) /
+                                        (row.actual + row.top_actual) || 0) *
+                                      100
+                                    ).toFixed(2)}{' '}
+                                %
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="text-center">
+                                      {row.reject_a || 0}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {row.reject_a_name}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TableCell>
 
-                      <TableCell className="text-center">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-center">{row.reject_b || 0}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>{row.reject_b_name}</TooltipContent>
-                      </Tooltip>
-                      </TableCell>
+                              <TableCell className="text-center">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="text-center">
+                                      {row.reject_b || 0}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {row.reject_b_name}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TableCell>
 
-                      <TableCell className="text-center">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-center">{row.reject_c || 0}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>{row.reject_c_name}</TooltipContent>
-                      </Tooltip>
-                      </TableCell>
+                              <TableCell className="text-center">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="text-center">
+                                      {row.reject_c || 0}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {row.reject_c_name}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TableCell>
 
-                      <TableCell className="text-center">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-center">{row.reject_d || 0}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>{row.reject_d_name}</TooltipContent>
-                      </Tooltip>
-                      </TableCell>
+                              <TableCell className="text-center">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="text-center">
+                                      {row.reject_d || 0}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {row.reject_d_name}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TableCell>
 
-                      <TableCell className="text-center">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-center">{row.reject_e || 0}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>Other</TooltipContent>
-                      </Tooltip>
-                      </TableCell>
+                              <TableCell className="text-center">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="text-center">
+                                      {row.reject_e || 0}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Other</TooltipContent>
+                                </Tooltip>
+                              </TableCell>
 
+                              <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-black-250 px-0">
+                                {renderNooeIndicators(row.from_datetime)}
+                              </TableCell>
 
-                      <TableCell className="w-[70px] py-0 h-full border border-r-1 border-l-1 border-b-0 border-black-250 px-0">
-                      {renderNooeIndicators(row.from_datetime)}
-                      </TableCell>
+                              <TableCell
+                                onClick={() =>
+                                  handleCellClick(
+                                    index,
+                                    row.hourlyId,
+                                    'causes',
+                                    row.causes
+                                  )
+                                }
+                                className="text-center w-[125px]"
+                              >
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="truncate w-[125px]">
+                                      {row.causes}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>
+                                      {row.causes
+                                        ? `${row.causes} 
+                            (Click to edit causes)`
+                                        : 'Click to add causes'}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TableCell>
+                              <TableCell
+                                onClick={() =>
+                                  handleCellClick(
+                                    index,
+                                    row.hourlyId,
+                                    'comments',
+                                    row.comments
+                                  )
+                                }
+                                className="text-center w-[125px]"
+                              >
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="truncate w-[125px]">
+                                      {row.comments}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>
+                                      {row.comments
+                                        ? `${row.comments} 
+                            (Click to edit comments)`
+                                        : 'Click to add comments'}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })
+                      )}
 
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'causes', row.causes)} className="text-center w-[125px]">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="truncate w-[125px]">{row.causes}</span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{row.causes ? `${row.causes} 
-                            (Click to edit causes)` : 'Click to add causes'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell onClick={() => handleCellClick(index, row.hourlyId, 'comments', row.comments)} className="text-center w-[125px]">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="truncate w-[125px]">{row.comments}</span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{row.comments ? `${row.comments} 
-                            (Click to edit comments)` : 'Click to add comments'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  )})
-                )}
-
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center"></TableCell>
-                    <TableCell className={`text-center ${isNaN(totalRejectA / totalRejectOverall) ? '' : totalRejectA / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectA / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
-                      {isNaN(totalRejectA / totalRejectOverall) ? 0 : ((totalRejectA / totalRejectOverall)*100).toFixed(2)}%
-                    </TableCell>
-                    <TableCell className={`text-center ${isNaN(totalRejectB / totalRejectOverall) ? '' : totalRejectB / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectB / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
-                      {isNaN(totalRejectB / totalRejectOverall) ? 0 : ((totalRejectB / totalRejectOverall)*100).toFixed(2)}%
-                    </TableCell>
-                    <TableCell className={`text-center ${isNaN(totalRejectC / totalRejectOverall) ? '' : totalRejectB / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectC / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
-                      {isNaN(totalRejectC / totalRejectOverall) ? 0 : ((totalRejectC / totalRejectOverall)*100).toFixed(2)}%
-                    </TableCell>
-                    <TableCell className={`text-center ${isNaN(totalRejectD / totalRejectOverall) ? '' : totalRejectC / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectD / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
-                      {isNaN(totalRejectD / totalRejectOverall) ? 0 : ((totalRejectD / totalRejectOverall)*100).toFixed(2)}%
-                    </TableCell>
-                    <TableCell className={`text-center ${isNaN(totalRejectE / totalRejectOverall) ? '' : totalRejectE / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectE / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}>
-                      {isNaN(totalRejectE / totalRejectOverall) ? 0 : ((totalRejectE / totalRejectOverall)*100).toFixed(2)}%
-                    </TableCell>
-                    {/* <TableCell colSpan={2} className="text-center"></TableCell>
+                      <TableRow>
+                        <TableCell
+                          colSpan={7}
+                          className="text-center"
+                        ></TableCell>
+                        <TableCell
+                          className={`text-center ${isNaN(totalRejectA / totalRejectOverall) ? '' : totalRejectA / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectA / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}
+                        >
+                          {isNaN(totalRejectA / totalRejectOverall)
+                            ? 0
+                            : (
+                                (totalRejectA / totalRejectOverall) *
+                                100
+                              ).toFixed(2)}
+                          %
+                        </TableCell>
+                        <TableCell
+                          className={`text-center ${isNaN(totalRejectB / totalRejectOverall) ? '' : totalRejectB / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectB / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}
+                        >
+                          {isNaN(totalRejectB / totalRejectOverall)
+                            ? 0
+                            : (
+                                (totalRejectB / totalRejectOverall) *
+                                100
+                              ).toFixed(2)}
+                          %
+                        </TableCell>
+                        <TableCell
+                          className={`text-center ${isNaN(totalRejectC / totalRejectOverall) ? '' : totalRejectB / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectC / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}
+                        >
+                          {isNaN(totalRejectC / totalRejectOverall)
+                            ? 0
+                            : (
+                                (totalRejectC / totalRejectOverall) *
+                                100
+                              ).toFixed(2)}
+                          %
+                        </TableCell>
+                        <TableCell
+                          className={`text-center ${isNaN(totalRejectD / totalRejectOverall) ? '' : totalRejectC / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectD / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}
+                        >
+                          {isNaN(totalRejectD / totalRejectOverall)
+                            ? 0
+                            : (
+                                (totalRejectD / totalRejectOverall) *
+                                100
+                              ).toFixed(2)}
+                          %
+                        </TableCell>
+                        <TableCell
+                          className={`text-center ${isNaN(totalRejectE / totalRejectOverall) ? '' : totalRejectE / totalRejectOverall > 0.75 ? 'text-red-600' : totalRejectE / totalRejectOverall > 0.4 ? 'text-yellow-600' : ''}`}
+                        >
+                          {isNaN(totalRejectE / totalRejectOverall)
+                            ? 0
+                            : (
+                                (totalRejectE / totalRejectOverall) *
+                                100
+                              ).toFixed(2)}
+                          %
+                        </TableCell>
+                        {/* <TableCell colSpan={2} className="text-center"></TableCell>
                     <TableCell className="text-center" style={{color: totalGapSpindle >= 0 ? "green" : "red"}}>
                       {totalGapSpindle}
                     </TableCell> */}
-                  </TableRow>
-              </TableBody>
+                      </TableRow>
+                    </TableBody>
                   </Table>
                 </div>
               </CardContent>

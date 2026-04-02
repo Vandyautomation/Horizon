@@ -6,6 +6,31 @@ export async function getSettingPamzhafir() {
 
   return await queryDatabase(sqlQuery)
 }
+export async function getActiveMachines(keyword: string) {
+  const sqlQuery = `
+    SELECT MchID, MchDesc
+    FROM iot.dbo.MachineMST
+    WHERE Active = 1
+      AND MchProcess = 'INJECTION'
+      AND MchDesc LIKE @keyword
+  `;
+
+  return await queryDatabase(sqlQuery, {
+    keyword: `%${keyword}%`,
+  });
+}
+export async function getRouting(keyword: string) {
+  const sqlQuery = `
+    SELECT TOP 5 material_id, material_name
+    FROM iot.dbo.routing
+    WHERE material_name LIKE @keyword
+    ORDER BY material_name ASC
+  `;
+
+  return await queryDatabase(sqlQuery, {
+    keyword: `%${keyword}%`,
+  });
+}
 export async function createSettingPamzhafir(data: {
   machineId: number
   material_Id: string
@@ -31,7 +56,43 @@ export async function createSettingPamzhafir(data: {
     paramset: JSON.stringify(data.paramset)
   })
 }
+export async function updateSettingPamzhafir(
+  id: number,
+  data: {
+    machineId: number
+    material_Id: string
+    material_name: string
+    cavity: number
+    paramset: any
+  }
+) {
+  const sqlQuery = `
+    UPDATE dbo.MachineParameterSettingSTD
+    SET 
+      machineId = @machineId,
+      material_Id = @material_Id,
+      material_name = @material_name,
+      cavity = @cavity,
+      paramset = @paramset
+    WHERE id = @id
+  `;
 
+  return await queryDatabase(sqlQuery, {
+    id,
+    machineId: data.machineId,
+    material_Id: data.material_Id,
+    material_name: data.material_name,
+    cavity: data.cavity,
+    paramset: JSON.stringify(data.paramset),
+  });
+}
+export async function deleteSettingPamzhafir(id: number) {
+  const sqlQuery = `
+    DELETE FROM dbo.MachineParameterSettingSTD
+    WHERE id = @id
+  `
+  return await queryDatabase(sqlQuery, { id })
+}
 const ZHAFIR_SECTIONS = {
   inject: [
     'Inject1Press',

@@ -202,9 +202,9 @@ const SUMMARY_ADD_FIELDS: Array<{
   label: string
   unit: string
 }> = [
-  { key: 'InjectScrewPosition', label: 'End Of Plastification', unit: 'mm' },
+  { key: 'InjectScrewPosition', label: 'Inj Start Position', unit: 'mm' },
   { key: 'VPTimeText', label: 'Injection Time', unit: 's' },
-  { key: 'VPPositionText', label: 'Switching Position', unit: 'mm' },
+  { key: 'VPPositionText', label: 'V/P Position', unit: 'mm' },
   { key: 'InjPeakPressure', label: 'Inj Peak Pressure', unit: 'bar' },
   { key: 'Thickness', label: 'Cushion', unit: 'mm' },
   { key: 'CarriageBwd_SE', label: 'Carriage Backward SE', unit: 'mm' },
@@ -691,10 +691,11 @@ export default function ZhafirParameterForm() {
 
     return isOutsideTolerance || isOutsideMinMax
   }
+  const OUT_OF_RANGE_LABEL = 'Out of range'
   const getMinMaxAlertLabel = (fieldKey: string) => {
     const actRaw = actDraft[fieldKey] ?? values[fieldKey]?.act ?? ''
     const act = Number(actRaw)
-    if (Number.isNaN(act)) return 'Out Of Range'
+    if (Number.isNaN(act)) return OUT_OF_RANGE_LABEL
 
     const summaryField = fieldKey as (typeof SUMMARY_RANGE_FIELDS)[number]
     const min = getRangeNumberForAlert(summaryField, 'min')
@@ -702,17 +703,15 @@ export default function ZhafirParameterForm() {
     const hasMin = min !== null
     const hasMax = max !== null
 
-    if (hasMin && min !== null && act < min) return 'Too Low'
-    if (hasMax && max !== null && act > max) return 'Too High'
-    return 'Out Of Range'
+    if (hasMin && min !== null && act < min) return OUT_OF_RANGE_LABEL
+    if (hasMax && max !== null && act > max) return OUT_OF_RANGE_LABEL
+    return OUT_OF_RANGE_LABEL
   }
   const getSummaryWarningText = (fieldKey: string) => {
     if (!isStdGreaterThanAct(fieldKey)) return null
-    if (fieldKey === 'InjPeakPressure') return 'Peak Pressure Error'
     if (fieldKey === 'VPTimeText') return injectionTimeAlertLabel
-    if (fieldKey === 'VPPositionText') return 'Position Error'
     if (fieldKey === 'Thickness') return cushionAlertLabel
-    return 'Out Of Range'
+    return OUT_OF_RANGE_LABEL
   }
   const injectionTimeAlertLabel = getMinMaxAlertLabel('VPTimeText')
   const cushionAlertLabel = getMinMaxAlertLabel('Thickness')
@@ -1340,11 +1339,14 @@ export default function ZhafirParameterForm() {
       if (!active) return
       setSummaryLookupLoading(false)
 
-      if (!resolved || !resolved.materialName) {
-        setSummaryLookupContext(null)
-        setSummaryLookupError('Material ID tidak ditemukan di routing.')
-        return
-      }
+if (!resolved || !resolved.materialName) {
+  if (!summaryLookupContext?.materialName) {
+    setSummaryLookupError('Material ID tidak ditemukan di routing.')
+  } else {
+    console.warn('API return kosong, pakai data lama')
+  }
+  return
+}
 
       setSummaryLookupContext(resolved)
       setSummaryLookupError(null)
@@ -1990,7 +1992,7 @@ export default function ZhafirParameterForm() {
               Add Summary Injection STD
             </div>
             <div className="mb-4 text-xs text-slate-500">
-              Isi nilai STD dari End Of Plastification sampai Carriage Backward
+              Isi nilai STD dari Inj Start Position sampai Carriage Backward
               SE.
             </div>
             <div className="mb-3 grid grid-cols-[1fr_140px_40px] items-center gap-2">
@@ -2086,7 +2088,7 @@ export default function ZhafirParameterForm() {
                 className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
       ${isStdGreaterThanAct('InjectScrewPosition') ? 'text-red-600' : ''}`}
               >
-                <span className="flex-1">End Of Plastification</span>
+                <span className="flex-1">Inj Start Position</span>
                 <span
                   className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
                     showWarningIcons && injectWarningText ? '' : 'invisible'
@@ -2203,7 +2205,7 @@ export default function ZhafirParameterForm() {
                 className={`col-span-5 flex min-h-[44px] items-center gap-2 text-xs font-semibold transition-colors duration-300
     ${isStdGreaterThanAct('VPPositionText') ? 'text-red-600' : ''}`}
               >
-                <span className="flex-1">Switching Position</span>
+                <span className="flex-1">V/P position</span>
                 <span
                   className={`w-[150px] text-left text-red-600 font-bold warning-blink ${
                     showWarningIcons && vpPositionWarningText ? '' : 'invisible'

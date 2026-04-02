@@ -39,6 +39,8 @@ import {
   Timer,
   ArrowLeftRight,
   CircleDot,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react'
 import { Calendar } from '@/components/ui/calendar'
 import { useState, useEffect, useCallback } from 'react'
@@ -208,6 +210,13 @@ type ZhafirActualViewWindowHour = {
   hourLabel?: string | null
   actualDate?: string | null
   hasData?: boolean
+  std?: number | string | null
+  min?: number | string | null
+  max?: number | string | null
+  ranges?: Record<
+    string,
+    { min: number | string | null; max: number | string | null }
+  > | null
   values?: Record<string, number | string | null> | null
 }
 
@@ -236,7 +245,7 @@ type ZhafirActiveMaterialResponse = {
 }
 
 type ZhafirIndicatorStatus = {
-  status: 'ok' | 'out_of_range' | 'unknown'
+  status: 'in_range' | 'too_low' | 'too_high' | 'unknown'
   std: number | null
   act: number | null
   min: number | null
@@ -289,13 +298,79 @@ type ZhafirIndicatorMap = Record<ZhafirIndicatorField, ZhafirIndicatorStatus>
 type ZhafirTrendPoint = {
   hourLabel: string
   actualDate: string | null
+  std: number | null
   value: number | null
   min: number | null
   max: number | null
-  status: 'ok' | 'out_of_range' | 'unknown'
+  status: 'in_range' | 'too_low' | 'too_high' | 'unknown'
+}
+type ZhafirYAxisConfig = {
+  decimals: number
+  minTickStep: number
+  tickStep?: number
+  maxTicks?: number
+  initialZoom?: number
+  forceZeroAxisLabel?: boolean
+  lockStdWindow?: boolean
+  outlierHeadroom?: number
+  minPaddingAbs: number
+  tickCount: number
+  clampMinZero?: boolean
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
+const ZHAFIR_Y_AXIS_CONFIG: Record<ZhafirIndicatorField, ZhafirYAxisConfig> = {
+  InjectScrewPosition: {
+    decimals: 1,
+    minTickStep: 1,
+    tickStep: 0.2,
+    initialZoom: 2.48,
+    forceZeroAxisLabel: true,
+    minPaddingAbs: 1,
+    tickCount: 5,
+    clampMinZero: true,
+  },
+  VPPositionText: {
+    decimals: 1,
+    minTickStep: 0.1,
+    tickStep: 0.1,
+    initialZoom: 2.44,
+    forceZeroAxisLabel: true,
+    minPaddingAbs: 0.02,
+    tickCount: 5,
+    clampMinZero: true,
+  },
+  InjPeakPressure: {
+    decimals: 1,
+    minTickStep: 1,
+    initialZoom: 1.25,
+    minPaddingAbs: 2,
+    tickCount: 5,
+    clampMinZero: true,
+  },
+  Thickness: {
+    decimals: 1,
+    minTickStep: 0.5,
+    tickStep: 0.5,
+    initialZoom: 1.97,
+    minPaddingAbs: 0.03,
+    tickCount: 5,
+    clampMinZero: true,
+  },
+  VPTimeText: {
+    decimals: 1,
+    minTickStep: 0.5,
+    tickStep: 0.5,
+    maxTicks: 10,
+    initialZoom: 1.00,
+    outlierHeadroom: 1,
+    minPaddingAbs: 0.01,
+    tickCount: 10,
+    clampMinZero: true,
+    lockStdWindow: true,
+  },
+}
 
 const parseFiniteNumber = (value: unknown): number | null => {
   if (value === null || value === undefined || value === '') return null
@@ -303,10 +378,88 @@ const parseFiniteNumber = (value: unknown): number | null => {
   return Number.isFinite(num) ? num : null
 }
 
-const formatCompactNumber = (value: number | null) => {
+const formatCompactNumber = (value: number | null, decimals = 2) => {
   if (value === null) return '-'
-  if (Number.isInteger(value)) return String(value)
-  return value.toFixed(2).replace(/\.?0+$/, '')
+  if (decimals <= 0) return Math.round(value).toString()
+  return value.toFixed(decimals).replace(/\.?0+$/, '')
+}
+
+const toNiceStep = (rawStep: number, minStep: number) => {
+  const safeRaw = Number.isFinite(rawStep) && rawStep > 0 ? rawStep : minStep
+  const exponent = Math.floor(Math.log10(safeRaw))
+  const fraction = safeRaw / 10 ** exponent
+  const niceFraction =
+    fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10
+  return Math.max(niceFraction * 10 ** exponent, minStep)
+}
+
+const buildNiceTicks = (
+  minValue: number,
+  maxValue: number,
+  tickCount: number,
+  minStep: number,
+  fixedStep?: number,
+  maxTicks?: number
+) => {
+  let min = Number.isFinite(minValue) ? minValue : 0
+  let max = Number.isFinite(maxValue) ? maxValue : 1
+  if (min === max) {
+    min -= minStep
+    max += minStep
+  }
+  if (max < min) {
+    const temp = min
+    min = max
+    max = temp
+  }
+  const step =
+    Number.isFinite(fixedStep) && (fixedStep as number) > 0
+      ? (fixedStep as number)
+      : toNiceStep((max - min) / Math.max(tickCount - 1, 1), minStep)
+  const tickMin = Math.floor(min / step) * step
+  const tickMax = Math.ceil(max / step) * step
+  const ticks: number[] = []
+  const maxLoop = 100
+  for (
+    let current = tickMin, i = 0;
+    current <= tickMax + step * 0.5 && i < maxLoop;
+    current += step, i += 1
+  ) {
+    ticks.push(Number(current.toFixed(12)))
+  }
+  if (ticks.length < 2) {
+    return [Number(tickMin.toFixed(12)), Number((tickMin + step).toFixed(12))]
+  }
+  if (!maxTicks || ticks.length <= maxTicks) return ticks
+
+  if (maxTicks <= 2) return [ticks[0], ticks[ticks.length - 1]]
+
+  const stride = Math.ceil((ticks.length - 1) / (maxTicks - 1))
+  const reduced: number[] = [ticks[0]]
+  for (let i = stride; i < ticks.length - 1; i += stride) {
+    reduced.push(ticks[i])
+  }
+  reduced.push(ticks[ticks.length - 1])
+
+  while (reduced.length > maxTicks) {
+    reduced.splice(reduced.length - 2, 1)
+  }
+  return reduced
+}
+
+const classifyZhafirStatus = (
+  value: number | null,
+  min: number | null,
+  max: number | null,
+  std: number | null
+): ZhafirIndicatorStatus['status'] => {
+  if (value === null) return 'unknown'
+  if (min !== null && value < min) return 'too_low'
+  if (max !== null && value > max) return 'too_high'
+  if (min === null && max === null && std !== null && value > std) {
+    return 'too_high'
+  }
+  return 'in_range'
 }
 
 export default function CountboardDashboard() {
@@ -445,6 +598,7 @@ export default function CountboardDashboard() {
   >([])
   const [zhafirTrendHoursBack, setZhafirTrendHoursBack] = useState<8 | 24>(24)
   const [isTrendChartFullscreen, setIsTrendChartFullscreen] = useState(false)
+  const [zhafirTrendZoom, setZhafirTrendZoom] = useState(1)
   const [isLoadingZhafirTrend, setIsLoadingZhafirTrend] = useState(false)
   const [zhafirTrendError, setZhafirTrendError] = useState<string | null>(null)
 
@@ -545,9 +699,9 @@ export default function CountboardDashboard() {
       const stdData = await fetchFirstOkJson<ZhafirStdActResponse>(
         buildCandidates('')
       )
-      const actualData = await fetchFirstOkJson<ZhafirActualViewResponse>(
-        buildCandidates('/actual-view')
-      )
+      const actualData = await fetchFirstOkJson<ZhafirActualViewResponse>([
+        ...buildCandidates('/actual-view'),
+      ])
 
       const fallbackMap = Object.fromEntries(
         ZHAFIR_INDICATORS.map((item) => [
@@ -582,15 +736,8 @@ export default function CountboardDashboard() {
           continue
         }
 
-        const hasRange = min !== null || max !== null
-        const outOfRange = hasRange
-          ? (min !== null && act < min) || (max !== null && act > max)
-          : std !== null
-            ? act > std
-            : false
-
         map[indicator.field] = {
-          status: outOfRange ? 'out_of_range' : 'ok',
+          status: classifyZhafirStatus(act, min, max, std),
           std,
           act,
           min,
@@ -622,6 +769,13 @@ export default function CountboardDashboard() {
         normalizedLocation === 'inj bld g' && normalizedMachineNo === '2'
 
       const hoursBack = hoursBackOverride ?? zhafirTrendHoursBack
+      const shouldInitZoom =
+        !isZhafirTrendDialogOpen || selectedTrendIndicator?.field !== indicator.field
+      if (shouldInitZoom) {
+        const initialZoom =
+          ZHAFIR_Y_AXIS_CONFIG[indicator.field].initialZoom ?? 1
+        setZhafirTrendZoom(Math.max(1, initialZoom))
+      }
       setSelectedTrendIndicator(indicator)
       setIsZhafirTrendDialogOpen(true)
       setIsLoadingZhafirTrend(true)
@@ -706,19 +860,23 @@ export default function CountboardDashboard() {
         const points: ZhafirTrendPoint[] = data.hours.map((hour) => {
           const rawValue = hour?.values?.[indicator.field]
           const value = parseFiniteNumber(rawValue)
-          const min = rangeMin ?? threshold.min
-          const max = rangeMax ?? threshold.max
-          const hasRange = min !== null || max !== null
-          const isOutOfRange =
-            value === null
-              ? false
-              : hasRange
-                ? (min !== null && value < min) || (max !== null && value > max)
-                : threshold.std !== null
-                  ? value > threshold.std
-                  : false
+          const hourlyRange = hour?.ranges?.[indicator.field]
+          const min =
+            parseFiniteNumber(hourlyRange?.min) ??
+            parseFiniteNumber(hour?.min) ??
+            rangeMin ??
+            threshold.min
+          const max =
+            parseFiniteNumber(hourlyRange?.max) ??
+            parseFiniteNumber(hour?.max) ??
+            rangeMax ??
+            threshold.max
+          const std =
+            parseFiniteNumber(hour?.std) ??
+            threshold.std ??
+            (min !== null && max !== null ? (min + max) / 2 : null)
           const status: ZhafirTrendPoint['status'] =
-            value === null ? 'unknown' : isOutOfRange ? 'out_of_range' : 'ok'
+            classifyZhafirStatus(value, min, max, std)
 
           const hourDate = hour?.hourStart
             ? new Date(hour.hourStart)
@@ -734,6 +892,7 @@ export default function CountboardDashboard() {
           return {
             hourLabel,
             actualDate: hour?.actualDate ? String(hour.actualDate) : null,
+            std,
             value,
             min,
             max,
@@ -755,6 +914,8 @@ export default function CountboardDashboard() {
       selectedMachine?.locationName,
       selectedMachine?.machineNumber,
       selectedMachine?.machineName,
+      isZhafirTrendDialogOpen,
+      selectedTrendIndicator?.field,
       zhafirTrendHoursBack,
     ]
   )
@@ -856,15 +1017,18 @@ export default function CountboardDashboard() {
     const rows = zhafirTrendPoints.map((p, i) => ({
       No: i + 1,
       Hour: p.hourLabel,
+      STD: p.std ?? '',
       Actual: p.value ?? '',
       Min_STD: p.min ?? '',
       Max_STD: p.max ?? '',
       Status:
-        p.status === 'out_of_range'
-          ? 'Out of Range'
-          : p.status === 'ok'
-            ? 'In Range'
-            : 'No Data',
+        p.status === 'too_low'
+          ? 'Too Low'
+          : p.status === 'too_high'
+            ? 'Too High'
+            : p.status === 'in_range'
+              ? 'In Range'
+              : 'No Data',
     }))
 
     const worksheet = XLSX.utils.json_to_sheet(rows)
@@ -2624,7 +2788,7 @@ export default function CountboardDashboard() {
     minY: number,
     maxY: number
   ) => {
-    const span = Math.max(maxY - minY, 1)
+    const span = Math.max(maxY - minY, 1e-9)
     const stepX = points.length > 1 ? width / (points.length - 1) : width
     const toY = (value: number) => height - ((value - minY) / span) * height
     const segments: string[] = []
@@ -2649,6 +2813,113 @@ export default function CountboardDashboard() {
     }
 
     return segments
+  }
+  const clampTrendY = (
+    rawY: number,
+    height: number
+  ): { y: number; outside: 'low' | 'high' | null } => {
+    if (rawY > height) return { y: height - 2, outside: 'low' as const }
+    if (rawY < 0) return { y: 2, outside: 'high' as const }
+    return { y: rawY, outside: null }
+  }
+  const buildActualLineSegments = (
+    points: ZhafirTrendPoint[],
+    width: number,
+    height: number,
+    minY: number,
+    maxY: number,
+    withBoundaryAnchors = true
+  ) => {
+    const span = Math.max(maxY - minY, 1e-9)
+    const stepX = points.length > 1 ? width / (points.length - 1) : width
+    const toY = (value: number) => height - ((value - minY) / span) * height
+    const segments: string[] = []
+    let current: string[] = []
+    let prevOutside: 'low' | 'high' | null = null
+
+    points.forEach((point, index) => {
+      const value = point.value
+      if (value === null || !Number.isFinite(value)) {
+        if (current.length > 1) segments.push(current.join(' '))
+        current = []
+        prevOutside = null
+        return
+      }
+
+      const x = index * stepX
+      const rawY = toY(value)
+      const { y, outside } = clampTrendY(rawY, height)
+
+      // Add boundary anchors so transitions look diagonal (not vertical jumps).
+      if (withBoundaryAnchors && !prevOutside && outside) {
+        const prevPoint = current[current.length - 1]
+        const prevX = prevPoint ? Number(prevPoint.split(',')[0]) : x
+        const targetAnchorX = x - stepX * 0.45
+        const anchorX = Math.max(prevX + stepX * 0.12, Math.max(0, targetAnchorX))
+        const anchorY = outside === 'low' ? height - 2 : 2
+        current.push(`${anchorX},${anchorY}`)
+      }
+
+      if (withBoundaryAnchors && prevOutside && !outside) {
+        const prevPoint = current[current.length - 1]
+        const prevX = prevPoint ? Number(prevPoint.split(',')[0]) : 0
+        const targetAnchorX = x - stepX * 0.55
+        const anchorX = Math.max(prevX + stepX * 0.15, Math.max(0, targetAnchorX))
+        const anchorY = prevOutside === 'low' ? height - 2 : 2
+        current.push(`${anchorX},${anchorY}`)
+      }
+
+      current.push(`${x},${y}`)
+      prevOutside = outside
+    })
+
+    if (current.length > 1) {
+      segments.push(current.join(' '))
+    }
+
+    return segments
+  }
+  const buildRangeBandPolygons = (
+    points: ZhafirTrendPoint[],
+    width: number,
+    height: number,
+    minY: number,
+    maxY: number
+  ) => {
+    const span = Math.max(maxY - minY, 1e-9)
+    const stepX = points.length > 1 ? width / (points.length - 1) : width
+    const toY = (value: number) => height - ((value - minY) / span) * height
+    const polygons: string[] = []
+    let upper: string[] = []
+    let lower: string[] = []
+
+    points.forEach((point, index) => {
+      if (
+        point.min === null ||
+        point.max === null ||
+        !Number.isFinite(point.min) ||
+        !Number.isFinite(point.max)
+      ) {
+        if (upper.length > 1 && lower.length > 1) {
+          polygons.push([...upper, ...lower.reverse()].join(' '))
+        }
+        upper = []
+        lower = []
+        return
+      }
+
+      const x = index * stepX
+      const minValue = Math.min(point.min, point.max)
+      const maxValue = Math.max(point.min, point.max)
+      upper.push(`${x},${toY(maxValue)}`)
+      lower.push(`${x},${toY(minValue)}`)
+    })
+
+    if (upper.length > 1 && lower.length > 1) {
+      polygons.push([...upper, ...lower.reverse()].join(' '))
+    }
+
+    return polygons
   }
 
   return (
@@ -3197,16 +3468,17 @@ export default function CountboardDashboard() {
                         max: null,
                       } as ZhafirIndicatorStatus)
 
-                    const isOutOfRange =
-                      indicatorStatus.status === 'out_of_range'
-                    const isInRange = indicatorStatus.status === 'ok'
+                    const isTooLow = indicatorStatus.status === 'too_low'
+                    const isTooHigh = indicatorStatus.status === 'too_high'
+                    const isOutOfRange = isTooLow || isTooHigh
+                    const isInRange = indicatorStatus.status === 'in_range'
 
-                    const caption = isLoadingZhafirIndicators
-                      ? 'Checking...'
-                      : isOutOfRange
-                        ? 'Out of range'
+                    const caption = isTooLow
+                      ? 'Too low'
+                      : isTooHigh
+                        ? 'Too high'
                         : isInRange
-                          ? 'In range'
+                          ? 'In a range'
                           : 'Data not found'
 
                     return (
@@ -3937,7 +4209,10 @@ export default function CountboardDashboard() {
             open={isZhafirTrendDialogOpen}
             onOpenChange={(open) => {
               setIsZhafirTrendDialogOpen(open)
-              if (!open) setIsTrendChartFullscreen(false)
+              if (!open) {
+                setIsTrendChartFullscreen(false)
+                setZhafirTrendZoom(1)
+              }
             }}
           >
             <DialogContent
@@ -3985,6 +4260,35 @@ export default function CountboardDashboard() {
                     </>
                   )}
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-8 px-3"
+                  onClick={() =>
+                    setZhafirTrendZoom((prev) =>
+                      Number(Math.min(prev * 1.25, 6).toFixed(2))
+                    )
+                  }
+                >
+                  <ZoomIn className="mr-1 h-4 w-4" />
+                  Zoom In
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-8 px-3"
+                  onClick={() =>
+                    setZhafirTrendZoom((prev) =>
+                      Number(Math.max(prev / 1.25, 1).toFixed(2))
+                    )
+                  }
+                >
+                  <ZoomOut className="mr-1 h-4 w-4" />
+                  Zoom Out
+                </Button>
+                <span className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600">
+                  Zoom {zhafirTrendZoom.toFixed(2)}x
+                </span>
                 <Input
                   type="date"
                   className="h-8 w-[140px]"
@@ -4070,61 +4374,234 @@ export default function CountboardDashboard() {
                   const plotWidth = chartWidth - marginLeft - marginRight
                   const plotHeight = chartHeight - marginTop - marginBottom
                   const allYValues = zhafirTrendPoints
-                    .flatMap((point) => [point.value, point.min, point.max])
+                    .flatMap((point) => [point.value, point.std, point.min, point.max])
+                    .filter((value): value is number => value !== null)
+                  const controlYValues = zhafirTrendPoints
+                    .flatMap((point) => [point.std, point.min, point.max])
                     .filter((value): value is number => value !== null)
 
                   const rawMin =
                     allYValues.length > 0 ? Math.min(...allYValues) : 0
                   const rawMax =
                     allYValues.length > 0 ? Math.max(...allYValues) : 1
-                  const padding = Math.max((rawMax - rawMin) * 0.1, 1)
-                  const yMin = rawMin - padding
-                  const yMax = rawMax + padding
-                  const ySpan = Math.max(yMax - yMin, 1)
+                  const controlMin =
+                    controlYValues.length > 0 ? Math.min(...controlYValues) : rawMin
+                  const controlMax =
+                    controlYValues.length > 0 ? Math.max(...controlYValues) : rawMax
+                  const axisConfig =
+                    selectedTrendIndicator?.field !== undefined
+                      ? ZHAFIR_Y_AXIS_CONFIG[selectedTrendIndicator.field]
+                      : ({
+                          decimals: 1,
+                          minTickStep: 0.1,
+                          minPaddingAbs: 0.05,
+                          tickCount: 5,
+                          clampMinZero: true,
+                        } as ZhafirYAxisConfig)
+                  const effectiveStep =
+                    axisConfig.tickStep ?? axisConfig.minTickStep
+                  const valueSpan = Math.max(controlMax - controlMin, effectiveStep)
+                  const padding = Math.max(
+                    valueSpan * 0.2,
+                    axisConfig.minPaddingAbs
+                  )
+                  const paddedMin = axisConfig.clampMinZero
+                    ? Math.max(0, controlMin - padding)
+                    : controlMin - padding
+                  const paddedMax = controlMax + padding
+                  let yTicks = buildNiceTicks(
+                    paddedMin,
+                    paddedMax,
+                    axisConfig.tickCount,
+                    axisConfig.minTickStep,
+                    axisConfig.tickStep,
+                    axisConfig.maxTicks ?? 10
+                  )
+                  const stdReference =
+                    zhafirTrendPoints.find((point) => point.std !== null)?.std ??
+                    null
+                  const minReference =
+                    zhafirTrendPoints.find((point) => point.min !== null)?.min ??
+                    null
+                  const maxReference =
+                    zhafirTrendPoints.find((point) => point.max !== null)?.max ??
+                    null
+
+                  // Keep baseline scale aligned to STD/min/max for each parameter.
+                  // Zoom controls can be used to inspect outliers in detail.
+
+                  if (allYValues.length > 0 && yTicks.length > 1) {
+                    const minData = Math.min(...allYValues)
+                    const maxData = Math.max(...allYValues)
+                    const step =
+                      yTicks.length > 1 ? yTicks[1] - yTicks[0] : effectiveStep
+                    let start = yTicks[0]
+                    let end = yTicks[yTicks.length - 1]
+                    if (axisConfig.lockStdWindow) {
+                      const headroom = Math.max(axisConfig.outlierHeadroom ?? 0, 0)
+                      while (minData < start - headroom) {
+                        start -= step
+                      }
+                      while (maxData > end + headroom) {
+                        end += step
+                      }
+                    } else {
+                      // Keep control lines (STD/min/max) and outliers visible together
+                      // by expanding the window, not shifting it upward.
+                      while (minData < start) {
+                        start -= step
+                      }
+                      while (maxData > end) {
+                        end += step
+                      }
+                    }
+
+                    yTicks = Array.from({ length: yTicks.length }, (_, i) =>
+                      Number((start + i * step).toFixed(12))
+                    )
+                    if (axisConfig.lockStdWindow) {
+                      while (yTicks[yTicks.length - 1] < maxData + (axisConfig.outlierHeadroom ?? 0)) {
+                        yTicks.push(
+                          Number(
+                            (
+                              yTicks[yTicks.length - 1] +
+                              step
+                            ).toFixed(12)
+                          )
+                        )
+                      }
+                    }
+                  }
+
+                  let yMin = yTicks[0] ?? paddedMin
+                  let yMax = yTicks[yTicks.length - 1] ?? paddedMax
+                  if (zhafirTrendZoom > 1 && yMax > yMin) {
+                    const center = stdReference ?? (yMin + yMax) / 2
+                    const zoomStepFloor = Math.pow(
+                      10,
+                      -Math.max(axisConfig.decimals, 0)
+                    )
+                    const zoomTickStep = Math.max(
+                      effectiveStep / zhafirTrendZoom,
+                      zoomStepFloor
+                    )
+                    const halfSpan = Math.max(
+                      (yMax - yMin) / (2 * zhafirTrendZoom),
+                      zoomTickStep * 1.5
+                    )
+                    let zoomMin = center - halfSpan
+                    let zoomMax = center + halfSpan
+                    const controlReferences = [
+                      minReference,
+                      stdReference,
+                      maxReference,
+                    ].filter((value): value is number => value !== null)
+                    if (controlReferences.length > 0) {
+                      const controlMinRef = Math.min(...controlReferences)
+                      const controlMaxRef = Math.max(...controlReferences)
+                      zoomMin = Math.min(zoomMin, controlMinRef - zoomTickStep)
+                      zoomMax = Math.max(zoomMax, controlMaxRef + zoomTickStep)
+                    }
+                    if (axisConfig.clampMinZero) {
+                      zoomMin = Math.max(0, zoomMin)
+                    }
+                    if (zoomMax <= zoomMin) {
+                      zoomMax = zoomMin + effectiveStep * 3
+                    }
+
+                    yTicks = buildNiceTicks(
+                      zoomMin,
+                      zoomMax,
+                      axisConfig.tickCount,
+                      zoomTickStep,
+                      zoomTickStep,
+                      axisConfig.maxTicks ?? 10
+                    )
+                    yMin = yTicks[0] ?? zoomMin
+                    yMax = yTicks[yTicks.length - 1] ?? zoomMax
+                  }
+                  const ySpan = Math.max(yMax - yMin, effectiveStep)
+                  const hasZeroTick = yTicks.some(
+                    (tick) => Math.abs(tick) < Math.max(effectiveStep, 1e-6) * 0.5
+                  )
+                  const showForcedZeroAxisLabel =
+                    Boolean(axisConfig.forceZeroAxisLabel) && !hasZeroTick
                   const stepX =
                     zhafirTrendPoints.length > 1
                       ? plotWidth / (zhafirTrendPoints.length - 1)
                       : plotWidth
                   const toY = (value: number) =>
                     plotHeight - ((value - yMin) / ySpan) * plotHeight
-                  const yTicks = [0, 0.25, 0.5, 0.75, 1]
+                  const valueDecimals = axisConfig.decimals
+                  const controlAxisLabelsRaw = [
+                    {
+                      key: 'min',
+                      label: 'Min',
+                      value: minReference,
+                      color: '#ef4444',
+                    },
+                    {
+                      key: 'std',
+                      label: 'Nominal',
+                      value: stdReference,
+                      color: '#16a34a',
+                    },
+                    {
+                      key: 'max',
+                      label: 'Max',
+                      value: maxReference,
+                      color: '#ef4444',
+                    },
+                  ]
+                    .filter((item) => item.value !== null)
+                    .map((item) => ({
+                      ...item,
+                      y: toY(item.value as number),
+                    }))
+                    .filter((item) => Number.isFinite(item.y))
+                    .sort((a, b) => a.y - b.y)
+                  const controlAxisLabels: Array<{
+                    key: string
+                    label: string
+                    value: number
+                    color: string
+                    y: number
+                  }> = controlAxisLabelsRaw.map((item) => ({
+                    key: item.key,
+                    label: item.label,
+                    value: item.value as number,
+                    color: item.color,
+                    y: item.y,
+                  }))
+                  const isNearControlLabel = (y: number) =>
+                    controlAxisLabels.some(
+                      (item) => Math.abs(item.y - y) < 12
+                    )
                   // const xLabelStep = zhafirTrendPoints.length > 12 ? 2 : 1
 
-                  const minSegments = buildLineSegments(
+                  const actualSegments = buildActualLineSegments(
                     zhafirTrendPoints,
-                    (point) => point.min,
+                    plotWidth,
+                    plotHeight,
+                    yMin,
+                    yMax,
+                    zhafirTrendZoom <= 1.5
+                  )
+                  const rangeBandPolygons = buildRangeBandPolygons(
+                    zhafirTrendPoints,
                     plotWidth,
                     plotHeight,
                     yMin,
                     yMax
                   )
-                  const maxSegments = buildLineSegments(
-                    zhafirTrendPoints,
-                    (point) => point.max,
-                    plotWidth,
-                    plotHeight,
-                    yMin,
-                    yMax
-                  )
-                  const actualSegments = buildLineSegments(
-                    zhafirTrendPoints,
-                    (point) => point.value,
-                    plotWidth,
-                    plotHeight,
-                    yMin,
-                    yMax
-                  )
-                  const firstWithRange = zhafirTrendPoints.find(
-                    (point) => point.min !== null && point.max !== null
-                  )
-                  const hasRangeBand = Boolean(firstWithRange)
-                  const rangeBandTop = hasRangeBand
-                    ? toY((firstWithRange?.max as number) ?? 0)
+                  const hasFixedRangeBand =
+                    minReference !== null && maxReference !== null
+                  const fixedRangeTop = hasFixedRangeBand
+                    ? toY(Math.max(minReference as number, maxReference as number))
                     : 0
-                  const rangeBandBottom = hasRangeBand
-                    ? toY((firstWithRange?.min as number) ?? 0)
+                  const fixedRangeBottom = hasFixedRangeBand
+                    ? toY(Math.min(minReference as number, maxReference as number))
                     : 0
-
                   return (
                     <div className="space-y-4">
                       <div className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm">
@@ -4173,22 +4650,28 @@ export default function CountboardDashboard() {
                           <g
                             transform={`translate(${marginLeft},${marginTop})`}
                           >
-                            {hasRangeBand ? (
+                            {hasFixedRangeBand ? (
                               <rect
                                 x="0"
-                                y={Math.min(rangeBandTop, rangeBandBottom)}
+                                y={Math.min(fixedRangeTop, fixedRangeBottom)}
                                 width={plotWidth}
-                                height={Math.abs(
-                                  rangeBandBottom - rangeBandTop
-                                )}
+                                height={Math.abs(fixedRangeBottom - fixedRangeTop)}
                                 fill="#dcfce7"
                                 opacity="0.45"
                               />
-                            ) : null}
+                            ) : (
+                              rangeBandPolygons.map((polygon, idx) => (
+                                <polygon
+                                  key={`range-band-${idx}`}
+                                  points={polygon}
+                                  fill="#dcfce7"
+                                  opacity="0.45"
+                                />
+                              ))
+                            )}
 
-                            {yTicks.map((ratio, idx) => {
-                              const y = plotHeight * ratio
-                              const yValue = yMax - ratio * (yMax - yMin)
+                            {yTicks.map((tickValue, idx) => {
+                              const y = toY(tickValue)
                               return (
                                 <g key={`grid-${idx}`}>
                                   <line
@@ -4204,34 +4687,67 @@ export default function CountboardDashboard() {
                                     y={y + 3}
                                     textAnchor="end"
                                     className="fill-gray-500 text-[10px]"
+                                    opacity={isNearControlLabel(y) ? 0 : 1}
                                   >
-                                    {formatCompactNumber(yValue)}
+                                    {formatCompactNumber(tickValue, valueDecimals)}
                                   </text>
                                 </g>
                               )
                             })}
-
-                            {minSegments.map((segment, idx) => (
-                              <polyline
-                                key={`min-${idx}`}
-                                points={segment}
-                                fill="none"
-                                stroke="#ef4444"
-                                strokeWidth="2.5"
-                                strokeDasharray="7 5"
-                              />
+                            {controlAxisLabels.map((item) => (
+                              <g key={`axis-label-${item.key}`}>
+                                <line
+                                  x1="0"
+                                  y1={item.y}
+                                  x2={plotWidth}
+                                  y2={item.y}
+                                  stroke={item.color}
+                                  strokeWidth={item.key === 'std' ? '2.2' : '2'}
+                                  strokeDasharray={item.key === 'std' ? '7 5' : '7 5'}
+                                />
+                                <line
+                                  x1="-3"
+                                  y1={item.y}
+                                  x2="0"
+                                  y2={item.y}
+                                  stroke={item.color}
+                                  strokeWidth="2"
+                                />
+                                <text
+                                  x={-62}
+                                  y={item.y + 3}
+                                  textAnchor="start"
+                                  className="text-[10px] font-semibold"
+                                  fill={item.color}
+                                  stroke="white"
+                                  strokeWidth="2.5"
+                                  paintOrder="stroke"
+                                >
+                                  {item.label}: {formatCompactNumber(
+                                    item.value,
+                                    valueDecimals
+                                  )}
+                                </text>
+                              </g>
                             ))}
-
-                            {maxSegments.map((segment, idx) => (
-                              <polyline
-                                key={`max-${idx}`}
-                                points={segment}
-                                fill="none"
-                                stroke="#ef4444"
-                                strokeWidth="2.5"
-                                strokeDasharray="7 5"
-                              />
-                            ))}
+                            {showForcedZeroAxisLabel ? (
+                              <g>
+                                <circle
+                                  cx="0"
+                                  cy={plotHeight}
+                                  r="2.5"
+                                  fill="#64748b"
+                                />
+                                <text
+                                  x={-8}
+                                  y={plotHeight + 12}
+                                  textAnchor="end"
+                                  className="fill-gray-500 text-[10px]"
+                                >
+                                  0
+                                </text>
+                              </g>
+                            ) : null}
 
                             {actualSegments.map((segment, idx) => {
                               const points = segment.split(' ')
@@ -4262,31 +4778,36 @@ export default function CountboardDashboard() {
                             {zhafirTrendPoints.map((point, idx) => {
                               if (point.value === null) return null
                               const x = idx * stepX
-                              const y = toY(point.value)
-                              const tooltip = `Jam: ${point.hourLabel}\nActual: ${formatCompactNumber(point.value)}\nMin: ${
-                                point.min === null
-                                  ? '-'
-                                  : formatCompactNumber(point.min)
-                              }\nMax: ${
-                                point.max === null
-                                  ? '-'
-                                  : formatCompactNumber(point.max)
-                              }\nStatus: ${point.status}`
+                              const rawY = toY(point.value)
+                              const fallback = clampTrendY(rawY, plotHeight)
+                              const y = fallback.y
+                              const outside = fallback.outside
+                              const isBelowRange = outside === 'low'
+                              const isAboveRange = outside === 'high'
+                              const labelY = isBelowRange
+                                ? plotHeight - 10
+                                : isAboveRange
+                                  ? 12
+                                  : Math.max(12, Math.min(plotHeight - 6, y - 14))
                               return (
                                 <g key={`point-${idx}`}>
-                                  <circle
-                                    cx={x}
-                                    cy={y}
-                                    r="6"
-                                    fill={
-                                      point.status === 'out_of_range'
+                                <circle
+                                  cx={x}
+                                  cy={y}
+                                  r={isBelowRange || isAboveRange ? '5' : '6'}
+                                  fill={
+                                      point.status === 'too_high'
                                         ? '#dc2626'
-                                        : '#16a34a'
-                                    }
-                                  />
+                                        : point.status === 'too_low'
+                                          ? '#d97706'
+                                          : '#16a34a'
+                                  }
+                                  stroke="white"
+                                  strokeWidth="1.2"
+                                />
                                   <text
                                     x={x}
-                                    y={y - 14}
+                                    y={labelY}
                                     textAnchor="middle"
                                     fontSize="12"
                                     fontWeight="bold"
@@ -4295,11 +4816,15 @@ export default function CountboardDashboard() {
                                     strokeWidth="3"
                                     paintOrder="stroke"
                                   >
-                                    {formatCompactNumber(point.value)}
+                                    {formatCompactNumber(
+                                      point.value,
+                                      valueDecimals
+                                    )}
                                   </text>
 
                                   <title>
                                     {point.hourLabel}
+                                    {'\n'}STD: {point.std}
                                     {'\n'}Actual: {point.value}
                                     {'\n'}Min: {point.min}
                                     {'\n'}Max: {point.max}
@@ -4337,16 +4862,35 @@ export default function CountboardDashboard() {
 
                         <div className="mt-2 flex flex-wrap gap-4 text-xs">
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-                            <span className="inline-block h-2.5 w-6 rounded bg-blue-700 shadow-sm" />
+                            <span className="inline-block w-6 border-t-[3px] border-green-600" />
                             Actual
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-                            <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
-                            Min (STD)
+                            <span className="inline-block w-6 border-t-2 border-dashed border-green-600" />
+                            <span>Nominal</span>
+                            <span className="font-bold text-black">
+                              {stdReference === null
+                                ? '-'
+                                : formatCompactNumber(stdReference, valueDecimals)}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
-                            Max (STD)
+                            <span>Min (STD)</span>
+                            <span className="font-bold text-black">
+                              {minReference === null
+                                ? '-'
+                                : formatCompactNumber(minReference, valueDecimals)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
+                            <span>Max (STD)</span>
+                            <span className="font-bold text-black">
+                              {maxReference === null
+                                ? '-'
+                                : formatCompactNumber(maxReference, valueDecimals)}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block h-2.5 w-6 rounded bg-green-500 shadow-sm" />
@@ -4368,6 +4912,7 @@ export default function CountboardDashboard() {
                           <TableHeader>
                             <TableRow>
                               <TableHead>Hour</TableHead>
+                              <TableHead>Nominal</TableHead>
                               <TableHead>Actual</TableHead>
                               <TableHead>Min</TableHead>
                               <TableHead>Max</TableHead>
@@ -4379,24 +4924,43 @@ export default function CountboardDashboard() {
                               <TableRow key={`${point.hourLabel}-row-${idx}`}>
                                 <TableCell>{point.hourLabel}</TableCell>
                                 <TableCell>
+                                  {point.std === null
+                                    ? '-'
+                                    : formatCompactNumber(
+                                        point.std,
+                                        valueDecimals
+                                      )}
+                                </TableCell>
+                                <TableCell>
                                   {point.value === null
                                     ? '-'
-                                    : formatCompactNumber(point.value)}
+                                    : formatCompactNumber(
+                                        point.value,
+                                        valueDecimals
+                                      )}
                                 </TableCell>
                                 <TableCell>
                                   {point.min === null
                                     ? '-'
-                                    : formatCompactNumber(point.min)}
+                                    : formatCompactNumber(
+                                        point.min,
+                                        valueDecimals
+                                      )}
                                 </TableCell>
                                 <TableCell>
                                   {point.max === null
                                     ? '-'
-                                    : formatCompactNumber(point.max)}
+                                    : formatCompactNumber(
+                                        point.max,
+                                        valueDecimals
+                                      )}
                                 </TableCell>
                                 <TableCell>
-                                  {point.status === 'out_of_range'
-                                    ? 'Out of range'
-                                    : point.status === 'ok'
+                                  {point.status === 'too_low'
+                                    ? 'Too low'
+                                    : point.status === 'too_high'
+                                      ? 'Too high'
+                                      : point.status === 'in_range'
                                       ? 'In range'
                                       : 'No data'}
                                 </TableCell>
