@@ -24,8 +24,11 @@ import {
   upsertZhafirSectionStyle,
   getSettingPamzhafir,
   createSettingPamzhafir,
-  getZhafirActiveMachines,
-  getZhafirRoutingMaterials
+    deleteSettingPamzhafir,
+  getActiveMachines,
+  getRouting,
+  updateSettingPamzhafir,
+  
 } from '../controllers/zhafirController';
 import { queryDatabase } from '../utils/queryDatabase';
 
@@ -578,24 +581,45 @@ zhafirRoutes.post('/Pamzhafir', async (c) => {
     return c.json({ error: (error as Error).message }, 500)
   }
 })
-
+zhafirRoutes.delete('/Pamzhafir/:id', async (c) => {
+  try {
+    const id = c.req.param('id') // ambil id dari url
+    await deleteSettingPamzhafir(Number(id))
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting Pamzhafir:', error)
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
 zhafirRoutes.get('/machines', async (c) => {
   try {
-    const q = c.req.query('q') || ''
-    const data = await getZhafirActiveMachines(q)
-    return c.json({ data })
+    const keyword = c.req.query('q') || '';
+    const machines = await getActiveMachines(keyword);
+    return c.json(machines);
   } catch (error) {
-    return c.json({ error: (error as Error).message }, 500)
+    console.error('Error fetching machines:', error);
+    return c.json({ error: (error as Error).message }, 500);
   }
-})
-
-zhafirRoutes.get('/materials-routing', async (c) => {
+});
+zhafirRoutes.get('/routing', async (c) => {
   try {
-    const q = c.req.query('q') || ''
-    const data = await getZhafirRoutingMaterials(q)
-    return c.json({ data })
+    const keyword = c.req.query('q') || '';
+    const routing = await getRouting(keyword);
+    return c.json(routing);
   } catch (error) {
-    return c.json({ error: (error as Error).message }, 500)
+    console.error('Error fetching routing:', error);
+    return c.json({ error: (error as Error).message }, 500);
   }
-})
+});
+zhafirRoutes.put('/Pamzhafir/:id', async (c) => {
+  try {
+    const id = Number(c.req.param('id'));
+    const body = await c.req.json();
+    await updateSettingPamzhafir(id, body);
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('Error updating Pamzhafir:', error);
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
 export default zhafirRoutes;

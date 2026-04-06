@@ -4651,14 +4651,41 @@ export default function CountboardDashboard() {
                             transform={`translate(${marginLeft},${marginTop})`}
                           >
                             {hasFixedRangeBand ? (
-                              <rect
-                                x="0"
-                                y={Math.min(fixedRangeTop, fixedRangeBottom)}
-                                width={plotWidth}
-                                height={Math.abs(fixedRangeBottom - fixedRangeTop)}
-                                fill="#dcfce7"
-                                opacity="0.45"
-                              />
+                              <>
+                                <rect
+                                  x="0"
+                                  y="0"
+                                  width={plotWidth}
+                                  height={Math.max(
+                                    0,
+                                    Math.min(fixedRangeTop, fixedRangeBottom)
+                                  )}
+                                  fill="#fee2e2"
+                                  opacity="0.45"
+                                />
+                                <rect
+                                  x="0"
+                                  y={Math.max(fixedRangeTop, fixedRangeBottom)}
+                                  width={plotWidth}
+                                  height={Math.max(
+                                    0,
+                                    plotHeight -
+                                      Math.max(fixedRangeTop, fixedRangeBottom)
+                                  )}
+                                  fill="#fee2e2"
+                                  opacity="0.45"
+                                />
+                                <rect
+                                  x="0"
+                                  y={Math.min(fixedRangeTop, fixedRangeBottom)}
+                                  width={plotWidth}
+                                  height={Math.abs(
+                                    fixedRangeBottom - fixedRangeTop
+                                  )}
+                                  fill="#dcfce7"
+                                  opacity="0.45"
+                                />
+                              </>
                             ) : (
                               rangeBandPolygons.map((polygon, idx) => (
                                 <polygon
@@ -4899,6 +4926,10 @@ export default function CountboardDashboard() {
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block h-2.5 w-6 rounded bg-blue-500 shadow-sm" />
                             X (jam)
+                          </div>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <span className="inline-block h-2.5 w-6 rounded bg-red-200 shadow-sm" />
+                            Zone out of range
                           </div>
                         </div>
                       </div>
