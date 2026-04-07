@@ -612,19 +612,19 @@ export default function ZhafirParameterForm() {
   const getStdNumberForRange = (fieldKey: string) =>
     parseFiniteNumber(stdDraft[fieldKey] ?? values[fieldKey]?.std)
 
-  const getAutoRangeValue = (
-    fieldKey: SummaryRangeField,
-    bound: 'min' | 'max'
-  ) => {
-    const adjustment = summaryRangeAdjustments[fieldKey]
-    if (!adjustment) return null
-    const stdNumber = getStdNumberForRange(fieldKey)
-    if (stdNumber === null) return null
-    const delta = adjustment[bound]
-    if (delta === null || delta === undefined) return null
-    const value = bound === 'min' ? stdNumber - delta : stdNumber + delta
-    return Number.isFinite(value) ? formatNumericDisplay(value, 3) : null
-  }
+  // const getAutoRangeValue = (
+  //   fieldKey: SummaryRangeField,
+  //   bound: 'min' | 'max'
+  // ) => {
+  //   const adjustment = summaryRangeAdjustments[fieldKey]
+  //   if (!adjustment) return null
+  //   const stdNumber = getStdNumberForRange(fieldKey)
+  //   if (stdNumber === null) return null
+  //   const delta = adjustment[bound]
+  //   if (delta === null || delta === undefined) return null
+  //   const value = bound === 'min' ? stdNumber - delta : stdNumber + delta
+  //   return Number.isFinite(value) ? formatNumericDisplay(value, 3) : null
+  // }
 
   const getRangeDisplayValue = (
     fieldKey: SummaryRangeField,
@@ -632,8 +632,8 @@ export default function ZhafirParameterForm() {
   ) => {
     const draft = bound === 'min' ? minDraft[fieldKey] : maxDraft[fieldKey]
     if (manualRangeMode[fieldKey]) return draft ?? ''
-    const autoValue = getAutoRangeValue(fieldKey, bound)
-    if (autoValue !== null) return autoValue
+    // const autoValue = getAutoRangeValue(fieldKey, bound)
+    // if (autoValue !== null) return autoValue
     return draft ?? ''
   }
 
