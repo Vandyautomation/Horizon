@@ -318,7 +318,23 @@ type ZhafirYAxisConfig = {
   clampMinZero?: boolean
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const SWR_ERROR_RETRY_INTERVAL_MS = 5000
+const SWR_MACHINES_REFRESH_INTERVAL_MS = 10000
+
+const swrRecoveryOptions = {
+  shouldRetryOnError: true,
+  errorRetryInterval: SWR_ERROR_RETRY_INTERVAL_MS,
+  errorRetryCount: 999,
+  revalidateOnReconnect: true,
+} as const
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url, { cache: 'no-store' })
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`)
+  }
+  return res.json()
+}
 
 const ZHAFIR_Y_AXIS_CONFIG: Record<ZhafirIndicatorField, ZhafirYAxisConfig> = {
   InjectScrewPosition: {
@@ -381,7 +397,7 @@ const parseFiniteNumber = (value: unknown): number | null => {
 const formatCompactNumber = (value: number | null, decimals = 2) => {
   if (value === null) return '-'
   if (decimals <= 0) return Math.round(value).toString()
-  return value.toFixed(decimals).replace(/\.?0+$/, '')
+  return value.toFixed(decimals)
 }
 
 const toNiceStep = (rawStep: number, minStep: number) => {
@@ -1002,8 +1018,8 @@ export default function CountboardDashboard() {
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem-group/all`,
     fetcher,
     {
+      ...swrRecoveryOptions,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
     }
   )
   const sanitizeSheetName = (name: string) => {
@@ -1068,8 +1084,8 @@ export default function CountboardDashboard() {
     : null
 
   const { data: problemRes } = useSWR(problemKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
   })
   const rawProblems = problemRes as Problem[] | undefined
   const problems: Problem[] = Array.isArray(rawProblems) ? rawProblems : []
@@ -1080,8 +1096,8 @@ export default function CountboardDashboard() {
       : null
 
   const { data: todoRes } = useSWR(todoKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
   })
 
   const rawSolutions = todoRes as Todo[] | undefined
@@ -1350,8 +1366,9 @@ export default function CountboardDashboard() {
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines?type=injection`,
     fetcher,
     {
+      ...swrRecoveryOptions,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
+      refreshInterval: SWR_MACHINES_REFRESH_INTERVAL_MS,
     }
   )
   useEffect(() => {
@@ -1374,9 +1391,9 @@ export default function CountboardDashboard() {
     : null
 
   const { data: stateData } = useSWR<StateData[]>(stateDataKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnMount: false,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   })
 
@@ -1973,9 +1990,9 @@ export default function CountboardDashboard() {
       return promise
     },
     {
+      ...swrRecoveryOptions,
       revalidateOnMount: false,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
       refreshInterval: Number(selectedRefreshRate),
     }
   )
@@ -2001,9 +2018,9 @@ export default function CountboardDashboard() {
     : null
 
   const { data: oeeData } = useSWR<OoeData[]>(oeeDataKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnMount: false,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   })
 
@@ -2025,9 +2042,9 @@ export default function CountboardDashboard() {
     : null
 
   const { data: noeeData } = useSWR<NooeData[]>(noeeDataKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnMount: false,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   })
 
@@ -2049,9 +2066,9 @@ export default function CountboardDashboard() {
     : null
 
   const { data: taskData } = useSWR<TaskData[]>(taskDataKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnMount: false,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   })
   const refetchTaskData = useCallback(() => {
@@ -2070,9 +2087,9 @@ export default function CountboardDashboard() {
     zhafirIndicatorStatusKey,
     () => fetchZhafirIndicatorStatuses(selectedMachine?.machineName ?? ''),
     {
+      ...swrRecoveryOptions,
       revalidateOnMount: true,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
       refreshInterval: Number(selectedRefreshRate),
     }
   )
@@ -2080,9 +2097,9 @@ export default function CountboardDashboard() {
     zhafirAccessStatusKey,
     () => fetchZhafirTemporaryAccessStatus(selectedMachine?.machineName ?? ''),
     {
+      ...swrRecoveryOptions,
       revalidateOnMount: true,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
       refreshInterval: Number(selectedRefreshRate),
     }
   )
@@ -4621,12 +4638,12 @@ export default function CountboardDashboard() {
                             >
                               <stop
                                 offset="0%"
-                                stopColor="#2563eb"
+                                stopColor="#ffffff"
                                 stopOpacity="0.24"
                               />
                               <stop
                                 offset="100%"
-                                stopColor="#2563eb"
+                                stopColor="#ffffff"
                                 stopOpacity="0.03"
                               />
                             </linearGradient>
@@ -4651,14 +4668,41 @@ export default function CountboardDashboard() {
                             transform={`translate(${marginLeft},${marginTop})`}
                           >
                             {hasFixedRangeBand ? (
-                              <rect
-                                x="0"
-                                y={Math.min(fixedRangeTop, fixedRangeBottom)}
-                                width={plotWidth}
-                                height={Math.abs(fixedRangeBottom - fixedRangeTop)}
-                                fill="#dcfce7"
-                                opacity="0.45"
-                              />
+                              <>
+                                <rect
+                                  x="0"
+                                  y="0"
+                                  width={plotWidth}
+                                  height={Math.max(
+                                    0,
+                                    Math.min(fixedRangeTop, fixedRangeBottom)
+                                  )}
+                                  fill="#fee2e2"
+                                  opacity="0.45"
+                                />
+                                <rect
+                                  x="0"
+                                  y={Math.max(fixedRangeTop, fixedRangeBottom)}
+                                  width={plotWidth}
+                                  height={Math.max(
+                                    0,
+                                    plotHeight -
+                                      Math.max(fixedRangeTop, fixedRangeBottom)
+                                  )}
+                                  fill="#fee2e2"
+                                  opacity="0.45"
+                                />
+                                <rect
+                                  x="0"
+                                  y={Math.min(fixedRangeTop, fixedRangeBottom)}
+                                  width={plotWidth}
+                                  height={Math.abs(
+                                    fixedRangeBottom - fixedRangeTop
+                                  )}
+                                  fill="#dcfce7"
+                                  opacity="0.45"
+                                />
+                              </>
                             ) : (
                               rangeBandPolygons.map((polygon, idx) => (
                                 <polygon
@@ -4860,27 +4904,27 @@ export default function CountboardDashboard() {
                           })}
                         </svg>
 
-                        <div className="mt-2 flex flex-wrap gap-4 text-xs">
+                      <div className="mt-2 flex flex-wrap gap-4 text-xs">
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-[3px] border-green-600" />
                             Actual
                           </div>
-                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-2 border-dashed border-green-600" />
                             <span>Nominal</span>
                             <span className="font-bold text-black">
                               {stdReference === null
-                                ? '-'
-                                : formatCompactNumber(stdReference, valueDecimals)}
+                              ? '-'
+                              : stdReference.toFixed(1)}
                             </span>
-                          </div>
+                            </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
                             <span>Min (STD)</span>
                             <span className="font-bold text-black">
                               {minReference === null
                                 ? '-'
-                                : formatCompactNumber(minReference, valueDecimals)}
+                                : minReference.toFixed(1)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
@@ -4889,7 +4933,7 @@ export default function CountboardDashboard() {
                             <span className="font-bold text-black">
                               {maxReference === null
                                 ? '-'
-                                : formatCompactNumber(maxReference, valueDecimals)}
+                                : maxReference.toFixed(1)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
@@ -4925,35 +4969,23 @@ export default function CountboardDashboard() {
                                 <TableCell>{point.hourLabel}</TableCell>
                                 <TableCell>
                                   {point.std === null
-                                    ? '-'
-                                    : formatCompactNumber(
-                                        point.std,
-                                        valueDecimals
-                                      )}
+                                  ? '-'
+                                  : point.std.toFixed(1)}
                                 </TableCell>
                                 <TableCell>
                                   {point.value === null
                                     ? '-'
-                                    : formatCompactNumber(
-                                        point.value,
-                                        valueDecimals
-                                      )}
+                                    : point.value.toFixed(1)}
                                 </TableCell>
                                 <TableCell>
                                   {point.min === null
                                     ? '-'
-                                    : formatCompactNumber(
-                                        point.min,
-                                        valueDecimals
-                                      )}
+                                    : point.min.toFixed(1)}
                                 </TableCell>
                                 <TableCell>
                                   {point.max === null
                                     ? '-'
-                                    : formatCompactNumber(
-                                        point.max,
-                                        valueDecimals
-                                      )}
+                                    : point.max.toFixed(1)}
                                 </TableCell>
                                 <TableCell>
                                   {point.status === 'too_low'

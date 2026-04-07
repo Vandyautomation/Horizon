@@ -19,10 +19,10 @@ export async function getActiveMachines(keyword: string) {
     keyword: `%${keyword}%`,
   });
 }
-export async function getRouting(keyword: string) {
+export async function getcoois(keyword: string) {
   const sqlQuery = `
     SELECT TOP 5 material_id, material_name
-    FROM iot.dbo.routing
+    FROM iot.dbo.coois
     WHERE material_name LIKE @keyword
     ORDER BY material_name ASC
   `;

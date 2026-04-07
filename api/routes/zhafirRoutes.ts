@@ -26,7 +26,7 @@ import {
   createSettingPamzhafir,
   deleteSettingPamzhafir,
   getActiveMachines,
-  getRouting,
+  getcoois,
   updateSettingPamzhafir,
 } from '../controllers/zhafirController';
 import { queryDatabase } from '../utils/queryDatabase';
@@ -599,13 +599,13 @@ zhafirRoutes.get('/machines', async (c) => {
     return c.json({ error: (error as Error).message }, 500);
   }
 });
-zhafirRoutes.get('/routing', async (c) => {
+zhafirRoutes.get('/coois', async (c) => {
   try {
     const keyword = c.req.query('q') || '';
-    const routing = await getRouting(keyword);
+    const routing = await getcoois(keyword);
     return c.json(routing);
   } catch (error) {
-    console.error('Error fetching routing:', error);
+    console.error('Error fetching coois:', error);
     return c.json({ error: (error as Error).message }, 500);
   }
 });

@@ -33,11 +33,11 @@ const parameterLabels = {
 }
 
 const parameterDelta: Record<string, { min: number; max: number }> = {
-  InjPeakPressure: { min: -2, max: 0.5 },
-  VPTimeText: { min: -0.5, max: 0.5 },
-  VPPositionText: { min: -0.1, max: 0.1 },
+  InjPeakPressure: { min: -1, max: 1 },
+  VPTimeText: { min: -0.1, max: 0.1 },
+  VPPositionText: { min: -0.05, max: 0.05 },
   InjectScrewPosition: { min: -0.5, max: 0.5 },
-  Thickness: { min: -0.1, max: 0.1 },
+  Thickness: { min: -0.3, max: 0.5 },
   CarriageBwd_SE: { min: -0.5, max: 0.5 },
 }
 
@@ -103,12 +103,12 @@ export default function ZhafirParameter() {
 
     const timeout = setTimeout(async () => {
       try {
-        console.log('Fetching routing for query:', materialQuery)
+        console.log('Fetching coois for query:', materialQuery)
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/zhafir-ze-3600/routing?q=${materialQuery}`
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/zhafir-ze-3600/coois?q=${materialQuery}`
         )
         const data = await res.json()
-        console.log('Routing  received:', data)
+        console.log('Coois received:', data)
         setMaterialOptions(data)
       } catch (err) {
         console.error(err)
