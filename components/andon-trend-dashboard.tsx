@@ -78,6 +78,19 @@ interface WeeklyTrend {
   Other: number;
 
 }
+
+interface HourlyTrend {
+  MchID: string;
+  MchNumber: string;
+  MchLoc: string;
+  MchDesc: string;
+  MchTon: string;
+  UAP: string;
+  StatusLight: string;
+  HourStart: string;
+  DurationMinutes: number;
+  DurationHour: number;
+}
 const chartConfig: ChartConfig = {
   green_minutes: {
     label: 'Green Minutes',
@@ -146,6 +159,38 @@ const chartConfig: ChartConfig = {
   Other: {
     label: 'Unclassified',
     color: 'var(--color-desktop)',
+  },
+  green: {
+    label: 'Green',
+    color: 'var(--color-desktop)',
+  },
+  yellow: {
+    label: 'Yellow',
+    color: 'var(--color-desktop)',
+  },
+  red: {
+    label: 'Red',
+    color: 'var(--color-desktop)',
+  },
+  orange: {
+    label: 'Orange',
+    color: 'var(--color-desktop)',
+  },
+  purple: {
+    label: 'Purple',
+    color: 'var(--color-desktop)',
+  },
+  blue: {
+    label: 'Blue',
+    color: 'var(--color-desktop)',
+  },
+  white: {
+    label: 'White',
+    color: 'var(--color-desktop)',
+  },
+  grey: {
+    label: 'Grey',
+    color: 'var(--color-desktop)',
   }
 }
 export default function AndonTrendDashboard() {
@@ -168,9 +213,11 @@ export default function AndonTrendDashboard() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [rawAndon, setRawAndon] = useState<Trend[]>([]);
   const [weeklyAndon, setWeeklyAndon] = useState<WeeklyTrend[]>([]);
+  const [hourlyAndon, setHourlyAndon] = useState<HourlyTrend[]>([]);
   const [uap, setUap] = useState('ALL');
   const [selectedTabs, setSelectedTabs] = useState('weekly');
   const [selectedWeeklyDetail, setSelectedWeeklyDetail] = useState<{ week: string, color: string } | null>(null);
+  const [selectedHour, setSelectedHour] = useState<string | null>(null);
 
   const fetchWeeklyAndon = async () => {
     const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/trend/weekly?date_from=${dateRange?.from?.toISOString().replace('T', ' ').replace('Z', '').substring(0, 10)}&date_to=${dateRange?.to?.toISOString().replace('T', ' ').replace('Z', '').substring(0, 10 )}&uap=${uap}`;
@@ -183,10 +230,28 @@ export default function AndonTrendDashboard() {
     }
   }
 
+  const fetchHourlyAndon = async () => {
+    setSelectedHour(null);
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/trend/hourly?date_from=${dateRange?.from?.toISOString().replace('T', ' ').replace('Z', '').substring(0, 10)}&date_to=${dateRange?.to?.toISOString().replace('T', ' ').replace('Z', '').substring(0, 10 )}&uap=${uap}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (Array.isArray(data)) {
+      setHourlyAndon(data);
+    } else {
+      setHourlyAndon([]);
+    }
+  }
+
 useEffect(() => {
   if (!dateRange) return;
   if (selectedTabs != 'weekly') return;
   fetchWeeklyAndon();
+}, [dateRange, uap, selectedTabs]);
+
+useEffect(() => {
+  if (!dateRange) return;
+  if (selectedTabs !== 'hourly') return;
+  fetchHourlyAndon();
 }, [dateRange, uap, selectedTabs]);
 
 const weeklyChartData = useMemo(() => {
@@ -219,10 +284,65 @@ const weeklyChartData = useMemo(() => {
   return Object.values(weekMap);
 }, [weeklyAndon]);
 
+const hourlyChartData = useMemo(() => {
+  const statusKeyMap: Record<string, string> = {
+    GREEN: 'green',
+    YELLOW: 'yellow',
+    RED: 'red',
+    ORANGE: 'orange',
+    PURPLE: 'purple',
+    BLUE: 'blue',
+    WHITE: 'white',
+    GREY: 'grey',
+  };
+
+  const grouped: Record<string, any> = {};
+
+  hourlyAndon.forEach((item) => {
+    const hourKey = new Date(item.HourStart).toISOString();
+    if (!grouped[hourKey]) {
+      grouped[hourKey] = {
+        hour_start: hourKey,
+        green: 0,
+        yellow: 0,
+        red: 0,
+        orange: 0,
+        purple: 0,
+        blue: 0,
+        white: 0,
+        grey: 0,
+        machineCount: 0,
+        _machineSet: new Set<string>(),
+      };
+    }
+
+    const key = statusKeyMap[item.StatusLight];
+    if (!key) return;
+
+    grouped[hourKey][key] += Number(item.DurationMinutes || 0);
+    grouped[hourKey]._machineSet.add(item.MchID);
+  });
+
+  return Object.values(grouped)
+    .map((item: any) => ({
+      ...item,
+      machineCount: item._machineSet.size,
+    }))
+    .sort((a: any, b: any) => new Date(a.hour_start).getTime() - new Date(b.hour_start).getTime());
+}, [hourlyAndon]);
+
+const selectedHourlyRows = useMemo(() => {
+  if (!selectedHour) return [];
+  return hourlyAndon
+    .filter((item) => new Date(item.HourStart).toISOString() === selectedHour)
+    .sort((a, b) => Number(b.DurationMinutes) - Number(a.DurationMinutes));
+}, [hourlyAndon, selectedHour]);
+
 
 useEffect(() => {
   if (!dateRange) return;
   if (selectedTabs != 'daily') return;
+  setRawAndon([]);
   const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/trend?date_from=${dateRange?.from?.toISOString().replace('T', ' ').replace('Z', '').substring(0, 10)}&date_to=${dateRange?.to?.toISOString().replace('T', ' ').replace('Z', '').substring(0, 10)}`;
 
   toast.loading("Fetching large machine data...");
@@ -432,6 +552,7 @@ const consistentlyGrey = useMemo(() => {
           <Tabs value={selectedTabs} className="w-full flex flex-col items-center" id="andon-tabs">
             <TabsList className="flex items-center justify-center mb-0">
               <TabsTrigger value="daily" onClick={() => setSelectedTabs('daily')}>Daily</TabsTrigger>
+              <TabsTrigger value="hourly" onClick={() => setSelectedTabs('hourly')}>Hourly</TabsTrigger>
               <TabsTrigger value="weekly" onClick={() => setSelectedTabs('weekly')}>Weekly</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -1073,6 +1194,142 @@ const consistentlyGrey = useMemo(() => {
             </CardContent>
           </Card>
         </div> */}
+                    </TabsContent>
+                    <TabsContent value="hourly">
+                      <div className="w-full space-y-3">
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base flex items-center justify-between">
+                              HOURLY STATUS TREND
+                              <div className="w-48">
+                                <Select value={uap} onValueChange={(value) => setUap(value)}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select UAP" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="ALL">ALL</SelectItem>
+                                    <SelectItem value="BASIC">BASIC</SelectItem>
+                                    <SelectItem value="PREMIUM">PREMIUM</SelectItem>
+                                    <SelectItem value="LEAN">LEAN</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </CardTitle>
+                            <CardDescription className="text-xs">
+                              Click a bar to view machine details at that hour
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <ChartContainer config={chartConfig} className="h-[280px] w-full">
+                              <BarChart
+                                accessibilityLayer
+                                data={hourlyChartData}
+                                margin={{ top: 10, right: 12, left: 0, bottom: 0 }}
+                                onClick={(data) => {
+                                  if (data && data.activePayload && data.activePayload[0]) {
+                                    const hourData = data.activePayload[0].payload;
+                                    setSelectedHour(selectedHour === hourData.hour_start ? null : hourData.hour_start);
+                                  }
+                                }}
+                              >
+                                <CartesianGrid vertical={false} />
+                                <XAxis
+                                  dataKey="hour_start"
+                                  tickLine={true}
+                                  axisLine={true}
+                                  minTickGap={24}
+                                  tickFormatter={(value) => {
+                                    const dt = new Date(value);
+                                    return dt.toLocaleString('en-US', {
+                                      month: '2-digit',
+                                      day: '2-digit',
+                                      hour: '2-digit',
+                                      hour12: false,
+                                    });
+                                  }}
+                                />
+                                <YAxis />
+                                <ChartTooltip
+                                  content={<ChartTooltipContent indicator="dashed" />}
+                                  labelFormatter={(value) => {
+                                    const dt = new Date(value);
+                                    return dt.toLocaleString('en-US', {
+                                      year: 'numeric',
+                                      month: '2-digit',
+                                      day: '2-digit',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: false,
+                                    });
+                                  }}
+                                />
+                                <Legend />
+                                <Bar dataKey="green" stackId="status" fill="#22c55e" />
+                                <Bar dataKey="yellow" stackId="status" fill="#eab308" />
+                                <Bar dataKey="red" stackId="status" fill="#ef4444" />
+                                <Bar dataKey="orange" stackId="status" fill="#f97316" />
+                                <Bar dataKey="purple" stackId="status" fill="#a855f7" />
+                                <Bar dataKey="blue" stackId="status" fill="#3b82f6" />
+                                <Bar dataKey="white" stackId="status" fill="#d1d5db" />
+                                <Bar dataKey="grey" stackId="status" fill="#6b7280" />
+                              </BarChart>
+                            </ChartContainer>
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">
+                              {selectedHour
+                                ? `DETAIL ${new Date(selectedHour).toLocaleString('en-US', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false,
+                                  })}`
+                                : 'SELECT AN HOUR TO VIEW DETAILS'}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="max-h-[340px] overflow-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="text-xs">Machine ID</TableHead>
+                                    <TableHead className="text-xs">Number</TableHead>
+                                    <TableHead className="text-xs">Location</TableHead>
+                                    <TableHead className="text-xs">Status</TableHead>
+                                    <TableHead className="text-xs text-right">Duration (min)</TableHead>
+                                    <TableHead className="text-xs text-right">Duration (hour)</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {selectedHour && selectedHourlyRows.length > 0 ? (
+                                    selectedHourlyRows.map((row) => (
+                                      <TableRow key={`${row.MchID}-${row.StatusLight}-${row.HourStart}`}>
+                                        <TableCell className="text-xs">{row.MchID}</TableCell>
+                                        <TableCell className="text-xs">{row.MchNumber}</TableCell>
+                                        <TableCell className="text-xs">{row.MchLoc}</TableCell>
+                                        <TableCell className="text-xs">{row.StatusLight}</TableCell>
+                                        <TableCell className="text-xs text-right">{Number(row.DurationMinutes).toFixed(2)}</TableCell>
+                                        <TableCell className="text-xs text-right">{Number(row.DurationHour).toFixed(4)}</TableCell>
+                                      </TableRow>
+                                    ))
+                                  ) : (
+                                    <TableRow>
+                                      <TableCell colSpan={6} className="text-center text-muted-foreground text-xs">
+                                        Select an hour from chart to view machine-by-status details
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
                     </TabsContent>
                     <TabsContent value="weekly">
                       <div className="w-full">

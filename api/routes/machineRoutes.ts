@@ -1,10 +1,18 @@
 import { Hono } from 'hono';
-import { addMachine, addMachineState, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, getTrendStream, getTrendWeekly, makeMachineGrey, makeMachineTAO, removeOverride, removeOverrideTAO, updateMachine, updateMachineStateColorById } from '../controllers/machineController';
+import { addMachine, addMachineState, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, getTrendHourly, getTrendHourlyDetail, getTrendStream, getTrendWeekly, getTrendkHourlyDetail, getTrendkHourlySummary, getTrendkUniqueLatestDetail, getTrendkUniqueLatestSummary, makeMachineGrey, makeMachineTAO, removeOverride, removeOverrideTAO, updateMachine, updateMachineStateColorById } from '../controllers/machineController';
 import { getTask } from '../controllers/scaleTaskController';
 import { cache } from 'hono/cache'
 import * as trendData from '../controllers/trend.json';
 
 const machineRoutes = new Hono();
+const noeeCacheMiddleware =
+  typeof (globalThis as any).caches !== 'undefined'
+    ? cache({
+        cacheName: 'machine-noee-cache',
+        cacheControl: 'max-age=300',
+        vary: ['machine_id', 'date', 'shift', 'ems'],
+      })
+    : async (_c: any, next: any) => next();
 
 machineRoutes.get('/', async (c) => {
   try {
@@ -75,6 +83,123 @@ machineRoutes.get('/trend/weekly', async (c) => {
   }
 });
 
+machineRoutes.get('/trend/hourly', async (c) => {
+  try {
+    const date_from = c.req.query('date_from') || '2025-06-01';
+    const date_to = c.req.query('date_to') || '2025-06-30';
+    const uap = c.req.query('uap') || 'ALL';
+    const accurate_duration = (c.req.query('accurate_duration') || '0') === '1';
+    const excluded_mchids = (c.req.query('excluded_mchids') || '')
+      .split(',')
+      .map((v) => String(v || '').trim())
+      .filter(Boolean);
+    const result = await getTrendHourly(date_from, date_to, uap, accurate_duration, excluded_mchids);
+    return c.json(result);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+machineRoutes.get('/trend/hourly/detail', async (c) => {
+  try {
+    const hour_start = c.req.query('hour_start') || null;
+    const date_from = c.req.query('date_from') || null;
+    const date_to = c.req.query('date_to') || null;
+    const uap = c.req.query('uap') || 'ALL';
+    const status_light = c.req.query('status_light') || 'ALL';
+    const excluded_mchids = (c.req.query('excluded_mchids') || '')
+      .split(',')
+      .map((v) => String(v || '').trim())
+      .filter(Boolean);
+    if (!hour_start && (!date_from || !date_to)) {
+      return c.json({ error: 'hour_start or date_from/date_to is required' }, 400);
+    }
+    const result = await getTrendHourlyDetail(hour_start, uap, date_from, date_to, status_light, excluded_mchids);
+    return c.json(result);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+machineRoutes.get('/trendk/hourly-summary', async (c) => {
+  try {
+    const date_from = c.req.query('date_from') || '2025-06-01';
+    const date_to = c.req.query('date_to') || '2025-06-30';
+    const uap = c.req.query('uap') || 'ALL';
+    const excluded_mchids = (c.req.query('excluded_mchids') || '')
+      .split(',')
+      .map((v) => String(v || '').trim())
+      .filter(Boolean);
+    const result = await getTrendkHourlySummary(date_from, date_to, uap, excluded_mchids);
+    return c.json(result);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+machineRoutes.get('/trendk/hourly-detail', async (c) => {
+  try {
+    const date_from = c.req.query('date_from') || null;
+    const date_to = c.req.query('date_to') || null;
+    if (!date_from || !date_to) {
+      return c.json({ error: 'date_from and date_to are required' }, 400);
+    }
+    const uap = c.req.query('uap') || 'ALL';
+    const status_light = c.req.query('status_light') || 'ALL';
+    const page = Number(c.req.query('page') || '1');
+    const page_size = Number(c.req.query('page_size') || '100');
+    const excluded_mchids = (c.req.query('excluded_mchids') || '')
+      .split(',')
+      .map((v) => String(v || '').trim())
+      .filter(Boolean);
+    const result = await getTrendkHourlyDetail(date_from, date_to, uap, status_light, excluded_mchids, page, page_size);
+    return c.json(result);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+machineRoutes.get('/trendk/unique-latest-summary', async (c) => {
+  try {
+    const date_from = c.req.query('date_from') || null;
+    const date_to = c.req.query('date_to') || null;
+    if (!date_from || !date_to) {
+      return c.json({ error: 'date_from and date_to are required' }, 400);
+    }
+    const uap = c.req.query('uap') || 'ALL';
+    const excluded_mchids = (c.req.query('excluded_mchids') || '')
+      .split(',')
+      .map((v) => String(v || '').trim())
+      .filter(Boolean);
+    const result = await getTrendkUniqueLatestSummary(date_from, date_to, uap, excluded_mchids);
+    return c.json(result);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
+machineRoutes.get('/trendk/unique-latest-detail', async (c) => {
+  try {
+    const date_from = c.req.query('date_from') || null;
+    const date_to = c.req.query('date_to') || null;
+    if (!date_from || !date_to) {
+      return c.json({ error: 'date_from and date_to are required' }, 400);
+    }
+    const uap = c.req.query('uap') || 'ALL';
+    const status_light = c.req.query('status_light') || 'ALL';
+    const page = Number(c.req.query('page') || '1');
+    const page_size = Number(c.req.query('page_size') || '100');
+    const excluded_mchids = (c.req.query('excluded_mchids') || '')
+      .split(',')
+      .map((v) => String(v || '').trim())
+      .filter(Boolean);
+    const result = await getTrendkUniqueLatestDetail(date_from, date_to, uap, status_light, excluded_mchids, page, page_size);
+    return c.json(result);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500);
+  }
+});
+
 
 machineRoutes.get('/spindle/:machineId', async (c) => {
   try {
@@ -113,11 +238,7 @@ machineRoutes.get('/oee/:machineId', async (c) => {
   }
 });
 
-machineRoutes.get('/noee/:machineId', cache({
-  cacheName: 'machine-noee-cache',
-  cacheControl: 'max-age=300', // Cache for 5 minutes
-  vary: ['machine_id', 'date', 'shift', 'ems']
-}), async (c) => {
+machineRoutes.get('/noee/:machineId', noeeCacheMiddleware, async (c) => {
   try {
     const machine_id = c.req.param('machineId'); 
     const date = c.req.query('date') || null; 

@@ -10,6 +10,7 @@
       "dev:reset": "bunx prisma migrate reset --force --skip-seed",
       "build-be": "tsc && tsc-alias",
       "start-be": "NODE_ENV=production bun run api/index.ts",
+      "start-be-node": "set NODE_ENV=production&& node -r ts-node/register/transpile-only api/index.ts",
       "start-be-qco": "NODE_ENV=production bun run api/index_qco.ts",
       "start-be2": "NODE_ENV=production bun run api/index_be2.ts",
       "build": "next build",

@@ -14,14 +14,7 @@ const dbConfig = {
     trustServerCertificate: true,
     connectTimeout: 8000,
     requestTimeout: timeout,
-    enableFeatureExtension: false,
-    // 🐛 Add this block for debugging Tedious
-    debug: {
-      packet: true,
-      data: true,
-      payload: true,
-      token: true
-    }
+    enableFeatureExtension: false
   },
   pool: {
     max: 10, // Maximum connections in pool
@@ -30,5 +23,36 @@ const dbConfig = {
   },
 };
 
-export const pool = new sql.ConnectionPool(dbConfig).connect();
+let poolPromise = null;
 
+function createPoolPromise() {
+  const connectionPool = new sql.ConnectionPool(dbConfig);
+  return connectionPool.connect();
+}
+
+export function getPool() {
+  if (!poolPromise) {
+    poolPromise = createPoolPromise();
+  }
+  return poolPromise;
+}
+
+export async function resetPool() {
+  const current = poolPromise;
+  poolPromise = null;
+
+  if (current) {
+    try {
+      const connected = await current;
+      await connected.close();
+    } catch {
+      // ignore close/reset error
+    }
+  }
+
+  poolPromise = createPoolPromise();
+  return poolPromise;
+}
+
+// Backward compatibility for existing imports
+export const pool = getPool();

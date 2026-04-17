@@ -318,7 +318,23 @@ type ZhafirYAxisConfig = {
   clampMinZero?: boolean
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const SWR_ERROR_RETRY_INTERVAL_MS = 5000
+const SWR_MACHINES_REFRESH_INTERVAL_MS = 10000
+
+const swrRecoveryOptions = {
+  shouldRetryOnError: true,
+  errorRetryInterval: SWR_ERROR_RETRY_INTERVAL_MS,
+  errorRetryCount: 999,
+  revalidateOnReconnect: true,
+} as const
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url, { cache: 'no-store' })
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`)
+  }
+  return res.json()
+}
 
 const ZHAFIR_Y_AXIS_CONFIG: Record<ZhafirIndicatorField, ZhafirYAxisConfig> = {
   InjectScrewPosition: {
@@ -381,7 +397,7 @@ const parseFiniteNumber = (value: unknown): number | null => {
 const formatCompactNumber = (value: number | null, decimals = 2) => {
   if (value === null) return '-'
   if (decimals <= 0) return Math.round(value).toString()
-  return value.toFixed(decimals).replace(/\.?0+$/, '')
+  return value.toFixed(decimals)
 }
 
 const toNiceStep = (rawStep: number, minStep: number) => {
@@ -1002,8 +1018,8 @@ export default function CountboardDashboard() {
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/problem-master/problem-group/all`,
     fetcher,
     {
+      ...swrRecoveryOptions,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
     }
   )
   const sanitizeSheetName = (name: string) => {
@@ -1068,8 +1084,8 @@ export default function CountboardDashboard() {
     : null
 
   const { data: problemRes } = useSWR(problemKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
   })
   const rawProblems = problemRes as Problem[] | undefined
   const problems: Problem[] = Array.isArray(rawProblems) ? rawProblems : []
@@ -1080,8 +1096,8 @@ export default function CountboardDashboard() {
       : null
 
   const { data: todoRes } = useSWR(todoKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
   })
 
   const rawSolutions = todoRes as Todo[] | undefined
@@ -1350,8 +1366,9 @@ export default function CountboardDashboard() {
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines?type=injection`,
     fetcher,
     {
+      ...swrRecoveryOptions,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
+      refreshInterval: SWR_MACHINES_REFRESH_INTERVAL_MS,
     }
   )
   useEffect(() => {
@@ -1374,9 +1391,9 @@ export default function CountboardDashboard() {
     : null
 
   const { data: stateData } = useSWR<StateData[]>(stateDataKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnMount: false,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   })
 
@@ -1689,7 +1706,6 @@ export default function CountboardDashboard() {
     categories,
     refetchStateData,
   ])
-  console.log(selectedMachine)
   // const handleOrangeTicketSubmit = useCallback(async () => {
   //   if (!selectedAssignTo || !selectedAssignBy) {
   //     toast.error('Pilih Assign To (Operator/Mekanik) dan Assign By (SPV)')
@@ -1959,23 +1975,14 @@ export default function CountboardDashboard() {
   const { data: hourlyData } = useSWR<HourlyData[]>(
     hourlyDataKey,
     async (url) => {
-      const promise = fetch(url).then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch')
-        return res.json()
-      })
-
-      toast.promise(promise, {
-        loading: 'Loading...',
-        // success: 'Countboard data refreshed',
-        error: 'Failed to load data',
-      })
-
-      return promise
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Failed to fetch')
+      return response.json()
     },
     {
+      ...swrRecoveryOptions,
       revalidateOnMount: false,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
       refreshInterval: Number(selectedRefreshRate),
     }
   )
@@ -2001,9 +2008,9 @@ export default function CountboardDashboard() {
     : null
 
   const { data: oeeData } = useSWR<OoeData[]>(oeeDataKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnMount: false,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   })
 
@@ -2025,9 +2032,9 @@ export default function CountboardDashboard() {
     : null
 
   const { data: noeeData } = useSWR<NooeData[]>(noeeDataKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnMount: false,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   })
 
@@ -2049,9 +2056,9 @@ export default function CountboardDashboard() {
     : null
 
   const { data: taskData } = useSWR<TaskData[]>(taskDataKey, fetcher, {
+    ...swrRecoveryOptions,
     revalidateOnMount: false,
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
     refreshInterval: Number(selectedRefreshRate),
   })
   const refetchTaskData = useCallback(() => {
@@ -2070,9 +2077,9 @@ export default function CountboardDashboard() {
     zhafirIndicatorStatusKey,
     () => fetchZhafirIndicatorStatuses(selectedMachine?.machineName ?? ''),
     {
+      ...swrRecoveryOptions,
       revalidateOnMount: true,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
       refreshInterval: Number(selectedRefreshRate),
     }
   )
@@ -2080,9 +2087,9 @@ export default function CountboardDashboard() {
     zhafirAccessStatusKey,
     () => fetchZhafirTemporaryAccessStatus(selectedMachine?.machineName ?? ''),
     {
+      ...swrRecoveryOptions,
       revalidateOnMount: true,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
       refreshInterval: Number(selectedRefreshRate),
     }
   )
@@ -2175,15 +2182,30 @@ export default function CountboardDashboard() {
   )
 
   const handleLocationChange = (value: string) => {
+    if (value === selectedLocation) return
+
+    const nextMachines =
+      machines?.filter((machine) => machine.locationName === value) ?? []
+    const nextMachine = nextMachines[0] ?? null
+    const nextMachineNumber = nextMachine?.machineNumber ?? ''
+
     setSelectedLocation(value)
+    setSelectedMachineNumber(nextMachineNumber)
+    setSelectedMachine(nextMachine)
+
     const params = new URLSearchParams(searchParams)
     params.set('location', value)
-    router.push(`${pathname}?${params.toString()}`)
-    setSelectedMachineNumber('')
-    setSelectedMachine(null)
+    if (nextMachineNumber) {
+      params.set('machineNumber', nextMachineNumber)
+    } else {
+      params.delete('machineNumber')
+    }
+    router.replace(`${pathname}?${params.toString()}`)
   }
 
   const handleMachineNumberChange = (value: string) => {
+    if (value === selectedMachineNumber) return
+
     setSelectedMachineNumber(value)
     const selected =
       filteredMachines?.find((machine) => machine.machineNumber === value) ||
@@ -2192,7 +2214,7 @@ export default function CountboardDashboard() {
     setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0)
     const params = new URLSearchParams(searchParams)
     params.set('machineNumber', value)
-    router.push(`${pathname}?${params.toString()}`)
+    router.replace(`${pathname}?${params.toString()}`)
   }
 
   const handleRefreshRateChange = (value: string) => {
@@ -2556,49 +2578,40 @@ export default function CountboardDashboard() {
   }
 
   const searchParams = useSearchParams()
-  const params = new URLSearchParams(searchParams)
-
-  let queryMachineNumber = searchParams.get('machineNumber') || ''
-  let queryLocation = searchParams.get('location') || ''
-  let queryRefreshRate = searchParams.get('refresh') || ''
-  let queryLiveMode = searchParams.get('isLiveMode') || ''
+  const queryMachineNumber = searchParams.get('machineNumber') || '10'
+  const queryLocation = searchParams.get('location') || 'INJ Bld G'
+  const queryRefreshRate = searchParams.get('refresh') || '5000'
+  const queryLiveMode = searchParams.get('isLiveMode') || 'true'
   const queryDate = searchParams.get('date') || ''
   const queryShift = searchParams.get('shift') || ''
   const loginRedirectTarget = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
   const loginHref = `/login/?redirect=${encodeURIComponent(loginRedirectTarget)}`
 
-  if (queryMachineNumber == '') {
-    queryMachineNumber = '10'
-    params.set('machineNumber', '10')
-    router.push(`${pathname}?${params.toString()}`)
-  }
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams)
+    let hasChanged = false
 
-  if (queryLocation == '') {
-    queryLocation = 'INJ Bld G'
-    params.set('location', 'INJ Bld G')
-    router.push(`${pathname}?${params.toString()}`)
-  }
-  if (queryRefreshRate == '') {
-    queryRefreshRate = '5000'
-    params.set('refresh', '5000')
-    router.push(`${pathname}?${params.toString()}`)
-  }
-  if (queryLiveMode == '') {
-    queryLiveMode = 'true'
-    params.set('isLiveMode', 'true')
-    router.push(`${pathname}?${params.toString()}`)
-  }
+    if (!params.get('machineNumber')) {
+      params.set('machineNumber', '10')
+      hasChanged = true
+    }
+    if (!params.get('location')) {
+      params.set('location', 'INJ Bld G')
+      hasChanged = true
+    }
+    if (!params.get('refresh')) {
+      params.set('refresh', '5000')
+      hasChanged = true
+    }
+    if (!params.get('isLiveMode')) {
+      params.set('isLiveMode', 'true')
+      hasChanged = true
+    }
 
-  // if (queryDate == '' ) {
-  //   queryDate = ''
-  //   params.set('date', '');
-  //   router.push(`${pathname}?${params.toString()}`);
-  // }
-  // if (queryShift == '' ) {
-  //   queryShift = ''
-  //   params.set('shift', '');
-  //   router.push(`${pathname}?${params.toString()}`);
-  // }
+    if (hasChanged) {
+      router.replace(`${pathname}?${params.toString()}`)
+    }
+  }, [pathname, router, searchParams])
 
   useEffect(() => {
     if (queryLocation) {
@@ -2608,22 +2621,19 @@ export default function CountboardDashboard() {
   }, [queryLocation])
 
   useEffect(() => {
-    if (queryMachineNumber) {
-      setSelectedMachineNumber(queryMachineNumber)
-      // const selected = filteredMachines?.find(
-      //   machine => machine.machineNumber === queryMachineNumber
-      // );
-      const selected = filteredMachines?.find(
-        (machine) => machine.machineNumber == queryMachineNumber
-      )
-      // console.log(`filteredMachines from query: ${JSON.stringify(filteredMachines)}`);
-      // console.log(`selected from query: ${JSON.stringify(selected)}`);
+    const candidates =
+      machines?.filter((machine) => machine.locationName === queryLocation) ?? []
+    if (!queryMachineNumber || candidates.length === 0) return
 
-      setSelectedMachine(selected || null)
-      // console.log(`machine number from query : ${queryMachineNumber}`);
-      // console.log(`selected machine from query :`, selected);
-    }
-  }, [queryMachineNumber, machines, filteredMachines])
+    const selected =
+      candidates.find((machine) => machine.machineNumber == queryMachineNumber) ??
+      candidates[0]
+
+    setSelectedMachineNumber(selected.machineNumber)
+    setSelectedMachine((prev) =>
+      prev?.machineName === selected.machineName ? prev : selected
+    )
+  }, [machines, queryLocation, queryMachineNumber])
 
   useEffect(() => {
     if (queryRefreshRate) {
@@ -2697,17 +2707,6 @@ export default function CountboardDashboard() {
     return (
       <ErrorState message="Error loading machines. Please try again later." />
     )
-  console.log('Machine Process:', selectedMachine?.Process)
-  console.log('Selected Category:', selectedCategoryId)
-  console.log('Problems length:', problems?.length)
-  problems.forEach((p) => {
-    console.log(
-      'Problem process raw:',
-      JSON.stringify(p.process),
-      '| Machine process raw:',
-      JSON.stringify(selectedMachine?.Process)
-    )
-  })
   const renderNooeIndicators = (from_datetime: Date) => {
     const nooeForTime =
       noeeData?.filter((nooe) => {
@@ -4887,27 +4886,27 @@ export default function CountboardDashboard() {
                           })}
                         </svg>
 
-                        <div className="mt-2 flex flex-wrap gap-4 text-xs">
+                      <div className="mt-2 flex flex-wrap gap-4 text-xs">
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-[3px] border-green-600" />
                             Actual
                           </div>
-                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-2 border-dashed border-green-600" />
                             <span>Nominal</span>
                             <span className="font-bold text-black">
                               {stdReference === null
-                                ? '-'
-                                : formatCompactNumber(stdReference, valueDecimals)}
+                              ? '-'
+                              : stdReference.toFixed(1)}
                             </span>
-                          </div>
+                            </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block w-6 border-t-2 border-dashed border-red-500" />
                             <span>Min (STD)</span>
                             <span className="font-bold text-black">
                               {minReference === null
                                 ? '-'
-                                : formatCompactNumber(minReference, valueDecimals)}
+                                : minReference.toFixed(1)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
@@ -4916,7 +4915,7 @@ export default function CountboardDashboard() {
                             <span className="font-bold text-black">
                               {maxReference === null
                                 ? '-'
-                                : formatCompactNumber(maxReference, valueDecimals)}
+                                : maxReference.toFixed(1)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
@@ -4926,10 +4925,6 @@ export default function CountboardDashboard() {
                           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                             <span className="inline-block h-2.5 w-6 rounded bg-blue-500 shadow-sm" />
                             X (jam)
-                          </div>
-                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-                            <span className="inline-block h-2.5 w-6 rounded bg-red-200 shadow-sm" />
-                            Zone out of range
                           </div>
                         </div>
                       </div>
@@ -4956,35 +4951,23 @@ export default function CountboardDashboard() {
                                 <TableCell>{point.hourLabel}</TableCell>
                                 <TableCell>
                                   {point.std === null
-                                    ? '-'
-                                    : formatCompactNumber(
-                                        point.std,
-                                        valueDecimals
-                                      )}
+                                  ? '-'
+                                  : point.std.toFixed(1)}
                                 </TableCell>
                                 <TableCell>
                                   {point.value === null
                                     ? '-'
-                                    : formatCompactNumber(
-                                        point.value,
-                                        valueDecimals
-                                      )}
+                                    : point.value.toFixed(1)}
                                 </TableCell>
                                 <TableCell>
                                   {point.min === null
                                     ? '-'
-                                    : formatCompactNumber(
-                                        point.min,
-                                        valueDecimals
-                                      )}
+                                    : point.min.toFixed(1)}
                                 </TableCell>
                                 <TableCell>
                                   {point.max === null
                                     ? '-'
-                                    : formatCompactNumber(
-                                        point.max,
-                                        valueDecimals
-                                      )}
+                                    : point.max.toFixed(1)}
                                 </TableCell>
                                 <TableCell>
                                   {point.status === 'too_low'

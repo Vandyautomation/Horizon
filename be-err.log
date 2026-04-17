@@ -1,0 +1,18 @@
+$ NODE_ENV=production bun run api/index.ts
+Uncaught Exception: 727 |         } = (0, _helpers.readUInt40LE)(buf, offset));
+728 |         break;
+729 |       }
+730 |     default:
+731 |       {
+732 |         throw new Error('unreachable');
+                        ^
+error: unreachable
+      at readTime (C:\Users\information-systemd\OneDrive - ALBEA GROUP\Documents\next-hono-admin-ui\node_modules\tedious\lib\value-parser.js:732:19)
+      at readDateTime2 (C:\Users\information-systemd\OneDrive - ALBEA GROUP\Documents\next-hono-admin-ui\node_modules\tedious\lib\value-parser.js:769:7)
+      at C:\Users\information-systemd\OneDrive - ALBEA GROUP\Documents\next-hono-admin-ui\node_modules\tedious\lib\token\row-token-parser.js:25:12
+      at rowParser (C:\Users\information-systemd\OneDrive - ALBEA GROUP\Documents\next-hono-admin-ui\node_modules\tedious\lib\token\row-token-parser.js:11:137)
+      at C:\Users\information-systemd\OneDrive - ALBEA GROUP\Documents\next-hono-admin-ui\node_modules\tedious\lib\token\stream-parser.js:78:24
+      at node:stream:1407:29
+      at processTicksAndRejections (native:7:39)
+
+error: script "start-be" exited with code 1

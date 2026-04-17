@@ -143,6 +143,12 @@ export default function SidebarLeft({
         hidden: false,
       },
       {
+        title: 'Andon Trendk',
+        url: 'andon/trendk',
+        icon: Lightbulb,
+        hidden: false,
+      },
+      {
         title: 'Zhafir ZE 3600',
         url: 'zhafir-ze-3600',
         icon: Cpu,
@@ -656,5 +662,4 @@ export default function SidebarLeft({
     );
   }
 }
-
 

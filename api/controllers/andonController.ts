@@ -49,6 +49,7 @@ export async function getBuildings(type?: string) {
         SELECT
             m.MchNumber AS id,
             m.MchLoc AS building,
+            m.UAP AS uap,
             m.[position],
             m.rotation,
             m.MchID,
@@ -116,6 +117,7 @@ export async function getBuildings(type?: string) {
     SELECT
         m.MchNumber AS id,
         m.MchLoc AS building,
+        m.UAP AS uap,
         m.[position],
         m.rotation,
         m.MchID,
