@@ -20,6 +20,7 @@ import {
   getProblem,
   getLostTime,
   getLatestMachineStatus,
+  getLeaderboard,
 } from '../controllers/countboardController'
 //import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
@@ -371,6 +372,18 @@ countboardRoutes.get('/problem', async (c) => {
   try {
     const data = await getProblem()
     return c.json(data)
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
+countboardRoutes.get('/leaderboard', async (c) => {
+  try {
+    const page = Number(c.req.query('page') || 1)
+    const limit = Number(c.req.query('limit') || 10)
+
+    const result = await getLeaderboard(page, limit)
+
+    return c.json(result)
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500)
   }

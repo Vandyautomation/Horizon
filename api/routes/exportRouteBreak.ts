@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { Group } from 'lucide-react'
 import * as XLSX from 'xlsx'
 // import exportRoutes from './exportRoutes'
 
@@ -14,12 +15,13 @@ exportRoutesBreak.get('/breakdown', async (c) => {
     const problemRes = await fetch(`${API_BASE}/api/countboards/problem`)
     const problemData = await problemRes.json()
 
-    
     const lostMapped = (lostData || []).map((item: any, index: number) => ({
       No: index + 1,
       Location: item.Location,
       MchID: item.MchID,
       Brand: item.Brand,
+      materialName: item.material_name || '-',
+      ProblemGroup: item.ProblemGroupName || '-',
       Problem: item.Problem || '-',
       ActionPlan: item.ActionPlan || '-',
       Ton: item.MchTon,
@@ -32,6 +34,8 @@ exportRoutesBreak.get('/breakdown', async (c) => {
         UAP: item.UAP,
         Brand: item.Brand,
         Location: item.Location,
+        materialName: item.material_name || '-',
+        ProblemGroup: item.ProblemGroupName || '-',
         Problem: item.Problem || '-',
         Action: item.Action || '-',
         PIC: item.pic || '-',

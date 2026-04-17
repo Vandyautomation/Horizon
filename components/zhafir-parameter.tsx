@@ -33,11 +33,11 @@ const parameterLabels = {
 }
 
 const parameterDelta: Record<string, { min: number; max: number }> = {
-  InjPeakPressure: { min: -1, max: 1 },
-  VPTimeText: { min: -0.1, max: 0.1 },
-  VPPositionText: { min: -0.05, max: 0.05 },
+  InjPeakPressure: { min: -2, max: 2 },
+  VPTimeText: { min: -0.2, max: 0.2 },
+  VPPositionText: { min: -0.1, max: 0.1 },
   InjectScrewPosition: { min: -0.5, max: 0.5 },
-  Thickness: { min: -0.3, max: 0.5 },
+  Thickness: { min: -0.5, max: 0.5 },
   CarriageBwd_SE: { min: -0.5, max: 0.5 },
 }
 

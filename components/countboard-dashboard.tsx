@@ -288,7 +288,7 @@ const ZHAFIR_INDICATORS = [
   { field: 'Thickness', label: 'CUSHION', icon: '/admin/Cushion.png' },
   {
     field: 'VPTimeText',
-    label: 'Injection Time',
+    label: 'V/P Time',
     icon: '/admin/Injection time.png',
   },
 ] as const

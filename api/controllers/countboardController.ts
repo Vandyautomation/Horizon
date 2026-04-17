@@ -513,7 +513,6 @@ export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
             ON ct.po_name = co.po_name
         WHERE 
             h.machine_id = t.MchID
-            AND t.AssignToDept = 'Mixing'
             AND t.TicketDate BETWEEN h.from_datetime AND h.to_datetime
         ORDER BY h.from_datetime DESC
     ) mix
@@ -893,32 +892,56 @@ export async function updateComment(
 }
 export const getLostTime = async () => {
   const query = `
-    SELECT 
+ SELECT 
+    ROW_NUMBER() OVER (ORDER BY A.MchID) AS No,
     A.StatusDate,
     DATEDIFF(MINUTE, A.StatusDate, GETDATE()) AS DuraMin,
-    A.MchID,
+    A.MchID, 
     B.MchLoc,
     B.MchNumber,
     B.Brand,
     B.MchTon,
     (B.MchLoc + '-' + B.MchNumber) AS Location,
     T.Problem,
-    T.ActionPlan
+    T.ActionPlan,
+    T.ProblemGroupId,
+    T.ProblemGroupName,
+    T.Action,
+    T.pic,
+    M.material_name 
 FROM MchStatusTRX A
-
 LEFT JOIN iot.dbo.MachineMST B 
     ON A.MchID = B.MchID
-
 OUTER APPLY (
-    SELECT TOP 1 X.Problem, X.ActionPlan
+    SELECT TOP 1 
+        X.Problem, 
+        X.ActionPlan,
+        P.id AS ProblemId,
+        PG.id AS ProblemGroupId,
+        PG.name AS ProblemGroupName,
+        D.name AS Action,
+        D.pic
     FROM iot.dbo.TicketTRX X
-    WHERE 
-        X.MchID = A.MchID
-        AND X.Active = 1
-        AND X.TicketStatus IN ('NEW','ESKALASI','ONPROG','ASSIGNED','OPEN')
+    LEFT JOIN problem_problem P ON X.Problem = P.name
+    LEFT JOIN problem_problem_group PG ON P.problem_group_id = PG.id
+    LEFT JOIN problem_todo D ON P.id = D.problem_id
+    WHERE X.MchID = A.MchID
+      AND X.Active = 1
+      AND X.TicketStatus IN ('NEW','ESKALASI','ONPROG','ASSIGNED','OPEN')
     ORDER BY X.MchID
 ) T
-
+--- JOIN KE HOURLY DENGAN KOLOM mchId ---
+OUTER APPLY (
+    SELECT TOP 1 
+        CB.material_name
+    FROM IOT.DBO.hourly H
+    INNER JOIN IOT.DBO.countboard_tasks CB 
+        ON H.task_id = CB.id 
+        AND H.machine_id = CB.mchId 
+    WHERE H.machine_id = A.MchID 
+    
+      AND H.from_datetime = DATEADD(HOUR, DATEDIFF(HOUR, 0, A.StatusDate), 0)
+) M
 WHERE 
     CONVERT(VARCHAR(30), A.StatusDate, 120) + A.MchID IN 
     (
@@ -930,8 +953,7 @@ WHERE
     AND A.StatusLight = 'ORANGE'
     AND B.Active = 1
     AND B.MchProcess = 'INJECTION'
-
-ORDER BY B.MchLoc
+ORDER BY B.MchLoc;
   `
 
   const result = await queryDatabase(query)
@@ -939,12 +961,12 @@ ORDER BY B.MchLoc
 }
 export const getProblem = async () => {
   const query = `
-   SELECT 
+SELECT 
     ROW_NUMBER() OVER (ORDER BY X.MchID) AS No,
     X.MchID,
     X.Problem,
     X.ActionPlan,
-    Y.Type,
+    Y.Type as ProblemGroupName,
     Y.Action,
     Y.pic,
     X.TicketStatus,
@@ -954,7 +976,9 @@ export const getProblem = async () => {
     M.MchNumber,
     M.Brand,
     M.MchTon,
-    (M.MchLoc + '-' + M.MchNumber) AS Location
+    (M.MchLoc + '-' + M.MchNumber) AS Location,
+    LS.StatusDate,
+    MAT.material_name -- Tambahan kolom material_name
 FROM TicketTRX X
 LEFT JOIN (
     SELECT 
@@ -976,11 +1000,22 @@ LEFT JOIN (
 INNER JOIN iot.dbo.MachineMST M 
     ON X.MchID = M.MchID
 OUTER APPLY (
-    SELECT TOP 1 A.StatusLight
+    SELECT TOP 1 A.StatusLight, A.StatusDate
     FROM MchStatusTRX A
     WHERE A.MchID = X.MchID
     ORDER BY A.StatusDate DESC
 ) LS
+OUTER APPLY (
+    SELECT TOP 1 
+        CB.material_name
+    FROM IOT.DBO.hourly H
+    INNER JOIN IOT.DBO.countboard_tasks CB 
+        ON H.task_id = CB.id 
+        AND H.machine_id = CB.mchId
+    WHERE H.machine_id = X.MchID
+      -- Membulatkan LS.StatusDate ke jam terdekat untuk match dengan from_datetime
+      AND H.from_datetime = DATEADD(HOUR, DATEDIFF(HOUR, 0, LS.StatusDate), 0)
+) MAT
 WHERE 
     X.TicketStatus IN ('NEW','ESKALASI','ONPROG','ASSIGNED','OPEN')
     AND X.ColorID = 'ORANGE'
@@ -992,4 +1027,94 @@ WHERE
 
   const result = await queryDatabase(query)
   return result
+}
+export const getLeaderboard = async (page: number, limit: number) => {
+  const safePage = Number.isFinite(page) && page > 0 ? page : 1
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 15
+  const offset = (safePage - 1) * safeLimit
+
+  const baseQuery = `
+    SELECT 
+        X.MchID,
+        X.Problem,
+        X.ActionPlan,
+        Y.Type as ProblemGroupName,
+        Y.Action,
+        Y.pic,
+        X.TicketStatus,
+        M.UAP,
+        M.MchLoc,
+        M.MchNumber,
+        M.Brand,
+        M.MchTon,
+        (M.MchLoc + '-' + M.MchNumber) AS Location,
+        MAT.material_name
+    FROM TicketTRX X
+    LEFT JOIN (
+        SELECT 
+            A.name AS Problem,
+            B.name AS Type,
+            C.name AS Action,
+            C.pic
+        FROM problem_problem A
+        LEFT JOIN problem_problem_group B 
+            ON A.problem_group_id = B.id
+        LEFT JOIN problem_todo C 
+            ON A.id = C.problem_id
+        WHERE A.color = 'ORANGE' 
+          AND A.process = 'INJECTION'
+    ) Y 
+        ON X.Problem = Y.Problem 
+        AND X.ActionPlan = Y.Action
+    INNER JOIN iot.dbo.MachineMST M 
+        ON X.MchID = M.MchID
+    OUTER APPLY (
+        SELECT TOP 1 A.StatusLight, A.StatusDate
+        FROM MchStatusTRX A
+        WHERE A.MchID = X.MchID
+        ORDER BY A.StatusDate DESC
+    ) LS
+    OUTER APPLY (
+        SELECT TOP 1 CB.material_name
+        FROM IOT.DBO.hourly H
+        INNER JOIN IOT.DBO.countboard_tasks CB 
+            ON H.task_id = CB.id 
+            AND H.machine_id = CB.mchId
+        WHERE H.machine_id = X.MchID
+          AND H.from_datetime = DATEADD(HOUR, DATEDIFF(HOUR, 0, LS.StatusDate), 0)
+    ) MAT
+    WHERE 
+        X.TicketStatus IN ('NEW','ESKALASI','ONPROG','ASSIGNED','OPEN','CLOSED')
+        AND X.ColorID = 'ORANGE'
+        AND X.Active = 1
+        AND M.Active = 1
+        AND M.MchProcess = 'INJECTION'
+        AND LS.StatusLight = 'ORANGE'
+        AND Y.Problem IS NOT NULL
+  `
+
+  const totalQuery = `
+    SELECT COUNT(*) as count FROM (
+      SELECT Location, material_name, Problem
+      FROM (${baseQuery}) AS base
+      GROUP BY Location, material_name, Problem
+    ) AS grouped
+  `
+  const totalItems = await queryDatabase(totalQuery)
+  const totalPages = Math.ceil(totalItems[0].count / safeLimit)
+
+  const dataQuery = `
+    SELECT Location, material_name, Problem, COUNT(*) AS total
+    FROM (${baseQuery}) AS base
+    GROUP BY Location, material_name, Problem
+    ORDER BY total DESC
+    OFFSET ${offset} ROWS FETCH NEXT ${safeLimit} ROWS ONLY
+  `
+  const data = await queryDatabase(dataQuery)
+
+  return {
+    data,
+    totalPages,
+    totalItems: totalItems[0].count,
+  }
 }

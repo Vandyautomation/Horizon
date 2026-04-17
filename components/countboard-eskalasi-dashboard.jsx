@@ -638,9 +638,7 @@ export default function CountboardEskalasi() {
                     </button>
                   </div>
                 </th>
-                {deptFilter === 'Mixing' && (
-                  <th className="px-4 py-3">Material Name</th>
-                )}
+                <th className="px-4 py-3">Material Name</th>
                 <th className="px-4 py-3">Problem</th>
                 <th className="px-4 py-3">Action Plan</th>
                 <th className="px-4 py-3 w-28">Dept</th>
@@ -703,14 +701,15 @@ export default function CountboardEskalasi() {
                     <td className="px-3 py-2 whitespace-nowrap">
                       {item.MchLoc || '-'}-{item.MchNumber || '-'}
                     </td>
-                    {deptFilter === 'Mixing' && (
-                      <td className="px-3 py-2 max-w-[180px] truncate"
-                      title={item.material_name}>
-                        {item.material_name || '-'}
-                      </td>
-                    )}
-                    {/* Problem */}
+                    {/* Material Name  */}
+                    <td
+                      className="px-3 py-2 max-w-[180px] truncate"
+                      title={item.material_name}
+                    >
+                      {item.material_name || '-'}
+                    </td>
 
+                    {/* Problem */}
                     <td
                       className="px-3 py-2 max-w-[180px] truncate"
                       title={item.Problem}
@@ -719,8 +718,10 @@ export default function CountboardEskalasi() {
                     </td>
 
                     {/* Action Plan */}
-                    <td className="px-3 py-2 max-w-[180px] truncate"
-                      title={item.ActionPlan}>
+                    <td
+                      className="px-3 py-2 max-w-[180px] truncate"
+                      title={item.ActionPlan}
+                    >
                       {item.ActionPlan || '-'}
                     </td>
 

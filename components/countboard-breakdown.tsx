@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   BarChart,
   Bar,
@@ -28,15 +28,19 @@ type LostData = {
   MchID: string
   MchLoc: string
   MchNumber: string
+  ProblemGroupName: string
   Problem: string
   ActionPlan: string
   Brand: string
   MchTon: number
   Location: string
+  material_name: string
 }
 
 type ProblemData = {
   MchID: string
+  ProblemGroupName: string
+  material_name: string
   Problem: string
   ActionPlan: string
   Type: string
@@ -65,6 +69,10 @@ export default function CountboardBreakdown() {
   )
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const ITEMS_PER_PAGE = 20
+  const [leaderboard, setLeaderboard] = useState([])
+  const [leaderboardPage, setLeaderboardPage] = useState(1)
+  const leaderboardLimit = 10
+  const [leaderboardTotalPages, setLeaderboardTotalPages] = useState(1)
   const handleSort = (field: 'Location' | 'DuraMin') => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -73,6 +81,71 @@ export default function CountboardBreakdown() {
       setSortDirection('asc')
     }
   }
+  const [leaderboardTotalItems, setLeaderboardTotalItems] = useState(0)
+
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/countboards/leaderboard?page=${leaderboardPage}&limit=${leaderboardLimit}`
+      )
+      const json = await res.json()
+      const leaderboardItems = Array.isArray(json) ? json : json.data || []
+      setLeaderboard(leaderboardItems)
+      setLeaderboardTotalPages(
+        typeof json.totalPages === 'number'
+          ? json.totalPages
+          : Math.max(1, Math.ceil(leaderboardItems.length / leaderboardLimit))
+      )
+      setLeaderboardTotalItems(
+        typeof json.totalItems === 'number'
+          ? json.totalItems
+          : leaderboardItems.length
+      )
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error)
+      setLeaderboard([])
+      setLeaderboardTotalPages(1)
+      setLeaderboardTotalItems(0)
+    }
+  }, [leaderboardPage, leaderboardLimit])
+  const chartData = useMemo(() => {
+    const grouped = leaderboard.reduce((acc: any, item: any) => {
+      const machineName = item.Location
+      const count = parseInt(item.total) || 0
+
+      if (!acc[machineName]) {
+        acc[machineName] = { name: machineName, totalCount: 0 }
+      }
+      acc[machineName].totalCount += count
+      return acc
+    }, {})
+
+    return Object.values(grouped)
+  }, [leaderboard])
+  const { machineChartData, problemChartData } = useMemo(() => {
+    // Grouping per Mesin
+    const machineGroup = leaderboard.reduce((acc: any, item: any) => {
+      const name = item.Location
+      const count = parseInt(item.total) || 0
+      if (!acc[name]) acc[name] = { name, totalCount: 0 }
+      acc[name].totalCount += count
+      return acc
+    }, {})
+
+    // Grouping per Nama Problem
+    const problemGroup = leaderboard.reduce((acc: any, item: any) => {
+      const name = item.Problem
+      const count = parseInt(item.total) || 0
+      if (!acc[name]) acc[name] = { name, totalCount: 0 }
+      acc[name].totalCount += count
+      return acc
+    }, {})
+
+    return {
+      machineChartData: Object.values(machineGroup),
+      problemChartData: Object.values(problemGroup),
+    }
+  }, [leaderboard])
   const fetchData = useCallback(async () => {
     try {
       const lostRes = await fetch(`${API_BASE}/api/countboards/lost-time`)
@@ -94,9 +167,15 @@ export default function CountboardBreakdown() {
   // auto refresh tiap 10 detik
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 10000)
+    fetchLeaderboard()
+
+    const interval = setInterval(() => {
+      fetchData()
+      fetchLeaderboard()
+    }, 10000)
+
     return () => clearInterval(interval)
-  }, [fetchData])
+  }, [fetchData, fetchLeaderboard])
 
   // 🔢 Breakdown = total lost
   const totalBreakdown = lostData.length
@@ -359,90 +438,98 @@ export default function CountboardBreakdown() {
         <h2 className="text-base font-semibold mb-3">Lost Time List</h2>
 
         <div className="overflow-auto max-h-[600px]">
-          <table className="w-full table-fixed text-xs">
-            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0 z-10">
-              <tr className="text-gray-600">
-                <th className="px-2 py-2 w-[40px]">No</th>
-
+          <table className="w-full border-collapse text-[11px]">
+            <thead className="bg-gray-100 text-gray-600 uppercase tracking-tight sticky top-0 z-10 border-b">
+              <tr>
+                <th className="px-2 py-2 w-[35px] text-center">No</th>
                 <th
                   onClick={() => handleSort('Location')}
-                  className="px-2 py-2 cursor-pointer hover:text-blue-600"
+                  className="px-2 py-2 cursor-pointer hover:bg-gray-200 w-[80px] text-center"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    Location
-                    <ArrowUpDown size={12} />
-                    {sortField === 'Location'
-                      ? sortDirection === 'asc'
-                        ? '▲'
-                        : '▼'
-                      : ''}
+                    Loc <ArrowUpDown size={10} />
+                    {sortField === 'Location' &&
+                      (sortDirection === 'asc' ? '▲' : '▼')}
                   </div>
                 </th>
-
-                <th className="px-2 py-2 w-[80px]">MchID</th>
-
-                <th className="px-2 py-2 w-[80px]">Brand</th>
-
-                <th className="px-2 py-2">Problem</th>
-
-                <th className="px-2 py-2">Action</th>
-
-                <th className="px-2 py-2 w-[60px]">Ton</th>
-
+                <th className="px-2 py-2 w-[70px] text-center">MchID</th>
+                <th className="px-2 py-2 w-[70px] text-center">Brand</th>
+                {/* Kolom yang lebar dibiarkan tanpa w- agar mengambil sisa space */}
+                <th className="px-2 py-2 text-left min-w-[120px]">
+                  Material Name
+                </th>
+                <th className="px-2 py-2 text-left min-w-[100px]">
+                  Problem Group
+                </th>
+                <th className="px-2 py-2 text-left min-w-[120px]">Problem</th>
+                <th className="px-2 py-2 text-left min-w-[120px]">Action</th>
+                <th className="px-2 py-2 w-[50px] text-center">Ton</th>
                 <th
                   onClick={() => handleSort('DuraMin')}
-                  className="px-2 py-2 cursor-pointer hover:text-blue-600 w-[90px]"
+                  className="px-2 py-2 cursor-pointer hover:bg-gray-200 w-[70px] text-center border-l"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    Duration
-                    <ArrowUpDown size={12} />
-                    {sortField === 'DuraMin'
-                      ? sortDirection === 'asc'
-                        ? '▲'
-                        : '▼'
-                      : ''}
+                    Dur <ArrowUpDown size={10} />
+                    {sortField === 'DuraMin' &&
+                      (sortDirection === 'asc' ? '▲' : '▼')}
                   </div>
                 </th>
               </tr>
             </thead>
 
-            <tbody>
+            <tbody className="divide-y divide-gray-100 bg-white">
               {lostPaginated.map((item, index) => (
                 <tr
                   key={index}
-                  className="text-center hover:bg-gray-50 border-b"
+                  className="hover:bg-blue-50/30 transition-colors"
                 >
-                  <td className="py-1 font-medium">
+                  <td className="py-1.5 px-2 text-center text-gray-400">
                     {(lostPage - 1) * ITEMS_PER_PAGE + index + 1}
                   </td>
-
-                  <td className="py-1">{item.Location}</td>
-
-                  <td className="py-1">{item.MchID}</td>
-
-                  <td className="py-1">{item.Brand}</td>
-
-                  <td className="py-1 truncate max-w-[180px] text-center">
+                  <td className="py-1.5 px-2 text-center font-medium">
+                    {item.Location}
+                  </td>
+                  <td className="py-1.5 px-2 text-center text-gray-600">
+                    {item.MchID}
+                  </td>
+                  <td className="py-1.5 px-2 text-center">{item.Brand}</td>
+                  <td
+                    className="py-1.5 px-2 truncate max-w-[150px]"
+                    title={item.material_name}
+                  >
+                    {item.material_name}
+                  </td>
+                  <td
+                    className="py-1.5 px-2 truncate max-w-[120px]"
+                    title={item.ProblemGroupName}
+                  >
+                    {item.ProblemGroupName}
+                  </td>
+                  <td
+                    className="py-1.5 px-2 truncate max-w-[150px]"
+                    title={item.Problem}
+                  >
                     {item.Problem}
                   </td>
-
-                  <td className="py-1 truncate max-w-[180px] text-center">
+                  <td
+                    className="py-1.5 px-2 truncate max-w-[150px]"
+                    title={item.ActionPlan}
+                  >
                     {item.ActionPlan}
                   </td>
-
-                  <td className="py-1">{item.MchTon}</td>
-
+                  <td className="py-1.5 px-2 text-center text-gray-500">
+                    {item.MchTon}
+                  </td>
                   <td
-                    className={`py-1 font-semibold
-                    ${
+                    className={`py-1.5 px-2 text-center font-bold border-l ${
                       item.DuraMin > 180
-                        ? 'text-red-600'
+                        ? 'text-red-600 bg-red-50'
                         : item.DuraMin > 60
-                          ? 'text-yellow-600'
+                          ? 'text-orange-600 bg-orange-50'
                           : 'text-gray-700'
                     }`}
                   >
-                    {(item.DuraMin / 60).toFixed(2)}h
+                    {(item.DuraMin / 60).toFixed(1)}h
                   </td>
                 </tr>
               ))}
@@ -458,11 +545,9 @@ export default function CountboardBreakdown() {
             >
               Prev
             </button>
-
             <span className="text-gray-500">
               Page {lostPage} / {lostTotalPages || 1} • {lostData.length} items
             </span>
-
             <button
               onClick={() =>
                 setLostPage((p) => Math.min(p + 1, lostTotalPages))
@@ -475,72 +560,267 @@ export default function CountboardBreakdown() {
           </div>
         </div>
       </div>
+
+      {/* --- SECTION LEADERBOARD --- */}
+      <div className="bg-white shadow-md rounded-2xl border-t-4 border-purple-500 overflow-hidden hover:shadow-lg transition-shadow">
+        <div className="p-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">
+              Leaderboard Analysis
+            </h2>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+              Data visualization for Page {leaderboardPage}
+            </p>
+          </div>
+        </div>
+
+        {/* TWO CHARTS SIDE BY SIDE */}
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
+          {/* Chart 1: Berdasarkan Mesin */}
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <p className="text-[11px] font-bold text-gray-600 mb-2 flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span> By
+              Machine Location
+            </p>
+            <div className="h-[180px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={machineChartData}
+                  margin={{ top: 5, right: 5, left: -30, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#e2e8f0"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    fontSize={9}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis fontSize={9} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    cursor={{ fill: '#dbeafe' }}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '10px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                    }}
+                  />
+                  <Bar
+                    dataKey="totalCount"
+                    fill="#3b82f6"
+                    radius={[4, 4, 0, 0]}
+                    barSize={25}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Chart 2: Berdasarkan Nama Problem */}
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <p className="text-[11px] font-bold text-gray-600 mb-2 flex items-center gap-2">
+              <span className="w-2 h-2 bg-cyan-500 rounded-full"></span> By
+              Problem Type
+            </p>
+            <div className="h-[180px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={problemChartData}
+                  margin={{ top: 5, right: 5, left: -30, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#e2e8f0"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    fontSize={9}
+                    tickLine={false}
+                    axisLine={false}
+                    hide={false} // Jika nama problem terlalu panjang, bisa di-hide atau dipersingkat
+                    tickFormatter={(value) =>
+                      value.length > 10 ? `${value.substring(0, 10)}...` : value
+                    }
+                  />
+                  <YAxis fontSize={9} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    cursor={{ fill: '#e0f2fe' }}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '10px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                    }}
+                  />
+                  <Bar
+                    dataKey="totalCount"
+                    fill="#06b6d4"
+                    radius={[4, 4, 0, 0]}
+                    barSize={25}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* TABEL AREA */}
+        <div className="px-4 pb-4">
+          <div className="overflow-auto max-h-[350px] border border-gray-100 rounded-lg">
+            <table className="w-full border-collapse text-[11px]">
+              <thead className="bg-gray-50 text-gray-500 uppercase sticky top-0 z-10">
+                <tr className="border-b">
+                  <th className="px-3 py-2 text-center w-[50px]">Rank</th>
+                  <th className="px-3 py-2 text-center">Loc</th>
+                  <th className="px-3 py-2 text-left">Material Name</th>
+                  <th className="px-3 py-2 text-left">Problem</th>
+                  <th className="px-3 py-2 text-center">Count</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {leaderboard?.length > 0 ? (
+                  leaderboard.map((item: any, index: number) => (
+                    <tr
+                      key={index}
+                      className="hover:bg-blue-50/30 transition-colors"
+                    >
+                      <td className="py-2 px-3 text-center font-bold text-gray-400">
+                        {(leaderboardPage - 1) * leaderboardLimit + index + 1}
+                      </td>
+                      <td className="py-2 px-3 text-center font-semibold text-gray-700">
+                        {item.Location}
+                      </td>
+                      <td className="py-2 px-3 truncate max-w-[150px] text-gray-600">
+                        {item.material_name}
+                      </td>
+                      <td className="py-2 px-3 truncate max-w-[200px] text-gray-600">
+                        {item.Problem}
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-md font-bold">
+                          {item.total}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-10 text-center text-gray-400">
+                      No data available
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* PAGINATION */}
+          <div className="flex items-center justify-between mt-4 text-[11px]">
+            <button
+              onClick={() => setLeaderboardPage((p) => Math.max(p - 1, 1))}
+              disabled={leaderboardPage === 1}
+              className="px-4 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-30 transition-all shadow-sm"
+            >
+              Previous
+            </button>
+            <div className="text-gray-500 font-medium">
+              Page <span className="text-blue-600">{leaderboardPage}</span> of{' '}
+              {leaderboardTotalPages}
+            </div>
+            <button
+              onClick={() => setLeaderboardPage((p) => p + 1)}
+              disabled={leaderboard.length < leaderboardLimit}
+              className="px-4 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-30 transition-all shadow-sm"
+            >
+              Next Page
+            </button>
+          </div>
+        </div>
+      </div>
       {/* 📋 TABLE PROBLEM & ACTION PLAN */}
       <div className="bg-white shadow-md rounded-2xl p-4 border-t-4 border-orange-500 hover:shadow-lg transition-shadow">
         <h2 className="text-base font-semibold mb-3">Problem & Action Plan</h2>
 
         <div className="overflow-auto max-h-[600px]">
-          <table className="w-full table-fixed text-xs">
-            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide sticky top-0 z-10">
-              <tr className="text-gray-600">
-                <th className="px-2 py-2 w-[40px]">No</th>
-
-                <th className="px-2 py-2 w-[90px]">UAP</th>
-
-                <th className="px-2 py-2 w-[80px]">Brand</th>
-
-                <th className="px-2 py-2 w-[90px]">Location</th>
-
-                <th className="px-2 py-2">Problem</th>
-
-                <th className="px-2 py-2">Action</th>
-
-                <th className="px-2 py-2 w-[90px]">PIC</th>
-
-                <th className="px-2 py-2 w-[110px]">Status</th>
+          <table className="w-full border-collapse text-[11px]">
+            <thead className="bg-gray-100 text-gray-600 uppercase tracking-tight sticky top-0 z-10 border-b">
+              <tr>
+                <th className="px-2 py-2 w-[35px] text-center">No</th>
+                <th className="px-2 py-2 w-[60px] text-center">UAP</th>
+                <th className="px-2 py-2 w-[70px] text-center">Brand</th>
+                <th className="px-2 py-2 w-[80px] text-center">Loc</th>
+                <th className="px-2 py-2 text-left min-w-[120px]">
+                  Material Name
+                </th>
+                <th className="px-2 py-2 text-left min-w-[140px]">Problem</th>
+                <th className="px-2 py-2 text-left min-w-[140px]">Action</th>
+                <th className="px-2 py-2 w-[80px] text-center">PIC</th>
+                <th className="px-2 py-2 w-[90px] text-center">Status</th>
               </tr>
             </thead>
 
-            <tbody>
+            <tbody className="divide-y divide-gray-100 bg-white">
               {problemPaginated.map((item, index) => (
                 <tr
                   key={index}
-                  className="text-center hover:bg-gray-50 border-b"
+                  className="hover:bg-blue-50/40 transition-colors"
                 >
-                  <td className="py-1 font-medium">
+                  <td className="py-1.5 px-2 text-center text-gray-400">
                     {(problemPage - 1) * ITEMS_PER_PAGE + index + 1}
                   </td>
-
-                  <td className="py-1">{item.UAP}</td>
-
-                  <td className="py-1">{item.Brand}</td>
-
-                  <td className="py-1">{item.Location}</td>
-
-                  <td className="py-1 truncate max-w-[200px] text-center ">
-                    {item.Problem}
+                  <td className="py-1.5 px-2 text-center">{item.UAP}</td>
+                  <td className="py-1.5 px-2 text-center text-gray-600">
+                    {item.Brand}
+                  </td>
+                  <td className="py-1.5 px-2 text-center font-medium">
+                    {item.Location}
                   </td>
 
-                  <td className="py-1 truncate max-w-[200px] text-center ">
+                  {/* Kolom Teks Panjang menggunakan text-left agar tidak banyak space kosong */}
+                  <td
+                    className="py-1.5 px-2 truncate max-w-[150px]"
+                    title={item.material_name}
+                  >
+                    {item.material_name}
+                  </td>
+                  <td
+                    className="py-1.5 px-2 truncate max-w-[200px]"
+                    title={item.Problem}
+                  >
+                    {item.Problem}
+                  </td>
+                  <td
+                    className="py-1.5 px-2 truncate max-w-[200px]"
+                    title={item.Action}
+                  >
                     {item.Action}
                   </td>
 
-                  <td className="py-1 font-semibold text-blue-600">
-                    {item.pic}
+                  <td className="py-1.5 px-2 text-center">
+                    <span className="text-blue-600 font-medium">
+                      {item.pic}
+                    </span>
                   </td>
 
-                  <td className="py-1">
+                  <td className="py-1.5 px-2 text-center">
                     <span
-                      className={`px-2 py-[2px] rounded-full text-[11px] font-medium
-                ${
-                  item.TicketStatus?.toLowerCase() === 'open'
-                    ? 'bg-red-100 text-red-600'
-                    : item.TicketStatus?.toLowerCase() === 'progress'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : item.TicketStatus?.toLowerCase() === 'close'
-                        ? 'bg-green-100 text-green-600'
-                        : 'bg-gray-100 text-gray-600'
-                }`}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase inline-block w-[75px]
+              ${
+                item.TicketStatus?.toLowerCase() === 'open' ||
+                item.TicketStatus?.toLowerCase() === 'new'
+                  ? 'bg-red-100 text-red-700 border border-red-200'
+                  : item.TicketStatus?.toLowerCase() === 'progress' ||
+                      item.TicketStatus?.toLowerCase() === 'onprog'
+                    ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                    : item.TicketStatus?.toLowerCase() === 'close'
+                      ? 'bg-green-100 text-green-700 border border-green-200'
+                      : 'bg-gray-100 text-gray-600 border border-gray-200'
+              }`}
                     >
                       {item.TicketStatus}
                     </span>
@@ -559,12 +839,10 @@ export default function CountboardBreakdown() {
             >
               Prev
             </button>
-
             <span className="text-gray-500">
               Page {problemPage} / {problemTotalPages || 1} •{' '}
               {problemData.length} items
             </span>
-
             <button
               onClick={() =>
                 setProblemPage((p) => Math.min(p + 1, problemTotalPages))
