@@ -728,10 +728,9 @@ export default function CountboardBreakdown() {
             >
               Previous
             </button>
-            <div className="text-gray-500 font-medium">
-              Page <span className="text-blue-600">{leaderboardPage}</span> of{' '}
-              {leaderboardTotalPages}
-            </div>
+            <span>
+        Page <strong className="text-gray-800">{leaderboardPage}</strong> / {leaderboardTotalPages} • {leaderboardTotalItems} items
+      </span>
             <button
               onClick={() => setLeaderboardPage((p) => p + 1)}
               disabled={leaderboard.length < leaderboardLimit}
