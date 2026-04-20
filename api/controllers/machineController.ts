@@ -12,6 +12,8 @@ const TRENDK_UNIQUE_LATEST_SUMMARY_CACHE_TTL_MS = 2 * 60 * 1000;
 const trendkUniqueLatestDetailCache = new Map<string, { expiresAt: number; data: any }>();
 const TRENDK_UNIQUE_LATEST_DETAIL_CACHE_TTL_MS = 2 * 60 * 1000;
 const TRENDK_AGG_TABLE = 'IoT.dbo.AndonTrendkHourlyAgg';
+// TrendK dimatikan sementara.
+const TRENDK_ENABLED = false;
 
 let trendkAggSchedulerTimer: ReturnType<typeof setInterval> | null = null;
 let trendkAggBackfillRunning = false;
@@ -256,6 +258,8 @@ async function runTrendkAggregationBackfill() {
 }
 
 export function startTrendkHourlyAggregationScheduler() {
+  // TrendK dimatikan sementara.
+  if (!TRENDK_ENABLED) return;
   if (trendkAggSchedulerTimer) return;
   runTrendkAggregationIncremental();
   runTrendkAggregationBackfill();
@@ -2475,7 +2479,6 @@ export async function removeOverrideTAO(machineId: string) {
 export async function removeOverride(machineId: string) {
     const sqlQuery = `
     DECLARE @statusLightBefore VARCHAR(50);
-    DECLARE @statusLightToInsert VARCHAR(50);
 
     SET @statusLightBefore = (
       SELECT TOP 1 StatusLight
@@ -2486,27 +2489,24 @@ export async function removeOverride(machineId: string) {
       ORDER BY ID DESC
     );
 
-    -- Fallback supaya tetap insert walau tidak ada status non-TRIAL sebelumnya.
-    SET @statusLightToInsert = COALESCE(
-      @statusLightBefore,
-      (SELECT TOP 1 StatusLight FROM IoT.dbo.MchStatusTRX WHERE MchID = @machineId AND Active = 1 ORDER BY ID DESC),
-      'GREEN'
-    );
-
     UPDATE IoT.dbo.MachineMST SET is_override = 0, MchStatus = NULL WHERE MchID = @machineId;
 
-    IF COL_LENGTH('IoT.dbo.MchStatusTRX', 'StatusLightTrial') IS NOT NULL
+    -- Jika tidak ada status non-override sebelumnya, tidak insert status baru.
+    IF @statusLightBefore IS NOT NULL
     BEGIN
-      INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, StatusLightTrial, Active)
-      VALUES (@machineId, GETDATE(), @statusLightToInsert, NULL, 1);
-    END
-    ELSE
-    BEGIN
-      INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
-      VALUES (@machineId, GETDATE(), @statusLightToInsert, 1);
+      IF COL_LENGTH('IoT.dbo.MchStatusTRX', 'StatusLightTrial') IS NOT NULL
+      BEGIN
+        INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, StatusLightTrial, Active)
+        VALUES (@machineId, GETDATE(), @statusLightBefore, NULL, 1);
+      END
+      ELSE
+      BEGIN
+        INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
+        VALUES (@machineId, GETDATE(), @statusLightBefore, 1);
+      END
     END
 
-    SELECT @statusLightToInsert as statusLightBefore;
+    SELECT @statusLightBefore as statusLightBefore;
   `;
     return await queryDatabase(sqlQuery, { machineId });
 }
@@ -3140,6 +3140,8 @@ export async function getTrendkHourlySummary(
     uap: string,
     excluded_mchids: string[] = []
 ) {
+    // TrendK dimatikan sementara.
+    if (!TRENDK_ENABLED) return [];
     await ensureTrendkHourlyAggTable();
     const excludedCsv = excluded_mchids
         .map((v) => String(v || '').trim().toUpperCase())
@@ -3213,6 +3215,22 @@ export async function getTrendkUniqueLatestSummary(
     uap: string,
     excluded_mchids: string[] = []
 ) {
+    // TrendK dimatikan sementara.
+    if (!TRENDK_ENABLED) {
+        return {
+            counts: {
+                GREEN: 0,
+                YELLOW: 0,
+                RED: 0,
+                ORANGE: 0,
+                PURPLE: 0,
+                BLUE: 0,
+                WHITE: 0,
+                GREY: 0,
+            },
+            total: 0,
+        };
+    }
     await ensureTrendkHourlyAggTable();
     const excludedCsv = excluded_mchids
         .map((v) => String(v || '').trim().toUpperCase())
@@ -3315,6 +3333,18 @@ export async function getTrendkUniqueLatestDetail(
     page: number = 1,
     page_size: number = 100
 ) {
+    // TrendK dimatikan sementara.
+    if (!TRENDK_ENABLED) {
+        const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+        const safePageSizeRaw = Number.isFinite(page_size) && page_size > 0 ? Math.floor(page_size) : 100;
+        const safePageSize = Math.min(Math.max(safePageSizeRaw, 10), 500);
+        return {
+            rows: [],
+            total: 0,
+            page: safePage,
+            page_size: safePageSize,
+        };
+    }
     await ensureTrendkHourlyAggTable();
     const excludedCsv = excluded_mchids
         .map((v) => String(v || '').trim().toUpperCase())
@@ -3441,6 +3471,18 @@ export async function getTrendkHourlyDetail(
     page: number = 1,
     page_size: number = 100
 ) {
+    // TrendK dimatikan sementara.
+    if (!TRENDK_ENABLED) {
+        const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+        const safePageSizeRaw = Number.isFinite(page_size) && page_size > 0 ? Math.floor(page_size) : 100;
+        const safePageSize = Math.min(Math.max(safePageSizeRaw, 10), 500);
+        return {
+            rows: [],
+            total: 0,
+            page: safePage,
+            page_size: safePageSize,
+        };
+    }
     await ensureTrendkHourlyAggTable();
     const excludedCsv = excluded_mchids
         .map((v) => String(v || '').trim().toUpperCase())

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { addMachine, addMachineState, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, getTrendHourly, getTrendHourlyDetail, getTrendStream, getTrendWeekly, getTrendkHourlyDetail, getTrendkHourlySummary, getTrendkUniqueLatestDetail, getTrendkUniqueLatestSummary, makeMachineGrey, makeMachineTAO, removeOverride, removeOverrideTAO, updateMachine, updateMachineStateColorById } from '../controllers/machineController';
+import { addMachine, addMachineState, getChangeState, getEnergyAdditionalData, getEnergyMachineDaily, getEnergyStatusLightMachineDaily, getHourlyMachine, getMachine, getNooeMachine, getOeeMachine, getSpindle, getTaskMachine, getTrendHourly, getTrendHourlyDetail, getTrendStream, getTrendWeekly, makeMachineGrey, makeMachineTAO, removeOverride, removeOverrideTAO, updateMachine, updateMachineStateColorById } from '../controllers/machineController';
 import { getTask } from '../controllers/scaleTaskController';
 import { cache } from 'hono/cache'
 import * as trendData from '../controllers/trend.json';
@@ -121,84 +121,85 @@ machineRoutes.get('/trend/hourly/detail', async (c) => {
   }
 });
 
-machineRoutes.get('/trendk/hourly-summary', async (c) => {
-  try {
-    const date_from = c.req.query('date_from') || '2025-06-01';
-    const date_to = c.req.query('date_to') || '2025-06-30';
-    const uap = c.req.query('uap') || 'ALL';
-    const excluded_mchids = (c.req.query('excluded_mchids') || '')
-      .split(',')
-      .map((v) => String(v || '').trim())
-      .filter(Boolean);
-    const result = await getTrendkHourlySummary(date_from, date_to, uap, excluded_mchids);
-    return c.json(result);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
-  }
-});
+// TrendK dimatikan sementara.
+// machineRoutes.get('/trendk/hourly-summary', async (c) => {
+//   try {
+//     const date_from = c.req.query('date_from') || '2025-06-01';
+//     const date_to = c.req.query('date_to') || '2025-06-30';
+//     const uap = c.req.query('uap') || 'ALL';
+//     const excluded_mchids = (c.req.query('excluded_mchids') || '')
+//       .split(',')
+//       .map((v) => String(v || '').trim())
+//       .filter(Boolean);
+//     const result = await getTrendkHourlySummary(date_from, date_to, uap, excluded_mchids);
+//     return c.json(result);
+//   } catch (error) {
+//     return c.json({ error: (error as Error).message }, 500);
+//   }
+// });
 
-machineRoutes.get('/trendk/hourly-detail', async (c) => {
-  try {
-    const date_from = c.req.query('date_from') || null;
-    const date_to = c.req.query('date_to') || null;
-    if (!date_from || !date_to) {
-      return c.json({ error: 'date_from and date_to are required' }, 400);
-    }
-    const uap = c.req.query('uap') || 'ALL';
-    const status_light = c.req.query('status_light') || 'ALL';
-    const page = Number(c.req.query('page') || '1');
-    const page_size = Number(c.req.query('page_size') || '100');
-    const excluded_mchids = (c.req.query('excluded_mchids') || '')
-      .split(',')
-      .map((v) => String(v || '').trim())
-      .filter(Boolean);
-    const result = await getTrendkHourlyDetail(date_from, date_to, uap, status_light, excluded_mchids, page, page_size);
-    return c.json(result);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
-  }
-});
+// machineRoutes.get('/trendk/hourly-detail', async (c) => {
+//   try {
+//     const date_from = c.req.query('date_from') || null;
+//     const date_to = c.req.query('date_to') || null;
+//     if (!date_from || !date_to) {
+//       return c.json({ error: 'date_from and date_to are required' }, 400);
+//     }
+//     const uap = c.req.query('uap') || 'ALL';
+//     const status_light = c.req.query('status_light') || 'ALL';
+//     const page = Number(c.req.query('page') || '1');
+//     const page_size = Number(c.req.query('page_size') || '100');
+//     const excluded_mchids = (c.req.query('excluded_mchids') || '')
+//       .split(',')
+//       .map((v) => String(v || '').trim())
+//       .filter(Boolean);
+//     const result = await getTrendkHourlyDetail(date_from, date_to, uap, status_light, excluded_mchids, page, page_size);
+//     return c.json(result);
+//   } catch (error) {
+//     return c.json({ error: (error as Error).message }, 500);
+//   }
+// });
 
-machineRoutes.get('/trendk/unique-latest-summary', async (c) => {
-  try {
-    const date_from = c.req.query('date_from') || null;
-    const date_to = c.req.query('date_to') || null;
-    if (!date_from || !date_to) {
-      return c.json({ error: 'date_from and date_to are required' }, 400);
-    }
-    const uap = c.req.query('uap') || 'ALL';
-    const excluded_mchids = (c.req.query('excluded_mchids') || '')
-      .split(',')
-      .map((v) => String(v || '').trim())
-      .filter(Boolean);
-    const result = await getTrendkUniqueLatestSummary(date_from, date_to, uap, excluded_mchids);
-    return c.json(result);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
-  }
-});
+// machineRoutes.get('/trendk/unique-latest-summary', async (c) => {
+//   try {
+//     const date_from = c.req.query('date_from') || null;
+//     const date_to = c.req.query('date_to') || null;
+//     if (!date_from || !date_to) {
+//       return c.json({ error: 'date_from and date_to are required' }, 400);
+//     }
+//     const uap = c.req.query('uap') || 'ALL';
+//     const excluded_mchids = (c.req.query('excluded_mchids') || '')
+//       .split(',')
+//       .map((v) => String(v || '').trim())
+//       .filter(Boolean);
+//     const result = await getTrendkUniqueLatestSummary(date_from, date_to, uap, excluded_mchids);
+//     return c.json(result);
+//   } catch (error) {
+//     return c.json({ error: (error as Error).message }, 500);
+//   }
+// });
 
-machineRoutes.get('/trendk/unique-latest-detail', async (c) => {
-  try {
-    const date_from = c.req.query('date_from') || null;
-    const date_to = c.req.query('date_to') || null;
-    if (!date_from || !date_to) {
-      return c.json({ error: 'date_from and date_to are required' }, 400);
-    }
-    const uap = c.req.query('uap') || 'ALL';
-    const status_light = c.req.query('status_light') || 'ALL';
-    const page = Number(c.req.query('page') || '1');
-    const page_size = Number(c.req.query('page_size') || '100');
-    const excluded_mchids = (c.req.query('excluded_mchids') || '')
-      .split(',')
-      .map((v) => String(v || '').trim())
-      .filter(Boolean);
-    const result = await getTrendkUniqueLatestDetail(date_from, date_to, uap, status_light, excluded_mchids, page, page_size);
-    return c.json(result);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 500);
-  }
-});
+// machineRoutes.get('/trendk/unique-latest-detail', async (c) => {
+//   try {
+//     const date_from = c.req.query('date_from') || null;
+//     const date_to = c.req.query('date_to') || null;
+//     if (!date_from || !date_to) {
+//       return c.json({ error: 'date_from and date_to are required' }, 400);
+//     }
+//     const uap = c.req.query('uap') || 'ALL';
+//     const status_light = c.req.query('status_light') || 'ALL';
+//     const page = Number(c.req.query('page') || '1');
+//     const page_size = Number(c.req.query('page_size') || '100');
+//     const excluded_mchids = (c.req.query('excluded_mchids') || '')
+//       .split(',')
+//       .map((v) => String(v || '').trim())
+//       .filter(Boolean);
+//     const result = await getTrendkUniqueLatestDetail(date_from, date_to, uap, status_light, excluded_mchids, page, page_size);
+//     return c.json(result);
+//   } catch (error) {
+//     return c.json({ error: (error as Error).message }, 500);
+//   }
+// });
 
 
 machineRoutes.get('/spindle/:machineId', async (c) => {

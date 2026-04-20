@@ -1,6 +1,6 @@
 import app from './app';
 import { startZhafirHourlyCarryForwardScheduler } from './controllers/zhafirController';
-import { startTrendkHourlyAggregationScheduler } from './controllers/machineController';
+// import { startTrendkHourlyAggregationScheduler } from './controllers/machineController';
 import { resetPool } from './config/database';
 
 const PORT = process.env.BE_PORT || 9999;
@@ -65,4 +65,5 @@ Bun.serve({
 
 console.log(`Server running at http://localhost:${PORT}`);
 startZhafirHourlyCarryForwardScheduler();
-startTrendkHourlyAggregationScheduler();
+// TrendK dimatikan sementara.
+// startTrendkHourlyAggregationScheduler();

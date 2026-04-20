@@ -36,7 +36,6 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.d.ts",
     "api/config/database.js",
     "next-env.d.ts",
     ".next/types/**/*.ts"
