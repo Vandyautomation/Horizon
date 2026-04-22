@@ -1,4 +1,5 @@
 import mqtt from 'mqtt'
+import { queryDatabase } from './queryDatabase'
 
 type CounterShootPayload = {
   id: string
@@ -19,6 +20,135 @@ const TOPIC = (process.env.MQTT_COUNTER_SHOOT_TOPIC || 'counter/shoot').trim()
 const DEFAULT_DMKSRV02_MQTT_URL = 'mqtt://10.160.50.14:80'
 const MAX_MEMORY_LOGS = 200
 const FIXED_BUILDINGS = ['G', 'H', 'J', 'Q', 'R', 'S']
+const EXPECTED_REFRESH_MS = 5 * 60 * 1000
+const FALLBACK_EXPECTED_MACHINE_LIST = `
+INJ Bld H	7
+INJ Bld J	11
+INJ Bld J	10
+INJ Bld J	9
+INJ Bld J	8
+INJ Bld J	6
+INJ Bld J	4
+INJ Bld J	14
+INJ Bld J	13
+INJ Bld G	20
+INJ Bld G	16
+INJ Bld G	21
+INJ Bld J	22
+INJ Bld J	21
+INJ Bld Q	15
+INJ Bld H	22
+INJ Bld J	12
+INJ Bld J	19
+INJ Bld J	18
+INJ Bld J	15
+INJ Bld Q	18
+INJ Bld J	20
+INJ Bld H	13
+INJ Bld H	12
+INJ Bld G	10
+INJ Bld Q	22
+INJ Bld Q	23
+INJ Bld Q	24
+INJ Bld H	21
+INJ Bld H	20
+INJ Bld H	14
+INJ Bld Q	21
+INJ Bld G	11
+INJ Bld G	12
+INJ Bld G	13
+INJ Bld J	17
+INJ Bld G	15
+INJ Bld H	15
+INJ Bld H	24
+INJ Bld H	25
+INJ Bld J	23
+INJ Bld H	10
+INJ Bld Q	16
+INJ Bld G	17
+INJ Bld G	23
+INJ Bld G	22
+INJ Bld G	19
+INJ Bld G	18
+INJ Bld H	26
+INJ Bld H	11
+INJ Bld G	9
+INJ Bld H	2
+INJ Bld H	23
+INJ Bld G	24
+INJ Bld G	25
+INJ Bld J	2
+INJ Bld G	27
+INJ Bld G	26
+INJ Bld H	1
+INJ Bld J	1
+INJ Bld H	17
+INJ Bld H	16
+INJ Bld J	16
+INJ Bld J	27
+INJ Bld J	28
+INJ Bld J	29
+INJ Bld J	24
+INJ Bld J	25
+INJ Bld J	26
+INJ Bld H	18
+INJ Bld H	9
+INJ Bld H	19
+INJ Bld H	8
+INJ Bld H	3
+INJ Bld H	6
+INJ Bld Q	17
+INJ Bld R	1
+INJ Bld H	4
+INJ Bld H	5
+INJ Bld G	1
+INJ Bld G	2
+INJ Bld G	3
+INJ Bld G	4
+INJ Bld G	5
+INJ Bld G	6
+INJ Bld G	7
+INJ Bld G	8
+INJ Bld R	2
+INJ Bld R	3
+INJ Bld R	4
+INJ Bld R	5
+INJ Bld R	6
+INJ Bld R	7
+INJ Bld R	8
+INJ Bld R	9
+INJ Bld R	10
+INJ Bld R	11
+INJ Bld R	12
+INJ Bld R	13
+INJ Bld R	14
+INJ Bld R	15
+INJ Bld S	6
+INJ Bld Q	27
+INJ Bld Q	26
+INJ Bld R	19
+INJ Bld R	20
+INJ Bld R	21
+INJ Bld R	22
+INJ Bld R	23
+INJ Bld R	24
+INJ Bld R	25
+INJ Bld R	26
+INJ Bld S	1
+INJ Bld S	2
+INJ Bld S	3
+INJ Bld S	4
+INJ Bld S	5
+INJ Bld S	7
+INJ Bld S	8
+INJ Bld S	9
+INJ Bld S	10
+INJ Bld S	11
+INJ Bld S	12
+INJ Bld R	16
+INJ Bld R	17
+INJ Bld R	18
+`
 
 let client: mqtt.MqttClient | null = null
 let lastError: string | null = null
@@ -28,6 +158,10 @@ let activeBrokerUrl: string | null = null
 let sequence = 0
 const memoryLogs: CounterShootLogEntry[] = []
 const latestByMachine = new Map<string, CounterShootPayload>()
+let expectedMachines: CounterShootPayload[] = []
+let expectedByKey = new Map<string, CounterShootPayload>()
+let expectedById = new Map<string, CounterShootPayload>()
+let expectedLoadedAt = 0
 const subscribers = new Set<(entry: CounterShootLogEntry) => void>()
 
 function toSafeString(value: unknown) {
@@ -137,6 +271,80 @@ function mergePayloadWithLatest(payload: CounterShootPayload): CounterShootPaylo
   return merged
 }
 
+function buildFallbackExpectedMachines() {
+  const result = new Map<string, CounterShootPayload>()
+  for (const line of FALLBACK_EXPECTED_MACHINE_LIST.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    const match = trimmed.match(/^INJ\s+Bld\s+([A-Za-z]+)\s+(\d+)$/)
+    if (!match) continue
+    const loc = normalizeLoc(match[1])
+    const number = normalizeNumber(match[2])
+    const payload: CounterShootPayload = {
+      id: '',
+      loc,
+      number,
+      shoot: 0,
+      status: 'GREY',
+    }
+    const key = buildMachineKey(payload)
+    if (key) result.set(key, payload)
+  }
+  return result
+}
+
+async function loadExpectedInjectionMachines(force = false) {
+  const now = Date.now()
+  if (!force && expectedLoadedAt && now - expectedLoadedAt < EXPECTED_REFRESH_MS) return
+
+  const nextByKey = buildFallbackExpectedMachines()
+  const nextById = new Map<string, CounterShootPayload>()
+
+  try {
+    const rows = await queryDatabase(
+      `
+      SELECT
+        LTRIM(RTRIM(MchID)) AS id,
+        UPPER(LTRIM(RTRIM(REPLACE(MchLoc, 'INJ Bld ', '')))) AS loc,
+        LTRIM(RTRIM(CAST(MchNumber AS VARCHAR(50)))) AS number
+      FROM IoT.dbo.MachineMST WITH (NOLOCK)
+      WHERE MchLoc IN ('INJ Bld G', 'INJ Bld H', 'INJ Bld J', 'INJ Bld Q', 'INJ Bld R', 'INJ Bld S')
+        AND Active = 1
+      ORDER BY MchLoc, TRY_CAST(MchNumber AS INT);
+      `
+    )
+
+    for (const row of rows as Array<Record<string, unknown>>) {
+      const payload: CounterShootPayload = {
+        id: toSafeString(row.id),
+        loc: normalizeLoc(toSafeString(row.loc)),
+        number: normalizeNumber(toSafeString(row.number)),
+        shoot: 0,
+        status: 'GREY',
+      }
+      const key = buildMachineKey(payload)
+      if (!key) continue
+      const previous = nextByKey.get(key)
+      nextByKey.set(key, {
+        ...payload,
+        id: payload.id || previous?.id || '',
+      })
+    }
+  } catch (error) {
+    console.warn('Using fallback expected machine list for counter shoot:', (error as Error)?.message || error)
+  }
+
+  const nextExpected = Array.from(nextByKey.values())
+  for (const payload of nextExpected) {
+    if (payload.id) nextById.set(payload.id, payload)
+  }
+
+  expectedMachines = nextExpected
+  expectedByKey = nextByKey
+  expectedById = nextById
+  expectedLoadedAt = now
+}
+
 function pushMemoryLog(topic: string, payload: CounterShootPayload) {
   sequence += 1
   const entry: CounterShootLogEntry = {
@@ -173,6 +381,7 @@ async function handleMessage(topic: string, message: Buffer) {
 }
 
 export async function startCounterShootLogger() {
+  await loadExpectedInjectionMachines()
   if (client) return
 
   const preferredUrls = [
@@ -215,7 +424,30 @@ export async function getCounterShootLogs(limit = 20) {
 }
 
 export function getCounterShootLatestMachines() {
-  return Array.from(latestByMachine.values()).sort((a, b) => {
+  const mergedByKey = new Map<string, CounterShootPayload>()
+
+  for (const base of expectedMachines) {
+    const key = buildMachineKey(base)
+    if (!key) continue
+    const fromKey = latestByMachine.get(key)
+    const fromId = base.id ? latestByMachine.get(`id:${base.id}`) : null
+    const live = fromKey || fromId
+    mergedByKey.set(key, {
+      id: base.id,
+      loc: base.loc,
+      number: base.number,
+      shoot: live?.shoot ?? base.shoot,
+      status: live?.status || base.status,
+    })
+  }
+
+  for (const [key, payload] of latestByMachine.entries()) {
+    if (!mergedByKey.has(key)) {
+      mergedByKey.set(key, payload)
+    }
+  }
+
+  return Array.from(mergedByKey.values()).sort((a, b) => {
     const locCompare = a.loc.localeCompare(b.loc)
     if (locCompare !== 0) return locCompare
     const numA = Number(a.number)
@@ -261,7 +493,10 @@ export function getCounterShootMachine(params: { id?: string; loc?: string; numb
     )
   }
   if (id) {
-    return latestByMachine.get(`id:${id}`) || null
+    const direct = latestByMachine.get(`id:${id}`)
+    if (direct) return direct
+    const base = expectedById.get(id)
+    if (base) return base
   }
 
   const machines = getCounterShootLatestMachines()
@@ -284,6 +519,7 @@ export function subscribeCounterShootLogs(listener: (entry: CounterShootLogEntry
 }
 
 export function getCounterShootLoggerStatus() {
+  const machineCount = getCounterShootLatestMachines().length
   return {
     connected: Boolean(client?.connected),
     brokerUrl: activeBrokerUrl,
@@ -292,6 +528,6 @@ export function getCounterShootLoggerStatus() {
     lastError,
     latestPayload,
     bufferedLogs: memoryLogs.length,
-    machineCount: latestByMachine.size,
+    machineCount,
   }
 }
