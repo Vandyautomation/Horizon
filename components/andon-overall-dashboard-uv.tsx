@@ -644,6 +644,10 @@ export default function AndonOverallDashboard() {
             
             return Object.entries(locationGroups).map(([location, machines]) => {
               const counts = countStatuses(machines);
+              const locationOee =
+                machines.reduce((acc, machine) => acc + (machine.oee || 0), 0) / (machines.length || 1);
+              const locationOoe =
+                machines.reduce((acc, machine) => acc + (machine.ooe || 0), 0) / (machines.length || 1);
               
               return (
                 <div className="mb-2" key={`${building.id}-${location}`}>
@@ -810,7 +814,7 @@ export default function AndonOverallDashboard() {
                     <Card className="bg-cyan-500 text-white">
                         <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OEE</div>
-                          <div className="text-3xl font-bold">{((building.oee || 0) * 100).toFixed(2)}%</div>
+                          <div className="text-3xl font-bold">{(locationOee * 100).toFixed(2)}%</div>
                           <div className="text-xs text-white ">from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}</div>
                         </CardContent>
                       </Card>
@@ -818,7 +822,7 @@ export default function AndonOverallDashboard() {
                       <Card className="bg-cyan-600 text-white">
                         <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OOE</div>
-                          <div className="text-3xl font-bold">{((building.ooe || 0) * 100).toFixed(2)}%</div>
+                          <div className="text-3xl font-bold">{(locationOoe * 100).toFixed(2)}%</div>
                           <div className="text-xs text-white ">from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}</div>
                         </CardContent>
                       </Card>
