@@ -5,6 +5,7 @@
    "scripts": {
       "dev": "next dev",
       "dev-be": "NODE_ENV=development bun run api/index.ts",
+      "dev-be-node": "set NODE_ENV=development&& node -r ts-node/register/transpile-only api/index.ts",
       "dev-be-qco": "NODE_ENV=development bun run api/index_qco.ts",
       "dev-full": "concurrently \"bun run dev\" \"bun run start\"",
       "dev:reset": "bunx prisma migrate reset --force --skip-seed",

@@ -86,15 +86,16 @@ async function handleMessage(topic: string, message: Buffer) {
 export async function startCounterShootLogger() {
   if (client) return
 
-  const url =
-    (process.env.MQTT_URL_DMKSRV02 || '').trim() ||
-    (process.env.MQTT_URL_COUNTER_SHOOT || '').trim() ||
-    (process.env.MQTT_URL_DMKSRV02_WS || '').trim() ||
-    (process.env.MQTT_URL_COUNTER_SHOOT_WS || '').trim() ||
-    (process.env.MQTT_URL_COUNTBOARD || '').trim() ||
-    (process.env.NEXT_PUBLIC_MQTT_WS || '').trim() ||
-    (process.env.MQTT_URL || '').trim() ||
-    DEFAULT_DMKSRV02_MQTT_URL
+  const preferredUrls = [
+    (process.env.MQTT_URL_DMKSRV02 || '').trim(),
+    (process.env.MQTT_URL_COUNTER_SHOOT || '').trim(),
+    (process.env.MQTT_URL_COUNTBOARD || '').trim(),
+    (process.env.MQTT_URL || '').trim(),
+    (process.env.MQTT_URL_DMKSRV02_WS || '').trim(),
+    (process.env.MQTT_URL_COUNTER_SHOOT_WS || '').trim(),
+    (process.env.NEXT_PUBLIC_MQTT_WS || '').trim(),
+  ]
+  const url = preferredUrls.find(Boolean) || DEFAULT_DMKSRV02_MQTT_URL
 
   if (!url) {
     throw new Error('MQTT URL is not configured.')
