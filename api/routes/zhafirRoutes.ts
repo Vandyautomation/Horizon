@@ -26,7 +26,7 @@ import {
   createSettingPamzhafir,
     deleteSettingPamzhafir,
   getActiveMachines,
-  getRouting,
+  getcoois,
   updateSettingPamzhafir,
   
 } from '../controllers/zhafirController';
@@ -189,6 +189,57 @@ zhafirRoutes.get('/actual-view', async (c) => {
     }
     const data = await getZhafirActualFromView(paraId, resolvedMachineId);
     return c.json(data);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
+zhafirRoutes.get('/snapshot', async (c) => {
+  try {
+    const paraId = c.req.query('paraId') || 'ZHF-STD-001';
+    const section = c.req.query('section') || undefined;
+    const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
+    const date = c.req.query('date') || undefined;
+    const hourRaw = c.req.query('hour') || undefined;
+    const resolvedMachineId = String(machineId || '').trim();
+
+    if (!resolvedMachineId) {
+      return c.json({ error: 'machine_id (or machineId) is required' }, 400);
+    }
+
+    const enabled = await isAllowedTemporaryMachine(resolvedMachineId);
+    const access = {
+      machineId: resolvedMachineId,
+      enabled,
+      runtimeEnabled: zhafirTemporaryEnabledMachines.has(resolvedMachineId),
+      note: 'runtimeEnabled resets when backend restarts',
+    };
+
+    if (!enabled) {
+      return c.json({
+        access,
+        stdAct: null,
+        actualView: null,
+      });
+    }
+
+    const stdAct = await getZhafirStdActByParaId(paraId, section, resolvedMachineId);
+    let actualView;
+    if (date && hourRaw !== undefined) {
+      const hour = Number(hourRaw);
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+        return c.json({ error: 'hour must be integer 0..23' }, 400);
+      }
+      actualView = await getZhafirActualFromViewByHour(paraId, resolvedMachineId, date, hour);
+    } else {
+      actualView = await getZhafirActualFromView(paraId, resolvedMachineId);
+    }
+
+    return c.json({
+      access,
+      stdAct,
+      actualView,
+    });
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
   }
@@ -601,13 +652,13 @@ zhafirRoutes.get('/machines', async (c) => {
     return c.json({ error: (error as Error).message }, 500);
   }
 });
-zhafirRoutes.get('/routing', async (c) => {
+zhafirRoutes.get('/coois', async (c) => {
   try {
     const keyword = c.req.query('q') || '';
-    const routing = await getRouting(keyword);
+    const routing = await getcoois(keyword);
     return c.json(routing);
   } catch (error) {
-    console.error('Error fetching routing:', error);
+    console.error('Error fetching coois:', error);
     return c.json({ error: (error as Error).message }, 500);
   }
 });

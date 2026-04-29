@@ -380,6 +380,11 @@ export default function ZhafirParameterForm() {
     () => process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:9999',
     []
   )
+  const isLocalRuntime = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    const host = window.location.hostname
+    return host === 'localhost' || host === '127.0.0.1'
+  }, [])
   const activePaletteColors = useMemo(
     () =>
       paletteMode === 'pastel_warm'
@@ -420,13 +425,18 @@ export default function ZhafirParameterForm() {
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/section-styles${q}`)
-      unique.add('http://localhost:9999/api/zhafir-ze-3600/section-styles' + q)
-      unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles' + q)
+      if (isLocalRuntime) {
+        unique.add(
+          'http://localhost:9999/api/zhafir-ze-3600/section-styles' + q
+        )
+        unique.add(
+          'http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles' + q
+        )
+      }
       unique.add('/be/api/zhafir-ze-3600/section-styles' + q)
-      unique.add('/api/zhafir-ze-3600/section-styles' + q)
       return Array.from(unique)
     },
-    [baseUrl]
+    [baseUrl, isLocalRuntime]
   )
 
   const saveSectionStyle = useCallback(
@@ -441,10 +451,11 @@ export default function ZhafirParameterForm() {
         : trimmed
       const unique = new Set<string>()
       if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/section-styles`)
-      unique.add('http://localhost:9999/api/zhafir-ze-3600/section-styles')
-      unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles')
+      if (isLocalRuntime) {
+        unique.add('http://localhost:9999/api/zhafir-ze-3600/section-styles')
+        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles')
+      }
       unique.add('/be/api/zhafir-ze-3600/section-styles')
-      unique.add('/api/zhafir-ze-3600/section-styles')
 
       for (const url of Array.from(unique)) {
         try {
@@ -545,14 +556,15 @@ export default function ZhafirParameterForm() {
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/summary-range-config${q}`)
-      unique.add(
-        'http://localhost:9999/api/zhafir-ze-3600/summary-range-config' + q
-      )
-      unique.add(
-        'http://127.0.0.1:9999/api/zhafir-ze-3600/summary-range-config' + q
-      )
+      if (isLocalRuntime) {
+        unique.add(
+          'http://localhost:9999/api/zhafir-ze-3600/summary-range-config' + q
+        )
+        unique.add(
+          'http://127.0.0.1:9999/api/zhafir-ze-3600/summary-range-config' + q
+        )
+      }
       unique.add('/be/api/zhafir-ze-3600/summary-range-config' + q)
-      unique.add('/api/zhafir-ze-3600/summary-range-config' + q)
       return Array.from(unique)
     }
 
@@ -612,19 +624,19 @@ export default function ZhafirParameterForm() {
   const getStdNumberForRange = (fieldKey: string) =>
     parseFiniteNumber(stdDraft[fieldKey] ?? values[fieldKey]?.std)
 
-  const getAutoRangeValue = (
-    fieldKey: SummaryRangeField,
-    bound: 'min' | 'max'
-  ) => {
-    const adjustment = summaryRangeAdjustments[fieldKey]
-    if (!adjustment) return null
-    const stdNumber = getStdNumberForRange(fieldKey)
-    if (stdNumber === null) return null
-    const delta = adjustment[bound]
-    if (delta === null || delta === undefined) return null
-    const value = bound === 'min' ? stdNumber - delta : stdNumber + delta
-    return Number.isFinite(value) ? formatNumericDisplay(value, 3) : null
-  }
+  // const getAutoRangeValue = (
+  //   fieldKey: SummaryRangeField,
+  //   bound: 'min' | 'max'
+  // ) => {
+  //   const adjustment = summaryRangeAdjustments[fieldKey]
+  //   if (!adjustment) return null
+  //   const stdNumber = getStdNumberForRange(fieldKey)
+  //   if (stdNumber === null) return null
+  //   const delta = adjustment[bound]
+  //   if (delta === null || delta === undefined) return null
+  //   const value = bound === 'min' ? stdNumber - delta : stdNumber + delta
+  //   return Number.isFinite(value) ? formatNumericDisplay(value, 3) : null
+  // }
 
   const getRangeDisplayValue = (
     fieldKey: SummaryRangeField,
@@ -632,8 +644,8 @@ export default function ZhafirParameterForm() {
   ) => {
     const draft = bound === 'min' ? minDraft[fieldKey] : maxDraft[fieldKey]
     if (manualRangeMode[fieldKey]) return draft ?? ''
-    const autoValue = getAutoRangeValue(fieldKey, bound)
-    if (autoValue !== null) return autoValue
+    // const autoValue = getAutoRangeValue(fieldKey, bound)
+    // if (autoValue !== null) return autoValue
     return draft ?? ''
   }
 
@@ -735,10 +747,11 @@ export default function ZhafirParameterForm() {
       }`
       const unique = new Set<string>()
       if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600${q}`)
-      unique.add('http://localhost:9999/api/zhafir-ze-3600' + q)
-      unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600' + q)
+      if (isLocalRuntime) {
+        unique.add('http://localhost:9999/api/zhafir-ze-3600' + q)
+        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600' + q)
+      }
       unique.add(`/be/api/zhafir-ze-3600${q}`)
-      unique.add(`/api/zhafir-ze-3600${q}`)
       return Array.from(unique)
     }
 
@@ -755,10 +768,11 @@ export default function ZhafirParameterForm() {
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/actual-view${q}`)
-      unique.add('http://localhost:9999/api/zhafir-ze-3600/actual-view' + q)
-      unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-view' + q)
+      if (isLocalRuntime) {
+        unique.add('http://localhost:9999/api/zhafir-ze-3600/actual-view' + q)
+        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-view' + q)
+      }
       unique.add(`/be/api/zhafir-ze-3600/actual-view${q}`)
-      unique.add(`/api/zhafir-ze-3600/actual-view${q}`)
       return Array.from(unique)
     }
 
@@ -892,10 +906,11 @@ export default function ZhafirParameterForm() {
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/actual-hours${q}`)
-      unique.add('http://localhost:9999/api/zhafir-ze-3600/actual-hours' + q)
-      unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-hours' + q)
+      if (isLocalRuntime) {
+        unique.add('http://localhost:9999/api/zhafir-ze-3600/actual-hours' + q)
+        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-hours' + q)
+      }
       unique.add(`/be/api/zhafir-ze-3600/actual-hours${q}`)
-      unique.add(`/api/zhafir-ze-3600/actual-hours${q}`)
       return Array.from(unique)
     }
 
@@ -964,14 +979,15 @@ export default function ZhafirParameterForm() {
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/material-context${q}`)
-      unique.add(
-        'http://localhost:9999/api/zhafir-ze-3600/material-context' + q
-      )
-      unique.add(
-        'http://127.0.0.1:9999/api/zhafir-ze-3600/material-context' + q
-      )
+      if (isLocalRuntime) {
+        unique.add(
+          'http://localhost:9999/api/zhafir-ze-3600/material-context' + q
+        )
+        unique.add(
+          'http://127.0.0.1:9999/api/zhafir-ze-3600/material-context' + q
+        )
+      }
       unique.add('/be/api/zhafir-ze-3600/material-context' + q)
-      unique.add('/api/zhafir-ze-3600/material-context' + q)
       return Array.from(unique)
     }
 
@@ -1029,14 +1045,15 @@ export default function ZhafirParameterForm() {
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/material-type-routing${q}`)
-      unique.add(
-        'http://localhost:9999/api/zhafir-ze-3600/material-type-routing' + q
-      )
-      unique.add(
-        'http://127.0.0.1:9999/api/zhafir-ze-3600/material-type-routing' + q
-      )
+      if (isLocalRuntime) {
+        unique.add(
+          'http://localhost:9999/api/zhafir-ze-3600/material-type-routing' + q
+        )
+        unique.add(
+          'http://127.0.0.1:9999/api/zhafir-ze-3600/material-type-routing' + q
+        )
+      }
       unique.add('/be/api/zhafir-ze-3600/material-type-routing' + q)
-      unique.add('/api/zhafir-ze-3600/material-type-routing' + q)
       return Array.from(unique)
     }
 
@@ -1100,14 +1117,15 @@ export default function ZhafirParameterForm() {
         candidateUrls.add(
           `${normalized}/api/zhafir-ze-3600/material-type-routing`
         )
-      candidateUrls.add(
-        'http://localhost:9999/api/zhafir-ze-3600/material-type-routing'
-      )
-      candidateUrls.add(
-        'http://127.0.0.1:9999/api/zhafir-ze-3600/material-type-routing'
-      )
+      if (isLocalRuntime) {
+        candidateUrls.add(
+          'http://localhost:9999/api/zhafir-ze-3600/material-type-routing'
+        )
+        candidateUrls.add(
+          'http://127.0.0.1:9999/api/zhafir-ze-3600/material-type-routing'
+        )
+      }
       candidateUrls.add('/be/api/zhafir-ze-3600/material-type-routing')
-      candidateUrls.add('/api/zhafir-ze-3600/material-type-routing')
 
       for (const url of Array.from(candidateUrls)) {
         try {
@@ -1144,10 +1162,11 @@ export default function ZhafirParameterForm() {
     const endpoint = kind === 'actual' ? 'manual-actual' : 'manual-std'
     const unique = new Set<string>()
     if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/${endpoint}`)
-    unique.add(`http://localhost:9999/api/zhafir-ze-3600/${endpoint}`)
-    unique.add(`http://127.0.0.1:9999/api/zhafir-ze-3600/${endpoint}`)
+    if (isLocalRuntime) {
+      unique.add(`http://localhost:9999/api/zhafir-ze-3600/${endpoint}`)
+      unique.add(`http://127.0.0.1:9999/api/zhafir-ze-3600/${endpoint}`)
+    }
     unique.add(`/be/api/zhafir-ze-3600/${endpoint}`)
-    unique.add(`/api/zhafir-ze-3600/${endpoint}`)
     return Array.from(unique)
   }
 
@@ -1283,16 +1302,17 @@ export default function ZhafirParameterForm() {
         `${normalized}/api/zhafir-ze-3600/material-context-by-material-id${q}`
       )
     }
-    candidates.add(
-      'http://localhost:9999/api/zhafir-ze-3600/material-context-by-material-id' +
-        q
-    )
-    candidates.add(
-      'http://127.0.0.1:9999/api/zhafir-ze-3600/material-context-by-material-id' +
-        q
-    )
+    if (isLocalRuntime) {
+      candidates.add(
+        'http://localhost:9999/api/zhafir-ze-3600/material-context-by-material-id' +
+          q
+      )
+      candidates.add(
+        'http://127.0.0.1:9999/api/zhafir-ze-3600/material-context-by-material-id' +
+          q
+      )
+    }
     candidates.add('/be/api/zhafir-ze-3600/material-context-by-material-id' + q)
-    candidates.add('/api/zhafir-ze-3600/material-context-by-material-id' + q)
 
     const fetchWithTimeout = async (url: string) => {
       const controller = new AbortController()
@@ -1534,10 +1554,11 @@ if (!resolved || !resolved.materialName) {
     const normalized = trimmed.endsWith('/api') ? trimmed.slice(0, -4) : trimmed
     const unique = new Set<string>()
     if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/manual-bulk`)
-    unique.add('http://localhost:9999/api/zhafir-ze-3600/manual-bulk')
-    unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/manual-bulk')
+    if (isLocalRuntime) {
+      unique.add('http://localhost:9999/api/zhafir-ze-3600/manual-bulk')
+      unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/manual-bulk')
+    }
     unique.add('/be/api/zhafir-ze-3600/manual-bulk')
-    unique.add('/api/zhafir-ze-3600/manual-bulk')
     return Array.from(unique)
   }
 

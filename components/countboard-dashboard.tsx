@@ -43,7 +43,7 @@ import {
   ZoomOut,
 } from 'lucide-react'
 import { Calendar } from '@/components/ui/calendar'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -238,6 +238,12 @@ type ZhafirTemporaryAccessStatus = {
   note?: string
 }
 
+type ZhafirSnapshotResponse = {
+  access?: ZhafirTemporaryAccessStatus | null
+  stdAct?: ZhafirStdActResponse | null
+  actualView?: ZhafirActualViewResponse | null
+}
+
 type ZhafirActiveMaterialResponse = {
   machineId: string
   materialId: string | null
@@ -288,7 +294,7 @@ const ZHAFIR_INDICATORS = [
   { field: 'Thickness', label: 'CUSHION', icon: '/admin/Cushion.png' },
   {
     field: 'VPTimeText',
-    label: 'Injection Time',
+    label: 'V/P Time',
     icon: '/admin/Injection time.png',
   },
 ] as const
@@ -659,6 +665,10 @@ export default function CountboardDashboard() {
 
   const pathname = usePathname()
   const router = useRouter()
+  const isLocalRuntime =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1')
   const resolveZhafirCandidates = useCallback((endpoint: string) => {
     const trimmedBase = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
       /\/+$/,
@@ -670,14 +680,29 @@ export default function CountboardDashboard() {
     const unique = new Set<string>()
     if (normalizedBase)
       unique.add(`${normalizedBase}/api/zhafir-ze-3600/${endpoint}`)
-    unique.add(`http://localhost:9999/api/zhafir-ze-3600/${endpoint}`)
-    unique.add(`http://127.0.0.1:9999/api/zhafir-ze-3600/${endpoint}`)
+    if (isLocalRuntime) {
+      unique.add(`http://localhost:9999/api/zhafir-ze-3600/${endpoint}`)
+      unique.add(`http://127.0.0.1:9999/api/zhafir-ze-3600/${endpoint}`)
+    }
     unique.add(`/be/api/zhafir-ze-3600/${endpoint}`)
-    unique.add(`/api/zhafir-ze-3600/${endpoint}`)
     return Array.from(unique)
+  }, [isLocalRuntime])
+  const buildFallbackZhafirIndicatorMap = useCallback((): ZhafirIndicatorMap => {
+    return Object.fromEntries(
+      ZHAFIR_INDICATORS.map((item) => [
+        item.field,
+        {
+          status: 'unknown',
+          std: null,
+          act: null,
+          min: null,
+          max: null,
+        },
+      ])
+    ) as ZhafirIndicatorMap
   }, [])
-  const fetchZhafirIndicatorStatuses = useCallback(
-    async (machineName: string): Promise<ZhafirIndicatorMap> => {
+  const fetchZhafirSnapshot = useCallback(
+    async (machineName: string): Promise<ZhafirSnapshotResponse> => {
       const trimmedBase = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
         /\/+$/,
         ''
@@ -686,84 +711,42 @@ export default function CountboardDashboard() {
         ? trimmedBase.slice(0, -4)
         : trimmedBase
       const baseQuery = `?paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}&machine_id=${encodeURIComponent(machineName)}`
-      const buildCandidates = (endpoint: '' | '/actual-view') => {
+      const buildCandidates = () => {
         const candidates = new Set<string>()
-        const path = `/api/zhafir-ze-3600${endpoint}${baseQuery}`
+        const path = `/api/zhafir-ze-3600/snapshot${baseQuery}`
         if (normalizedBase) {
           candidates.add(`${normalizedBase}${path}`)
         }
-        candidates.add(`http://localhost:9999${path}`)
-        candidates.add(`http://127.0.0.1:9999${path}`)
+        if (isLocalRuntime) {
+          candidates.add(`http://localhost:9999${path}`)
+          candidates.add(`http://127.0.0.1:9999${path}`)
+        }
         candidates.add(`/be${path}`)
-        candidates.add(path)
         return Array.from(candidates)
       }
 
-      const fetchFirstOkJson = async <T,>(candidates: string[]) => {
-        for (const url of candidates) {
-          try {
-            const res = await fetch(url, { cache: 'no-store' })
-            if (!res.ok) continue
-            return (await res.json()) as T
-          } catch {
-            // try next candidate
-          }
-        }
-        return null
-      }
-
-      const stdData = await fetchFirstOkJson<ZhafirStdActResponse>(
-        buildCandidates('')
-      )
-      const actualData = await fetchFirstOkJson<ZhafirActualViewResponse>([
-        ...buildCandidates('/actual-view'),
-      ])
-
-      const fallbackMap = Object.fromEntries(
-        ZHAFIR_INDICATORS.map((item) => [
-          item.field,
-          {
-            status: 'unknown',
-            std: null,
-            act: null,
-            min: null,
-            max: null,
-          },
-        ])
-      ) as ZhafirIndicatorMap
-
-      if (!stdData && !actualData) {
-        return fallbackMap
-      }
-
-      const map = { ...fallbackMap }
-      for (const indicator of ZHAFIR_INDICATORS) {
-        const pair = stdData?.values?.[indicator.field]
-        const range = stdData?.ranges?.[indicator.field]
-        const mergedAct = actualData?.values?.[indicator.field] ?? pair?.act
-
-        const std = parseFiniteNumber(pair?.std)
-        const act = parseFiniteNumber(mergedAct)
-        const min = parseFiniteNumber(range?.min)
-        const max = parseFiniteNumber(range?.max)
-
-        if (act === null) {
-          map[indicator.field] = { status: 'unknown', std, act, min, max }
-          continue
-        }
-
-        map[indicator.field] = {
-          status: classifyZhafirStatus(act, min, max, std),
-          std,
-          act,
-          min,
-          max,
+      for (const url of buildCandidates()) {
+        try {
+          const res = await fetch(url, { cache: 'no-store' })
+          if (!res.ok) continue
+          return (await res.json()) as ZhafirSnapshotResponse
+        } catch {
+          // try next candidate
         }
       }
 
-      return map
+      return {
+        access: {
+          machineId: machineName,
+          enabled: false,
+          runtimeEnabled: false,
+          note: 'unavailable',
+        },
+        stdAct: null,
+        actualView: null,
+      }
     },
-    []
+    [isLocalRuntime]
   )
   const openZhafirIndicatorTrend = useCallback(
     async (
@@ -790,7 +773,7 @@ export default function CountboardDashboard() {
       if (shouldInitZoom) {
         const initialZoom =
           ZHAFIR_Y_AXIS_CONFIG[indicator.field].initialZoom ?? 1
-        setZhafirTrendZoom(Math.max(1, initialZoom))
+        setZhafirTrendZoom(Math.max(4, initialZoom))
       }
       setSelectedTrendIndicator(indicator)
       setIsZhafirTrendDialogOpen(true)
@@ -936,29 +919,6 @@ export default function CountboardDashboard() {
     ]
   )
   const [isSavingZhafirAccess, setIsSavingZhafirAccess] = useState(false)
-  const fetchZhafirTemporaryAccessStatus = useCallback(
-    async (machineName: string): Promise<ZhafirTemporaryAccessStatus> => {
-      const candidates = resolveZhafirCandidates(
-        `temporary-access-status?machine_id=${encodeURIComponent(machineName)}`
-      )
-      for (const url of candidates) {
-        try {
-          const res = await fetch(url, { cache: 'no-store' })
-          if (!res.ok) continue
-          return (await res.json()) as ZhafirTemporaryAccessStatus
-        } catch {
-          // try next candidate
-        }
-      }
-      return {
-        machineId: machineName,
-        enabled: false,
-        runtimeEnabled: false,
-        note: 'unavailable',
-      }
-    },
-    [resolveZhafirCandidates]
-  )
   const setZhafirTemporaryAccess = useCallback(
     async (enabled: boolean) => {
       const machineName = selectedMachine?.machineName
@@ -1005,8 +965,7 @@ export default function CountboardDashboard() {
         toast.success(
           `Zhafir ${enabled ? 'enabled' : 'disabled'} untuk ${machineName}`
         )
-        mutate(['zhafir-indicators', machineName])
-        mutate(['zhafir-access', machineName])
+        mutate(['zhafir-snapshot', machineName])
       } finally {
         setIsSavingZhafirAccess(false)
       }
@@ -1706,6 +1665,7 @@ export default function CountboardDashboard() {
     categories,
     refetchStateData,
   ])
+  console.log(selectedMachine)
   // const handleOrangeTicketSubmit = useCallback(async () => {
   //   if (!selectedAssignTo || !selectedAssignBy) {
   //     toast.error('Pilih Assign To (Operator/Mekanik) dan Assign By (SPV)')
@@ -1975,9 +1935,18 @@ export default function CountboardDashboard() {
   const { data: hourlyData } = useSWR<HourlyData[]>(
     hourlyDataKey,
     async (url) => {
-      const response = await fetch(url)
-      if (!response.ok) throw new Error('Failed to fetch')
-      return response.json()
+      const promise = fetch(url).then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        return res.json()
+      })
+
+      toast.promise(promise, {
+        loading: 'Loading...',
+        // success: 'Countboard data refreshed',
+        error: 'Failed to load data',
+      })
+
+      return promise
     },
     {
       ...swrRecoveryOptions,
@@ -2064,35 +2033,63 @@ export default function CountboardDashboard() {
   const refetchTaskData = useCallback(() => {
     mutate(taskDataKey)
   }, [taskDataKey])
-  const zhafirIndicatorStatusKey = selectedMachine?.machineName
-    ? (['zhafir-indicators', selectedMachine.machineName] as const)
+  const zhafirSnapshotKey = selectedMachine?.machineName
+    ? (['zhafir-snapshot', selectedMachine.machineName] as const)
     : null
-  const zhafirAccessStatusKey = selectedMachine?.machineName
-    ? (['zhafir-access', selectedMachine.machineName] as const)
-    : null
-  const {
-    data: zhafirIndicatorStatusMap,
-    isLoading: isLoadingZhafirIndicators,
-  } = useSWR<ZhafirIndicatorMap>(
-    zhafirIndicatorStatusKey,
-    () => fetchZhafirIndicatorStatuses(selectedMachine?.machineName ?? ''),
-    {
-      ...swrRecoveryOptions,
-      revalidateOnMount: true,
-      revalidateOnFocus: false,
-      refreshInterval: Number(selectedRefreshRate),
+  const { data: zhafirSnapshot, isLoading: isLoadingZhafirIndicators } =
+    useSWR<ZhafirSnapshotResponse>(
+      zhafirSnapshotKey,
+      () => fetchZhafirSnapshot(selectedMachine?.machineName ?? ''),
+      {
+        ...swrRecoveryOptions,
+        revalidateOnMount: true,
+        revalidateOnFocus: false,
+        refreshInterval: Number(selectedRefreshRate),
+      }
+    )
+  const zhafirIndicatorStatusMap = useMemo<ZhafirIndicatorMap>(() => {
+    const fallbackMap = buildFallbackZhafirIndicatorMap()
+    const stdData = zhafirSnapshot?.stdAct || null
+    const actualData = zhafirSnapshot?.actualView || null
+    if (!stdData && !actualData) return fallbackMap
+
+    const map = { ...fallbackMap }
+    for (const indicator of ZHAFIR_INDICATORS) {
+      const pair = stdData?.values?.[indicator.field]
+      const range = stdData?.ranges?.[indicator.field]
+      const mergedAct = actualData?.values?.[indicator.field] ?? pair?.act
+
+      const std = parseFiniteNumber(pair?.std)
+      const act = parseFiniteNumber(mergedAct)
+      const min = parseFiniteNumber(range?.min)
+      const max = parseFiniteNumber(range?.max)
+
+      if (act === null) {
+        map[indicator.field] = { status: 'unknown', std, act, min, max }
+        continue
+      }
+
+      map[indicator.field] = {
+        status: classifyZhafirStatus(act, min, max, std),
+        std,
+        act,
+        min,
+        max,
+      }
     }
-  )
-  const { data: zhafirAccessStatus } = useSWR<ZhafirTemporaryAccessStatus>(
-    zhafirAccessStatusKey,
-    () => fetchZhafirTemporaryAccessStatus(selectedMachine?.machineName ?? ''),
-    {
-      ...swrRecoveryOptions,
-      revalidateOnMount: true,
-      revalidateOnFocus: false,
-      refreshInterval: Number(selectedRefreshRate),
-    }
-  )
+    return map
+  }, [buildFallbackZhafirIndicatorMap, zhafirSnapshot?.actualView, zhafirSnapshot?.stdAct])
+  const zhafirAccessStatus = useMemo<ZhafirTemporaryAccessStatus>(() => {
+    const machineId = selectedMachine?.machineName ?? ''
+    return (
+      zhafirSnapshot?.access || {
+        machineId,
+        enabled: false,
+        runtimeEnabled: false,
+        note: 'unavailable',
+      }
+    )
+  }, [selectedMachine?.machineName, zhafirSnapshot?.access])
 
   const currentPo =
     Array.isArray(taskData) && taskData.length > 0
@@ -2135,7 +2132,7 @@ export default function CountboardDashboard() {
       )
       const existsUrl = base
         ? `${base}/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
-        : `/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
+        : `/be/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
       const res = await fetch(existsUrl)
       if (!res.ok) {
         throw new Error('Failed to check parameter setting')
@@ -2182,30 +2179,15 @@ export default function CountboardDashboard() {
   )
 
   const handleLocationChange = (value: string) => {
-    if (value === selectedLocation) return
-
-    const nextMachines =
-      machines?.filter((machine) => machine.locationName === value) ?? []
-    const nextMachine = nextMachines[0] ?? null
-    const nextMachineNumber = nextMachine?.machineNumber ?? ''
-
     setSelectedLocation(value)
-    setSelectedMachineNumber(nextMachineNumber)
-    setSelectedMachine(nextMachine)
-
     const params = new URLSearchParams(searchParams)
     params.set('location', value)
-    if (nextMachineNumber) {
-      params.set('machineNumber', nextMachineNumber)
-    } else {
-      params.delete('machineNumber')
-    }
-    router.replace(`${pathname}?${params.toString()}`)
+    router.push(`${pathname}?${params.toString()}`)
+    setSelectedMachineNumber('')
+    setSelectedMachine(null)
   }
 
   const handleMachineNumberChange = (value: string) => {
-    if (value === selectedMachineNumber) return
-
     setSelectedMachineNumber(value)
     const selected =
       filteredMachines?.find((machine) => machine.machineNumber === value) ||
@@ -2214,7 +2196,7 @@ export default function CountboardDashboard() {
     setCurrentCVT(taskData?.[0]?.actual_cvt ?? 0)
     const params = new URLSearchParams(searchParams)
     params.set('machineNumber', value)
-    router.replace(`${pathname}?${params.toString()}`)
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   const handleRefreshRateChange = (value: string) => {
@@ -2578,40 +2560,49 @@ export default function CountboardDashboard() {
   }
 
   const searchParams = useSearchParams()
-  const queryMachineNumber = searchParams.get('machineNumber') || '10'
-  const queryLocation = searchParams.get('location') || 'INJ Bld G'
-  const queryRefreshRate = searchParams.get('refresh') || '5000'
-  const queryLiveMode = searchParams.get('isLiveMode') || 'true'
+  const params = new URLSearchParams(searchParams)
+
+  let queryMachineNumber = searchParams.get('machineNumber') || ''
+  let queryLocation = searchParams.get('location') || ''
+  let queryRefreshRate = searchParams.get('refresh') || ''
+  let queryLiveMode = searchParams.get('isLiveMode') || ''
   const queryDate = searchParams.get('date') || ''
   const queryShift = searchParams.get('shift') || ''
   const loginRedirectTarget = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
   const loginHref = `/login/?redirect=${encodeURIComponent(loginRedirectTarget)}`
 
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams)
-    let hasChanged = false
+  if (queryMachineNumber == '') {
+    queryMachineNumber = '10'
+    params.set('machineNumber', '10')
+    router.push(`${pathname}?${params.toString()}`)
+  }
 
-    if (!params.get('machineNumber')) {
-      params.set('machineNumber', '10')
-      hasChanged = true
-    }
-    if (!params.get('location')) {
-      params.set('location', 'INJ Bld G')
-      hasChanged = true
-    }
-    if (!params.get('refresh')) {
-      params.set('refresh', '5000')
-      hasChanged = true
-    }
-    if (!params.get('isLiveMode')) {
-      params.set('isLiveMode', 'true')
-      hasChanged = true
-    }
+  if (queryLocation == '') {
+    queryLocation = 'INJ Bld G'
+    params.set('location', 'INJ Bld G')
+    router.push(`${pathname}?${params.toString()}`)
+  }
+  if (queryRefreshRate == '') {
+    queryRefreshRate = '5000'
+    params.set('refresh', '5000')
+    router.push(`${pathname}?${params.toString()}`)
+  }
+  if (queryLiveMode == '') {
+    queryLiveMode = 'true'
+    params.set('isLiveMode', 'true')
+    router.push(`${pathname}?${params.toString()}`)
+  }
 
-    if (hasChanged) {
-      router.replace(`${pathname}?${params.toString()}`)
-    }
-  }, [pathname, router, searchParams])
+  // if (queryDate == '' ) {
+  //   queryDate = ''
+  //   params.set('date', '');
+  //   router.push(`${pathname}?${params.toString()}`);
+  // }
+  // if (queryShift == '' ) {
+  //   queryShift = ''
+  //   params.set('shift', '');
+  //   router.push(`${pathname}?${params.toString()}`);
+  // }
 
   useEffect(() => {
     if (queryLocation) {
@@ -2621,19 +2612,22 @@ export default function CountboardDashboard() {
   }, [queryLocation])
 
   useEffect(() => {
-    const candidates =
-      machines?.filter((machine) => machine.locationName === queryLocation) ?? []
-    if (!queryMachineNumber || candidates.length === 0) return
+    if (queryMachineNumber) {
+      setSelectedMachineNumber(queryMachineNumber)
+      // const selected = filteredMachines?.find(
+      //   machine => machine.machineNumber === queryMachineNumber
+      // );
+      const selected = filteredMachines?.find(
+        (machine) => machine.machineNumber == queryMachineNumber
+      )
+      // console.log(`filteredMachines from query: ${JSON.stringify(filteredMachines)}`);
+      // console.log(`selected from query: ${JSON.stringify(selected)}`);
 
-    const selected =
-      candidates.find((machine) => machine.machineNumber == queryMachineNumber) ??
-      candidates[0]
-
-    setSelectedMachineNumber(selected.machineNumber)
-    setSelectedMachine((prev) =>
-      prev?.machineName === selected.machineName ? prev : selected
-    )
-  }, [machines, queryLocation, queryMachineNumber])
+      setSelectedMachine(selected || null)
+      // console.log(`machine number from query : ${queryMachineNumber}`);
+      // console.log(`selected machine from query :`, selected);
+    }
+  }, [queryMachineNumber, machines, filteredMachines])
 
   useEffect(() => {
     if (queryRefreshRate) {
@@ -2707,6 +2701,17 @@ export default function CountboardDashboard() {
     return (
       <ErrorState message="Error loading machines. Please try again later." />
     )
+  console.log('Machine Process:', selectedMachine?.Process)
+  console.log('Selected Category:', selectedCategoryId)
+  console.log('Problems length:', problems?.length)
+  problems.forEach((p) => {
+    console.log(
+      'Problem process raw:',
+      JSON.stringify(p.process),
+      '| Machine process raw:',
+      JSON.stringify(selectedMachine?.Process)
+    )
+  })
   const renderNooeIndicators = (from_datetime: Date) => {
     const nooeForTime =
       noeeData?.filter((nooe) => {
@@ -2939,9 +2944,9 @@ export default function CountboardDashboard() {
         <div className="flex flex-col gap-2 flex-1">
           {/* First row - Machine info */}
           <div className="flex flex-wrap gap-2">
-            {isLoading ? (
+            {/* {isLoading ? (
               <div></div>
-            ) : (
+            ) : ( */}
               <div className="flex items-center gap-2">
                 <Select
                   value={selectedLocation}
@@ -2982,7 +2987,7 @@ export default function CountboardDashboard() {
                   </SelectContent>
                 </Select>
               </div>
-            )}
+            {/* // ) } */}
 
             <Tooltip>
               <TooltipTrigger asChild>
