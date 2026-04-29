@@ -632,8 +632,7 @@ export default function CilMonitoring() {
                 </div>
 
                 {/* Status Activity (Hanya muncul jika sedang CILT) */}
-                {(selectedItem.statusCILT === 'CILT' ||
-                  selectedItem.daily_shoot >= 2500) && (
+                {(selectedItem.statusCILT === 'CILT') && (
                   <div className="p-4 bg-yellow-50 rounded-2xl border border-yellow-200">
                     <div className="flex items-center gap-2 text-yellow-700 mb-3">
                       <Activity size={16} className="animate-pulse" />
