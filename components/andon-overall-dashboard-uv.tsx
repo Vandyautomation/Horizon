@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense, useMemo } from "react"
+import { useState, useEffect, Suspense, useMemo, useRef } from "react"
 import Image from "next/image";
 import albeaLogo from "@/public/albea-white.png"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -111,6 +111,7 @@ function countStatuses(machines: Machine[]) {
 }
 
 export default function AndonOverallDashboard() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [buildings, setBuildings] = useState<Building[] | undefined>(undefined);
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
@@ -127,6 +128,11 @@ export default function AndonOverallDashboard() {
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState<string | null>(null);
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const zoomStep = 0.1;
+  const zoomMin = 0.6;
+  const zoomMax = 1.8;
 
   const [andon, setAndon] = useState<Andon[] | null>(null);
 
@@ -340,6 +346,28 @@ export default function AndonOverallDashboard() {
     };
   }, [isDragging, isResizing, dragOffset, resizeStart, resizeDirection]);
 
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    };
+  }, []);
+
+  const clampZoom = (value: number) => Math.min(zoomMax, Math.max(zoomMin, value));
+  const handleZoomIn = () => setZoom(prev => clampZoom(Number((prev + zoomStep).toFixed(2))));
+  const handleZoomOut = () => setZoom(prev => clampZoom(Number((prev - zoomStep).toFixed(2))));
+  const handleZoomReset = () => setZoom(1);
+  const toggleFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      await containerRef.current?.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  };
+
   // Add useEffect for escape key handling
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -355,13 +383,27 @@ export default function AndonOverallDashboard() {
   }, [selectedCard]);
 
   return (
-    <div className="w-full h-full ">
-      <div className="flex items-center justify-between">
-      <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle bg-white"/>
-        <h1 className="text-4xl font-bold mr-4">ANDON OVERALL DASHBOARD UV</h1>
-        <h1 className="text-4xl font-bold mr-4">TECHPACK ASIA</h1>
-        </div>
-        <div className="p-0">
+    <div ref={containerRef} className="w-full h-full bg-white">
+      <div className="w-full h-full overflow-auto">
+        <div
+          className="origin-top-left"
+          style={{ transform: `scale(${zoom})`, width: `${100 / zoom}%`, height: `${100 / zoom}%` }}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle bg-white"/>
+            <h1 className="text-4xl font-bold mr-4 flex-1 text-center">ANDON OVERALL DASHBOARD UV</h1>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={toggleFullscreen}>
+                {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              </Button>
+              <Button variant="outline" onClick={handleZoomOut}>-</Button>
+              <span className="min-w-[64px] text-center text-sm font-semibold">{Math.round(zoom * 100)}%</span>
+              <Button variant="outline" onClick={handleZoomIn}>+</Button>
+              <Button variant="outline" onClick={handleZoomReset}>Reset</Button>
+              <h1 className="text-4xl font-bold ml-3">TECHPACK ASIA</h1>
+            </div>
+          </div>
+          <div className="p-0">
           {/* <Image src={albeaLogo} alt="Albea" width={200} height={100} className="px-3 py-2 flex items-center border border-gray-250 rounded-xl text-gray-700 align-middle"/> */}
           {/* ALL Machines Summary Card */}
           <div className="mb-4">
@@ -602,6 +644,10 @@ export default function AndonOverallDashboard() {
             
             return Object.entries(locationGroups).map(([location, machines]) => {
               const counts = countStatuses(machines);
+              const locationOee =
+                machines.reduce((acc, machine) => acc + (machine.oee || 0), 0) / (machines.length || 1);
+              const locationOoe =
+                machines.reduce((acc, machine) => acc + (machine.ooe || 0), 0) / (machines.length || 1);
               
               return (
                 <div className="mb-2" key={`${building.id}-${location}`}>
@@ -768,7 +814,7 @@ export default function AndonOverallDashboard() {
                     <Card className="bg-cyan-500 text-white">
                         <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OEE</div>
-                          <div className="text-3xl font-bold">{((building.oee || 0) * 100).toFixed(2)}%</div>
+                          <div className="text-3xl font-bold">{(locationOee * 100).toFixed(2)}%</div>
                           <div className="text-xs text-white ">from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}</div>
                         </CardContent>
                       </Card>
@@ -776,7 +822,7 @@ export default function AndonOverallDashboard() {
                       <Card className="bg-cyan-600 text-white">
                         <CardContent className="p-4 text-center pb-0">
                           <div className="text-sm">OOE</div>
-                          <div className="text-3xl font-bold">{((building.ooe || 0) * 100).toFixed(2)}%</div>
+                          <div className="text-3xl font-bold">{(locationOoe * 100).toFixed(2)}%</div>
                           <div className="text-xs text-white ">from {startHour.toString().padStart(2, '0')}.00 - {new Date().getHours().toString().padStart(2, '0')}.{new Date().getMinutes().toString().padStart(2, '0')}</div>
                         </CardContent>
                       </Card>
@@ -913,7 +959,8 @@ export default function AndonOverallDashboard() {
         </Card>
       )}
 
+        </div>
       </div>
+    </div>
   );
 }
-

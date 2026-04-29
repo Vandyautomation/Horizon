@@ -790,7 +790,7 @@ export default function CountboardDashboard() {
       if (shouldInitZoom) {
         const initialZoom =
           ZHAFIR_Y_AXIS_CONFIG[indicator.field].initialZoom ?? 1
-        setZhafirTrendZoom(Math.max(1, initialZoom))
+        setZhafirTrendZoom(Math.max(4, initialZoom))
       }
       setSelectedTrendIndicator(indicator)
       setIsZhafirTrendDialogOpen(true)
@@ -2938,7 +2938,7 @@ export default function CountboardDashboard() {
 
     return polygons
   }
-
+console.log('ooeeData:', oeeData)
   return (
     <div className="p-0 space-y-2 w-full">
       <div className="flex gap-4 justify-between items-center">
@@ -2957,9 +2957,9 @@ export default function CountboardDashboard() {
         <div className="flex flex-col gap-2 flex-1">
           {/* First row - Machine info */}
           <div className="flex flex-wrap gap-2">
-            {isLoading ? (
+            {/* {isLoading ? (
               <div></div>
-            ) : (
+            ) : ( */}
               <div className="flex items-center gap-2">
                 <Select
                   value={selectedLocation}
@@ -3000,7 +3000,7 @@ export default function CountboardDashboard() {
                   </SelectContent>
                 </Select>
               </div>
-            )}
+            {/* )} */}
 
             <Tooltip>
               <TooltipTrigger asChild>

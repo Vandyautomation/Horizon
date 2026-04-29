@@ -16,9 +16,12 @@ import routingDataRouter from './routingDataRoutes';
 import parameterSettingDataRouter from './parameterSettingDataRoutes';
 import problemMasterDataRouter from './problemMasterRoutes';
 import hrzRoutes from './hrzRoutes';
-import exportRoutes from './exportRoutes'
 import zhafirRoutes from './zhafirRoutes';
-import exportRoutesBreak from './exportRouteBreak';
+// import zhafirCountboardRoutes from './zhafirCountboardRoutes';
+// import mdpRoutes from './mdpRoutes';
+import mqttCounterShootRoutes from './mqttCounterShootRoutes';
+import ciltRoutes from './ciltRoutes';
+
 
 
 const router = new Hono();
@@ -43,10 +46,11 @@ router.route('/routing-data', routingDataRouter);
 router.route('/parameter-setting', parameterSettingDataRouter);
 router.route('/problem-master', problemMasterDataRouter);
 router.route('/zhafir-ze-3600', zhafirRoutes);
+// router.route('/zhafircountboard', zhafirCountboardRoutes);
+// router.route('/mdp', mdpRoutes);
+router.route('/mqtt-counter-shoot', mqttCounterShootRoutes);
+router.route('/cilt', ciltRoutes);
 
-
-router.route('/export', exportRoutes);
-router.route('/exportBreak', exportRoutesBreak);
 
 
 

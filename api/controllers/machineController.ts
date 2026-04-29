@@ -1,6 +1,271 @@
 import { Context } from 'hono';
 import { queryDatabase, streamQuery } from '../utils/queryDatabase';
 
+const trendHourlyCache = new Map<string, { expiresAt: number; data: any[] }>();
+const TREND_HOURLY_CACHE_TTL_MS = 5 * 60 * 1000;
+const trendkHourlySummaryCache = new Map<string, { expiresAt: number; data: any }>();
+const TRENDK_HOURLY_SUMMARY_CACHE_TTL_MS = 5 * 60 * 1000;
+const trendkHourlyDetailCache = new Map<string, { expiresAt: number; data: any }>();
+const TRENDK_HOURLY_DETAIL_CACHE_TTL_MS = 2 * 60 * 1000;
+const trendkUniqueLatestSummaryCache = new Map<string, { expiresAt: number; data: any }>();
+const TRENDK_UNIQUE_LATEST_SUMMARY_CACHE_TTL_MS = 2 * 60 * 1000;
+const trendkUniqueLatestDetailCache = new Map<string, { expiresAt: number; data: any }>();
+const TRENDK_UNIQUE_LATEST_DETAIL_CACHE_TTL_MS = 2 * 60 * 1000;
+const TRENDK_AGG_TABLE = 'IoT.dbo.AndonTrendkHourlyAgg';
+// TrendK dimatikan sementara.
+const TRENDK_ENABLED = false;
+
+let trendkAggSchedulerTimer: ReturnType<typeof setInterval> | null = null;
+let trendkAggBackfillRunning = false;
+
+function formatSqlDateTime(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  const ss = String(date.getSeconds()).padStart(2, '0');
+  return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+}
+
+function floorToHour(date: Date) {
+  const d = new Date(date);
+  d.setMinutes(0, 0, 0);
+  return d;
+}
+
+async function ensureTrendkHourlyAggTable() {
+  const sqlQuery = `
+  IF OBJECT_ID('${TRENDK_AGG_TABLE}', 'U') IS NULL
+  BEGIN
+    CREATE TABLE ${TRENDK_AGG_TABLE} (
+      hour_start DATETIME NOT NULL,
+      mchid NVARCHAR(100) NOT NULL,
+      status_light NVARCHAR(50) NOT NULL,
+      duration_seconds INT NOT NULL,
+      updated_at DATETIME NOT NULL DEFAULT GETDATE(),
+      CONSTRAINT PK_AndonTrendkHourlyAgg PRIMARY KEY (hour_start, mchid, status_light)
+    );
+  END;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_AndonTrendkHourlyAgg_Mch_Hour'
+      AND object_id = OBJECT_ID('${TRENDK_AGG_TABLE}')
+  )
+  BEGIN
+    CREATE INDEX IX_AndonTrendkHourlyAgg_Mch_Hour
+      ON ${TRENDK_AGG_TABLE} (mchid, hour_start)
+      INCLUDE (status_light, duration_seconds);
+  END;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_AndonTrendkHourlyAgg_Status_Hour'
+      AND object_id = OBJECT_ID('${TRENDK_AGG_TABLE}')
+  )
+  BEGIN
+    CREATE INDEX IX_AndonTrendkHourlyAgg_Status_Hour
+      ON ${TRENDK_AGG_TABLE} (status_light, hour_start)
+      INCLUDE (mchid, duration_seconds);
+  END;
+  `;
+
+  await queryDatabase(sqlQuery);
+}
+
+async function rebuildTrendkHourlyAggRange(fromDate: string, toDate: string) {
+  const sqlQuery = `
+  DECLARE @from DATETIME = CAST(@from_date AS DATETIME);
+  DECLARE @to DATETIME = CAST(@to_date AS DATETIME);
+  IF OBJECT_ID('tempdb..#Agg') IS NOT NULL DROP TABLE #Agg;
+
+  WITH MachineScope AS (
+    SELECT MchID
+    FROM IoT.dbo.MachineMST WITH (NOLOCK)
+    WHERE Active = 1
+      AND UAP IN ('BASIC', 'PREMIUM', 'LEAN')
+  ),
+  BaseSeed AS (
+    SELECT
+      s.ID,
+      s.MchID,
+      s.StatusLight,
+      s.StatusDate AS StartTime
+    FROM IoT.dbo.MchStatusTRX s WITH (NOLOCK)
+    INNER JOIN MachineScope ms ON ms.MchID = s.MchID
+    WHERE s.Active = 1
+      AND s.StatusDate >= @from
+      AND s.StatusDate < @to
+
+    UNION ALL
+
+    SELECT
+      p.ID,
+      p.MchID,
+      p.StatusLight,
+      p.StatusDate AS StartTime
+    FROM MachineScope ms
+    CROSS APPLY (
+      SELECT TOP 1
+        s2.ID,
+        s2.MchID,
+        s2.StatusLight,
+        s2.StatusDate
+      FROM IoT.dbo.MchStatusTRX s2 WITH (NOLOCK)
+      WHERE s2.Active = 1
+        AND s2.MchID = ms.MchID
+        AND s2.StatusDate < @from
+      ORDER BY s2.StatusDate DESC, s2.ID DESC
+    ) p
+  ),
+  Base AS (
+    SELECT
+      MchID,
+      StatusLight,
+      StartTime,
+      LEAD(StartTime) OVER (PARTITION BY MchID ORDER BY StartTime, ID) AS EndTime
+    FROM BaseSeed
+  ),
+  BaseFix AS (
+    SELECT
+      MchID,
+      StatusLight,
+      CASE WHEN StartTime < @from THEN @from ELSE StartTime END AS StartTimeFix,
+      CASE
+        WHEN ISNULL(EndTime, @to) > @to THEN @to
+        ELSE ISNULL(EndTime, @to)
+      END AS EndTimeFix
+    FROM Base
+    WHERE ISNULL(EndTime, @to) > StartTime
+      AND StartTime < @to
+  ),
+  HourAxis AS (
+    SELECT
+      DATEADD(HOUR, v.number, @from) AS HourStart,
+      CASE
+        WHEN DATEADD(HOUR, v.number + 1, @from) > @to THEN @to
+        ELSE DATEADD(HOUR, v.number + 1, @from)
+      END AS HourEnd
+    FROM master.dbo.spt_values v
+    WHERE v.type = 'P'
+      AND v.number BETWEEN 0 AND CASE
+          WHEN @to <= @from THEN -1
+          ELSE DATEDIFF(HOUR, @from, DATEADD(SECOND, -1, @to))
+      END
+  ),
+  Final AS (
+    SELECT
+      b.MchID,
+      b.StatusLight,
+      h.HourStart,
+      DATEDIFF(
+        SECOND,
+        CASE WHEN b.StartTimeFix > h.HourStart THEN b.StartTimeFix ELSE h.HourStart END,
+        CASE WHEN b.EndTimeFix < h.HourEnd THEN b.EndTimeFix ELSE h.HourEnd END
+      ) AS DurationSeconds
+    FROM BaseFix b
+    INNER JOIN HourAxis h
+      ON b.StartTimeFix < h.HourEnd
+     AND b.EndTimeFix > h.HourStart
+    WHERE b.EndTimeFix > b.StartTimeFix
+  ),
+  Agg AS (
+    SELECT
+      F.HourStart AS hour_start,
+      CAST(F.MchID AS NVARCHAR(100)) AS mchid,
+      CAST(F.StatusLight AS NVARCHAR(50)) AS status_light,
+      CAST(SUM(F.DurationSeconds) AS INT) AS duration_seconds
+    FROM Final F
+    WHERE F.DurationSeconds > 0
+    GROUP BY F.HourStart, F.MchID, F.StatusLight
+  )
+  SELECT
+    a.hour_start,
+    a.mchid,
+    a.status_light,
+    a.duration_seconds
+  INTO #Agg
+  FROM Agg a;
+
+  DELETE t
+  FROM ${TRENDK_AGG_TABLE} t
+  INNER JOIN IoT.dbo.MachineMST mm WITH (NOLOCK) ON mm.MchID = t.mchid
+  WHERE t.hour_start >= @from
+    AND t.hour_start < @to
+    AND mm.Active = 1
+    AND mm.UAP IN ('BASIC', 'PREMIUM', 'LEAN');
+
+  INSERT INTO ${TRENDK_AGG_TABLE} (hour_start, mchid, status_light, duration_seconds, updated_at)
+  SELECT
+    a.hour_start,
+    a.mchid,
+    a.status_light,
+    a.duration_seconds,
+    GETDATE()
+  FROM #Agg a;
+
+  DROP TABLE #Agg;
+  `;
+
+  await queryDatabase(sqlQuery, { from_date: fromDate, to_date: toDate });
+}
+
+async function runTrendkAggregationIncremental() {
+  try {
+    await ensureTrendkHourlyAggTable();
+    const now = new Date();
+    const to = formatSqlDateTime(now);
+    const from = floorToHour(new Date(now.getTime() - 72 * 60 * 60 * 1000));
+    const fromStr = formatSqlDateTime(from);
+    await rebuildTrendkHourlyAggRange(fromStr, to);
+    trendkHourlySummaryCache.clear();
+    trendkHourlyDetailCache.clear();
+    trendkUniqueLatestSummaryCache.clear();
+    trendkUniqueLatestDetailCache.clear();
+  } catch (error) {
+    console.error('Failed running trendk aggregation incremental:', error);
+  }
+}
+
+async function runTrendkAggregationBackfill() {
+  if (trendkAggBackfillRunning) return;
+  trendkAggBackfillRunning = true;
+  try {
+    await ensureTrendkHourlyAggTable();
+    const now = new Date();
+    const end = floorToHour(new Date(now));
+    const start = floorToHour(new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000));
+    const chunkHours = 24 * 3; // 3 hari per chunk
+
+    for (let cursor = new Date(start); cursor < end;) {
+      const from = new Date(cursor);
+      const to = new Date(Math.min(end.getTime(), from.getTime() + chunkHours * 60 * 60 * 1000));
+      await rebuildTrendkHourlyAggRange(formatSqlDateTime(from), formatSqlDateTime(to));
+      cursor = to;
+    }
+    trendkHourlySummaryCache.clear();
+    trendkHourlyDetailCache.clear();
+    trendkUniqueLatestSummaryCache.clear();
+    trendkUniqueLatestDetailCache.clear();
+  } catch (error) {
+    console.error('Failed running trendk aggregation backfill:', error);
+  } finally {
+    trendkAggBackfillRunning = false;
+  }
+}
+
+export function startTrendkHourlyAggregationScheduler() {
+  // TrendK dimatikan sementara.
+  if (!TRENDK_ENABLED) return;
+  if (trendkAggSchedulerTimer) return;
+  runTrendkAggregationIncremental();
+  runTrendkAggregationBackfill();
+  trendkAggSchedulerTimer = setInterval(runTrendkAggregationIncremental, 5 * 60 * 1000);
+}
+
 export async function updateMachine(machineId: string, machineDescription: string, machineTonage: string, machineLocation: string, machineProcess: string, machineUap: string, machineEquipment: string, position: string, rotation: string, energyBudget: number) {
 let sqlQuery = `
     UPDATE MachineMST
@@ -471,8 +736,6 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
             ISNULL(h.running_actual_in_qty, 0) AS actual_in,
             ISNULL(h.running_actual_in_qty, 0) - ISNULL(h.running_actual_out_qty, 0) AS gap,
             h.task_id,
-                  h.top_actual_in_qty AS top_actual_in,
-            H.top_actual_out_qty AS top_actual,
             h.target_qty,
             h.actual_qty,
             h.hour_id,
@@ -576,8 +839,6 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
         ISNULL(h.running_actual_in_qty, 0) AS actual_in,
         ISNULL(h.running_actual_in_qty, 0) - ISNULL(h.running_actual_out_qty, 0) AS gap,
         h.task_id,
-            h.top_actual_in_qty AS top_actual_in,
-            H.top_actual_out_qty AS top_actual,
         h.target_qty,
         h.actual_qty,
         h.hour_id,
@@ -2158,9 +2419,17 @@ export async function getEnergyAdditionalData(machine_name: string, date: string
 export async function makeMachineGrey(machineId: string) {
       const sqlQuery = `
         UPDATE IoT.dbo.MachineMST SET is_override = 1, MchStatus = 'TRIAL' WHERE MchID = @machineId;
-  
-        INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
-        VALUES (@machineId, GETDATE(), 'GREY', 1);
+
+        IF COL_LENGTH('IoT.dbo.MchStatusTRX', 'StatusLightTrial') IS NOT NULL
+        BEGIN
+          INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, StatusLightTrial, Active)
+          VALUES (@machineId, GETDATE(), 'GREY', 'TRIAL', 1);
+        END
+        ELSE
+        BEGIN
+          INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
+          VALUES (@machineId, GETDATE(), 'GREY', 1);
+        END
     `;
     return await queryDatabase(sqlQuery, { machineId });
 }
@@ -2211,12 +2480,31 @@ export async function removeOverride(machineId: string) {
     const sqlQuery = `
     DECLARE @statusLightBefore VARCHAR(50);
 
-    SET @statusLightBefore = (select top 1 StatusLight from IoT.dbo.MchStatusTRX where MchID = @machineId  and Active = 1 and (StatusLight != 'GREY' and StatusLight != 'WHITE') order by ID desc);
+    SET @statusLightBefore = (
+      SELECT TOP 1 StatusLight
+      FROM IoT.dbo.MchStatusTRX
+      WHERE MchID = @machineId
+        AND Active = 1
+        AND (StatusLight != 'GREY' AND StatusLight != 'WHITE')
+      ORDER BY ID DESC
+    );
 
     UPDATE IoT.dbo.MachineMST SET is_override = 0, MchStatus = NULL WHERE MchID = @machineId;
 
-    INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
-    VALUES (@machineId, GETDATE(), @statusLightBefore, 1);
+    -- Jika tidak ada status non-override sebelumnya, tidak insert status baru.
+    IF @statusLightBefore IS NOT NULL
+    BEGIN
+      IF COL_LENGTH('IoT.dbo.MchStatusTRX', 'StatusLightTrial') IS NOT NULL
+      BEGIN
+        INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, StatusLightTrial, Active)
+        VALUES (@machineId, GETDATE(), @statusLightBefore, NULL, 1);
+      END
+      ELSE
+      BEGIN
+        INSERT INTO IoT.dbo.MchStatusTRX (MchID, StatusDate, StatusLight, Active)
+        VALUES (@machineId, GETDATE(), @statusLightBefore, 1);
+      END
+    END
 
     SELECT @statusLightBefore as statusLightBefore;
   `;
@@ -2235,7 +2523,7 @@ export async function getTrendWeekly(date_from: string, date_to: string, uap: st
             m."MchLoc",
             m."UAP",
             m.MchDesc,
-            m.MchTon,
+            CAST(m.MchTon AS NVARCHAR(100)) AS MchTon,
             amr.ooe AS "OOE",
             amr.oee AS "OEE",
             amr.green AS "GREEN",
@@ -2341,6 +2629,957 @@ export async function getTrendWeekly(date_from: string, date_to: string, uap: st
 
     `;
     return await queryDatabase(sqlQuery, { date_from, date_to, uap });
+}
+
+export async function getTrendHourly(
+    date_from: string,
+    date_to: string,
+    uap: string,
+    accurate_duration: boolean = false,
+    excluded_mchids: string[] = []
+) {
+    const useAccurateDuration = accurate_duration === true;
+    const excludedCsv = excluded_mchids
+        .map((v) => String(v || '').trim().toUpperCase())
+        .filter(Boolean)
+        .join(',');
+
+    const cacheKey = `${date_from}|${date_to}|${uap}|accurate=${useAccurateDuration ? 1 : 0}|exclude=${excludedCsv}`;
+    const now = Date.now();
+    const cached = trendHourlyCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+        return cached.data;
+    }
+
+    const sqlQuery = useAccurateDuration ? `
+    DECLARE @from DATETIME = CAST(@date_from AS DATETIME);
+    DECLARE @toInput DATETIME = DATEADD(DAY, 1, CAST(@date_to AS DATETIME));
+    DECLARE @to DATETIME = CASE WHEN @toInput > GETDATE() THEN GETDATE() ELSE @toInput END;
+    DECLARE @excluded_csv NVARCHAR(MAX) = CASE
+        WHEN @excluded_mchids IS NULL OR LTRIM(RTRIM(@excluded_mchids)) = '' THEN ''
+        ELSE ',' + UPPER(REPLACE(@excluded_mchids, ' ', '')) + ','
+    END;
+
+    WITH MachineScope AS (
+        SELECT MchID
+        FROM IoT.dbo.MachineMST WITH (NOLOCK)
+        WHERE Active = 1
+          AND UAP IN ('BASIC', 'PREMIUM', 'LEAN')
+          AND (@uap = 'ALL' OR UAP = @uap)
+          AND (@excluded_csv = '' OR CHARINDEX(',' + UPPER(LTRIM(RTRIM(MchID))) + ',', @excluded_csv) = 0)
+    ),
+    BaseSeed AS (
+        SELECT
+            s.ID,
+            s.MchID,
+            s.StatusLight,
+            s.StatusDate AS StartTime
+        FROM IoT.dbo.MchStatusTRX s WITH (NOLOCK)
+        INNER JOIN MachineScope ms ON ms.MchID = s.MchID
+        WHERE s.Active = 1
+          AND s.StatusDate >= @from
+          AND s.StatusDate < @to
+
+        UNION ALL
+
+        SELECT
+            p.ID,
+            p.MchID,
+            p.StatusLight,
+            p.StatusDate AS StartTime
+        FROM MachineScope ms
+        CROSS APPLY (
+            SELECT TOP 1
+                s2.ID,
+                s2.MchID,
+                s2.StatusLight,
+                s2.StatusDate
+            FROM IoT.dbo.MchStatusTRX s2 WITH (NOLOCK)
+            WHERE s2.Active = 1
+              AND s2.MchID = ms.MchID
+              AND s2.StatusDate < @from
+            ORDER BY s2.StatusDate DESC, s2.ID DESC
+        ) p
+    ),
+    Base AS (
+        SELECT
+            MchID,
+            StatusLight,
+            StartTime,
+            LEAD(StartTime) OVER (PARTITION BY MchID ORDER BY StartTime, ID) AS EndTime
+        FROM BaseSeed
+    ),
+    BaseFix AS (
+        SELECT
+            MchID,
+            StatusLight,
+            CASE WHEN StartTime < @from THEN @from ELSE StartTime END AS StartTimeFix,
+            CASE
+                WHEN ISNULL(EndTime, @to) > @to THEN @to
+                ELSE ISNULL(EndTime, @to)
+            END AS EndTimeFix
+        FROM Base
+        WHERE ISNULL(EndTime, @to) > StartTime
+          AND StartTime < @to
+    ),
+    Hours AS (
+        SELECT
+            DATEADD(HOUR, DATEDIFF(HOUR, 0, StartTimeFix), 0) AS HourStart,
+            MchID,
+            StatusLight,
+            StartTimeFix,
+            EndTimeFix
+        FROM BaseFix
+        WHERE StartTimeFix < EndTimeFix
+
+        UNION ALL
+
+        SELECT
+            DATEADD(HOUR, 1, h.HourStart) AS HourStart,
+            h.MchID,
+            h.StatusLight,
+            h.StartTimeFix,
+            h.EndTimeFix
+        FROM Hours h
+        WHERE DATEADD(HOUR, 1, h.HourStart) < h.EndTimeFix
+          AND DATEADD(HOUR, 1, h.HourStart) < @to
+    ),
+    Final AS (
+        SELECT
+            h.MchID,
+            h.StatusLight,
+            h.HourStart,
+            DATEDIFF(
+                SECOND,
+                CASE WHEN h.StartTimeFix > h.HourStart THEN h.StartTimeFix ELSE h.HourStart END,
+                CASE
+                    WHEN h.EndTimeFix < DATEADD(HOUR, 1, h.HourStart) THEN h.EndTimeFix
+                    WHEN DATEADD(HOUR, 1, h.HourStart) > @to THEN @to
+                    ELSE DATEADD(HOUR, 1, h.HourStart)
+                END
+            ) AS DurationSeconds
+        FROM Hours h
+        WHERE h.HourStart >= @from
+          AND h.HourStart < @to
+    ),
+    DurationAgg AS (
+        SELECT
+            F.HourStart,
+            F.StatusLight,
+            SUM(F.DurationSeconds) AS TotalDurationSeconds
+        FROM Final F
+        WHERE F.DurationSeconds > 0
+        GROUP BY F.HourStart, F.StatusLight
+    ),
+    HourAxis AS (
+        SELECT
+            DATEADD(HOUR, v.number, @from) AS HourStart,
+            CASE
+                WHEN DATEADD(HOUR, v.number + 1, @from) > @to THEN @to
+                ELSE DATEADD(HOUR, v.number + 1, @from)
+            END AS HourEnd
+        FROM master.dbo.spt_values v
+        WHERE v.type = 'P'
+          AND v.number BETWEEN 0 AND CASE
+              WHEN @to <= @from THEN -1
+              ELSE DATEDIFF(HOUR, @from, DATEADD(SECOND, -1, @to))
+          END
+    ),
+    SnapshotMachineStatus AS (
+        SELECT
+            h.HourStart,
+            ms.MchID,
+            ISNULL(s.StatusLight, 'GREY') AS StatusLight
+        FROM MachineScope ms
+        INNER JOIN HourAxis h ON h.HourEnd > h.HourStart
+        OUTER APPLY (
+            SELECT TOP 1
+                s1.StatusLight
+            FROM IoT.dbo.MchStatusTRX s1 WITH (NOLOCK)
+            WHERE s1.Active = 1
+              AND s1.MchID = ms.MchID
+              AND s1.StatusDate <= h.HourEnd
+            ORDER BY s1.StatusDate DESC, s1.ID DESC
+        ) s
+    ),
+    SnapshotAgg AS (
+        SELECT
+            HourStart,
+            StatusLight,
+            COUNT(DISTINCT MchID) AS MachineCount
+        FROM SnapshotMachineStatus
+        GROUP BY HourStart, StatusLight
+    )
+    SELECT
+        CONVERT(VARCHAR(19), S.HourStart, 120) AS HourStart,
+        CAST(S.StatusLight AS NVARCHAR(50)) AS StatusLight,
+        CONVERT(VARCHAR(20), S.MachineCount) AS MachineCount,
+        CONVERT(VARCHAR(50), CAST(ISNULL(D.TotalDurationSeconds, 0) / 60.0 AS FLOAT)) AS TotalDurationMinutes,
+        CONVERT(VARCHAR(50), CAST(ISNULL(D.TotalDurationSeconds, 0) / 3600.0 AS FLOAT)) AS TotalDurationHour,
+        CONVERT(VARCHAR(50), CAST(
+            CASE
+                WHEN S.MachineCount = 0 THEN 0
+                ELSE (ISNULL(D.TotalDurationSeconds, 0) / 3600.0) / S.MachineCount
+            END
+        AS FLOAT)) AS DurationHourPerMachine
+    FROM SnapshotAgg S
+    LEFT JOIN DurationAgg D
+      ON D.HourStart = S.HourStart
+     AND D.StatusLight = S.StatusLight
+    ORDER BY S.HourStart, S.StatusLight
+    OPTION (MAXRECURSION 0);
+    ` : `
+    DECLARE @from DATETIME = CAST(@date_from AS DATETIME);
+    DECLARE @toInput DATETIME = DATEADD(DAY, 1, CAST(@date_to AS DATETIME));
+    DECLARE @to DATETIME = CASE WHEN @toInput > GETDATE() THEN GETDATE() ELSE @toInput END;
+    DECLARE @excluded_csv NVARCHAR(MAX) = CASE
+        WHEN @excluded_mchids IS NULL OR LTRIM(RTRIM(@excluded_mchids)) = '' THEN ''
+        ELSE ',' + UPPER(REPLACE(@excluded_mchids, ' ', '')) + ','
+    END;
+
+    WITH MachineScope AS (
+        SELECT MchID
+        FROM IoT.dbo.MachineMST WITH (NOLOCK)
+        WHERE Active = 1
+          AND UAP IN ('BASIC', 'PREMIUM', 'LEAN')
+          AND (@uap = 'ALL' OR UAP = @uap)
+          AND (@excluded_csv = '' OR CHARINDEX(',' + UPPER(LTRIM(RTRIM(MchID))) + ',', @excluded_csv) = 0)
+    ),
+    HourlyBase AS (
+        SELECT
+            DATEADD(HOUR, DATEDIFF(HOUR, 0, amr.created_at), 0) AS HourStart,
+            amr.machine_id AS MchID,
+            CAST(amr.green AS DECIMAL(18,6)) AS green_hour,
+            CAST(amr.yellow AS DECIMAL(18,6)) AS yellow_hour,
+            CAST(amr.red AS DECIMAL(18,6)) AS red_hour,
+            CAST(amr.orange AS DECIMAL(18,6)) AS orange_hour,
+            CAST(amr.purple AS DECIMAL(18,6)) AS purple_hour,
+            CAST(amr.blue AS DECIMAL(18,6)) AS blue_hour,
+            CAST(amr.white AS DECIMAL(18,6)) AS white_hour,
+            CAST(amr.grey AS DECIMAL(18,6)) AS grey_hour
+        FROM IoT.dbo.andon_monitoring_report amr WITH (NOLOCK)
+        INNER JOIN MachineScope ms ON ms.MchID = amr.machine_id
+        WHERE amr.created_at >= @from
+          AND amr.created_at < @to
+          AND amr.shift NOT IN (0, 9)
+    ),
+    Unpivoted AS (
+        SELECT HourStart, MchID, 'GREEN' AS StatusLight, green_hour AS DurationHour FROM HourlyBase WHERE green_hour > 0
+        UNION ALL SELECT HourStart, MchID, 'YELLOW', yellow_hour FROM HourlyBase WHERE yellow_hour > 0
+        UNION ALL SELECT HourStart, MchID, 'RED', red_hour FROM HourlyBase WHERE red_hour > 0
+        UNION ALL SELECT HourStart, MchID, 'ORANGE', orange_hour FROM HourlyBase WHERE orange_hour > 0
+        UNION ALL SELECT HourStart, MchID, 'PURPLE', purple_hour FROM HourlyBase WHERE purple_hour > 0
+        UNION ALL SELECT HourStart, MchID, 'BLUE', blue_hour FROM HourlyBase WHERE blue_hour > 0
+        UNION ALL SELECT HourStart, MchID, 'WHITE', white_hour FROM HourlyBase WHERE white_hour > 0
+        UNION ALL SELECT HourStart, MchID, 'GREY', grey_hour FROM HourlyBase WHERE grey_hour > 0
+    )
+    SELECT
+        CONVERT(VARCHAR(19), u.HourStart, 120) AS HourStart,
+        CAST(u.StatusLight AS NVARCHAR(50)) AS StatusLight,
+        CONVERT(VARCHAR(20), COUNT(DISTINCT u.MchID)) AS MachineCount,
+        CONVERT(VARCHAR(50), CAST(SUM(u.DurationHour * 60.0) AS FLOAT)) AS TotalDurationMinutes,
+        CONVERT(VARCHAR(50), CAST(SUM(u.DurationHour) AS FLOAT)) AS TotalDurationHour,
+        CONVERT(VARCHAR(50), CAST(
+            CASE
+                WHEN COUNT(DISTINCT u.MchID) = 0 THEN 0
+                ELSE SUM(u.DurationHour) / COUNT(DISTINCT u.MchID)
+            END
+        AS FLOAT)) AS DurationHourPerMachine
+    FROM Unpivoted u
+    GROUP BY u.HourStart, u.StatusLight
+    ORDER BY u.HourStart, u.StatusLight;
+    `;
+    const data = await queryDatabase(sqlQuery, { date_from, date_to, uap, excluded_mchids: excludedCsv });
+    trendHourlyCache.set(cacheKey, {
+        expiresAt: now + TREND_HOURLY_CACHE_TTL_MS,
+        data,
+    });
+    return data;
+}
+
+export async function getTrendHourlyDetail(
+    hour_start: string | null,
+    uap: string,
+    date_from: string | null = null,
+    date_to: string | null = null,
+    status_light: string | null = null,
+    excluded_mchids: string[] = []
+) {
+    const excludedCsv = excluded_mchids
+        .map((v) => String(v || '').trim().toUpperCase())
+        .filter(Boolean)
+        .join(',');
+
+    if (hour_start) {
+    const sqlQuery = `
+    DECLARE @hourStart DATETIME = CAST(@hour_start AS DATETIME);
+    DECLARE @hourEnd DATETIME = DATEADD(HOUR, 1, @hourStart);
+    DECLARE @excluded_csv NVARCHAR(MAX) = CASE
+        WHEN @excluded_mchids IS NULL OR LTRIM(RTRIM(@excluded_mchids)) = '' THEN ''
+        ELSE ',' + UPPER(REPLACE(@excluded_mchids, ' ', '')) + ','
+    END;
+
+    WITH MachineScope AS (
+        SELECT
+            MchID,
+            MchDesc
+        FROM IoT.dbo.MachineMST WITH (NOLOCK)
+        WHERE Active = 1
+          AND UAP IN ('BASIC', 'PREMIUM', 'LEAN')
+          AND (@uap = 'ALL' OR UAP = @uap)
+          AND (@excluded_csv = '' OR CHARINDEX(',' + UPPER(LTRIM(RTRIM(MchID))) + ',', @excluded_csv) = 0)
+    ),
+    BaseSeed AS (
+        SELECT
+            s.ID,
+            s.MchID,
+            s.StatusLight,
+            s.StatusDate AS StartTime
+        FROM IoT.dbo.MchStatusTRX s WITH (NOLOCK)
+        INNER JOIN MachineScope ms ON ms.MchID = s.MchID
+        WHERE s.Active = 1
+          AND s.StatusDate >= @hourStart
+          AND s.StatusDate < @hourEnd
+
+        UNION ALL
+
+        SELECT
+            p.ID,
+            p.MchID,
+            p.StatusLight,
+            p.StatusDate AS StartTime
+        FROM MachineScope ms
+        CROSS APPLY (
+            SELECT TOP 1
+                s2.ID,
+                s2.MchID,
+                s2.StatusLight,
+                s2.StatusDate
+            FROM IoT.dbo.MchStatusTRX s2 WITH (NOLOCK)
+            WHERE s2.Active = 1
+              AND s2.MchID = ms.MchID
+              AND s2.StatusDate < @hourStart
+            ORDER BY s2.StatusDate DESC, s2.ID DESC
+        ) p
+    ),
+    Base AS (
+        SELECT
+            MchID,
+            StatusLight,
+            StartTime,
+            LEAD(StartTime) OVER (PARTITION BY MchID ORDER BY StartTime, ID) AS EndTime
+        FROM BaseSeed
+    ),
+    BaseFix AS (
+        SELECT
+            MchID,
+            StatusLight,
+            CASE WHEN StartTime < @hourStart THEN @hourStart ELSE StartTime END AS StartTimeFix,
+            CASE
+                WHEN ISNULL(EndTime, @hourEnd) > @hourEnd THEN @hourEnd
+                ELSE ISNULL(EndTime, @hourEnd)
+            END AS EndTimeFix
+        FROM Base
+    ),
+    Final AS (
+        SELECT
+            MchID,
+            StatusLight,
+            @hourStart AS HourStart,
+            DATEDIFF(SECOND, StartTimeFix, EndTimeFix) AS DurationSeconds
+        FROM BaseFix
+        WHERE EndTimeFix > StartTimeFix
+    )
+    SELECT
+        CAST(F.MchID AS NVARCHAR(100)) AS MchID,
+        CAST(M.MchDesc AS NVARCHAR(200)) AS MchDesc,
+        CAST(F.StatusLight AS NVARCHAR(50)) AS StatusLight,
+        CONVERT(VARCHAR(19), F.HourStart, 120) AS HourStart,
+        CONVERT(VARCHAR(50), CAST(SUM(F.DurationSeconds) / 60.0 AS FLOAT)) AS DurationMinutes,
+        CONVERT(VARCHAR(50), CAST(SUM(F.DurationSeconds) / 3600.0 AS FLOAT)) AS DurationHour
+    FROM Final F
+    LEFT JOIN MachineScope M ON F.MchID = M.MchID
+    GROUP BY F.MchID, M.MchDesc, F.StatusLight, F.HourStart
+    ORDER BY F.StatusLight, F.MchID;
+    `;
+    return await queryDatabase(sqlQuery, { hour_start, uap, excluded_mchids: excludedCsv });
+    }
+
+    if (!date_from || !date_to) {
+        return [];
+    }
+
+    const sqlQuery = `
+    DECLARE @from DATETIME = CAST(@date_from AS DATETIME);
+    DECLARE @toInput DATETIME = DATEADD(DAY, 1, CAST(@date_to AS DATETIME));
+    DECLARE @to DATETIME = CASE WHEN @toInput > GETDATE() THEN GETDATE() ELSE @toInput END;
+    DECLARE @excluded_csv NVARCHAR(MAX) = CASE
+        WHEN @excluded_mchids IS NULL OR LTRIM(RTRIM(@excluded_mchids)) = '' THEN ''
+        ELSE ',' + UPPER(REPLACE(@excluded_mchids, ' ', '')) + ','
+    END;
+
+    WITH MachineScope AS (
+        SELECT
+            MchID,
+            MchDesc
+        FROM IoT.dbo.MachineMST WITH (NOLOCK)
+        WHERE Active = 1
+          AND UAP IN ('BASIC', 'PREMIUM', 'LEAN')
+          AND (@uap = 'ALL' OR UAP = @uap)
+          AND (@excluded_csv = '' OR CHARINDEX(',' + UPPER(LTRIM(RTRIM(MchID))) + ',', @excluded_csv) = 0)
+    ),
+    BaseSeed AS (
+        SELECT
+            s.ID,
+            s.MchID,
+            s.StatusLight,
+            s.StatusDate AS StartTime
+        FROM IoT.dbo.MchStatusTRX s WITH (NOLOCK)
+        INNER JOIN MachineScope ms ON ms.MchID = s.MchID
+        WHERE s.Active = 1
+          AND s.StatusDate >= @from
+          AND s.StatusDate < @to
+
+        UNION ALL
+
+        SELECT
+            p.ID,
+            p.MchID,
+            p.StatusLight,
+            p.StatusDate AS StartTime
+        FROM MachineScope ms
+        CROSS APPLY (
+            SELECT TOP 1
+                s2.ID,
+                s2.MchID,
+                s2.StatusLight,
+                s2.StatusDate
+            FROM IoT.dbo.MchStatusTRX s2 WITH (NOLOCK)
+            WHERE s2.Active = 1
+              AND s2.MchID = ms.MchID
+              AND s2.StatusDate < @from
+            ORDER BY s2.StatusDate DESC, s2.ID DESC
+        ) p
+    ),
+    Base AS (
+        SELECT
+            MchID,
+            StatusLight,
+            StartTime,
+            LEAD(StartTime) OVER (PARTITION BY MchID ORDER BY StartTime, ID) AS EndTime
+        FROM BaseSeed
+    ),
+    BaseFix AS (
+        SELECT
+            MchID,
+            StatusLight,
+            CASE WHEN StartTime < @from THEN @from ELSE StartTime END AS StartTimeFix,
+            CASE
+                WHEN ISNULL(EndTime, @to) > @to THEN @to
+                ELSE ISNULL(EndTime, @to)
+            END AS EndTimeFix
+        FROM Base
+        WHERE ISNULL(EndTime, @to) > StartTime
+    ),
+    HourAxis AS (
+        SELECT
+            DATEADD(HOUR, v.number, @from) AS HourStart,
+            CASE
+                WHEN DATEADD(HOUR, v.number + 1, @from) > @to THEN @to
+                ELSE DATEADD(HOUR, v.number + 1, @from)
+            END AS HourEnd
+        FROM master.dbo.spt_values v
+        WHERE v.type = 'P'
+          AND v.number BETWEEN 0 AND CASE
+              WHEN @to <= @from THEN -1
+              ELSE DATEDIFF(HOUR, @from, DATEADD(SECOND, -1, @to))
+          END
+    ),
+    Final AS (
+        SELECT
+            b.MchID,
+            b.StatusLight,
+            h.HourStart,
+            DATEDIFF(
+                SECOND,
+                CASE WHEN b.StartTimeFix > h.HourStart THEN b.StartTimeFix ELSE h.HourStart END,
+                CASE WHEN b.EndTimeFix < h.HourEnd THEN b.EndTimeFix ELSE h.HourEnd END
+            ) AS DurationSeconds
+        FROM BaseFix b
+        INNER JOIN HourAxis h
+            ON b.StartTimeFix < h.HourEnd
+           AND b.EndTimeFix > h.HourStart
+        WHERE b.EndTimeFix > b.StartTimeFix
+    )
+    SELECT
+        CAST(F.MchID AS NVARCHAR(100)) AS MchID,
+        CAST(M.MchDesc AS NVARCHAR(200)) AS MchDesc,
+        CAST(F.StatusLight AS NVARCHAR(50)) AS StatusLight,
+        CONVERT(VARCHAR(19), F.HourStart, 120) AS HourStart,
+        CONVERT(VARCHAR(50), CAST(SUM(F.DurationSeconds) / 60.0 AS FLOAT)) AS DurationMinutes,
+        CONVERT(VARCHAR(50), CAST(SUM(F.DurationSeconds) / 3600.0 AS FLOAT)) AS DurationHour
+    FROM Final F
+    LEFT JOIN MachineScope M ON F.MchID = M.MchID
+    WHERE F.DurationSeconds > 0
+      AND (@status_light = 'ALL' OR F.StatusLight = @status_light)
+    GROUP BY F.MchID, M.MchDesc, F.StatusLight, F.HourStart
+    ORDER BY F.HourStart, F.StatusLight, F.MchID;
+    `;
+    return await queryDatabase(sqlQuery, {
+        date_from,
+        date_to,
+        uap,
+        status_light: status_light || 'ALL',
+        excluded_mchids: excludedCsv
+    });
+}
+
+export async function getTrendkHourlySummary(
+    date_from: string,
+    date_to: string,
+    uap: string,
+    excluded_mchids: string[] = []
+) {
+    // TrendK dimatikan sementara.
+    if (!TRENDK_ENABLED) return [];
+    await ensureTrendkHourlyAggTable();
+    const excludedCsv = excluded_mchids
+        .map((v) => String(v || '').trim().toUpperCase())
+        .filter(Boolean)
+        .join(',');
+
+    const cacheKey = `v2|${date_from}|${date_to}|${uap}|exclude=${excludedCsv}`;
+    const now = Date.now();
+    const cached = trendkHourlySummaryCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+        return cached.data;
+    }
+
+    const sqlQuery = `
+    DECLARE @from DATETIME = CAST(@date_from AS DATETIME);
+    DECLARE @toInput DATETIME = DATEADD(DAY, 1, CAST(@date_to AS DATETIME));
+    DECLARE @to DATETIME = CASE WHEN @toInput > GETDATE() THEN GETDATE() ELSE @toInput END;
+    DECLARE @excluded_csv NVARCHAR(MAX) = CASE
+        WHEN @excluded_mchids IS NULL OR LTRIM(RTRIM(@excluded_mchids)) = '' THEN ''
+        ELSE ',' + UPPER(REPLACE(@excluded_mchids, ' ', '')) + ','
+    END;
+
+    WITH MachineScope AS (
+        SELECT MchID
+        FROM IoT.dbo.MachineMST WITH (NOLOCK)
+        WHERE Active = 1
+          AND UAP IN ('BASIC', 'PREMIUM', 'LEAN')
+          AND (@uap = 'ALL' OR UAP = @uap)
+          AND (@excluded_csv = '' OR CHARINDEX(',' + UPPER(LTRIM(RTRIM(MchID))) + ',', @excluded_csv) = 0)
+    ),
+    DurationAgg AS (
+        SELECT
+            a.hour_start AS HourStart,
+            a.status_light AS StatusLight,
+            COUNT(DISTINCT a.mchid) AS MachineCount,
+            SUM(a.duration_seconds) AS TotalDurationSeconds
+        FROM ${TRENDK_AGG_TABLE} a WITH (NOLOCK)
+        INNER JOIN MachineScope ms ON ms.MchID = a.mchid
+        WHERE a.hour_start >= @from
+          AND a.hour_start < @to
+          AND a.duration_seconds > 0
+        GROUP BY a.hour_start, a.status_light
+    )
+    SELECT
+        CONVERT(VARCHAR(19), d.HourStart, 120) AS HourStart,
+        CAST(d.StatusLight AS NVARCHAR(50)) AS StatusLight,
+        CONVERT(VARCHAR(20), d.MachineCount) AS MachineCount,
+        CONVERT(VARCHAR(50), CAST(d.TotalDurationSeconds / 60.0 AS FLOAT)) AS TotalDurationMinutes,
+        CONVERT(VARCHAR(50), CAST(d.TotalDurationSeconds / 3600.0 AS FLOAT)) AS TotalDurationHour,
+        CONVERT(VARCHAR(50), CAST(
+            CASE
+                WHEN d.MachineCount = 0 THEN 0
+                ELSE (d.TotalDurationSeconds / 3600.0) / d.MachineCount
+            END
+        AS FLOAT)) AS DurationHourPerMachine
+    FROM DurationAgg d
+    ORDER BY d.HourStart, d.StatusLight;
+    `;
+
+    const data = await queryDatabase(sqlQuery, { date_from, date_to, uap, excluded_mchids: excludedCsv });
+    trendkHourlySummaryCache.set(cacheKey, {
+        expiresAt: now + TRENDK_HOURLY_SUMMARY_CACHE_TTL_MS,
+        data,
+    });
+    return data;
+}
+
+export async function getTrendkUniqueLatestSummary(
+    date_from: string,
+    date_to: string,
+    uap: string,
+    excluded_mchids: string[] = []
+) {
+    // TrendK dimatikan sementara.
+    if (!TRENDK_ENABLED) {
+        return {
+            counts: {
+                GREEN: 0,
+                YELLOW: 0,
+                RED: 0,
+                ORANGE: 0,
+                PURPLE: 0,
+                BLUE: 0,
+                WHITE: 0,
+                GREY: 0,
+            },
+            total: 0,
+        };
+    }
+    await ensureTrendkHourlyAggTable();
+    const excludedCsv = excluded_mchids
+        .map((v) => String(v || '').trim().toUpperCase())
+        .filter(Boolean)
+        .join(',');
+
+    const cacheKey = `v1|${date_from}|${date_to}|${uap}|exclude=${excludedCsv}`;
+    const now = Date.now();
+    const cached = trendkUniqueLatestSummaryCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+        return cached.data;
+    }
+
+    const sqlQuery = `
+    DECLARE @from DATETIME = CAST(@date_from AS DATETIME);
+    DECLARE @toInput DATETIME = DATEADD(DAY, 1, CAST(@date_to AS DATETIME));
+    DECLARE @to DATETIME = CASE WHEN @toInput > GETDATE() THEN GETDATE() ELSE @toInput END;
+    DECLARE @excluded_csv NVARCHAR(MAX) = CASE
+        WHEN @excluded_mchids IS NULL OR LTRIM(RTRIM(@excluded_mchids)) = '' THEN ''
+        ELSE ',' + UPPER(REPLACE(@excluded_mchids, ' ', '')) + ','
+    END;
+
+    WITH MachineScope AS (
+        SELECT MchID
+        FROM IoT.dbo.MachineMST WITH (NOLOCK)
+        WHERE Active = 1
+          AND UAP IN ('BASIC', 'PREMIUM', 'LEAN')
+          AND (@uap = 'ALL' OR UAP = @uap)
+          AND (@excluded_csv = '' OR CHARINDEX(',' + UPPER(LTRIM(RTRIM(MchID))) + ',', @excluded_csv) = 0)
+    ),
+    Base AS (
+        SELECT
+            a.mchid,
+            a.status_light,
+            a.hour_start,
+            a.duration_seconds
+        FROM ${TRENDK_AGG_TABLE} a WITH (NOLOCK)
+        INNER JOIN MachineScope ms ON ms.MchID = a.mchid
+        WHERE a.hour_start >= @from
+          AND a.hour_start < @to
+          AND a.duration_seconds > 0
+    ),
+    Ranked AS (
+        SELECT
+            b.mchid,
+            b.status_light,
+            ROW_NUMBER() OVER (
+                PARTITION BY b.mchid
+                ORDER BY b.hour_start DESC, b.duration_seconds DESC, b.status_light ASC
+            ) AS rn
+        FROM Base b
+    )
+    SELECT
+        CAST(r.status_light AS NVARCHAR(50)) AS StatusLight,
+        CONVERT(VARCHAR(20), COUNT(1)) AS MachineCount
+    FROM Ranked r
+    WHERE r.rn = 1
+    GROUP BY r.status_light
+    ORDER BY r.status_light;
+    `;
+
+    const rows = await queryDatabase(sqlQuery, { date_from, date_to, uap, excluded_mchids: excludedCsv });
+    const emptyCounts: Record<string, number> = {
+        GREEN: 0,
+        YELLOW: 0,
+        RED: 0,
+        ORANGE: 0,
+        PURPLE: 0,
+        BLUE: 0,
+        WHITE: 0,
+        GREY: 0,
+    };
+
+    for (const row of rows) {
+        const status = String((row as any)?.StatusLight || '').toUpperCase();
+        const count = Number((row as any)?.MachineCount || 0);
+        if (!status || Number.isNaN(count)) continue;
+        emptyCounts[status] = count;
+    }
+
+    const total = Object.values(emptyCounts).reduce((acc, val) => acc + Number(val || 0), 0);
+    const data = {
+        counts: emptyCounts,
+        total,
+    };
+
+    trendkUniqueLatestSummaryCache.set(cacheKey, {
+        expiresAt: now + TRENDK_UNIQUE_LATEST_SUMMARY_CACHE_TTL_MS,
+        data,
+    });
+    return data;
+}
+
+export async function getTrendkUniqueLatestDetail(
+    date_from: string,
+    date_to: string,
+    uap: string,
+    status_light: string = 'ALL',
+    excluded_mchids: string[] = [],
+    page: number = 1,
+    page_size: number = 100
+) {
+    // TrendK dimatikan sementara.
+    if (!TRENDK_ENABLED) {
+        const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+        const safePageSizeRaw = Number.isFinite(page_size) && page_size > 0 ? Math.floor(page_size) : 100;
+        const safePageSize = Math.min(Math.max(safePageSizeRaw, 10), 500);
+        return {
+            rows: [],
+            total: 0,
+            page: safePage,
+            page_size: safePageSize,
+        };
+    }
+    await ensureTrendkHourlyAggTable();
+    const excludedCsv = excluded_mchids
+        .map((v) => String(v || '').trim().toUpperCase())
+        .filter(Boolean)
+        .join(',');
+
+    const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+    const safePageSizeRaw = Number.isFinite(page_size) && page_size > 0 ? Math.floor(page_size) : 100;
+    const safePageSize = Math.min(Math.max(safePageSizeRaw, 10), 500);
+    const offset = (safePage - 1) * safePageSize;
+
+    const normalizedStatus = String(status_light || 'ALL').toUpperCase();
+    const cacheKey = `v1|${date_from}|${date_to}|${uap}|status=${normalizedStatus}|exclude=${excludedCsv}|page=${safePage}|size=${safePageSize}`;
+    const now = Date.now();
+    const cached = trendkUniqueLatestDetailCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+        return cached.data;
+    }
+
+    const sqlQuery = `
+    DECLARE @from DATETIME = CAST(@date_from AS DATETIME);
+    DECLARE @toInput DATETIME = DATEADD(DAY, 1, CAST(@date_to AS DATETIME));
+    DECLARE @to DATETIME = CASE WHEN @toInput > GETDATE() THEN GETDATE() ELSE @toInput END;
+    DECLARE @excluded_csv NVARCHAR(MAX) = CASE
+        WHEN @excluded_mchids IS NULL OR LTRIM(RTRIM(@excluded_mchids)) = '' THEN ''
+        ELSE ',' + UPPER(REPLACE(@excluded_mchids, ' ', '')) + ','
+    END;
+
+    WITH MachineScope AS (
+        SELECT MchID, MchDesc
+        FROM IoT.dbo.MachineMST WITH (NOLOCK)
+        WHERE Active = 1
+          AND UAP IN ('BASIC', 'PREMIUM', 'LEAN')
+          AND (@uap = 'ALL' OR UAP = @uap)
+          AND (@excluded_csv = '' OR CHARINDEX(',' + UPPER(LTRIM(RTRIM(MchID))) + ',', @excluded_csv) = 0)
+    ),
+    Base AS (
+        SELECT
+            a.mchid,
+            ms.MchDesc,
+            a.status_light,
+            a.hour_start,
+            a.duration_seconds
+        FROM ${TRENDK_AGG_TABLE} a WITH (NOLOCK)
+        INNER JOIN MachineScope ms ON ms.MchID = a.mchid
+        WHERE a.hour_start >= @from
+          AND a.hour_start < @to
+          AND a.duration_seconds > 0
+    ),
+    LatestPerMachine AS (
+        SELECT
+            CAST(b.mchid AS NVARCHAR(100)) AS MchID,
+            CAST(b.MchDesc AS NVARCHAR(200)) AS MchDesc,
+            CAST(b.status_light AS NVARCHAR(50)) AS StatusLight,
+            CONVERT(VARCHAR(19), b.hour_start, 120) AS HourStart,
+            ROW_NUMBER() OVER (
+                PARTITION BY b.mchid
+                ORDER BY b.hour_start DESC, b.duration_seconds DESC, b.status_light ASC
+            ) AS rn
+        FROM Base b
+    ),
+    Filtered AS (
+        SELECT
+            MchID,
+            MchDesc,
+            StatusLight,
+            HourStart
+        FROM LatestPerMachine
+        WHERE rn = 1
+          AND (@status_light = 'ALL' OR StatusLight = @status_light)
+    ),
+    Numbered AS (
+        SELECT
+            f.*,
+            COUNT(1) OVER() AS TotalRows,
+            ROW_NUMBER() OVER (ORDER BY f.HourStart DESC, f.MchID ASC) AS RowNum
+        FROM Filtered f
+    )
+    SELECT
+        MchID,
+        MchDesc,
+        StatusLight,
+        HourStart,
+        TotalRows
+    FROM Numbered
+    WHERE RowNum > @offset
+      AND RowNum <= (@offset + @page_size)
+    ORDER BY RowNum;
+    `;
+
+    const rows = await queryDatabase(sqlQuery, {
+        date_from,
+        date_to,
+        uap,
+        status_light: normalizedStatus,
+        excluded_mchids: excludedCsv,
+        offset,
+        page_size: safePageSize,
+    });
+
+    const total = rows.length > 0 ? Number((rows[0] as any)?.TotalRows || 0) : 0;
+    const data = {
+        rows: rows.map((row: any) => {
+            const { TotalRows, ...rest } = row;
+            return rest;
+        }),
+        total,
+        page: safePage,
+        page_size: safePageSize,
+    };
+    trendkUniqueLatestDetailCache.set(cacheKey, {
+        expiresAt: now + TRENDK_UNIQUE_LATEST_DETAIL_CACHE_TTL_MS,
+        data,
+    });
+    return data;
+}
+
+export async function getTrendkHourlyDetail(
+    date_from: string,
+    date_to: string,
+    uap: string,
+    status_light: string = 'ALL',
+    excluded_mchids: string[] = [],
+    page: number = 1,
+    page_size: number = 100
+) {
+    // TrendK dimatikan sementara.
+    if (!TRENDK_ENABLED) {
+        const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+        const safePageSizeRaw = Number.isFinite(page_size) && page_size > 0 ? Math.floor(page_size) : 100;
+        const safePageSize = Math.min(Math.max(safePageSizeRaw, 10), 500);
+        return {
+            rows: [],
+            total: 0,
+            page: safePage,
+            page_size: safePageSize,
+        };
+    }
+    await ensureTrendkHourlyAggTable();
+    const excludedCsv = excluded_mchids
+        .map((v) => String(v || '').trim().toUpperCase())
+        .filter(Boolean)
+        .join(',');
+
+    const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+    const safePageSizeRaw = Number.isFinite(page_size) && page_size > 0 ? Math.floor(page_size) : 100;
+    const safePageSize = Math.min(Math.max(safePageSizeRaw, 10), 500);
+    const offset = (safePage - 1) * safePageSize;
+
+    const cacheKey = `v3|${date_from}|${date_to}|${uap}|status=${status_light}|exclude=${excludedCsv}|page=${safePage}|size=${safePageSize}`;
+    const now = Date.now();
+    const cached = trendkHourlyDetailCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+        return cached.data;
+    }
+
+    const sqlQuery = `
+    DECLARE @from DATETIME = CAST(@date_from AS DATETIME);
+    DECLARE @toInput DATETIME = DATEADD(DAY, 1, CAST(@date_to AS DATETIME));
+    DECLARE @to DATETIME = CASE WHEN @toInput > GETDATE() THEN GETDATE() ELSE @toInput END;
+    DECLARE @excluded_csv NVARCHAR(MAX) = CASE
+        WHEN @excluded_mchids IS NULL OR LTRIM(RTRIM(@excluded_mchids)) = '' THEN ''
+        ELSE ',' + UPPER(REPLACE(@excluded_mchids, ' ', '')) + ','
+    END;
+
+    WITH MachineScope AS (
+        SELECT MchID, MchDesc
+        FROM IoT.dbo.MachineMST WITH (NOLOCK)
+        WHERE Active = 1
+          AND UAP IN ('BASIC', 'PREMIUM', 'LEAN')
+          AND (@uap = 'ALL' OR UAP = @uap)
+          AND (@excluded_csv = '' OR CHARINDEX(',' + UPPER(LTRIM(RTRIM(MchID))) + ',', @excluded_csv) = 0)
+    ),
+    DetailRows AS (
+        SELECT
+            CAST(a.mchid AS NVARCHAR(100)) AS MchID,
+            CAST(ms.MchDesc AS NVARCHAR(200)) AS MchDesc,
+            CAST(a.status_light AS NVARCHAR(50)) AS StatusLight,
+            CONVERT(VARCHAR(19), a.hour_start, 120) AS HourStart,
+            CONVERT(VARCHAR(50), CAST(SUM(a.duration_seconds) / 60.0 AS FLOAT)) AS DurationMinutes,
+            CONVERT(VARCHAR(50), CAST(SUM(a.duration_seconds) / 3600.0 AS FLOAT)) AS DurationHour
+        FROM ${TRENDK_AGG_TABLE} a WITH (NOLOCK)
+        INNER JOIN MachineScope ms ON ms.MchID = a.mchid
+        WHERE a.hour_start >= @from
+          AND a.hour_start < @to
+          AND a.duration_seconds > 0
+          AND (@status_light = 'ALL' OR a.status_light = @status_light)
+        GROUP BY a.mchid, ms.MchDesc, a.status_light, a.hour_start
+    ),
+    NumberedRows AS (
+        SELECT
+            dr.*,
+            COUNT(1) OVER() AS TotalRows,
+            ROW_NUMBER() OVER (ORDER BY dr.HourStart, dr.StatusLight, dr.MchID) AS RowNum
+        FROM DetailRows dr
+    )
+    SELECT
+        MchID,
+        MchDesc,
+        StatusLight,
+        HourStart,
+        DurationMinutes,
+        DurationHour,
+        TotalRows
+    FROM NumberedRows
+    WHERE RowNum > @offset
+      AND RowNum <= (@offset + @page_size)
+    ORDER BY RowNum;
+    `;
+
+    const rows = await queryDatabase(sqlQuery, {
+        date_from,
+        date_to,
+        uap,
+        status_light: status_light || 'ALL',
+        excluded_mchids: excludedCsv,
+        offset,
+        page_size: safePageSize,
+    });
+
+    const total = rows.length > 0 ? Number(rows[0]?.TotalRows || 0) : 0;
+    const data = {
+        rows: rows.map((row: any) => {
+            const { TotalRows, ...rest } = row;
+            return rest;
+        }),
+        total,
+        page: safePage,
+        page_size: safePageSize,
+    };
+    trendkHourlyDetailCache.set(cacheKey, {
+        expiresAt: now + TRENDK_HOURLY_DETAIL_CACHE_TTL_MS,
+        data,
+    });
+    return data;
 }
 
 export async function getTrendStream(c: Context, date_from: string, date_to: string) {

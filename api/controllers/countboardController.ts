@@ -407,41 +407,116 @@ export async function getRouting(
 
 export async function attachPo(poName: string, machineName: string) {
   const sqlQuery = `
-  
-  DECLARE 
-  @materialId varchar(50),
-  @errorMessage NVARCHAR(MAX);
-
-  select @materialId = material_id from IoT.dbo.coois where po_name = @poName
-
-  IF EXISTS (select 1 from IoT.dbo.routing where material_id = @materialId)
+  DECLARE
+    @materialId VARCHAR(50),
+    @machineDesc NVARCHAR(255),
+    @errorMessage NVARCHAR(MAX),
+    @taskId INT;
+ 
+  DECLARE @InsertedIds TABLE (id INT);
+ 
+  SELECT TOP 1
+    @materialId = c.material_id
+  FROM IoT.dbo.coois c
+  WHERE c.po_name = @poName
+  ORDER BY c.id DESC;
+ 
+  SELECT TOP 1
+    @machineDesc = m.MchDesc
+  FROM IoT.dbo.MachineMST m
+  WHERE m.MchID = @machineName;
+ 
+  IF @machineDesc IS NULL
   BEGIN
-    INSERT INTO IoT.dbo.countboard_tasks 
-        (po_name, machine_name, required_qty, produced_qty, cvt, ct, actual_cvt, actual_ct, created_at, updated_at)
-        SELECT top 1 
-            @poName,
-            (select top 1 MchDesc from IoT.dbo.MachineMST where MchID = @machineName),
-            cast(coois.required_qty as int),
-            cast(coois.produced_qty as int),
-            routing.cvt,
-            routing.ct,
-            routing.cvt AS actual_cvt,
-            routing.ct AS actual_ct,
-            getdate(),
-            getdate()
-        FROM 
-            IoT.dbo.coois
-        JOIN 
-            IoT.dbo.routing ON coois.material_id = routing.material_id
-        WHERE 
-            coois.po_name = @poName
-        order by coois.id desc;
+    RAISERROR ('Machine not found by MchID: %s', 16, 1, @machineName);
+    RETURN;
   END
-  ELSE 
+ 
+  IF EXISTS (SELECT 1 FROM IoT.dbo.routing WHERE material_id = @materialId)
   BEGIN
-    SET @errorMessage = 'Routing not found for material number : ' +  @materialId + ' , please sync Routing !'
-        
-      RAISERROR (@errorMessage, 16, 1);
+    BEGIN TRY
+      BEGIN TRANSACTION;
+ 
+      INSERT INTO IoT.dbo.countboard_tasks
+        (po_name, machine_name, required_qty, produced_qty, cvt, ct, actual_cvt, actual_ct, created_at, updated_at, mchId, material_name)
+        OUTPUT INSERTED.id INTO @InsertedIds
+      SELECT TOP 1
+        @poName,
+        @machineDesc,
+        CAST(coois.required_qty AS INT),
+        CAST(coois.produced_qty AS INT),
+        routing.cvt,
+        routing.ct,
+        routing.cvt AS actual_cvt,
+        routing.ct AS actual_ct,
+        GETDATE(),
+        GETDATE(),
+        @machineName,
+        coois.material_name
+      FROM IoT.dbo.coois
+      JOIN IoT.dbo.routing ON coois.material_id = routing.material_id
+      WHERE coois.po_name = @poName
+      ORDER BY coois.id DESC;
+ 
+      SELECT TOP 1 @taskId = id FROM @InsertedIds;
+ 
+      IF @taskId IS NULL
+      BEGIN
+        RAISERROR ('Failed to insert countboard task for PO: %s', 16, 1, @poName);
+      END
+ 
+      INSERT INTO IoT.dbo.DailymoldTRX (
+        created_at,
+        task_id,
+        machine_id,
+        mold_id,
+        mold_name,
+        material_id,
+        material_name,
+        daily_shoot,
+        statusCILT,
+        note,
+        updated_at
+      )
+      SELECT
+        CAST(GETDATE() AS DATE),
+        @taskId,
+        mch.MchID,
+        mo.mold_id,
+        mo.mold_name,
+        coois.material_id,
+        coois.material_name,
+        0,
+        NULL,
+        NULL,
+        GETDATE()
+      FROM IoT.dbo.coois
+      JOIN IoT.dbo.routing ro ON coois.material_id = ro.material_id
+      JOIN IoT.dbo.MoldMST mo ON mo.mold_id = ro.mold_id
+      JOIN IoT.dbo.MachineMST mch ON mch.MchID = @machineName
+      WHERE
+        coois.po_name = @poName
+        AND mch.MchProcess = 'INJECTION'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM IoT.dbo.DailymoldTRX d
+          WHERE d.task_id = @taskId
+            AND d.mold_id = mo.mold_id
+            AND CAST(d.created_at AS DATE) = CAST(GETDATE() AS DATE)
+        );
+ 
+      COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+      IF @@TRANCOUNT > 0
+        ROLLBACK TRANSACTION;
+      THROW;
+    END CATCH
+  END
+  ELSE
+  BEGIN
+    SET @errorMessage = 'Routing not found for material number : ' + @materialId + ' , please sync Routing !';
+    RAISERROR (@errorMessage, 16, 1);
   END
   `
   try {
