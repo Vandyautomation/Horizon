@@ -1330,9 +1330,7 @@ export default function CountboardDashboard() {
       refreshInterval: SWR_MACHINES_REFRESH_INTERVAL_MS,
     }
   )
-  useEffect(() => {
-    setIsLoading(isValidating)
-  }, [isValidating])
+  const isMachineListLoading = !machines && isValidating
 
   const stateDataKey = selectedMachine?.machineName
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/machines/state/${
@@ -1935,18 +1933,10 @@ export default function CountboardDashboard() {
   const { data: hourlyData } = useSWR<HourlyData[]>(
     hourlyDataKey,
     async (url) => {
-      const promise = fetch(url).then((res) => {
+      return fetch(url).then((res) => {
         if (!res.ok) throw new Error('Failed to fetch')
         return res.json()
       })
-
-      toast.promise(promise, {
-        loading: 'Loading...',
-        // success: 'Countboard data refreshed',
-        error: 'Failed to load data',
-      })
-
-      return promise
     },
     {
       ...swrRecoveryOptions,
@@ -2927,7 +2917,7 @@ export default function CountboardDashboard() {
   }
 
   return (
-    <div className="p-0 space-y-2 w-full">
+    <div className="p-0 space-y-2 w-full min-h-screen">
       <div className="flex gap-4 justify-between items-center">
         {/* Left side - Logo and Building selection */}
         <div className="flex flex-col gap-4">
@@ -3538,7 +3528,7 @@ export default function CountboardDashboard() {
           </div> */}
         </div>
       </div>
-      {selectedMachine === null && isLoading == false ? (
+      {selectedMachine === null && !isMachineListLoading ? (
         <div className="text-center">Please select machine...</div>
       ) : (
         <div className="flex gap-2 md:grid-cols-2 lg:grid-cols-4 text-center h-32 w-full mb-2">
