@@ -112,6 +112,36 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
               </BreadcrumbItem>
             </>
           )}
+          {currentPage === 'cil-monitoring' && !currentSubPage && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('cil-monitoring', 'CILT', true)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('cil-monitoring/data-precilt', 'CILT Data', false)}
+              </BreadcrumbItem>
+            </>
+          )}
+          {currentPage === 'cil-monitoring' && currentSubPage === 'data-precilt' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('cil-monitoring', 'CILT', false)}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('cil-monitoring/data-precilt', 'CILT Data', true)}
+              </BreadcrumbItem>
+            </>
+          )}
 
           {currentPage === 'andon' && currentSubPage === 'uv' && (
             <>
