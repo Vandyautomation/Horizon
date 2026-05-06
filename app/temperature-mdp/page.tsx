@@ -50,6 +50,8 @@ type MdpActionMaster = {
   problem_id?: number | null;
 };
 
+type TempApiPayload = Record<string, unknown>;
+
 const DEFAULT_MDP_PROBLEMS = [
   "Normal",
   "Overheat",
@@ -66,8 +68,8 @@ const DEFAULT_MDP_ACTIONS = [
   "Scheduled maintenance",
 ];
 
-const LOWER_LIMIT = 60;
-const UPPER_LIMIT = 80;
+const LOWER_LIMIT = 30;
+const UPPER_LIMIT = 50;
 
 const chartConfig: ChartConfig = {
   temp: {
@@ -136,6 +138,37 @@ function inferActionFromCause(cause: string) {
   if (cause === "Overheat") return "Check cooling system";
   if (cause === "Underheat") return "Check heater";
   return "Monitoring";
+}
+
+function extractId1Temperature(payload: unknown): number | null {
+  if (!payload || typeof payload !== "object") return null;
+  const obj = payload as TempApiPayload;
+  const candidates = [
+    obj.temperature,
+    obj.temp,
+    obj.ID1,
+    obj.id1,
+    obj.temp1,
+    obj.temperature1,
+    obj.Temp1,
+    obj.Temperature1,
+  ];
+  for (const value of candidates) {
+    const num = Number(value);
+    if (Number.isFinite(num)) return num;
+  }
+  if (Array.isArray(obj.data)) {
+    for (const item of obj.data) {
+      if (!item || typeof item !== "object") continue;
+      const rec = item as TempApiPayload;
+      const point = Number(rec.id ?? rec.ID ?? rec.point ?? rec.Point);
+      const value = Number(
+        rec.value ?? rec.Value ?? rec.temp ?? rec.temperature ?? rec.Temperature,
+      );
+      if (point === 1 && Number.isFinite(value)) return value;
+    }
+  }
+  return null;
 }
 
 function buildMdpApiCandidates(path: string) {
@@ -236,7 +269,8 @@ function TemperatureChart({
               tickLine={false}
               axisLine={false}
               tickMargin={6}
-              domain={[50, 90]}
+              domain={[LOWER_LIMIT - 5, UPPER_LIMIT + 10]}
+              //domain={[50, 90]}
               tickFormatter={(value) => `${value}`}
             />
             <XAxis
@@ -344,6 +378,7 @@ export default function TemperatureMdpPage() {
   const [mdpHistoryRows, setMdpHistoryRows] = useState<MdpHistoryRow[]>([]);
   const [mdpLoading, setMdpLoading] = useState(false);
   const [mdpError, setMdpError] = useState<string | null>(null);
+  const [mdp2Id1Realtime, setMdp2Id1Realtime] = useState<number | null>(null);
 
   const normalizedModalCause = modalCause.trim().toLowerCase();
   const selectedProblem = useMemo(
@@ -494,8 +529,11 @@ export default function TemperatureMdpPage() {
     setMdpError(null);
 
     fetchFirstOkJson(candidates, { cache: "no-store", signal: controller.signal })
-      .then((json) => {
-        const rows = Array.isArray(json?.data) ? (json.data as MdpHistoryRow[]) : [];
+      .then((json: unknown) => {
+        const payload = json as { data?: unknown };
+        const rows = Array.isArray(payload.data)
+          ? (payload.data as MdpHistoryRow[])
+          : [];
         setMdpHistoryRows(rows);
       })
       .catch((error: unknown) => {
@@ -509,6 +547,33 @@ export default function TemperatureMdpPage() {
 
     return () => controller.abort();
   }, [mdpId, selectedDate, intervalMinutes, shiftFilter, seed]);
+
+  useEffect(() => {
+    if (mdpId !== 2) {
+      setMdp2Id1Realtime(null);
+      return;
+    }
+    const controller = new AbortController();
+    const origin =
+      typeof window !== "undefined" ? window.location.origin.replace(/\/+$/, "") : "";
+    const envBaseRaw = (process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/+$/, "");
+    const envBase = envBaseRaw.endsWith("/api") ? envBaseRaw.slice(0, -4) : envBaseRaw;
+    const candidates = [
+      `${origin}/admin/api/ems-temp/`,
+      `${origin}/api/ems-temp/`,
+      envBase ? `${envBase}/ems/api/temp` : "",
+      "http://dmksrv02:443/ems/api/temp",
+    ].filter(Boolean);
+    fetchFirstOkJson(candidates, { cache: "no-store", signal: controller.signal })
+      .then((json: unknown) => {
+        const value = extractId1Temperature(json);
+        setMdp2Id1Realtime(value);
+      })
+      .catch(() => {
+        setMdp2Id1Realtime(null);
+      });
+    return () => controller.abort();
+  }, [mdpId, seed]);
 
   const mdp2Derived = useMemo(() => {
     if (mdpId !== 2) return null;
@@ -835,17 +900,8 @@ export default function TemperatureMdpPage() {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="h-9 rounded border bg-white px-2 py-1 text-xs"
           />
-          <label className="text-[11px] text-gray-500 sm:ml-1 sm:mr-[-4px]">Interval</label>
-          <select
-            value={intervalMinutes}
-            onChange={(e) => setIntervalMinutes(Number(e.target.value))}
-            className="h-9 rounded border bg-white px-2 py-1 text-xs"
-          >
-            <option value={1}>1 menit</option>
-            <option value={5}>5 menit</option>
-            <option value={15}>15 menit</option>
-            <option value={60}>1 jam</option>
-          </select>
+          {/* Interval selector hidden temporarily.
+              Keep intervalMinutes state and fetch logic unchanged. */}
           <label className="text-[11px] text-gray-500 sm:ml-1 sm:mr-[-4px]">Shift</label>
           <select
             value={shiftFilter}
@@ -912,6 +968,10 @@ export default function TemperatureMdpPage() {
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {data.map((series, idx) => {
           const last = series.values[series.values.length - 1];
+          const cardValue =
+            mdpId === 2 && series.label === "1" && mdp2Id1Realtime !== null
+              ? mdp2Id1Realtime
+              : last;
           const isActive = idx === activeIndex;
           const positionLabel = effectivePositions[idx]?.label || "-";
           return (
@@ -928,7 +988,7 @@ export default function TemperatureMdpPage() {
               <div className="text-xs text-gray-600">ID {series.label}</div>
               <div className="text-[11px] text-gray-500">{positionLabel}</div>
               <div className="mt-1 text-xl font-semibold text-gray-900 sm:text-2xl">
-                {last} C
+                {cardValue} C
               </div>
               <div className="mt-2 text-[11px] text-gray-500">
                 Range aman {LOWER_LIMIT} - {UPPER_LIMIT} C

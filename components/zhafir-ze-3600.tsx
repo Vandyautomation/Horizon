@@ -429,9 +429,9 @@ export default function ZhafirParameterForm() {
         unique.add(
           'http://localhost:9999/api/zhafir-ze-3600/section-styles' + q
         )
-        unique.add(
-          'http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles' + q
-        )
+        // unique.add(
+        //   'http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles' + q
+        // )
       }
       unique.add('/be/api/zhafir-ze-3600/section-styles' + q)
       return Array.from(unique)
@@ -453,7 +453,7 @@ export default function ZhafirParameterForm() {
       if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/section-styles`)
       if (isLocalRuntime) {
         unique.add('http://localhost:9999/api/zhafir-ze-3600/section-styles')
-        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles')
+        // unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles')
       }
       unique.add('/be/api/zhafir-ze-3600/section-styles')
 
@@ -560,9 +560,9 @@ export default function ZhafirParameterForm() {
         unique.add(
           'http://localhost:9999/api/zhafir-ze-3600/summary-range-config' + q
         )
-        unique.add(
-          'http://127.0.0.1:9999/api/zhafir-ze-3600/summary-range-config' + q
-        )
+        // unique.add(
+        //   'http://127.0.0.1:9999/api/zhafir-ze-3600/summary-range-config' + q
+        // )
       }
       unique.add('/be/api/zhafir-ze-3600/summary-range-config' + q)
       return Array.from(unique)
@@ -749,7 +749,7 @@ export default function ZhafirParameterForm() {
       if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600${q}`)
       if (isLocalRuntime) {
         unique.add('http://localhost:9999/api/zhafir-ze-3600' + q)
-        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600' + q)
+        // unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600' + q)
       }
       unique.add(`/be/api/zhafir-ze-3600${q}`)
       return Array.from(unique)
@@ -770,7 +770,7 @@ export default function ZhafirParameterForm() {
         unique.add(`${normalized}/api/zhafir-ze-3600/actual-view${q}`)
       if (isLocalRuntime) {
         unique.add('http://localhost:9999/api/zhafir-ze-3600/actual-view' + q)
-        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-view' + q)
+        // unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-view' + q)
       }
       unique.add(`/be/api/zhafir-ze-3600/actual-view${q}`)
       return Array.from(unique)
@@ -908,7 +908,7 @@ export default function ZhafirParameterForm() {
         unique.add(`${normalized}/api/zhafir-ze-3600/actual-hours${q}`)
       if (isLocalRuntime) {
         unique.add('http://localhost:9999/api/zhafir-ze-3600/actual-hours' + q)
-        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-hours' + q)
+        // unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-hours' + q)
       }
       unique.add(`/be/api/zhafir-ze-3600/actual-hours${q}`)
       return Array.from(unique)
@@ -984,7 +984,7 @@ export default function ZhafirParameterForm() {
           'http://localhost:9999/api/zhafir-ze-3600/material-context' + q
         )
         unique.add(
-          'http://127.0.0.1:9999/api/zhafir-ze-3600/material-context' + q
+          // 'http://127.0.0.1:9999/api/zhafir-ze-3600/material-context' + q
         )
       }
       unique.add('/be/api/zhafir-ze-3600/material-context' + q)
