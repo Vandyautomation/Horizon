@@ -50,8 +50,7 @@ type CiltMonitoringData = {
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL
 
 export default function CilMonitoring() {
-  const [selectedBuilding, setSelectedBuilding] =
-    useState<string>('All Buildings')
+  const [selectedBuilding, setSelectedBuilding] = useState<string>('INJ Bld G')
   const [selectedUap, setSelectedUap] = useState<string>('All UAP')
   const [data, setData] = useState<CiltMonitoringData[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -73,13 +72,20 @@ export default function CilMonitoring() {
   }
   const openPreCilModal = (item: CiltMonitoringData) => {
     setTargetMachine(item)
-    setNoteInput('') // Reset note jadi kosong setiap buka modal baru
+    setNoteInput('')
     setIsPreCilModalOpen(true)
   }
   const closeModal = () => {
     setSelectedItem(null)
     setIsModalOpen(false)
   }
+  const [sortConfig, setSortConfig] = useState<{
+    key: string
+    direction: 'asc' | 'desc' | 'none'
+  }>({
+    key: 'machine_name',
+    direction: 'none',
+  })
   // const handlePreCil = async (item: CiltMonitoringData) => {
   //   const confirmAction = window.confirm(
   //     `Apakah Anda yakin ingin memproses Pre-cil untuk mesin ${item.machine_name}?`
@@ -222,11 +228,34 @@ export default function CilMonitoring() {
     })
   }, [selectedBuilding, selectedUap, data])
   const sortedData = useMemo(() => {
-    return [...filteredData].sort(
-      (a, b) => (b.daily_shoot || 0) - (a.daily_shoot || 0)
-    )
-  }, [filteredData])
-  console.log('Sorted Data:', sortedData)
+    let sortableData = [...filteredData]
+
+    if (sortConfig.direction !== 'none') {
+      sortableData.sort((a, b) => {
+        const aValue = a.machine_name.toLowerCase()
+        const bValue = b.machine_name.toLowerCase()
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1
+        }
+        return 0
+      })
+    } else {
+      sortableData.sort((a, b) => (b.daily_shoot || 0) - (a.daily_shoot || 0))
+    }
+
+    return sortableData
+  }, [filteredData, sortConfig])
+
+  const requestSort = () => {
+    let direction: 'asc' | 'desc' | 'none' = 'asc'
+    if (sortConfig.direction === 'asc') direction = 'desc'
+    else if (sortConfig.direction === 'desc') direction = 'none'
+    setSortConfig({ key: 'machine_name', direction })
+  }
   // ================= UI COMPONENTS =================
   function DashboardCard({
     title,
@@ -423,59 +452,77 @@ export default function CilMonitoring() {
           </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm text-left">
-            <thead className="bg-gray-50/50 text-xs uppercase tracking-wider text-gray-500">
+          <table className="w-full text-xs md:text-sm text-left">
+            <thead className="bg-gray-50/50 text-xs uppercase tracking-wider text-gray-500 sticky top-0 hidden md:table-header-group">
               <tr>
-                <th className="px-6 py-4 font-semibold text-center w-16">No</th>
-                <th className="px-6 py-4 font-semibold">Machine</th>
-                <th className="px-6 py-4 font-semibold">Material Name</th>
-                <th className="px-6 py-4 font-semibold">Mold</th>
-                <th className="px-6 py-4 font-semibold">UAP</th>
-                <th className="px-6 py-4 font-semibold">Building</th>
-                <th className="px-6 py-4 font-semibold text-center">Shoot</th>
-                <th className="px-6 py-4 font-semibold text-center">
+                <th className="px-2 md:px-6 py-2 md:py-4 font-semibold text-center w-12 md:w-16">No</th>
+                <th
+                  className="px-2 md:px-6 py-2 md:py-4 font-semibold cursor-pointer hover:text-blue-600 transition-colors"
+                  onClick={requestSort}
+                >
+                  <div className="flex items-center gap-1">
+                    <span className="hidden lg:inline">Machine</span>
+                    <span className="lg:hidden">Mch</span>
+                    <div className="flex flex-col">
+                      <ChevronDown
+                        size={12}
+                        className={`-mb-1 ${sortConfig.direction === 'asc' ? 'text-blue-600 rotate-180' : 'text-gray-300'}`}
+                      />
+                      <ChevronDown
+                        size={12}
+                        className={`${sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-gray-300'}`}
+                      />
+                    </div>
+                  </div>
+                </th>
+                <th className="px-2 md:px-6 py-2 md:py-4 font-semibold hidden lg:table-cell">Material Name</th>
+                <th className="px-2 md:px-6 py-2 md:py-4 font-semibold hidden md:table-cell">Mold</th>
+                <th className="px-2 md:px-6 py-2 md:py-4 font-semibold hidden lg:table-cell">UAP</th>
+                <th className="px-2 md:px-6 py-2 md:py-4 font-semibold hidden md:table-cell">Building</th>
+                <th className="px-2 md:px-6 py-2 md:py-4 font-semibold text-center">Shoot</th>
+                <th className="px-2 md:px-6 py-2 md:py-4 font-semibold text-center">
                   Status Mold
                 </th>
-                <th className="px-6 py-4 font-semibold text-center">Lv mold</th>
-                <th className="px-6 py-4 font-semibold">Machine Status</th>
-                <th className="px-6 py-4 font-semibold text-center">Action</th>
+                <th className="px-2 md:px-6 py-2 md:py-4 font-semibold text-center hidden sm:table-cell">Lv</th>
+                <th className="px-2 md:px-6 py-2 md:py-4 font-semibold hidden md:table-cell">Mch Status</th>
+                <th className="px-2 md:px-6 py-2 md:py-4 font-semibold text-center">Action</th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 block md:table-row-group">
               {sortedData.map((item, index) => (
                 <tr
                   key={index}
-                  className="hover:bg-blue-50/30 transition-colors group"
+                  className="hover:bg-blue-50/30 transition-colors group block md:table-row border-b md:border-b border-gray-100 mb-4 md:mb-0 p-4 md:p-0"
                 >
-                  <td className="px-6 py-4 text-center text-gray-400">
+                  <td className="px-2 md:px-6 py-2 md:py-4 text-center text-gray-400 block md:table-cell before:font-bold before:text-gray-300 before:mr-2 md:before:content-none">
                     {index + 1}
                   </td>
-                  <td className="px-6 py-4 font-bold text-gray-700">
+                  <td className="px-2 md:px-6 py-2 md:py-4 font-bold text-gray-700 block md:table-cell before:font-bold before:text-gray-400 before:mr-2 md:before:content-none">
                     {item.machine_name}
                   </td>
-                  <td className="px-6 py-4 font-bold text-gray-700">
+                  <td className="px-2 md:px-6 py-2 md:py-4 font-bold text-gray-700 hidden lg:table-cell before:font-bold before:text-gray-400 before:mr-2">
                     {item.material_name}
                   </td>
-                  <td className="px-6 py-4 text-gray-600 font-mono">
+                  <td className="px-2 md:px-6 py-2 md:py-4 text-gray-600 font-mono hidden md:table-cell before:font-bold before:text-gray-400 before:mr-2">
                     {item.mold_name}
                   </td>
-                  <td className="px-6 py-4 text-gray-600 font-mono">
+                  <td className="px-2 md:px-6 py-2 md:py-4 text-gray-600 font-mono hidden lg:table-cell before:font-bold before:text-gray-400 before:mr-2">
                     {item.UAP}
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  <td className="px-2 md:px-6 py-2 md:py-4 text-center hidden md:table-cell  before:font-bold before:text-gray-400 before:mr-2">
+                    <span className="inline-flex items-center gap-1.5 px-2 md:px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                       {item.MchLoc}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-2 md:px-6 py-2 md:py-4 text-center block md:table-cell  before:font-bold before:text-gray-400 before:mr-2 md:before:content-none">
                     <span
-                      className={`text-sm font-bold px-4 py-3 rounded-xl ${
+                      className={`text-xs md:text-sm font-bold px-2 md:px-4 py-2 md:py-3 rounded-xl ${
                         item.daily_shoot >= 5000
-                          ? 'text-red-700 bg-red-100 animate-pulse' // Critical (Merah)
+                          ? 'text-red-700 bg-red-100 animate-pulse'
                           : item.daily_shoot >= 2500
-                            ? 'text-yellow-700 bg-yellow-100 animate-pulse' // Warning (Kuning)
-                            : 'text-gray-600' // Normal (Abu-abu)
+                            ? 'text-yellow-700 bg-yellow-100 animate-pulse'
+                            : 'text-gray-600'
                       }`}
                     >
                       {item.daily_shoot === 0 || item.daily_shoot === null
@@ -483,29 +530,28 @@ export default function CilMonitoring() {
                         : item.daily_shoot.toLocaleString()}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-2 md:px-6 py-2 md:py-4 text-center block md:table-cell  before:font-bold before:text-gray-400 before:mr-2 md:before:content-none">
                     <div className="flex justify-center">
-                      {/* Logic Tampilan: Jika status DB adalah CILT ATAU shoot >= 2500, tampilkan label CILT */}
                       {item.statusCILT === 'CILT' ||
                       item.daily_shoot >= 2500 ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider bg-yellow-500 text-white shadow-sm">
-                          <AlertCircle size={12} className="animate-bounce" />
+                        <span className="inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-2 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider bg-yellow-500 text-white shadow-sm">
+                          <AlertCircle size={10} className="md:w-3 md:h-3 animate-bounce" />
                           CILT
                         </span>
                       ) : item.statuslight === 'GREEN' ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-green-100 text-green-700">
-                          <CheckCircle2 size={12} />
-                          RUNNING
+                        <span className="inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-wider bg-green-100 text-green-700">
+                          <CheckCircle2 size={10} className="md:w-3 md:h-3" />
+                          RUNNIING
                         </span>
                       ) : (
                         <span className="text-gray-400 font-bold">-</span>
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-2 md:px-6 py-2 md:py-4 text-center hidden sm:table-cell before:font-bold before:text-gray-400 before:mr-2">
                     <div className="flex justify-center">
                       <span
-                        className={`text-[12px] font-bold px-2 py-0.5 rounded ${
+                        className={`text-[10px] md:text-[12px] font-bold px-2 py-0.5 rounded ${
                           item.CILTLvl === 'Lv2'
                             ? 'bg-red-100 text-red-600'
                             : item.CILTLvl === 'Lv1'
@@ -519,8 +565,8 @@ export default function CilMonitoring() {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center gap-2">
+                  <td className="px-2 md:px-6 py-2 md:py-4 text-center hidden md:table-cell before:font-bold before:text-gray-400 before:mr-2">
+                    <div className="flex items-center gap-2 justify-center">
                       <span
                         className={`h-2 w-2 rounded-full ${
                           item.statuslight === 'GREEN'
@@ -535,22 +581,22 @@ export default function CilMonitoring() {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-3">
+                  <td className="px-2 md:px-6 py-2 md:py-4 block md:table-cell">
+                    <div className="flex flex-col md:flex-row items-center justify-end gap-2 md:gap-3">
                       <button
                         onClick={() => openModal(item)}
-                        className="flex items-center gap-2 bg-white border border-blue-400 text-blue-500 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm hover:bg-blue-50 transition-all active:scale-95"
+                        className="w-full md:w-auto flex items-center justify-center md:justify-start gap-1 md:gap-2 bg-white border border-blue-400 text-blue-500 px-2 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-xs md:text-sm font-semibold shadow-sm hover:bg-blue-50 transition-all active:scale-95"
                       >
-                        <FileText size={16} />
-                        Details
+                        <FileText size={14} className="md:w-4 md:h-4" />
+                        <span className="md:inline">Details</span>
                       </button>
                       {item.statusCILT !== 'CILT' && (
                         <button
-                          onClick={() => openPreCilModal(item)} // Ganti ke fungsi baru ini
-                          className="flex items-center gap-2 bg-yellow-500 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm hover:bg-yellow-600 transition-all active:scale-95"
+                          onClick={() => openPreCilModal(item)}
+                          className="w-full md:w-auto flex items-center justify-center md:justify-start gap-1 md:gap-2 bg-yellow-500 text-white px-2 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-xs md:text-sm font-semibold shadow-sm hover:bg-yellow-600 transition-all active:scale-95"
                         >
-                          <Settings size={16} />
-                          Pre-Cilt
+                          <Settings size={14} className="md:w-4 md:h-4" />
+                          <span className="md:inline">Pre-Cilt</span>
                         </button>
                       )}
                     </div>
@@ -632,7 +678,7 @@ export default function CilMonitoring() {
                 </div>
 
                 {/* Status Activity (Hanya muncul jika sedang CILT) */}
-                {(selectedItem.statusCILT === 'CILT') && (
+                {selectedItem.statusCILT === 'CILT' && (
                   <div className="p-4 bg-yellow-50 rounded-2xl border border-yellow-200">
                     <div className="flex items-center gap-2 text-yellow-700 mb-3">
                       <Activity size={16} className="animate-pulse" />

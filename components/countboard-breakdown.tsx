@@ -162,8 +162,6 @@ export default function CountboardBreakdown() {
       setLoading(false)
     }
   }, [])
-  console.log('Lost Data:', lostData)
-  console.log('Problem Data:', problemData)
   // auto refresh tiap 10 detik
   useEffect(() => {
     fetchData()

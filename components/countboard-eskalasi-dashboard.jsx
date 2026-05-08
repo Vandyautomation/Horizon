@@ -351,9 +351,9 @@ export default function CountboardEskalasi() {
     const map = {}
 
     filteredTickets.forEach((item) => {
-      if (!item.ActualSubmit || !item.ActualEskalasiFinish) return
+      if (!item.ActualFinish || !item.ActualEskalasiFinish) return
 
-      const submit = new Date(item.ActualSubmit)
+      const submit = new Date(item.ActualFinish)
       const finish = new Date(item.ActualEskalasiFinish)
 
       const diffHours = (finish.getTime() - submit.getTime()) / (1000 * 60 * 60)

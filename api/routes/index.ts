@@ -21,7 +21,8 @@ import zhafirRoutes from './zhafirRoutes';
 // import mdpRoutes from './mdpRoutes';
 import mqttCounterShootRoutes from './mqttCounterShootRoutes';
 import ciltRoutes from './ciltRoutes';
-
+import exportRoutesBreak from './exportRouteBreak';
+import exportRoutes from './exportRoutes'
 
 
 const router = new Hono();
@@ -52,6 +53,8 @@ router.route('/mqtt-counter-shoot', mqttCounterShootRoutes);
 router.route('/cilt', ciltRoutes);
 
 
+router.route('/export', exportRoutes);
+router.route('/exportBreak', exportRoutesBreak);
 
 
 

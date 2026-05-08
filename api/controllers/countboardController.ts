@@ -568,6 +568,7 @@ export async function getTicketByEskalasi(fromDate?: string, toDate?: string) {
       t.ActionPlan,
       t.AssignToDept,
       t.Message,
+      t.ActualFinish,
       t.EskalasiStatus,
       t.EskalasiFlag,
       t.ActualSubmit,
