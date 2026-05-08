@@ -19,7 +19,6 @@ type StdActValue = {
 }
 
 type ApiResponse = {
-  paraId: string
   ranges?: Record<
     string,
     { min: number | string | null; max: number | string | null }
@@ -126,8 +125,8 @@ type SectionStyleEntry = {
   actBgColor: string
 }
 
-const PARA_ID = 'ZHF-STD-001'
 const EDIT_MODE_PASSWORD = 'P168421TK1'
+const ZHAFIR_VIEW_ONLY_MODE = true
 const ENABLE_PER_FIELD_SAVE = false
 const STRING_FIELDS = new Set([
   'AirBlowStart',
@@ -421,7 +420,7 @@ export default function ZhafirParameterForm() {
       const normalized = trimmed.endsWith('/api')
         ? trimmed.slice(0, -4)
         : trimmed
-      const q = `?machine_id=${encodeURIComponent(machineKey)}`
+      const q = `?machine_id=${encodeURIComponent(machineKey)}&mode=param`
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/section-styles${q}`)
@@ -429,9 +428,9 @@ export default function ZhafirParameterForm() {
         unique.add(
           'http://localhost:9999/api/zhafir-ze-3600/section-styles' + q
         )
-        // unique.add(
-        //   'http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles' + q
-        // )
+        unique.add(
+          'http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles' + q
+        )
       }
       unique.add('/be/api/zhafir-ze-3600/section-styles' + q)
       return Array.from(unique)
@@ -453,7 +452,7 @@ export default function ZhafirParameterForm() {
       if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600/section-styles`)
       if (isLocalRuntime) {
         unique.add('http://localhost:9999/api/zhafir-ze-3600/section-styles')
-        // unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles')
+        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/section-styles')
       }
       unique.add('/be/api/zhafir-ze-3600/section-styles')
 
@@ -552,7 +551,7 @@ export default function ZhafirParameterForm() {
       const normalized = trimmed.endsWith('/api')
         ? trimmed.slice(0, -4)
         : trimmed
-      const q = '?uom=HAITIAN'
+      const q = '?uom=HAITIAN&mode=param'
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/summary-range-config${q}`)
@@ -560,9 +559,9 @@ export default function ZhafirParameterForm() {
         unique.add(
           'http://localhost:9999/api/zhafir-ze-3600/summary-range-config' + q
         )
-        // unique.add(
-        //   'http://127.0.0.1:9999/api/zhafir-ze-3600/summary-range-config' + q
-        // )
+        unique.add(
+          'http://127.0.0.1:9999/api/zhafir-ze-3600/summary-range-config' + q
+        )
       }
       unique.add('/be/api/zhafir-ze-3600/summary-range-config' + q)
       return Array.from(unique)
@@ -742,14 +741,15 @@ export default function ZhafirParameterForm() {
       const normalized = trimmed.endsWith('/api')
         ? trimmed.slice(0, -4)
         : trimmed
-      const q = `?paraId=${encodeURIComponent(PARA_ID)}${
-        machineId ? `&machine_id=${encodeURIComponent(machineId)}` : ''
-      }`
+      const params = new URLSearchParams()
+      if (machineId) params.set('machine_id', machineId)
+      params.set('mode', 'param')
+      const q = params.toString() ? `?${params.toString()}` : ''
       const unique = new Set<string>()
       if (normalized) unique.add(`${normalized}/api/zhafir-ze-3600${q}`)
       if (isLocalRuntime) {
         unique.add('http://localhost:9999/api/zhafir-ze-3600' + q)
-        // unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600' + q)
+        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600' + q)
       }
       unique.add(`/be/api/zhafir-ze-3600${q}`)
       return Array.from(unique)
@@ -760,17 +760,18 @@ export default function ZhafirParameterForm() {
       const normalized = trimmed.endsWith('/api')
         ? trimmed.slice(0, -4)
         : trimmed
-      const q = `?paraId=${encodeURIComponent(PARA_ID)}${
-        machineId ? `&machine_id=${encodeURIComponent(machineId)}` : ''
-      }${selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : ''}${
-        selectedHour !== '' ? `&hour=${encodeURIComponent(selectedHour)}` : ''
-      }`
+      const params = new URLSearchParams()
+      if (machineId) params.set('machine_id', machineId)
+      if (selectedDate) params.set('date', selectedDate)
+      if (selectedHour !== '') params.set('hour', selectedHour)
+      params.set('mode', 'param')
+      const q = params.toString() ? `?${params.toString()}` : ''
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/actual-view${q}`)
       if (isLocalRuntime) {
         unique.add('http://localhost:9999/api/zhafir-ze-3600/actual-view' + q)
-        // unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-view' + q)
+        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-view' + q)
       }
       unique.add(`/be/api/zhafir-ze-3600/actual-view${q}`)
       return Array.from(unique)
@@ -902,13 +903,13 @@ export default function ZhafirParameterForm() {
       const normalized = trimmed.endsWith('/api')
         ? trimmed.slice(0, -4)
         : trimmed
-      const q = `?machine_id=${encodeURIComponent(machineId)}&date=${encodeURIComponent(selectedDate)}`
+      const q = `?machine_id=${encodeURIComponent(machineId)}&date=${encodeURIComponent(selectedDate)}&mode=param`
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/actual-hours${q}`)
       if (isLocalRuntime) {
         unique.add('http://localhost:9999/api/zhafir-ze-3600/actual-hours' + q)
-        // unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-hours' + q)
+        unique.add('http://127.0.0.1:9999/api/zhafir-ze-3600/actual-hours' + q)
       }
       unique.add(`/be/api/zhafir-ze-3600/actual-hours${q}`)
       return Array.from(unique)
@@ -975,7 +976,7 @@ export default function ZhafirParameterForm() {
       const normalized = trimmed.endsWith('/api')
         ? trimmed.slice(0, -4)
         : trimmed
-      const q = `?po=${encodeURIComponent(poNumber)}`
+      const q = `?po=${encodeURIComponent(poNumber)}&mode=param`
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/material-context${q}`)
@@ -984,7 +985,7 @@ export default function ZhafirParameterForm() {
           'http://localhost:9999/api/zhafir-ze-3600/material-context' + q
         )
         unique.add(
-          // 'http://127.0.0.1:9999/api/zhafir-ze-3600/material-context' + q
+          'http://127.0.0.1:9999/api/zhafir-ze-3600/material-context' + q
         )
       }
       unique.add('/be/api/zhafir-ze-3600/material-context' + q)
@@ -1041,7 +1042,7 @@ export default function ZhafirParameterForm() {
       const normalized = trimmed.endsWith('/api')
         ? trimmed.slice(0, -4)
         : trimmed
-      const q = `?material_id=${encodeURIComponent(materialId)}`
+      const q = `?material_id=${encodeURIComponent(materialId)}&mode=param`
       const unique = new Set<string>()
       if (normalized)
         unique.add(`${normalized}/api/zhafir-ze-3600/material-type-routing${q}`)
@@ -1115,17 +1116,17 @@ export default function ZhafirParameterForm() {
       const candidateUrls = new Set<string>()
       if (normalized)
         candidateUrls.add(
-          `${normalized}/api/zhafir-ze-3600/material-type-routing`
+          `${normalized}/api/zhafir-ze-3600/material-type-routing?mode=param`
         )
       if (isLocalRuntime) {
         candidateUrls.add(
-          'http://localhost:9999/api/zhafir-ze-3600/material-type-routing'
+          'http://localhost:9999/api/zhafir-ze-3600/material-type-routing?mode=param'
         )
         candidateUrls.add(
-          'http://127.0.0.1:9999/api/zhafir-ze-3600/material-type-routing'
+          'http://127.0.0.1:9999/api/zhafir-ze-3600/material-type-routing?mode=param'
         )
       }
-      candidateUrls.add('/be/api/zhafir-ze-3600/material-type-routing')
+      candidateUrls.add('/be/api/zhafir-ze-3600/material-type-routing?mode=param')
 
       for (const url of Array.from(candidateUrls)) {
         try {
@@ -1295,7 +1296,7 @@ export default function ZhafirParameterForm() {
 
     const trimmed = (baseUrl || '').replace(/\/+$/, '')
     const normalized = trimmed.endsWith('/api') ? trimmed.slice(0, -4) : trimmed
-    const q = `?material_id=${encodeURIComponent(trimmedMaterialId)}`
+    const q = `?material_id=${encodeURIComponent(trimmedMaterialId)}&mode=param`
     const candidates = new Set<string>()
     if (normalized) {
       candidates.add(
@@ -1517,6 +1518,7 @@ if (!resolved || !resolved.materialName) {
     closeSummaryAddModal()
   }
   const submitEditPassword = () => {
+    if (ZHAFIR_VIEW_ONLY_MODE) return
     if (editPasswordInput !== EDIT_MODE_PASSWORD) {
       setEditPasswordError('Password salah.')
       return
@@ -1527,6 +1529,7 @@ if (!resolved || !resolved.materialName) {
     closeEditPasswordModal()
   }
   const toggleEditMode = () => {
+    if (ZHAFIR_VIEW_ONLY_MODE) return
     if (isEditMode) {
       setIsEditMode(false)
       setManualRangeMode({})
@@ -1802,8 +1805,7 @@ if (!resolved || !resolved.materialName) {
           </div>
         </div>
         <div className="text-xs text-gray-600">
-          ParaID: <span className="font-semibold">{PARA_ID}</span>
-          {` | Mode: ${isEditMode ? 'EDIT' : 'VIEW'}`}
+          {`Mode: VIEW`}
           {loading ? ' | Loading...' : ''}
           {error ? ` | ${error}` : ''}
           {!materialContext && materialParam
@@ -1813,17 +1815,19 @@ if (!resolved || !resolved.materialName) {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={toggleEditMode}
-          className={`rounded-md border px-3 py-1 text-xs ${
-            isEditMode
-              ? 'border-amber-500 bg-amber-50 text-amber-800 hover:bg-amber-100'
-              : 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }`}
-        >
-          {isEditMode ? 'Switch to View Mode' : 'Enter Edit Mode'}
-        </button>
+        {!ZHAFIR_VIEW_ONLY_MODE && (
+          <button
+            type="button"
+            onClick={toggleEditMode}
+            className={`rounded-md border px-3 py-1 text-xs ${
+              isEditMode
+                ? 'border-amber-500 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                : 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            {isEditMode ? 'Switch to View Mode' : 'Enter Edit Mode'}
+          </button>
+        )}
         <div className="flex items-center gap-2 rounded-md border bg-white px-2 py-1">
           <label className="text-xs text-gray-600">Tanggal</label>
           <input
@@ -1912,7 +1916,7 @@ if (!resolved || !resolved.materialName) {
           </div>
         )}
       </div>
-      {showEditPasswordModal && (
+      {!ZHAFIR_VIEW_ONLY_MODE && showEditPasswordModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
           onClick={closeEditPasswordModal}
@@ -2534,7 +2538,7 @@ if (!resolved || !resolved.materialName) {
         </div>
       </Section>
 
-      <Section
+      {/* <Section
         title="INJECT"
         sectionKey="INJECT"
         expanded={expandedSections['INJECT']}
@@ -3585,7 +3589,7 @@ if (!resolved || !resolved.materialName) {
             />
           ))}
         </div>
-      </Section>
+      </Section> */}
             </div>
           </SectionStyleContext.Provider>
         </PaletteContext.Provider>

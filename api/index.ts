@@ -15,7 +15,8 @@ function isTediousParserCrash(err: unknown) {
       text.includes('unsupported numeric datalength') ||
       text.includes('unsupported datalength') ||
       text.includes('unknown type:') ||
-      text.includes('unexpected end of data')
+      text.includes('unexpected end of data') ||
+      text.includes('partially length-prefixed bytes unmatched lengths')
     )
   );
 }

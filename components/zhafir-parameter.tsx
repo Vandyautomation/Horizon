@@ -32,7 +32,8 @@ const parameterLabels = {
   CarriageBwd_SE: 'Carriage Backward SE',
 }
 
-const endpoint = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/zhafir-ze-3600/Pamzhafir`
+const endpointBase = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/zhafir-ze-3600/Pamzhafir`
+const endpoint = `${endpointBase}?mode=param`
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export default function ZhafirParameter() {
@@ -63,12 +64,13 @@ export default function ZhafirParameter() {
   const [form, setForm] = useState<Record<string, string>>(initialFormState)
 
   const { data, error, isLoading } = useSWR<ZhafirParameterType[]>(endpoint, fetcher)
+  const tableData = Array.isArray(data) ? data : []
 
   useEffect(() => {
     if (!machineQuery) return
     const timeout = setTimeout(async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/zhafir-ze-3600/machines?q=${machineQuery}`)
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/zhafir-ze-3600/machines?q=${machineQuery}&mode=param`)
         const data = await res.json()
         setMachineOptions(data)
       } catch (err) { console.error(err) }
@@ -80,7 +82,7 @@ export default function ZhafirParameter() {
     if (!materialQuery) return
     const timeout = setTimeout(async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/zhafir-ze-3600/coois?q=${materialQuery}`)
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/zhafir-ze-3600/coois?q=${materialQuery}&mode=param`)
         const data = await res.json()
         setMaterialOptions(data)
       } catch (err) { console.error(err) }
@@ -172,7 +174,7 @@ export default function ZhafirParameter() {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure?')) return
     try {
-      const res = await fetch(`${endpoint}/${id}`, { method: 'DELETE' })
+      const res = await fetch(`${endpointBase}/${id}?mode=param`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Delete failed')
       mutate(endpoint)
     } catch (err) { console.error(err) }
@@ -293,7 +295,7 @@ export default function ZhafirParameter() {
             </tr>
           </thead>
           <tbody>
-            {data?.map((item, index) => {
+            {tableData.map((item, index) => {
               const rawParams = JSON.parse(item.paramset || '{}')
               return (
                 <tr key={item.id} className="border-t hover:bg-gray-50 cursor-pointer" 

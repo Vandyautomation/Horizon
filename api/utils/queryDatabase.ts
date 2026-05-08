@@ -53,7 +53,8 @@ const isTediousParserError = (error: any) => {
       message.includes('unknown type:') ||
       message.includes('unexpected end of data') ||
       message.includes('unsupported datalength') ||
-      message.includes('unsupported numeric datalength')
+      message.includes('unsupported numeric datalength') ||
+      message.includes('partially length-prefixed bytes unmatched lengths')
     )
   );
 };

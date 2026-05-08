@@ -49,6 +49,16 @@ type MdpActionMaster = {
   name: string;
   problem_id?: number | null;
 };
+type MdpThresholdRow = {
+  id: number;
+  mdp_id: number;
+  ThresholdUpperID1?: string | null;
+  ThresholdLowerID1?: string | null;
+  ThresholdUpperID2?: string | null;
+  ThresholdLowerID2?: string | null;
+  ThresholdUpperID3?: string | null;
+  ThresholdLowerID3?: string | null;
+};
 
 type TempApiPayload = Record<string, unknown>;
 
@@ -68,8 +78,8 @@ const DEFAULT_MDP_ACTIONS = [
   "Scheduled maintenance",
 ];
 
-const LOWER_LIMIT = 30;
-const UPPER_LIMIT = 50;
+const DEFAULT_LOWER_LIMIT = 30;
+const DEFAULT_UPPER_LIMIT = 50;
 
 const chartConfig: ChartConfig = {
   temp: {
@@ -128,9 +138,13 @@ function toStateLabel(value: string) {
   return "Normal";
 }
 
-function inferCauseFromValue(value: number) {
-  if (value > UPPER_LIMIT) return "Overheat";
-  if (value < LOWER_LIMIT) return "Underheat";
+function inferCauseFromValue(
+  value: number,
+  lowerLimit: number = DEFAULT_LOWER_LIMIT,
+  upperLimit: number = DEFAULT_UPPER_LIMIT
+) {
+  if (value > upperLimit) return "Overheat";
+  if (value < lowerLimit) return "Underheat";
   return "Normal";
 }
 
@@ -179,13 +193,19 @@ function buildMdpApiCandidates(path: string) {
     : envBaseRaw;
   const origin =
     typeof window !== "undefined" ? window.location.origin.replace(/\/+$/, "") : "";
+  const isLocalRuntime =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
 
   const unique = new Set<string>();
   if (envBase) unique.add(`${envBase}${cleanedPath}`);
   if (origin) unique.add(`${origin}/be${cleanedPath}`);
   if (origin) unique.add(`${origin}${cleanedPath}`);
-  unique.add(`http://localhost:9999${cleanedPath}`);
-  unique.add(`http://127.0.0.1:9999${cleanedPath}`);
+  if (isLocalRuntime) {
+    unique.add(`http://localhost:9999${cleanedPath}`);
+    unique.add(`http://127.0.0.1:9999${cleanedPath}`);
+  }
 
   return Array.from(unique);
 }
@@ -217,11 +237,15 @@ function TemperatureChart({
   baseTime,
   intervalMinutes,
   shiftFilter,
+  lowerLimit,
+  upperLimit,
 }: {
   series: Series;
   baseTime: number;
   intervalMinutes: number;
   shiftFilter: "all" | "s1" | "s2" | "s3";
+  lowerLimit: number;
+  upperLimit: number;
 }) {
   const rawData = series.values.map((value, index) => {
     const ts = series.timestamps?.[index]
@@ -230,8 +254,13 @@ function TemperatureChart({
           baseTime -
             (series.values.length - 1 - index) * intervalMinutes * 60_000,
         );
+    const tsLabel = ts.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     return {
       ts: ts.toISOString(),
+      tsLabel,
       temp: value,
     };
   });
@@ -246,6 +275,12 @@ function TemperatureChart({
   const fallback = new Date(baseTime);
   const start = new Date(chartData[0]?.ts ?? fallback);
   const end = new Date(chartData[chartData.length - 1]?.ts ?? fallback);
+  const yMin = lowerLimit - 5;
+  const yMax = upperLimit + 10;
+  const yTicks = Array.from(
+    { length: Math.floor((yMax - yMin) / 5) + 1 },
+    (_, i) => yMin + i * 5,
+  );
 
   return (
     <Card className="shadow-sm">
@@ -254,7 +289,7 @@ function TemperatureChart({
         <CardDescription className="text-[11px] leading-relaxed sm:text-xs">
           {start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
           {" - "}
-          {end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} | Batas atas {UPPER_LIMIT} C | Batas bawah {LOWER_LIMIT} C
+          {end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} | Batas atas {upperLimit} C | Batas bawah {lowerLimit} C
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
@@ -269,43 +304,37 @@ function TemperatureChart({
               tickLine={false}
               axisLine={false}
               tickMargin={6}
-              domain={[LOWER_LIMIT - 5, UPPER_LIMIT + 10]}
-              //domain={[50, 90]}
+              domain={[yMin, yMax]}
+              ticks={yTicks}
               tickFormatter={(value) => `${value}`}
             />
             <XAxis
-              dataKey="ts"
+              dataKey="tsLabel"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) =>
-                new Date(value).toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              }
             />
             <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent indicator="line" />}
             />
             <ReferenceLine
-              y={UPPER_LIMIT}
+              y={upperLimit}
               stroke="#ef4444"
               strokeDasharray="6 4"
               label={{
-                value: `Max ${UPPER_LIMIT} C`,
+                value: `Max ${upperLimit} C`,
                 position: "right",
                 fill: "#ef4444",
                 fontSize: 12,
               }}
             />
             <ReferenceLine
-              y={LOWER_LIMIT}
+              y={lowerLimit}
               stroke="#3b82f6"
               strokeDasharray="6 4"
               label={{
-                value: `Min ${LOWER_LIMIT} C`,
+                value: `Min ${lowerLimit} C`,
                 position: "right",
                 fill: "#3b82f6",
                 fontSize: 12,
@@ -371,7 +400,9 @@ export default function TemperatureMdpPage() {
   const [pendingSave, setPendingSave] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [savingLocationPointId, setSavingLocationPointId] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showAutoRefreshNotice, setShowAutoRefreshNotice] = useState(false);
   const [historyView, setHistoryView] = useState<"auto" | "card" | "table">(
     "auto",
   );
@@ -379,6 +410,7 @@ export default function TemperatureMdpPage() {
   const [mdpLoading, setMdpLoading] = useState(false);
   const [mdpError, setMdpError] = useState<string | null>(null);
   const [mdp2Id1Realtime, setMdp2Id1Realtime] = useState<number | null>(null);
+  const [mdp2Threshold, setMdp2Threshold] = useState<MdpThresholdRow | null>(null);
 
   const normalizedModalCause = modalCause.trim().toLowerCase();
   const selectedProblem = useMemo(
@@ -515,6 +547,52 @@ export default function TemperatureMdpPage() {
 
   useEffect(() => {
     if (mdpId !== 2) {
+      setMdp2Threshold(null);
+      return;
+    }
+    const controller = new AbortController();
+    const candidates = buildMdpApiCandidates("/api/mdp/master/thresholds");
+    fetchFirstOkJson(candidates, { cache: "no-store", signal: controller.signal })
+      .then((json: unknown) => {
+        const rows = Array.isArray((json as { data?: unknown[] })?.data)
+          ? ((json as { data: unknown[] }).data as MdpThresholdRow[])
+          : [];
+        const mdp2Rows = rows.filter((r) => Number(r.mdp_id) === 2);
+        const latest = mdp2Rows.sort((a, b) => Number(b.id || 0) - Number(a.id || 0))[0] ?? null;
+        setMdp2Threshold(latest);
+      })
+      .catch(() => {
+        setMdp2Threshold(null);
+      });
+    return () => controller.abort();
+  }, [mdpId, seed]);
+
+  const getLimitsForPoint = (point: number | string) => {
+    const pointId = Number(point);
+    const toNum = (v: unknown) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const lower =
+      pointId === 1
+        ? toNum(mdp2Threshold?.ThresholdLowerID1)
+        : pointId === 2
+          ? toNum(mdp2Threshold?.ThresholdLowerID2)
+          : toNum(mdp2Threshold?.ThresholdLowerID3);
+    const upper =
+      pointId === 1
+        ? toNum(mdp2Threshold?.ThresholdUpperID1)
+        : pointId === 2
+          ? toNum(mdp2Threshold?.ThresholdUpperID2)
+          : toNum(mdp2Threshold?.ThresholdUpperID3);
+    return {
+      lowerLimit: lower ?? DEFAULT_LOWER_LIMIT,
+      upperLimit: upper ?? DEFAULT_UPPER_LIMIT,
+    };
+  };
+
+  useEffect(() => {
+    if (mdpId !== 2) {
       setMdpHistoryRows([]);
       setMdpError(null);
       setMdpLoading(false);
@@ -604,7 +682,8 @@ export default function TemperatureMdpPage() {
         const state = toStateLabel(rawState);
         const rawCause = String(payload[`CauseID${point}`] ?? "").trim();
         const rawComment = String(payload[`CommentID${point}`] ?? "").trim();
-        const fallbackCause = inferCauseFromValue(value);
+        const { lowerLimit, upperLimit } = getLimitsForPoint(point);
+        const fallbackCause = inferCauseFromValue(value, lowerLimit, upperLimit);
         const cause = rawCause || fallbackCause;
         const comment = rawComment || inferActionFromCause(cause);
 
@@ -629,10 +708,21 @@ export default function TemperatureMdpPage() {
   const effectivePositions = mdp2Derived?.positions ?? positions;
 
   const data = useMemo(() => {
-    if (mdpId === 2 && mdp2Derived) return mdp2Derived.data;
-    void seed;
-    return buildData(positions);
+    if (mdpId === 2) return mdp2Derived?.data ?? [];
+    return [];
   }, [seed, positions, mdpId, mdp2Derived]);
+  const latestRowIdByPoint = useMemo(() => {
+    const map: Record<number, number | null> = {};
+    for (const series of data) {
+      const pointId = Number(series.label);
+      if (!Number.isInteger(pointId)) continue;
+      const lastRowId = series.rowIds?.[series.rowIds.length - 1];
+      map[pointId] = Number.isInteger(lastRowId as number)
+        ? Number(lastRowId)
+        : null;
+    }
+    return map;
+  }, [data]);
   useEffect(() => {
     if (activeIndex >= data.length) setActiveIndex(0);
   }, [activeIndex, data.length]);
@@ -690,11 +780,13 @@ export default function TemperatureMdpPage() {
             baseTime -
               (series.values.length - 1 - index) * intervalMinutes * 60_000,
           );
-      const fallbackCause = inferCauseFromValue(value);
+      const pointId = Number(series.label);
+      const { lowerLimit, upperLimit } = getLimitsForPoint(pointId);
+      const fallbackCause = inferCauseFromValue(value, lowerLimit, upperLimit);
       const cause = (series.causes?.[index] || fallbackCause).trim();
       const state =
         series.states?.[index] ||
-        (value > UPPER_LIMIT ? "High" : value < LOWER_LIMIT ? "Low" : "Normal");
+        (value > upperLimit ? "High" : value < lowerLimit ? "Low" : "Normal");
       const action = (series.comments?.[index] || inferActionFromCause(cause)).trim();
       return {
         point: series.label,
@@ -716,13 +808,64 @@ export default function TemperatureMdpPage() {
       return hour >= 22 || hour < 6;
     };
 
-    return entries
+    const filtered = entries
       .filter((e) => inShift(e.timestamp))
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    const hourGroups = new Map<
+      string,
+      {
+        rows: typeof filtered;
+        hourStart: Date;
+      }
+    >();
+
+    for (const row of filtered) {
+      const hourStart = new Date(row.timestamp);
+      hourStart.setMinutes(0, 0, 0);
+      const key = hourStart.toISOString();
+      const existing = hourGroups.get(key);
+      if (existing) {
+        existing.rows.push(row);
+      } else {
+        hourGroups.set(key, { rows: [row], hourStart });
+      }
+    }
+
+    const hourlyRows = Array.from(hourGroups.values()).map((group) => {
+      const rowsAsc = [...group.rows].sort(
+        (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+      );
+      const latest = rowsAsc[rowsAsc.length - 1];
+      const avg =
+        rowsAsc.reduce((acc, item) => acc + Number(item.value || 0), 0) /
+        Math.max(1, rowsAsc.length);
+      const hourlyValue = Number(avg.toFixed(1));
+      const pointId = Number(latest.historyId || latest.point || series.label || 1);
+      const { lowerLimit, upperLimit } = getLimitsForPoint(pointId);
+      const hourlyState =
+        hourlyValue > upperLimit
+          ? "High"
+          : hourlyValue < lowerLimit
+            ? "Low"
+            : "Normal";
+
+      return {
+        ...latest,
+        timestamp: group.hourStart,
+        value: hourlyValue,
+        state: hourlyState,
+      };
+    });
+
+    return hourlyRows.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }, [data, activeIndex, intervalMinutes, baseTime, shiftFilter]);
 
   const dailySummary = useMemo(() => {
-    const spikes = history.filter((h) => h.value > UPPER_LIMIT);
+    const spikes = history.filter((h) => {
+      const { upperLimit } = getLimitsForPoint(h.historyId || h.point || 1);
+      return h.value > upperLimit;
+    });
     const times = spikes
       .slice(0, 6)
       .map((h) =>
@@ -872,8 +1015,55 @@ export default function TemperatureMdpPage() {
     downloadCsv(`summary_${selectedDate}.csv`, rows);
   };
 
+  const saveLocationForPoint = async (pointId: number, label: string) => {
+    if (mdpId !== 2) return;
+    const rowId = latestRowIdByPoint[pointId];
+    if (!rowId) {
+      setMdpError(`Row ID untuk ID ${pointId} tidak ditemukan pada tanggal ini.`);
+      return;
+    }
+    try {
+      setSavingLocationPointId(pointId);
+      await fetchFirstOkJson(buildMdpApiCandidates("/api/mdp/history/location"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rowId,
+          mdpId,
+          historyId: pointId,
+          location: label,
+        }),
+      });
+      setSeed((v) => v + 1);
+      setLastSavedAt(new Date());
+    } catch (error) {
+      setMdpError((error as Error).message || "Failed to update location");
+    } finally {
+      setSavingLocationPointId(null);
+    }
+  };
+
+  useEffect(() => {
+    const triggerAutoRefresh = () => {
+      setIsRefreshing(true);
+      setShowAutoRefreshNotice(true);
+      setSeed((v) => v + 1);
+      setTimeout(() => setIsRefreshing(false), 450);
+      setTimeout(() => setShowAutoRefreshNotice(false), 2200);
+    };
+
+    // Initial trigger so popup is visible without waiting 60s.
+    const initial = setTimeout(triggerAutoRefresh, 800);
+    const timer = setInterval(triggerAutoRefresh, 60_000);
+
+    return () => {
+      clearTimeout(initial);
+      clearInterval(timer);
+    };
+  }, []);
+
   return (
-    <div className="p-3 sm:p-4">
+    <div className="p-3 sm:p-4" style={{ fontSize: "200%" }}>
       <div className="mb-3 rounded-md border bg-white p-2 sm:px-2 sm:py-1.5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-800">
@@ -886,10 +1076,8 @@ export default function TemperatureMdpPage() {
             }}
             className="h-9 min-w-[88px] rounded border bg-white px-2 py-1 text-xs font-normal text-gray-700"
           >
-            <option value={1}>MDP 1</option>
+            {/* Temporary: show MDP 2 only, because DB history currently available for MDP 2. */}
             <option value={2}>MDP 2</option>
-            <option value={3}>MDP 3</option>
-            <option value={4}>MDP 4</option>
           </select>
         </div>
         <div className="grid grid-cols-1 gap-2 text-xs sm:flex sm:flex-wrap sm:items-center">
@@ -915,28 +1103,8 @@ export default function TemperatureMdpPage() {
             <option value="s2">Shift 2 (14-22)</option>
             <option value="s3">Shift 3 (22-06)</option>
           </select>
-          <button
-            type="button"
-            onClick={() => {
-              if (isRefreshing) return;
-              setIsRefreshing(true);
-              setTimeout(() => {
-                setSeed((v) => v + 1);
-                setIsRefreshing(false);
-              }, 500);
-            }}
-            className="h-9 rounded border px-3 py-1 bg-gray-100 hover:bg-gray-200 disabled:opacity-60"
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
-                Loading...
-              </span>
-            ) : (
-              "Refresh Data"
-            )}
-          </button>
+          {/* Refresh button hidden temporarily.
+              Data is refreshed automatically every 60 seconds. */}
           <button
             type="button"
             onClick={() => setManageOpen(true)}
@@ -991,7 +1159,10 @@ export default function TemperatureMdpPage() {
                 {cardValue} C
               </div>
               <div className="mt-2 text-[11px] text-gray-500">
-                Range aman {LOWER_LIMIT} - {UPPER_LIMIT} C
+                {(() => {
+                  const limits = getLimitsForPoint(series.label);
+                  return `Range aman ${limits.lowerLimit} - ${limits.upperLimit} C`;
+                })()}
               </div>
             </button>
           );
@@ -999,18 +1170,14 @@ export default function TemperatureMdpPage() {
       </div>
 
       <div className={`transition-opacity ${isAnimating ? "opacity-70" : "opacity-100"}`}>
-        {isRefreshing ? (
-          <div className="rounded-xl border bg-white p-4 shadow-sm">
-            <div className="mb-3 h-3 w-48 animate-pulse rounded bg-gray-200" />
-            <div className="mb-4 h-2 w-72 animate-pulse rounded bg-gray-200" />
-            <div className="h-48 animate-pulse rounded bg-gray-100" />
-          </div>
-        ) : data[activeIndex] ? (
+        {data[activeIndex] ? (
           <TemperatureChart
             series={data[activeIndex]}
             baseTime={baseTime}
             intervalMinutes={intervalMinutes}
             shiftFilter={shiftFilter}
+            lowerLimit={getLimitsForPoint(data[activeIndex].label).lowerLimit}
+            upperLimit={getLimitsForPoint(data[activeIndex].label).upperLimit}
           />
         ) : (
           <div className="rounded-xl border bg-white p-4 text-xs text-gray-500">
@@ -1028,7 +1195,7 @@ export default function TemperatureMdpPage() {
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
             <span>Tanggal: {selectedDate}</span>
             <span>
-              Per {intervalMinutes === 60 ? "1 jam" : `${intervalMinutes} menit`}
+              Per jam
             </span>
             <span className="rounded border bg-gray-50 px-2 py-0.5 text-[10px] text-gray-700">
               Filter:{" "}
@@ -1085,14 +1252,7 @@ export default function TemperatureMdpPage() {
           </div>
         </div>
         <div className={`transition-opacity ${isAnimating ? "opacity-80" : "opacity-100"}`}>
-          {isRefreshing ? (
-            <div className="space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-6 animate-pulse rounded bg-gray-100" />
-              ))}
-            </div>
-          ) : (
-            <>
+          <>
             <div
               className={
                 historyView === "table"
@@ -1108,8 +1268,9 @@ export default function TemperatureMdpPage() {
                 const cause = override?.cause ?? row.cause;
                 const action = override?.action ?? row.action;
                 const state = row.state;
-                const isSpike = row.value > UPPER_LIMIT;
-                const isLow = row.value < LOWER_LIMIT;
+                const limits = getLimitsForPoint(row.historyId || row.point || 1);
+                const isSpike = row.value > limits.upperLimit;
+                const isLow = row.value < limits.lowerLimit;
                 const displayId = idx + 1;
                 return (
                   <div
@@ -1222,8 +1383,9 @@ export default function TemperatureMdpPage() {
                 const cause = override?.cause ?? row.cause;
                 const action = override?.action ?? row.action;
                 const state = row.state;
-                const isSpike = row.value > UPPER_LIMIT;
-                const isLow = row.value < LOWER_LIMIT;
+                const limits = getLimitsForPoint(row.historyId || row.point || 1);
+                const isSpike = row.value > limits.upperLimit;
+                const isLow = row.value < limits.lowerLimit;
                 const displayId = idx + 1;
                 return (
                   <tr
@@ -1310,19 +1472,10 @@ export default function TemperatureMdpPage() {
           </table>
           </div>
           </>
-          )}
         </div>
       </div>
 
         <div className={`rounded-xl border bg-white p-3 shadow-sm transition-opacity ${isAnimating ? "opacity-80" : "opacity-100"}`}>
-          {isRefreshing ? (
-            <div className="space-y-2">
-              <div className="h-3 w-32 animate-pulse rounded bg-gray-200" />
-              <div className="h-2 w-48 animate-pulse rounded bg-gray-200" />
-              <div className="h-2 w-64 animate-pulse rounded bg-gray-100" />
-              <div className="h-2 w-56 animate-pulse rounded bg-gray-100" />
-            </div>
-          ) : (
             <div>
               <div className="mb-2 text-xs font-semibold text-gray-800">
                 Daily Summary
@@ -1331,7 +1484,7 @@ export default function TemperatureMdpPage() {
                 Hari {selectedDate}
               </div>
               <div className="mb-3 text-[11px]">
-                Spike di atas {UPPER_LIMIT} C:{" "}
+                Spike di atas {getLimitsForPoint(data[activeIndex]?.label || 1).upperLimit} C:{" "}
                 <span className="font-semibold">{dailySummary.count} kali</span>
               </div>
               <div className="mb-4 text-[11px] text-gray-600">
@@ -1377,7 +1530,6 @@ export default function TemperatureMdpPage() {
                 </div>
               </div>
             </div>
-          )}
         </div>
       </div>
 
@@ -1665,6 +1817,14 @@ export default function TemperatureMdpPage() {
                   />
                   <button
                     type="button"
+                    onClick={() => saveLocationForPoint(p.id, p.label)}
+                    disabled={savingLocationPointId === p.id}
+                    className="rounded border px-2 py-1 text-[10px] text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingLocationPointId === p.id ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() =>
                       setPositions((prev) =>
                         prev.filter((item) => item.id !== p.id),
@@ -1699,6 +1859,20 @@ export default function TemperatureMdpPage() {
                 Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {showAutoRefreshNotice && (
+        <div className="fixed bottom-5 right-5 z-[70] rounded-xl border border-gray-200 bg-white/95 px-4 py-2 shadow-lg backdrop-blur">
+          <div className="flex items-center gap-2 text-xs text-gray-700">
+            {isRefreshing ? (
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            ) : (
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+            )}
+            {isRefreshing
+              ? "Memperbarui data grafik & card..."
+              : "Auto refresh: grafik & card diperbarui"}
           </div>
         </div>
       )}
