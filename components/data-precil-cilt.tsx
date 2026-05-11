@@ -266,9 +266,9 @@ export default function Dprecilt() {
                 <th className="px-6 py-4 font-semibold">Mold</th>
                 <th className="px-6 py-4 font-semibold">UAP</th>
                 <th className="px-6 py-4 font-semibold">Building</th>
-                <th className="px-6 py-4 font-semibold text-center">Shoot</th>
+                <th className="px-6 py-4 font-semibold text-center">Last Record Shoot</th>
                 <th className="px-6 py-4 font-semibold text-center">
-                  Status Mold
+                  Last Status Mold
                 </th>
                 {/* <th className="px-6 py-4 font-semibold">Machine Status</th>
                 <th className="px-6 py-4 font-semibold text-right">Action</th> */}
