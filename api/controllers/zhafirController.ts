@@ -1332,8 +1332,7 @@ export function getZhafirQueryTemplates(section?: string) {
   }
 }
 
-export async function getZhafirStdActByParaId(
-  paraId: string,
+export async function getZhafirStdActByMachine(
   section?: string,
   machineId?: string
 ) {
@@ -1369,7 +1368,7 @@ export async function getZhafirStdActByParaId(
     }
   }
 
-  const actualData = await getZhafirActualFromView(paraId, machineId)
+  const actualData = await getZhafirActualFromView(machineId)
   actual = (actualData?.values || {}) as Record<string, string | number | null>
   actualDate = actualData?.actualDate || actualDate
   const actualMeta = (actualData?.meta || {}) as {
@@ -1378,7 +1377,6 @@ export async function getZhafirStdActByParaId(
   }
 
   return {
-    paraId,
     section: section || 'all',
     stdDate,
     actualDate,
@@ -1638,7 +1636,6 @@ function pickMetaFromRow(row?: Record<string, any>) {
 }
 
 export async function getZhafirActualFromView(
-  paraId?: string,
   machineId?: string
 ) {
   const resolvedMachineId = (machineId || '').trim()
@@ -1687,7 +1684,6 @@ export async function getZhafirActualFromView(
   }
 
   return {
-    paraId: paraId || 'ZHF-STD-001',
     actualDate: new Date().toISOString(),
     meta,
     values: actual,
@@ -1695,7 +1691,6 @@ export async function getZhafirActualFromView(
 }
 
 export async function getZhafirActualFromViewByHour(
-  paraId: string | undefined,
   machineId: string,
   date: string,
   hour: number
@@ -1726,7 +1721,6 @@ export async function getZhafirActualFromViewByHour(
   meta.MchID = resolvedMachineId
 
   return {
-    paraId: paraId || 'ZHF-STD-001',
     actualDate: row?.created_at
       ? new Date(String(row.created_at)).toISOString()
       : new Date().toISOString(),
@@ -1801,7 +1795,6 @@ export async function getZhafirActiveMaterialByMachine(machineId: string) {
 export async function getZhafirActualByHourWindow(
   machineId: string,
   options?: {
-    paraId?: string
     endAt?: string
     date?: string
     hoursBack?: number
@@ -1968,7 +1961,6 @@ export async function getZhafirActualByHourWindow(
   })
 
   return {
-    paraId: options?.paraId || 'ZHF-STD-001',
     machineId: resolvedMachineId,
     date: options?.date || null,
     endAt: endDate.toISOString(),
@@ -2045,7 +2037,7 @@ export async function updateHardcodedActField(
   const payload: Record<string, unknown> = {
     [field]: parsedValue,
   }
-  const inserted = await insertZhafirActual('ZHF-STD-001', payload)
+  const inserted = await insertZhafirActual(payload)
   const saved =
     Array.isArray((inserted as any).savedColumns) &&
     (inserted as any).savedColumns.length > 0
@@ -2147,7 +2139,6 @@ export async function updateHardcodedBulk(
 }
 
 export async function upsertZhafirStd(
-  paraId: string,
   payload: Record<string, unknown>,
   section?: string,
   machineId?: string,
@@ -2171,7 +2162,6 @@ export async function upsertZhafirStd(
 
   return {
     message: `STD parameters ${saved.action === 'insert' ? 'inserted' : 'updated'}`,
-    paraId,
     section: section || 'all',
     machineId: machineId.trim(),
     savedColumns: saved.savedColumns,
@@ -2180,10 +2170,10 @@ export async function upsertZhafirStd(
 }
 
 export async function insertZhafirActual(
-  paraId: string,
   payload: Record<string, unknown>,
   section?: string
 ) {
+  const internalParaId = 'ZHF-STD-001'
   const columns = resolveColumns(section)
   const allowedPayloadRaw = normalizePayload(payload, columns)
   const allowedPayloadNoMeta = Object.fromEntries(
@@ -2200,7 +2190,6 @@ export async function insertZhafirActual(
   if (payloadKeys.length === 0) {
     return {
       message: 'ACT parameters skipped: no matching columns in ParaSetTRX',
-      paraId,
       section: section || 'all',
       savedColumns: [],
       skippedColumns: Object.keys(allowedPayloadNoMeta),
@@ -2220,10 +2209,9 @@ export async function insertZhafirActual(
     VALUES (${insertValues.join(', ')})
   `
 
-  await queryDatabase(sqlQuery, { ParaID: paraId, ...allowedPayload })
+  await queryDatabase(sqlQuery, { ParaID: internalParaId, ...allowedPayload })
   return {
     message: 'ACT parameters saved',
-    paraId,
     section: section || 'all',
     savedColumns: payloadKeys,
   }

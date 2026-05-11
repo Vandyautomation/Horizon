@@ -43,7 +43,7 @@ import {
   ZoomOut,
 } from 'lucide-react'
 import { Calendar } from '@/components/ui/calendar'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -204,6 +204,20 @@ type ZhafirStdActResponse = {
 type ZhafirActualViewResponse = {
   values?: Record<string, number | string | null>
 }
+type ZhafirSnapshotResponse = {
+  stdAct?: ZhafirStdActResponse | null
+  actualView?: ZhafirActualViewResponse | null
+  indicators?: Record<
+    string,
+    {
+      std: number | null
+      act: number | null
+      min: number | null
+      max: number | null
+      status: 'in_range' | 'too_low' | 'too_high' | 'unknown'
+    }
+  >
+}
 
 type ZhafirActualViewWindowHour = {
   hourStart?: string | null
@@ -231,13 +245,6 @@ type ZhafirActualViewWindowResponse = {
   hours?: ZhafirActualViewWindowHour[]
 }
 
-type ZhafirTemporaryAccessStatus = {
-  machineId: string
-  enabled: boolean
-  runtimeEnabled: boolean
-  note?: string
-}
-
 type ZhafirActiveMaterialResponse = {
   machineId: string
   materialId: string | null
@@ -258,7 +265,6 @@ const OTHER_SOLUTION_VALUE = '__other_solution__'
 const refreshRateList = ['5000', '15000', '30000', '60000']
 
 const shiftList = ['1', '2', '3']
-const ZHAFIR_PARA_ID = 'ZHF-STD-001'
 const ZHAFIR_UI_G_MACHINE_ALLOWLIST = new Set([
   '1',
   '2',
@@ -617,6 +623,12 @@ export default function CountboardDashboard() {
   const [zhafirTrendZoom, setZhafirTrendZoom] = useState(1)
   const [isLoadingZhafirTrend, setIsLoadingZhafirTrend] = useState(false)
   const [zhafirTrendError, setZhafirTrendError] = useState<string | null>(null)
+  const zhafirTrendOpenGuardRef = useRef<{ key: string; at: number } | null>(
+    null
+  )
+  const zhafirActiveMaterialCacheRef = useRef<
+    Map<string, { at: number; data: ZhafirActiveMaterialResponse | null }>
+  >(new Map())
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<
     string | undefined
@@ -659,6 +671,7 @@ export default function CountboardDashboard() {
 
   const pathname = usePathname()
   const router = useRouter()
+  const zhafirWorkingBaseRef = useRef<string | null>(null)
   const resolveZhafirCandidates = useCallback((endpoint: string) => {
     const trimmedBase = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
       /\/+$/,
@@ -668,56 +681,47 @@ export default function CountboardDashboard() {
       ? trimmedBase.slice(0, -4)
       : trimmedBase
     const unique = new Set<string>()
+    const cachedBase = zhafirWorkingBaseRef.current
+    if (cachedBase) unique.add(`${cachedBase}/api/zhafir-ze-3600/${endpoint}`)
     if (normalizedBase)
       unique.add(`${normalizedBase}/api/zhafir-ze-3600/${endpoint}`)
-    unique.add(`http://localhost:9999/api/zhafir-ze-3600/${endpoint}`)
-    unique.add(`http://127.0.0.1:9999/api/zhafir-ze-3600/${endpoint}`)
     unique.add(`/be/api/zhafir-ze-3600/${endpoint}`)
     unique.add(`/api/zhafir-ze-3600/${endpoint}`)
     return Array.from(unique)
   }, [])
+  const fetchFirstOkZhafirJson = useCallback(
+    async <T,>(endpoint: string) => {
+      const candidates = resolveZhafirCandidates(endpoint)
+      for (const url of candidates) {
+        try {
+          const res = await fetch(url, { cache: 'no-store' })
+          if (!res.ok) continue
+          const parsed = (await res.json()) as T
+          const match = url.match(/^(https?:\/\/[^/]+|\/be|\/api)/)
+          if (match?.[1]) {
+            const base = match[1]
+            if (base.startsWith('http')) {
+              zhafirWorkingBaseRef.current = base
+            }
+          }
+          return parsed
+        } catch {
+          // try next candidate
+        }
+      }
+      return null
+    },
+    [resolveZhafirCandidates]
+  )
   const fetchZhafirIndicatorStatuses = useCallback(
     async (machineName: string): Promise<ZhafirIndicatorMap> => {
-      const trimmedBase = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
-        /\/+$/,
-        ''
-      )
-      const normalizedBase = trimmedBase.endsWith('/api')
-        ? trimmedBase.slice(0, -4)
-        : trimmedBase
-      const baseQuery = `?paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}&machine_id=${encodeURIComponent(machineName)}`
-      const buildCandidates = (endpoint: '' | '/actual-view') => {
-        const candidates = new Set<string>()
-        const path = `/api/zhafir-ze-3600${endpoint}${baseQuery}`
-        if (normalizedBase) {
-          candidates.add(`${normalizedBase}${path}`)
-        }
-        candidates.add(`http://localhost:9999${path}`)
-        candidates.add(`http://127.0.0.1:9999${path}`)
-        candidates.add(`/be${path}`)
-        candidates.add(path)
-        return Array.from(candidates)
-      }
-
-      const fetchFirstOkJson = async <T,>(candidates: string[]) => {
-        for (const url of candidates) {
-          try {
-            const res = await fetch(url, { cache: 'no-store' })
-            if (!res.ok) continue
-            return (await res.json()) as T
-          } catch {
-            // try next candidate
-          }
-        }
-        return null
-      }
-
-      const stdData = await fetchFirstOkJson<ZhafirStdActResponse>(
-        buildCandidates('')
-      )
-      const actualData = await fetchFirstOkJson<ZhafirActualViewResponse>([
-        ...buildCandidates('/actual-view'),
-      ])
+      const q = `machine_id=${encodeURIComponent(machineName)}`
+      const snapshot =
+        await fetchFirstOkZhafirJson<ZhafirSnapshotResponse>(
+          `snapshot?${q}&compact=1`
+        )
+      const stdData = snapshot?.stdAct || null
+      const actualData = snapshot?.actualView || null
 
       const fallbackMap = Object.fromEntries(
         ZHAFIR_INDICATORS.map((item) => [
@@ -733,6 +737,22 @@ export default function CountboardDashboard() {
       ) as ZhafirIndicatorMap
 
       if (!stdData && !actualData) {
+        const compactIndicators = snapshot?.indicators
+        if (compactIndicators && Object.keys(compactIndicators).length > 0) {
+          const compactMap = { ...fallbackMap }
+          for (const indicator of ZHAFIR_INDICATORS) {
+            const row = compactIndicators[indicator.field]
+            if (!row) continue
+            compactMap[indicator.field] = {
+              status: row.status,
+              std: row.std,
+              act: row.act,
+              min: row.min,
+              max: row.max,
+            }
+          }
+          return compactMap
+        }
         return fallbackMap
       }
 
@@ -763,7 +783,7 @@ export default function CountboardDashboard() {
 
       return map
     },
-    []
+    [fetchFirstOkZhafirJson]
   )
   const openZhafirIndicatorTrend = useCallback(
     async (
@@ -774,15 +794,13 @@ export default function CountboardDashboard() {
     ) => {
       const machineName = selectedMachine?.machineName
       if (!machineName) return
-
-      const normalizedLocation = (
-        selectedMachine?.locationName || ''
-      ).trim().toLowerCase()
-      const normalizedMachineNo = String(
-        selectedMachine?.machineNumber || ''
-      ).trim()
-      const isG2ZhafirMachine =
-        normalizedLocation === 'inj bld g' && normalizedMachineNo === '2'
+      const now = Date.now()
+      const clickKey = `${machineName}:${indicator.field}:${hoursBackOverride ?? zhafirTrendHoursBack}:${dateOverride ?? ''}`
+      const guard = zhafirTrendOpenGuardRef.current
+      if (guard && guard.key === clickKey && now - guard.at < 500) {
+        return
+      }
+      zhafirTrendOpenGuardRef.current = { key: clickKey, at: now }
 
       const hoursBack = hoursBackOverride ?? zhafirTrendHoursBack
       const shouldInitZoom =
@@ -797,40 +815,26 @@ export default function CountboardDashboard() {
       setIsLoadingZhafirTrend(true)
       setZhafirTrendError(null)
 
-      if (!isG2ZhafirMachine) {
-        setZhafirTrendPoints([])
-        setZhafirTrendError('Data not found')
-        setIsLoadingZhafirTrend(false)
-        return
-      }
-
       try {
-        const materialCandidates = resolveZhafirCandidates(
-          `material-active?machine_id=${encodeURIComponent(machineName)}`
-        )
-        let activeMaterial: ZhafirActiveMaterialResponse | null = null
-        let materialError = ''
-        for (const url of materialCandidates) {
-          try {
-            const res = await fetch(url, { cache: 'no-store' })
-            if (!res.ok) {
-              const errJson = await res.json().catch(() => ({}))
-              materialError =
-                errJson?.error || `Failed material-active (${res.status})`
-              continue
-            }
-            activeMaterial = (await res.json()) as ZhafirActiveMaterialResponse
-            break
-          } catch {
-            // try next candidate
-          }
+        const ttlMs = 60_000
+        const cached = zhafirActiveMaterialCacheRef.current.get(machineName)
+        const activeMaterial =
+          cached && now - cached.at < ttlMs
+            ? cached.data
+            : await fetchFirstOkZhafirJson<ZhafirActiveMaterialResponse>(
+                `material-active?machine_id=${encodeURIComponent(machineName)}`
+              )
+        if (!cached || now - cached.at >= ttlMs) {
+          zhafirActiveMaterialCacheRef.current.set(machineName, {
+            at: Date.now(),
+            data: activeMaterial,
+          })
         }
         const materialIdParam = (activeMaterial?.materialId || '').trim()
         if (!materialIdParam) {
           setZhafirTrendPoints([])
           setZhafirTrendError(
-            materialError ||
-              'Material aktif tidak ditemukan dari source Zhafir untuk mesin ini'
+            'Material aktif tidak ditemukan dari source Zhafir untuk mesin ini'
           )
           return
         }
@@ -840,22 +844,13 @@ export default function CountboardDashboard() {
           (selectedDate instanceof Date
             ? format(selectedDate, 'yyyy-MM-dd')
             : null)
-        const trendQuery = `actual-view-window?machine_id=${encodeURIComponent(machineName)}&hoursBack=${hoursBack}&paraId=${encodeURIComponent(ZHAFIR_PARA_ID)}${
+        const trendQuery = `actual-view-window?machine_id=${encodeURIComponent(machineName)}&hoursBack=${hoursBack}&compact=1${
           dateParam ? `&date=${encodeURIComponent(dateParam)}` : ''
         }`
-        const candidates = resolveZhafirCandidates(trendQuery)
-
-        let data: ZhafirActualViewWindowResponse | null = null
-        for (const url of candidates) {
-          try {
-            const res = await fetch(url, { cache: 'no-store' })
-            if (!res.ok) continue
-            data = (await res.json()) as ZhafirActualViewWindowResponse
-            break
-          } catch {
-            // try next candidate
-          }
-        }
+        const data =
+          await fetchFirstOkZhafirJson<ZhafirActualViewWindowResponse>(
+            trendQuery
+          )
 
         if (!data || !Array.isArray(data.hours)) {
           setZhafirTrendPoints([])
@@ -925,93 +920,13 @@ export default function CountboardDashboard() {
       }
     },
     [
-      resolveZhafirCandidates,
+      fetchFirstOkZhafirJson,
       selectedDate,
-      selectedMachine?.locationName,
-      selectedMachine?.machineNumber,
       selectedMachine?.machineName,
       isZhafirTrendDialogOpen,
       selectedTrendIndicator?.field,
       zhafirTrendHoursBack,
     ]
-  )
-  const [isSavingZhafirAccess, setIsSavingZhafirAccess] = useState(false)
-  const fetchZhafirTemporaryAccessStatus = useCallback(
-    async (machineName: string): Promise<ZhafirTemporaryAccessStatus> => {
-      const candidates = resolveZhafirCandidates(
-        `temporary-access-status?machine_id=${encodeURIComponent(machineName)}`
-      )
-      for (const url of candidates) {
-        try {
-          const res = await fetch(url, { cache: 'no-store' })
-          if (!res.ok) continue
-          return (await res.json()) as ZhafirTemporaryAccessStatus
-        } catch {
-          // try next candidate
-        }
-      }
-      return {
-        machineId: machineName,
-        enabled: false,
-        runtimeEnabled: false,
-        note: 'unavailable',
-      }
-    },
-    [resolveZhafirCandidates]
-  )
-  const setZhafirTemporaryAccess = useCallback(
-    async (enabled: boolean) => {
-      const machineName = selectedMachine?.machineName
-      if (!machineName) {
-        toast.error('Pilih mesin terlebih dahulu')
-        return
-      }
-      const password = window.prompt(
-        `Masukkan password Zhafir untuk ${enabled ? 'ENABLE' : 'DISABLE'} machine ${machineName}`
-      )
-      if (!password) return
-
-      setIsSavingZhafirAccess(true)
-      try {
-        let success = false
-        let lastError = 'unknown'
-        const candidates = resolveZhafirCandidates('temporary-access')
-        for (const url of candidates) {
-          try {
-            const res = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                machine_id: machineName,
-                password,
-                enabled,
-              }),
-            })
-            const data = await res.json().catch(() => ({}))
-            if (!res.ok) {
-              lastError = data?.error || `${res.status} @ ${url}`
-              continue
-            }
-            success = true
-            break
-          } catch (error) {
-            lastError = (error as Error).message
-          }
-        }
-        if (!success) {
-          toast.error(`Gagal update akses Zhafir: ${lastError}`)
-          return
-        }
-        toast.success(
-          `Zhafir ${enabled ? 'enabled' : 'disabled'} untuk ${machineName}`
-        )
-        mutate(['zhafir-indicators', machineName])
-        mutate(['zhafir-access', machineName])
-      } finally {
-        setIsSavingZhafirAccess(false)
-      }
-    },
-    [resolveZhafirCandidates, selectedMachine?.machineName]
   )
 
   const { data: categoryRes } = useSWR(
@@ -2077,9 +1992,6 @@ export default function CountboardDashboard() {
   const zhafirIndicatorStatusKey = selectedMachine?.machineName
     ? (['zhafir-indicators', selectedMachine.machineName] as const)
     : null
-  const zhafirAccessStatusKey = selectedMachine?.machineName
-    ? (['zhafir-access', selectedMachine.machineName] as const)
-    : null
   const {
     data: zhafirIndicatorStatusMap,
     isLoading: isLoadingZhafirIndicators,
@@ -2090,20 +2002,11 @@ export default function CountboardDashboard() {
       ...swrRecoveryOptions,
       revalidateOnMount: true,
       revalidateOnFocus: false,
-      refreshInterval: Number(selectedRefreshRate),
+      refreshInterval: isZhafirTrendDialogOpen
+        ? 0
+        : Math.max(Number(selectedRefreshRate), 15000),
     }
   )
-  const { data: zhafirAccessStatus } = useSWR<ZhafirTemporaryAccessStatus>(
-    zhafirAccessStatusKey,
-    () => fetchZhafirTemporaryAccessStatus(selectedMachine?.machineName ?? ''),
-    {
-      ...swrRecoveryOptions,
-      revalidateOnMount: true,
-      revalidateOnFocus: false,
-      refreshInterval: Number(selectedRefreshRate),
-    }
-  )
-
   const currentPo =
     Array.isArray(taskData) && taskData.length > 0
       ? taskData[taskData.length - 1].po_name
@@ -2139,22 +2042,17 @@ export default function CountboardDashboard() {
       params.set('material', currentMaterial)
     }
     try {
-      const base = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
-        /\/+$/,
-        ''
+      const data = await fetchFirstOkZhafirJson<{ exists?: boolean }>(
+        `exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}&mode=param`
       )
-      const existsUrl = base
-        ? `${base}/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
-        : `/api/zhafir-ze-3600/exists?machine_id=${encodeURIComponent(selectedMachine.machineName)}`
-      const res = await fetch(existsUrl)
-      if (!res.ok) {
+      if (!data) {
         throw new Error('Failed to check parameter setting')
       }
-      const data = await res.json()
       if (!data?.exists) {
         toast.error('Belum ada setting parameter untuk mesin ini')
         return
       }
+      params.set('mode', 'param')
       router.push(`/zhafir-ze-3600?${params.toString()}`)
     } catch (error) {
       toast.error((error as Error).message || 'Gagal cek parameter')
@@ -2938,7 +2836,7 @@ export default function CountboardDashboard() {
 
     return polygons
   }
-console.log('ooeeData:', oeeData)
+
   return (
     <div className="p-0 space-y-2 w-full">
       <div className="flex gap-4 justify-between items-center">
@@ -3000,7 +2898,7 @@ console.log('ooeeData:', oeeData)
                   </SelectContent>
                 </Select>
               </div>
-            {/* )} */}
+            {/* // ) } */}
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -3109,39 +3007,8 @@ console.log('ooeeData:', oeeData)
                   <DialogTitle>Configuration Menu</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <div className="rounded-md border p-3">
-                    <div className="mb-2 text-sm font-semibold">
-                      Zhafir Temporary Access
-                    </div>
-                    <div className="mb-3 text-xs text-gray-600">
-                      Status:{' '}
-                      {zhafirAccessStatus?.enabled ? 'Enabled' : 'Disabled'}
-                      {zhafirAccessStatus?.runtimeEnabled
-                        ? ' (runtime override)'
-                        : ''}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        className="justify-start"
-                        disabled={
-                          !selectedMachine?.machineName || isSavingZhafirAccess
-                        }
-                        onClick={() => setZhafirTemporaryAccess(true)}
-                      >
-                        Enable Zhafir
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="justify-start"
-                        disabled={
-                          !selectedMachine?.machineName || isSavingZhafirAccess
-                        }
-                        onClick={() => setZhafirTemporaryAccess(false)}
-                      >
-                        Disable Zhafir
-                      </Button>
-                    </div>
+                  <div className="rounded-md border p-3 text-xs text-gray-600">
+                    Zhafir Temporary Access dinonaktifkan pada konfigurasi saat ini.
                   </div>
                   <Dialog>
                     <DialogTrigger asChild>

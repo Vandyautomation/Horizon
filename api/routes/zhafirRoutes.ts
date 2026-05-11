@@ -2,7 +2,7 @@ import { Hono, type Context } from 'hono';
 import {
   getZhafirQueryTemplates,
   getZhafirSections,
-  getZhafirStdActByParaId,
+  getZhafirStdActByMachine,
   getZhafirActualFromView,
   getZhafirActualFromViewByHour,
   getZhafirAvailableHours,
@@ -24,16 +24,56 @@ import {
   upsertZhafirSectionStyle,
   getSettingPamzhafir,
   createSettingPamzhafir,
-  deleteSettingPamzhafir,
+    deleteSettingPamzhafir,
   getActiveMachines,
   getcoois,
   updateSettingPamzhafir,
+  
 } from '../controllers/zhafirController';
 import { queryDatabase } from '../utils/queryDatabase';
 
 const zhafirRoutes = new Hono();
 const ZHAFIR_TEMP_PASSWORD = 'P168421TK1';
+const ZHAFIR_INDICATOR_ONLY_MODE = true;
 const zhafirTemporaryEnabledMachines = new Set<string>();
+const ZHAFIR_SNAPSHOT_FIELDS = [
+  'InjectScrewPosition',
+  'VPPositionText',
+  'InjPeakPressure',
+  'Thickness',
+  'VPTimeText',
+] as const;
+
+function indicatorOnlyDisabled(c: Context) {
+  return c.json(
+    { error: 'Temporarily disabled: indicator-only mode is active.' },
+    404,
+  );
+}
+
+function isParamModeRequest(c: Context) {
+  const mode = (c.req.query('mode') || '').trim().toLowerCase();
+  return mode === 'param';
+}
+
+function toFiniteNumber(value: unknown) {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function classifyStatus(
+  act: number | null,
+  min: number | null,
+  max: number | null,
+  std: number | null,
+) {
+  if (act === null) return 'unknown';
+  if (min !== null && act < min) return 'too_low';
+  if (max !== null && act > max) return 'too_high';
+  if (min === null && max === null && std !== null && act > std) return 'too_high';
+  return 'in_range';
+}
 
 async function isAllowedTemporaryMachine(machineId: string) {
   const resolvedMachineId = (machineId || '').trim();
@@ -46,16 +86,14 @@ async function isAllowedTemporaryMachine(machineId: string) {
       FROM IoT.dbo.MachineMST
       WHERE MchID = @MachineID
         AND Active = 1
+        AND MchProcess = 'INJECTION'
     `,
     { MachineID: resolvedMachineId },
   );
 
   const row = rows?.[0] as { locationName?: string | null; machineNumber?: string | number | null } | undefined;
   if (!row) return false;
-
-  const location = (row.locationName || '').trim().toLowerCase();
-  const machineNumber = String(row.machineNumber ?? '').trim();
-  return location === 'inj bld g' && machineNumber === '2';
+  return true;
 }
 
 async function ensureTemporaryMachineAccess(c: Context, machineId?: string) {
@@ -68,7 +106,7 @@ async function ensureTemporaryMachineAccess(c: Context, machineId?: string) {
     return c.json(
       {
         error:
-          'Temporary restriction: Zhafir endpoints are enabled only for INJ Bld G machine number 2.',
+          'Machine is not allowed. Ensure machine_id is active and process is INJECTION, or enable temporary access.',
       },
       403,
     );
@@ -77,6 +115,7 @@ async function ensureTemporaryMachineAccess(c: Context, machineId?: string) {
 }
 
 zhafirRoutes.get('/temporary-access-status', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const machineId = c.req.query('machine_id') || c.req.query('machineId');
     if (!machineId) {
@@ -95,6 +134,7 @@ zhafirRoutes.get('/temporary-access-status', async (c) => {
 });
 
 zhafirRoutes.post('/temporary-access', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const body = await c.req.json();
     const machineId = (body.machine_id || body.machineId) as string | undefined;
@@ -131,6 +171,7 @@ zhafirRoutes.post('/temporary-access', async (c) => {
 });
 
 zhafirRoutes.get('/sections', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const sections = getZhafirSections();
     return c.json({ data: sections });
@@ -140,6 +181,7 @@ zhafirRoutes.get('/sections', async (c) => {
 });
 
 zhafirRoutes.get('/templates', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const section = c.req.query('section');
     const templates = getZhafirQueryTemplates(section);
@@ -150,19 +192,16 @@ zhafirRoutes.get('/templates', async (c) => {
 });
 
 zhafirRoutes.get('/', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
-    const paraId = c.req.query('paraId');
     const section = c.req.query('section');
     const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
 
-    if (!paraId) {
-      return c.json({ error: 'paraId is required' }, 400);
-    }
     const denied = await ensureTemporaryMachineAccess(c, machineId);
     if (denied) return denied;
     const resolvedMachineId = String(machineId).trim();
 
-    const data = await getZhafirStdActByParaId(paraId, section, resolvedMachineId);
+    const data = await getZhafirStdActByMachine(section, resolvedMachineId);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
@@ -170,8 +209,8 @@ zhafirRoutes.get('/', async (c) => {
 });
 
 zhafirRoutes.get('/actual-view', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
-    const paraId = c.req.query('paraId') || undefined;
     const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
     const date = c.req.query('date') || undefined;
     const hourRaw = c.req.query('hour') || undefined;
@@ -183,17 +222,99 @@ zhafirRoutes.get('/actual-view', async (c) => {
       if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
         return c.json({ error: 'hour must be integer 0..23' }, 400);
       }
-      const data = await getZhafirActualFromViewByHour(paraId, resolvedMachineId, date, hour);
+      const data = await getZhafirActualFromViewByHour(resolvedMachineId, date, hour);
       return c.json(data);
     }
-    const data = await getZhafirActualFromView(paraId, resolvedMachineId);
+    const data = await getZhafirActualFromView(resolvedMachineId);
     return c.json(data);
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
   }
 });
 
+zhafirRoutes.get('/snapshot', async (c) => {
+  try {
+    const compact = (c.req.query('compact') || '').trim() === '1';
+    const section = c.req.query('section') || undefined;
+    const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
+    const date = c.req.query('date') || undefined;
+    const hourRaw = c.req.query('hour') || undefined;
+    const resolvedMachineId = String(machineId || '').trim();
+
+    if (!resolvedMachineId) {
+      return c.json({ error: 'machine_id (or machineId) is required' }, 400);
+    }
+
+    const enabled = await isAllowedTemporaryMachine(resolvedMachineId);
+    const access = {
+      machineId: resolvedMachineId,
+      enabled,
+      runtimeEnabled: zhafirTemporaryEnabledMachines.has(resolvedMachineId),
+      note: 'runtimeEnabled resets when backend restarts',
+    };
+
+    if (!enabled) {
+      return c.json({
+        access,
+        stdAct: null,
+        actualView: null,
+      });
+    }
+
+    const stdAct = await getZhafirStdActByMachine(section, resolvedMachineId);
+    let actualView;
+    if (date && hourRaw !== undefined) {
+      const hour = Number(hourRaw);
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+        return c.json({ error: 'hour must be integer 0..23' }, 400);
+      }
+      actualView = await getZhafirActualFromViewByHour(resolvedMachineId, date, hour);
+    } else {
+      actualView = await getZhafirActualFromView(resolvedMachineId);
+    }
+
+    const response = {
+      access,
+      stdAct,
+      actualView,
+    } as Record<string, unknown>;
+
+    if (compact) {
+      const indicators = Object.fromEntries(
+        ZHAFIR_SNAPSHOT_FIELDS.map((field) => {
+          const pair = (stdAct as any)?.values?.[field];
+          const range = (stdAct as any)?.ranges?.[field];
+          const mergedAct = (actualView as any)?.values?.[field] ?? pair?.act;
+
+          const std = toFiniteNumber(pair?.std);
+          const act = toFiniteNumber(mergedAct);
+          const min = toFiniteNumber(range?.min);
+          const max = toFiniteNumber(range?.max);
+          const status = classifyStatus(act, min, max, std);
+
+          return [
+            field,
+            {
+              std,
+              act,
+              min,
+              max,
+              status,
+            },
+          ];
+        })
+      );
+      response.indicators = indicators;
+    }
+
+    return c.json(response);
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 400);
+  }
+});
+
 zhafirRoutes.get('/actual-hours', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
     const date = c.req.query('date') || undefined;
@@ -225,7 +346,7 @@ zhafirRoutes.get('/material-active', async (c) => {
 
 zhafirRoutes.get('/actual-view-window', async (c) => {
   try {
-    const paraId = c.req.query('paraId') || undefined;
+    const compact = (c.req.query('compact') || '').trim() === '1';
     const machineId = c.req.query('machine_id') || c.req.query('machineId') || undefined;
     const endAt = c.req.query('endAt') || undefined;
     const date = c.req.query('date') || undefined;
@@ -250,12 +371,53 @@ zhafirRoutes.get('/actual-view-window', async (c) => {
     }
 
     const data = await getZhafirActualByHourWindow(resolvedMachineId, {
-      paraId,
       endAt,
       date,
       hoursBack,
     });
-    return c.json(data);
+    if (!compact) return c.json(data);
+
+    const compactHours = Array.isArray((data as any)?.hours)
+      ? (data as any).hours.map((hour: any) => {
+          const values = hour?.values || null;
+          const compactValues = values
+            ? Object.fromEntries(
+                ZHAFIR_SNAPSHOT_FIELDS.map((field) => [
+                  field,
+                  toFiniteNumber(values?.[field]),
+                ])
+              )
+            : null;
+          return {
+            hourStart: hour?.hourStart ?? null,
+            hourLabel: hour?.hourLabel ?? null,
+            actualDate: hour?.actualDate ?? null,
+            hasData: Boolean(hour?.hasData),
+            values: compactValues,
+          };
+        })
+      : [];
+
+    const compactRanges = Object.fromEntries(
+      ZHAFIR_SNAPSHOT_FIELDS.map((field) => {
+        const range = (data as any)?.ranges?.[field] || {};
+        return [
+          field,
+          {
+            min: toFiniteNumber(range?.min),
+            max: toFiniteNumber(range?.max),
+          },
+        ];
+      })
+    );
+
+    return c.json({
+      machineId: (data as any)?.machineId ?? resolvedMachineId,
+      endAt: (data as any)?.endAt ?? null,
+      hoursBack: (data as any)?.hoursBack ?? hoursBack,
+      ranges: compactRanges,
+      hours: compactHours,
+    });
   } catch (error) {
     return c.json({ error: (error as Error).message }, 400);
   }
@@ -274,6 +436,7 @@ zhafirRoutes.get('/exists', async (c) => {
 });
 
 zhafirRoutes.get('/material-context', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const po = c.req.query('po');
     if (!po) {
@@ -287,6 +450,7 @@ zhafirRoutes.get('/material-context', async (c) => {
 });
 
 zhafirRoutes.get('/material-context-by-material-id', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const materialId = c.req.query('material_id') || c.req.query('materialId');
     if (!materialId) {
@@ -300,6 +464,7 @@ zhafirRoutes.get('/material-context-by-material-id', async (c) => {
 });
 
 zhafirRoutes.get('/summary-range-config', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const uom = c.req.query('uom') || 'HAITIAN';
     const data = await getZhafirSummaryRangeConfig(uom);
@@ -310,6 +475,7 @@ zhafirRoutes.get('/summary-range-config', async (c) => {
 });
 
 zhafirRoutes.get('/section-styles', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const machineId = c.req.query('machine_id') || c.req.query('machineId');
     const denied = await ensureTemporaryMachineAccess(c, machineId);
@@ -321,6 +487,7 @@ zhafirRoutes.get('/section-styles', async (c) => {
   }
 });
 zhafirRoutes.get('/section-styles/', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const machineId = c.req.query('machine_id') || c.req.query('machineId');
     const denied = await ensureTemporaryMachineAccess(c, machineId);
@@ -332,51 +499,11 @@ zhafirRoutes.get('/section-styles/', async (c) => {
   }
 });
 
-zhafirRoutes.post('/section-styles', async (c) => {
-  try {
-    const body = await c.req.json();
-    const machineId = (body.machine_id || body.machineId) as string | undefined;
-    const sectionKey = (body.sectionKey || body.section_key) as string | undefined;
-    const headerBgColor = body.headerBgColor as string | undefined;
-    const actBgColor = body.actBgColor as string | undefined;
-
-    const denied = await ensureTemporaryMachineAccess(c, machineId);
-    if (denied) return denied;
-
-    const data = await upsertZhafirSectionStyle(
-      String(machineId).trim(),
-      sectionKey || '',
-      headerBgColor || '',
-      actBgColor || '',
-    );
-    return c.json(data);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 400);
-  }
-});
-zhafirRoutes.post('/section-styles/', async (c) => {
-  try {
-    const body = await c.req.json();
-    const machineId = (body.machine_id || body.machineId) as string | undefined;
-    const sectionKey = (body.sectionKey || body.section_key) as string | undefined;
-    const headerBgColor = body.headerBgColor as string | undefined;
-    const actBgColor = body.actBgColor as string | undefined;
-
-    const denied = await ensureTemporaryMachineAccess(c, machineId);
-    if (denied) return denied;
-
-    const data = await upsertZhafirSectionStyle(
-      String(machineId).trim(),
-      sectionKey || '',
-      headerBgColor || '',
-      actBgColor || '',
-    );
-    return c.json(data);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 400);
-  }
-});
+// Temporarily disabled (view-only mode):
+// zhafirRoutes.post('/section-styles', ...)
+// zhafirRoutes.post('/section-styles/', ...)
 zhafirRoutes.get('/material-type-routing', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const materialId = c.req.query('material_id') || c.req.query('materialId');
     if (!materialId) return c.json({ error: 'material_id is required' }, 400);
@@ -388,6 +515,7 @@ zhafirRoutes.get('/material-type-routing', async (c) => {
 });
 
 zhafirRoutes.post('/material-type-routing', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const body = await c.req.json();
     const machineId = (body.machine_id || body.machineId) as string | undefined;
@@ -409,6 +537,7 @@ zhafirRoutes.post('/material-type-routing', async (c) => {
 });
 
 zhafirRoutes.post('/material-type', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const body = await c.req.json();
     const machineId = (body.machine_id || body.machineId) as string | undefined;
@@ -427,138 +556,15 @@ zhafirRoutes.post('/material-type', async (c) => {
   }
 });
 
-zhafirRoutes.post('/std', async (c) => {
-  try {
-    const body = await c.req.json();
-    const paraId = body.paraId as string | undefined;
-    const section = body.section as string | undefined;
-    const machineId = (body.machine_id || body.machineId) as string | undefined;
-    const material = body.material as string | undefined;
-    const materialId = (body.material_id || body.materialId) as string | undefined;
-    const materialName = (body.material_name || body.materialName) as string | undefined;
-    const values = ((body.values ?? body) as Record<string, unknown>) || {};
+// Temporarily disabled (view-only mode):
+// zhafirRoutes.post('/std', ...)
+// zhafirRoutes.post('/actual', ...)
+// zhafirRoutes.post('/manual-actual', ...)
+// zhafirRoutes.post('/manual-std', ...)
+// zhafirRoutes.post('/manual-bulk', ...)
 
-    const denied = await ensureTemporaryMachineAccess(c, machineId);
-    if (denied) return denied;
-    const resolvedMachineId = String(machineId).trim();
-
-    if (!paraId) {
-      return c.json({ error: 'paraId is required' }, 400);
-    }
-
-    const data = await upsertZhafirStd(
-      paraId,
-      values,
-      section,
-      resolvedMachineId,
-      material,
-      materialId,
-      materialName,
-    );
-    return c.json(data);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 400);
-  }
-});
-
-zhafirRoutes.post('/actual', async (c) => {
-  try {
-    const body = await c.req.json();
-    const paraId = body.paraId as string | undefined;
-    const section = body.section as string | undefined;
-    const values = ((body.values ?? body) as Record<string, unknown>) || {};
-
-    if (!paraId) {
-      return c.json({ error: 'paraId is required' }, 400);
-    }
-
-    const data = await insertZhafirActual(paraId, values, section);
-    return c.json(data);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 400);
-  }
-});
-
-zhafirRoutes.post('/manual-actual', async (c) => {
-  try {
-    const body = await c.req.json();
-    const field = body.field as string | undefined;
-    const valueRaw = body.value as number | string | undefined;
-    const machineId = (body.machine_id || body.machineId) as string | undefined;
-
-    const denied = await ensureTemporaryMachineAccess(c, machineId);
-    if (denied) return denied;
-    const resolvedMachineId = String(machineId).trim();
-
-    if (!field) {
-      return c.json({ error: 'field is required' }, 400);
-    }
-
-    const data = await updateHardcodedActField(field, valueRaw as any, resolvedMachineId);
-    return c.json(data);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 400);
-  }
-});
-
-zhafirRoutes.post('/manual-std', async (c) => {
-  try {
-    const body = await c.req.json();
-    const field = body.field as string | undefined;
-    const valueRaw = body.value as number | string | undefined;
-    const machineId = (body.machine_id || body.machineId) as string | undefined;
-    const material = body.material as string | undefined;
-    const materialId = (body.material_id || body.materialId) as string | undefined;
-    const materialName = (body.material_name || body.materialName) as string | undefined;
-
-    const denied = await ensureTemporaryMachineAccess(c, machineId);
-    if (denied) return denied;
-    const resolvedMachineId = String(machineId).trim();
-
-    if (!field) {
-      return c.json({ error: 'field is required' }, 400);
-    }
-
-    const data = await updateHardcodedStdField(
-      field,
-      valueRaw as any,
-      resolvedMachineId,
-      material,
-      materialId,
-      materialName,
-    );
-    return c.json(data);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 400);
-  }
-});
-
-zhafirRoutes.post('/manual-bulk', async (c) => {
-  try {
-    const body = await c.req.json();
-    const std = (body.std || {}) as Record<string, number | string>;
-    const act = (body.act || {}) as Record<string, number | string>;
-    const machineId = (body.machine_id || body.machineId) as string | undefined;
-    const material = body.material as string | undefined;
-    const materialId = (body.material_id || body.materialId) as string | undefined;
-    const materialName = (body.material_name || body.materialName) as string | undefined;
-    const denied = await ensureTemporaryMachineAccess(c, machineId);
-    if (denied) return denied;
-    const resolvedMachineId = String(machineId).trim();
-
-    const data = await updateHardcodedBulk(
-      { std, act },
-      resolvedMachineId,
-      material,
-      materialId,
-      materialName,
-    );
-    return c.json(data);
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 400);
-  }
-});
 zhafirRoutes.get('/Pamzhafir', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const data = await getSettingPamzhafir()
     return c.json(data)
@@ -568,6 +574,7 @@ zhafirRoutes.get('/Pamzhafir', async (c) => {
   }
 })
 zhafirRoutes.post('/Pamzhafir', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const body = await c.req.json()
 
@@ -580,6 +587,7 @@ zhafirRoutes.post('/Pamzhafir', async (c) => {
   }
 })
 zhafirRoutes.delete('/Pamzhafir/:id', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const id = c.req.param('id') // ambil id dari url
     await deleteSettingPamzhafir(Number(id))
@@ -590,6 +598,7 @@ zhafirRoutes.delete('/Pamzhafir/:id', async (c) => {
   }
 })
 zhafirRoutes.get('/machines', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const keyword = c.req.query('q') || '';
     const machines = await getActiveMachines(keyword);
@@ -600,6 +609,7 @@ zhafirRoutes.get('/machines', async (c) => {
   }
 });
 zhafirRoutes.get('/coois', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const keyword = c.req.query('q') || '';
     const routing = await getcoois(keyword);
@@ -610,6 +620,7 @@ zhafirRoutes.get('/coois', async (c) => {
   }
 });
 zhafirRoutes.put('/Pamzhafir/:id', async (c) => {
+  if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
   try {
     const id = Number(c.req.param('id'));
     const body = await c.req.json();
