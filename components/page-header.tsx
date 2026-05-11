@@ -313,7 +313,8 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
 
           {currentPage === 'countboard' &&
             currentSubPage !== 'uv' &&
-            currentSubPage !== 'eskalasi' && (
+            currentSubPage !== 'eskalasi' &&
+            currentSubPage !== 'assembly' && (
               <>
                 <BreadcrumbItem>
                   {createBreadcrumbLink('', 'Home')}
@@ -329,6 +330,10 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   {createBreadcrumbLink('countboard/uv', 'Countboard UV')}
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink('countboard/assembly', 'Countboard Assembly')}
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
@@ -369,6 +374,10 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
                 <BreadcrumbItem>
                   {createBreadcrumbLink('countboard/uv', 'Countboard UV', true)}
                 </BreadcrumbItem>
+                 <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {createBreadcrumbLink('countboard/assembly', 'Countboard Assembly')}
+                </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   {createBreadcrumbLink(
@@ -400,6 +409,39 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
                 {createBreadcrumbLink('countboard/uv', 'Countboard UV')}
               </BreadcrumbItem>
               <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink(
+                  'countboard/eskalasi',
+                  'Countboard Eskalasi',
+                  true
+                )}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink(
+                  'countboard-breakdown',
+                  'Countboard Breakdown'
+                )}
+              </BreadcrumbItem>
+            </>
+          )}
+          {currentPage === 'countboard' && currentSubPage === 'assembly' && (
+            <>
+              <BreadcrumbItem>
+                {createBreadcrumbLink('', 'Home')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('countboard', 'Countboard Injection')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('countboard/uv', 'Countboard UV')}
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {createBreadcrumbLink('countboard/assembly', 'Countboard Assembly', true)}
+              </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {createBreadcrumbLink(
@@ -412,7 +454,6 @@ export default function PageHeader({ onMenuClick }: PageHeaderProps) {
                 {createBreadcrumbLink(
                   'countboard/eskalasi',
                   'Countboard Eskalasi',
-                  true
                 )}
               </BreadcrumbItem>
               <BreadcrumbSeparator />

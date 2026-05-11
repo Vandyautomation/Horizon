@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Bot, Calculator, Clock, Database, Lightbulb, SprayCan, Zap, Container, Eraser} from "lucide-react";
+import { Bot, Calculator, Clock, Database, Lightbulb, SprayCan, Zap, Container, Eraser, Package} from "lucide-react";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -67,6 +67,25 @@ export default function Welcome() {
                   >
                     <SprayCan />
                     Countboard UV
+                  </Label>
+                </CardContent>
+              </Card>
+            </a>
+          </Link>
+          <Link href="/countboard/assembly" passHref legacyBehavior>
+            <a className="w-full">
+              <Card className="flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer h-full">
+                <CardContent className="text-center pt-6">
+                  <Label
+                    style={{
+                      cursor: 'pointer',
+                      fontFamily: 'sans-serif',
+                      fontWeight: 'bold',
+                    }}
+                    className="flex items-center justify-center gap-4"
+                  >
+                    <Package />
+                    Countboard Assembly
                   </Label>
                 </CardContent>
               </Card>

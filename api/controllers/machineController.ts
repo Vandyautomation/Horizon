@@ -895,7 +895,129 @@ export async function getHourlyMachine(machine_id: string, date: string | null, 
       `;
       return await queryDatabase(sqlQuery, { machine_id });
     }
-  } else if( type === 'injection'){
+    
+  } 
+ else if (type === 'assembly') {
+    if (date && shift) { // History Mode
+        const sqlQuery = `
+        DECLARE @from DATETIME;
+        DECLARE @to DATETIME;
+
+        IF @shift = 1
+        BEGIN
+            SET @from = DATEADD(HOUR, 6, CAST(@date AS DATETIME)); 
+            SET @to = DATEADD(HOUR, 14, CAST(@date AS DATETIME));
+        END
+        ELSE IF @shift = 2
+        BEGIN
+            SET @from = DATEADD(HOUR, 14, CAST(@date AS DATETIME)); 
+            SET @to = DATEADD(HOUR, 22, CAST(@date AS DATETIME));
+        END
+        ELSE IF @shift = 3
+        BEGIN
+            SET @from = DATEADD(HOUR, 22, CAST(@date AS DATETIME)); 
+            SET @to = DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(@date AS DATETIME)));
+        END
+
+        SELECT TOP 8
+            h.id AS hourlyId,
+            h.from_datetime,
+            FORMAT(h.from_datetime, 'HH:mm') AS time,
+            FORMAT(h.to_datetime, 'HH:mm') AS to_hour_minute,
+            h.shift_id,
+            ISNULL(h.running_target_qty, 0) AS target,
+            ISNULL(h.target_qty, 0) AS target_final,
+            ISNULL(h.running_target_qty, 0) * (SELECT TOP 1 value FROM IoT.dbo.parameter_setting WHERE name = 'target_tolerance') AS target_tolerance,
+            ISNULL(h.running_actualOut_qty, 0) AS actual, -- Penyesuaian nama kolom
+            ISNULL(h.running_actualIn_qty, 0) AS actual_in,  -- Penyesuaian nama kolom
+            ISNULL(h.running_actualIn_qty, 0) - ISNULL(h.running_actualOut_qty, 0) AS gap,
+            h.task_id,
+            h.target_qty,
+            h.actual_qty,
+            h.hour_id,
+            h.machine_id,
+            h.cause AS causes,
+            h.note AS comments,
+            h.ooe,
+            h.scrap,
+        h.rework,
+            h.reject_a,
+            h.reject_b,
+            h.reject_c,
+            h.reject_d,
+            h.reject_e
+        FROM IoT.dbo.hourly_assy h 
+        WHERE h.machine_id = @machine_id
+        AND h.shift_id = @shift
+        AND h.from_datetime BETWEEN @from AND @to
+        ORDER BY h.from_datetime ASC;
+        `;
+        return await queryDatabase(sqlQuery, { machine_id, date, shift });
+    } else { // Live Mode
+        const sqlQuery = `
+        DECLARE @shift_id INT;
+        DECLARE @from DATETIME;
+        DECLARE @to DATETIME;
+
+        SET @shift_id = CASE 
+            WHEN DATEPART(HOUR, GETDATE()) BETWEEN 6 AND 13 THEN 1 
+            WHEN DATEPART(HOUR, GETDATE()) BETWEEN 14 AND 21 THEN 2 
+            ELSE 3 END
+
+        SET @from = CASE 
+            WHEN @shift_id = 1 THEN DATEADD(HOUR, 6, CAST(CAST(GETDATE() AS date) AS DATETIME))
+            WHEN @shift_id = 2 THEN DATEADD(HOUR, 14, CAST(CAST(GETDATE() AS date) AS DATETIME))
+            WHEN @shift_id = 3 THEN
+                CASE WHEN DATEPART(HOUR, GETDATE()) < 6 
+                THEN DATEADD(HOUR, 22, CAST(DATEADD(DAY, -1, CAST(GETDATE() AS date)) AS DATETIME))
+                ELSE DATEADD(HOUR, 22, CAST(CAST(GETDATE() AS date) AS DATETIME)) END
+            END
+
+        SET @to = CASE 
+            WHEN @shift_id = 1 THEN DATEADD(HOUR, 14, CAST(CAST(GETDATE() AS date) AS DATETIME))
+            WHEN @shift_id = 2 THEN DATEADD(HOUR, 22, CAST(CAST(GETDATE() AS date) AS DATETIME))
+            WHEN @shift_id = 3 THEN
+                CASE WHEN DATEPART(HOUR, GETDATE()) < 6 
+                THEN DATEADD(HOUR, 6, CAST(CAST(GETDATE() AS date) AS DATETIME))
+                ELSE DATEADD(HOUR, 6, DATEADD(DAY, 1, CAST(CAST(GETDATE() AS date) AS DATETIME))) END
+            END
+
+        SELECT TOP 8
+            h.id AS hourlyId,
+            h.from_datetime,
+            FORMAT(h.from_datetime, 'HH:mm') AS time,
+            FORMAT(h.to_datetime, 'HH:mm') AS to_hour_minute,
+            h.shift_id,
+            ISNULL(h.running_target_qty, 0) AS target,
+            ISNULL(h.target_qty, 0) AS target_final,
+            ISNULL(h.running_target_qty, 0) * (SELECT TOP 1 value FROM IoT.dbo.parameter_setting WHERE name = 'target_tolerance') AS target_tolerance,
+            ISNULL(h.running_actualOut_qty, 0) AS actual,
+            ISNULL(h.running_actualIn_qty, 0) AS actual_in,
+            ISNULL(h.running_actualIn_qty, 0) - ISNULL(h.running_actualOut_qty, 0) AS gap,
+            h.task_id,
+            h.target_qty,
+            h.actual_qty,
+            h.hour_id,
+            h.machine_id,
+            h.cause AS causes,
+            h.note AS comments,
+            h.scrap,
+        h.rework,
+            h.ooe,
+            h.reject_a,
+            h.reject_b,
+            h.reject_c,
+            h.reject_d,
+            h.reject_e
+        FROM IoT.dbo.hourly_assy h
+        WHERE h.machine_id = @machine_id
+        AND h.shift_id = @shift_id
+        AND h.from_datetime BETWEEN @from AND @to
+        ORDER BY h.from_datetime ASC;
+        `;
+        return await queryDatabase(sqlQuery, { machine_id });
+    }}
+    else if( type === 'injection'){
       if (date && shift) { // History Mode
       const sqlQuery = `
       DECLARE @from DATETIME;

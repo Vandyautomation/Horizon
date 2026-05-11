@@ -21,6 +21,8 @@ import {
   getLostTime,
   getLatestMachineStatus,
   getLeaderboard,
+  editScrapAssembly,
+  editReworkAssembly,
 } from '../controllers/countboardController'
 //import { addCoois, addRouting, attachPo, editProcess, editTopScrap, getCoois, getRejectLists, updateComment, updateCVT } from '../controllers/countboardController';
 
@@ -318,6 +320,29 @@ countboardRoutes.put('/rework', async (c) => {
     const { hourlyId, rework } = await c.req.json()
 
     await editRework(hourlyId, rework)
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
+//update scrap assembly
+countboardRoutes.put('/scrap-assy', async (c) => {
+  try {
+    const { hourlyId, scrap } = await c.req.json()
+
+    await editScrapAssembly(hourlyId, scrap)
+
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, 500)
+  }
+})
+//update rework assembly
+countboardRoutes.put('/rework-assy', async (c) => {
+  try {
+    const { hourlyId, rework } = await c.req.json()
+
+    await editReworkAssembly(hourlyId, rework)
     return c.json({ success: true })
   } catch (error) {
     return c.json({ error: (error as Error).message }, 500)

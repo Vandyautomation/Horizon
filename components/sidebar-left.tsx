@@ -1,6 +1,6 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,  SidebarHeader, SidebarMenu,  SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import {   Bot, Calculator,  Camera,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Container, Database, Eraser, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
+import {   Bot, Calculator,  Camera,  ChevronDown, ChevronRight,  Clock,  CommandIcon, Container, Database, Eraser, HomeIcon,  Lightbulb,  LogOut,  LucideIcon,  MessageSquareWarningIcon,    Package,    ScaleIcon,    SprayCan,  Ticket,  User, Zap } from "lucide-react";
 import {
     Collapsible,
     CollapsibleContent,
@@ -105,6 +105,12 @@ export default function SidebarLeft({
             url: 'countboard/uv/management',
           },
         ],
+      },
+      {
+        title: 'eCountboard assembly',
+        url: 'countboard/assembly',
+        icon: Package,
+        hidden: false,
       },
       {
         title: 'EMS',

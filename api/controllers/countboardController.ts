@@ -90,6 +90,63 @@ export async function editRework(hourlyId: number, rework: number) {
     throw new Error(`Failed to update rework: ${error.message}`)
   }
 }
+export async function editScrapAssembly(hourlyId: number, scrap: number) {
+  const sqlQuery = `
+    DECLARE @oldScrap INT;
+    DECLARE @deltaScrap INT;
+
+    SELECT @oldScrap = ISNULL(scrap, 0)
+    FROM IoT.dbo.hourly_assy
+    WHERE id = @hourlyId;
+
+    SET @deltaScrap = @scrap - @oldScrap;
+
+    UPDATE IoT.dbo.hourly_assy
+    SET
+      scrap = @scrap,
+      running_actualOut_qty = running_actualOut_qty - @deltaScrap
+    WHERE id = @hourlyId;
+  `
+
+  try {
+    return await queryDatabase(sqlQuery, {
+      hourlyId,
+      scrap,
+    })
+  } catch (error: any) {
+    console.error('Error updating scrap:', error)
+    throw new Error(`Failed to update scrap: ${error.message}`)
+  }
+}
+
+export async function editReworkAssembly(hourlyId: number, rework: number) {
+  const sqlQuery = `
+    DECLARE @oldRework INT;
+    DECLARE @deltaRework INT;
+
+    SELECT @oldRework = ISNULL(rework, 0)
+    FROM IoT.dbo.hourly_assy
+    WHERE id = @hourlyId;
+
+    SET @deltaRework = @rework - @oldRework;
+
+    UPDATE IoT.dbo.hourly_assy
+    SET
+      rework = @rework,
+      running_actualOut_qty = running_actualOut_qty - @deltaRework
+    WHERE id = @hourlyId;
+  `
+
+  try {
+    return await queryDatabase(sqlQuery, {
+      hourlyId,
+      rework,
+    })
+  } catch (error: any) {
+    console.error('Error updating rework:', error)
+    throw new Error(`Failed to update rework: ${error.message}`)
+  }
+}
 
 export async function addRouting(data: any[][]) {
   const validData = data.slice(1).filter((row) => {
