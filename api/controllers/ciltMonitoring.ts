@@ -2,34 +2,108 @@ import { queryDatabase } from '../utils/queryDatabase'
 
 export async function getCiltMonitoring() {
   const sqlQuery = `
-    SELECT 
-    m.MchId,
-    m.MchDesc AS machine_name,
-    m.MchLoc,
-    m.UAP,
-    t.task_id,
-    t.mold_id,
-    t.mold_name,
-    t.material_id,
-    t.material_name,
-    t.daily_shoot,
-    t.sum_dailyshoot,
-    t.statusCILT,
-    t.CILTLvl,
-    t.statuslight,
-    t.created_at,
-    t.note
-FROM [iot].[dbo].[DailymoldTRX] t
-INNER JOIN [iot].[dbo].[MachineMST] m ON t.machine_id = m.MchId
-WHERE CAST(t.created_at AS DATE) = CAST(GETDATE() AS DATE)
-ORDER BY t.created_at DESC;
+    WITH RankedData AS (
+       SELECT 
+           m.MchId,
+           m.MchDesc AS machine_name,
+           m.MchLoc,
+           m.UAP,
+           t.task_id,
+           t.mold_id,
+           t.mold_name,
+           t.material_id,
+           t.material_name,
+           t.daily_shoot,
+           t.sum_dailyshoot,
+           t.statusCILT,
+           t.CILTLvl,
+           t.statuslight,
+           t.created_at,
+           t.note,
+           ROW_NUMBER() OVER (PARTITION BY m.MchId ORDER BY m.MchId) as rn
+       FROM [iot].[dbo].[DailymoldTRX] t
+       INNER JOIN [iot].[dbo].[MachineMST] m ON t.machine_id = m.MchId
+       WHERE CAST(t.created_at AS DATE) = CAST(GETDATE() AS DATE)
+   )
+   SELECT 
+       MchId,
+       machine_name,
+       MchLoc,
+       UAP,
+       task_id,
+       mold_id,
+       mold_name,
+       material_id,
+       material_name,
+       daily_shoot,
+       sum_dailyshoot,
+       statusCILT,
+       CILTLvl,
+       statuslight,
+       created_at,
+       note
+   FROM RankedData
+   WHERE rn = 1 
+   ORDER BY created_at desc;
   `
   return await queryDatabase(sqlQuery)
 }
+// export async function getCiltMonitoring() {
+//   const sqlQuery = `
+//     SELECT 
+//     m.MchId,
+//     m.MchDesc AS machine_name,
+//     m.MchLoc,
+//     m.UAP,
+//     t.task_id,
+//     t.mold_id,
+//     t.mold_name,
+//     t.material_id,
+//     t.material_name,
+//     t.daily_shoot,
+//     t.sum_dailyshoot,
+//     t.statusCILT,
+//     t.CILTLvl,
+//     t.statuslight,
+//     t.created_at,
+//     t.note
+// FROM [iot].[dbo].[DailymoldTRX] t
+// INNER JOIN [iot].[dbo].[MachineMST] m ON t.machine_id = m.MchId
+// WHERE CAST(t.created_at AS DATE) = CAST(GETDATE() AS DATE)
+// ORDER BY m.MchId;
+//   `
+//   return await queryDatabase(sqlQuery)
+// }
+// export async function getCiltMonitoring() {
+//   const sqlQuery = `
+//     SELECT 
+//     m.MchId,
+//     m.MchDesc AS machine_name,
+//     m.MchLoc,
+//     m.UAP,
+//     t.task_id,
+//     t.mold_id,
+//     t.mold_name,
+//     t.material_id,
+//     t.material_name,
+//     t.daily_shoot,
+//     t.sum_dailyshoot,
+//     t.statusCILT,
+//     t.CILTLvl,
+//     t.statuslight,
+//     t.created_at,
+//     t.note
+// FROM [iot].[dbo].[DailymoldTRX] t
+// INNER JOIN [iot].[dbo].[MachineMST] m ON t.machine_id = m.MchId
+// WHERE CAST(t.created_at AS DATE) = CAST(GETDATE() AS DATE)
+// ORDER BY t.created_at DESC;
+//   `
+//   return await queryDatabase(sqlQuery)
+// }
 export async function getCiltTrx() {
   const sqlQuery = `
     SELECT 
-   m.MchId,
+    m.MchId,
     m.MchDesc AS machine_name,
     m.MchLoc,
     m.UAP,
