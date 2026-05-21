@@ -94,200 +94,14 @@ export async function deleteSettingPamzhafir(id: number) {
   return await queryDatabase(sqlQuery, { id })
 }
 const ZHAFIR_SECTIONS = {
-  inject: [
-    'Inject1Press',
-    'Inject1To',
-    'Inject1Velo',
-    'Inject2Press',
-    'Inject2To',
-    'Inject2Velo',
-    'Inject3Press',
-    'Inject3To',
-    'Inject3Velo',
-    'Inject4Press',
-    'Inject4Velo',
+  indicator_only: [
     'InjectScrewPosition',
-    'InjectTime',
-    'InjectionPressure',
+    'VPPositionText',
     'InjPeakPressure',
-    'InjectSEPosition',
-    'InjectS1Speed',
-    'InjectSBPosition',
-    'InjectSBSpeed',
-    'InjectSBPressure',
+    'Thickness',
+    'VPTimeText',
   ],
-  holding: [
-    'Hold1Press',
-    'Hold1To',
-    'Hold1Velo',
-    'Hold2Press',
-    'Hold2To',
-    'Hold2Velo',
-    'Hold3Press',
-    'Hold3To',
-    'Hold3Velo',
-  ],
-  charging: [
-    'Plasticise1To',
-    'Plasticise1Velo',
-    'Plasticise1Press',
-    'AfterPlasticisePress',
-    'AfterPlasticiseTime',
-    'AfterPlasticiseVelo',
-    'Plasticise1BackPress',
-    'Plasticise2To',
-    'Plasticise2Velo',
-    'Plasticise2Press',
-    'AfterPlasticisePosition',
-    'AfterPlasticiseSpeed',
-    'AfterPlasticiseBackPress',
-  ],
-  clamp_mold: [
-    'Close1Press',
-    'Close1To',
-    'Close1Velo',
-    'Close2Press',
-    'Close2To',
-    'Close2Velo',
-    'ProtectPress',
-    'ProtectTo',
-    'ProtectVelo',
-    'HiPressPress',
-    'HiPressVelo',
-    'MoldProtectionTime',
-    'Open1Press',
-    'Open1To',
-    'Open1Velo',
-    'Open2Press',
-    'Open2To',
-    'Open2Velo',
-    'Open3Press',
-    'Open3To',
-    'Open3Velo',
-    'Open4Press',
-    'Open4To',
-    'Open4Velo',
-    'Close0To',
-    'Close0Velo',
-    'CloseLPTo',
-    'CloseLPVelo',
-    'CloseHPTo',
-    'CloseHPVelo',
-    'CloseSETo',
-    'CloseSEVelo',
-    'OpenS5To',
-    'OpenS5Velo',
-    'OpenS4To',
-    'OpenS4Velo',
-  ],
-  temperature: [
-    'Nozzle',
-    'Barrel1',
-    'Barrel2',
-    'Barrel3',
-    'Barrel4',
-    'Barrel5',
-    'Barrel6',
-    'Temperature_Real_Zone1',
-    'Temperature_Real_Zone2',
-    'Temperature_Real_Zone3',
-    'Temperature_Real_Zone4',
-    'Temperature_Real_Zone5',
-    'Temperature_Real_Zone6',
-    'Temperature_Set_Zone1',
-    'Temperature_Set_Zone2',
-    'Temperature_Set_Zone3',
-    'Temperature_Set_Zone4',
-    'Temperature_Set_Zone5',
-    'Temperature_Set_Zone6',
-    'HopperReal',
-    'HopperSet',
-    'HopperMax',
-    'HopperMin',
-  ],
-  ejector_core: [
-    'EjectorMode',
-    'Forward1Press',
-    'Forward1To',
-    'Forward1Velo',
-    'Forward2Press',
-    'Forward2To',
-    'Forward2Velo',
-    'Backward1Press',
-    'Backward1To',
-    'Backward1Velo',
-    'Backward2Press',
-    'Backward2To',
-    'Backward2Velo',
-  ],
-  core_a: [
-    'Core_In_Mode_A',
-    'Core_Out_Mode_A',
-    'Core_In_Mold_Position_A',
-    'Core_Out_Mold_Position_A',
-    'Core_In_Delay_Time_A',
-    'Core_Out_Delay_Time_A',
-    'Core_In_Time_A',
-    'Core_Out_Time_A',
-    'CoreA_In_Pressure',
-    'CoreA_Out_Pressure',
-    'CoreA_In_Flow',
-    'CoreA_Out_Flow',
-  ],
-  core_b: [
-    'Core_In_Mode_B',
-    'Core_Out_Mode_B',
-    'Core_In_Mold_Position_B',
-    'Core_Out_Mold_Position_B',
-    'Core_In_Delay_Time_B',
-    'Core_Out_Delay_Time_B',
-    'Core_In_Time_B',
-    'Core_Out_Time_B',
-    'CoreB_In_Pressure',
-    'CoreB_Out_Pressure',
-    'CoreB_In_Flow',
-    'CoreB_Out_Flow',
-  ],
-  core_c: [
-    'Core_In_Mode_C',
-    'Core_Out_Mode_C',
-    'Core_In_Mold_Position_C',
-    'Core_Out_Mold_Position_C',
-    'Core_In_Delay_Time_C',
-    'Core_Out_Delay_Time_C',
-    'Core_In_Time_C',
-    'Core_Out_Time_C',
-    'CoreC_In_Pressure',
-    'CoreC_Out_Pressure',
-    'CoreC_In_Flow',
-    'CoreC_Out_Flow',
-  ],
-  core_d: [
-    'Core_In_Mode_D',
-    'Core_Out_Mode_D',
-    'Core_In_Mold_Position_D',
-    'Core_Out_Mold_Position_D',
-    'Core_In_Delay_Time_D',
-    'Core_Out_Delay_Time_D',
-    'Core_In_Time_D',
-    'Core_Out_Time_D',
-    'CoreD_In_Pressure',
-    'CoreD_Out_Pressure',
-    'CoreD_In_Flow',
-    'CoreD_Out_Flow',
-  ],
-  cushion_vp: ['Thickness', 'CycleTime', 'Tonase', 'CoolingTime', 'Cavity'],
-  air_blow: [
-    'AirBlowStart',
-    'AirBlowDelay',
-    'AirBlowTime',
-    'AirBlowCount',
-    'AirBlowStarPost',
-    'AirBlowMaleFemale',
-  ],
-  vp_text: ['VPPositionText', 'VPTimeText', 'VPPosnText', 'CarriageBwd_SE'],
-  berat_unit: Array.from({ length: 16 }, (_, i) => `BeratUnit${i + 1}`),
-  heater_control: Array.from({ length: 14 }, (_, i) => `HeaterControl${i + 1}`),
+  // Legacy sections intentionally disabled for ZE-3600 read-only indicator mode.
 } as const
 
 type ZhafirSectionKey = keyof typeof ZHAFIR_SECTIONS
@@ -301,11 +115,11 @@ const ZHAFIR_VALUE_FIELDS = ZHAFIR_ALL_COLUMNS.filter(
 )
 
 const STRING_VALUE_FIELDS = new Set([
-  'AirBlowStart',
+  // 'AirBlowStart', // not used by ZE-3600 indicator cards
   'VPPositionText',
   'VPTimeText',
-  'VPPosnText',
-  'AirBlowMaleFemale',
+  // 'VPPosnText', // legacy alias, not used by ZE-3600 indicator cards
+  // 'AirBlowMaleFemale', // not used by ZE-3600 indicator cards
 ])
 const RANGE_TRACKED_FIELDS = new Set([
   'InjectScrewPosition',
@@ -313,7 +127,7 @@ const RANGE_TRACKED_FIELDS = new Set([
   'VPTimeText',
   'VPPositionText',
   'Thickness',
-  'CarriageBwd_SE',
+  // 'CarriageBwd_SE', // not used by ZE-3600 indicator cards
 ])
 const SUMMARY_RANGE_PARAMETER_MAP: Record<
   string,
@@ -347,20 +161,12 @@ const MACHINE_TRX_TABLE = 'IoT.dbo.MachineParameterSettingTRX'
 const PARAMETER_SETTING_TABLE = 'IoT.dbo.parameter_setting'
 const ZHAFIR_STYLE_PARAMETER_ID = 16
 const ZHAFIR_STYLE_PARAMETER_NAME = 'colorParameter'
-const PARASET_TRX_TABLE = 'ParaSetTRX'
-let paraSetTrxColumnsCache: Set<string> | null = null
 const zhafirManualChangeAt = new Map<string, number>()
 
 function markZhafirManualChange(machineId?: string | null) {
   const key = (machineId || '').trim()
   if (!key) return
   zhafirManualChangeAt.set(key, Date.now())
-}
-
-function hasRecentManualChange(machineId: string, windowMs = 60 * 60 * 1000) {
-  const ts = zhafirManualChangeAt.get(machineId)
-  if (!ts) return false
-  return Date.now() - ts < windowMs
 }
 
 export async function getZhafirMaterialContext(poName: string) {
@@ -811,87 +617,6 @@ export async function getZhafirSectionStyles(machineId: string) {
   }
 }
 
-export async function upsertZhafirSectionStyle(
-  machineId: string,
-  sectionKey: string,
-  headerBgColor: string,
-  actBgColor: string
-) {
-  const resolvedMachineId = (machineId || '').trim()
-  const resolvedSectionKey = (sectionKey || '').trim()
-  const resolvedHeader = (headerBgColor || '').trim()
-  const resolvedAct = (actBgColor || '').trim()
-
-  if (!resolvedMachineId) {
-    throw new Error('machine_id is required')
-  }
-  if (!resolvedSectionKey) {
-    throw new Error('sectionKey is required')
-  }
-  if (!/^#[0-9a-fA-F]{6}$/.test(resolvedHeader)) {
-    throw new Error('headerBgColor must be hex format #RRGGBB')
-  }
-  if (!/^#[0-9a-fA-F]{6}$/.test(resolvedAct)) {
-    throw new Error('actBgColor must be hex format #RRGGBB')
-  }
-  const resolvedColorName = resolveColorNameFromHex(resolvedHeader)
-
-  const row = await getZhafirStyleParameterRow()
-  if (!row) {
-    throw new Error(
-      `parameter_setting row id=${ZHAFIR_STYLE_PARAMETER_ID} (${ZHAFIR_STYLE_PARAMETER_NAME}) not found`
-    )
-  }
-  const rowId = Number(row.id)
-  if (!Number.isFinite(rowId)) {
-    throw new Error('Invalid parameter_setting style row id')
-  }
-
-  await queryDatabase(
-    `
-      UPDATE ${PARAMETER_SETTING_TABLE}
-      SET uom = @Uom,
-          color = @Color,
-          hexacolor = @HexaColor
-      WHERE id = @Id
-    `,
-    {
-      Id: rowId,
-      Uom: resolvedMachineId,
-      Color: resolvedColorName,
-      HexaColor: resolvedHeader,
-    }
-  )
-
-  return {
-    machineId: resolvedMachineId,
-    sectionKey: resolvedSectionKey,
-    headerBgColor: resolvedHeader,
-    actBgColor: resolvedAct,
-    saved: true,
-    source: {
-      id: rowId,
-      name: ZHAFIR_STYLE_PARAMETER_NAME,
-    },
-  }
-}
-
-async function getParaSetTrxColumns() {
-  if (paraSetTrxColumnsCache) return paraSetTrxColumnsCache
-  const rows = await queryDatabase(
-    `
-    SELECT COLUMN_NAME
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = @TableName
-  `,
-    { TableName: PARASET_TRX_TABLE }
-  )
-  paraSetTrxColumnsCache = new Set(
-    (rows || []).map((r: any) => String(r.COLUMN_NAME || ''))
-  )
-  return paraSetTrxColumnsCache
-}
-
 function resolveColumns(section?: string): string[] {
   if (!section) return ZHAFIR_ALL_COLUMNS
   if (!(section in ZHAFIR_SECTIONS)) {
@@ -901,43 +626,6 @@ function resolveColumns(section?: string): string[] {
     ...ZHAFIR_SECTIONS[section as ZhafirSectionKey],
     ...ZHAFIR_META_FIELDS,
   ]
-}
-
-function normalizePayload(
-  payload: Record<string, unknown>,
-  allowedColumns: string[]
-) {
-  const result: Record<string, string | number | null> = {}
-
-  for (const key of allowedColumns) {
-    if (!(key in payload)) continue
-
-    const rawValue = payload[key]
-    if (rawValue === '' || rawValue === null) {
-      result[key] = null
-      continue
-    }
-
-    if (rawValue === undefined) continue
-
-    if ((ZHAFIR_META_FIELDS as readonly string[]).includes(key)) {
-      result[key] = String(rawValue)
-      continue
-    }
-
-    if (STRING_VALUE_FIELDS.has(key)) {
-      result[key] = String(rawValue)
-      continue
-    }
-
-    const asNumber = Number(rawValue)
-    if (Number.isNaN(asNumber)) {
-      throw new Error(`Field "${key}" must be numeric.`)
-    }
-    result[key] = asNumber
-  }
-
-  return result
 }
 
 function createStdActMap(
@@ -962,19 +650,6 @@ function createStdActMap(
   }
 
   return values
-}
-
-function isSupportedRangeKey(key: string) {
-  if (!key) return false
-  if (key.endsWith('_min')) {
-    const base = key.slice(0, -4)
-    return RANGE_TRACKED_FIELDS.has(base)
-  }
-  if (key.endsWith('_max')) {
-    const base = key.slice(0, -4)
-    return RANGE_TRACKED_FIELDS.has(base)
-  }
-  return false
 }
 
 function extractRangeValuesFromParamset(paramset: Record<string, unknown>) {
@@ -1007,42 +682,6 @@ function extractRangeValuesFromParamset(paramset: Record<string, unknown>) {
   })
 
   return ranges
-}
-
-function parseMaterialInput(
-  materialRaw?: string,
-  materialIdRaw?: string,
-  materialNameRaw?: string
-) {
-  const explicitMaterialId = (materialIdRaw || '').trim()
-  const explicitMaterialName = (materialNameRaw || '').trim()
-  if (explicitMaterialId || explicitMaterialName) {
-    return {
-      materialId: explicitMaterialId || null,
-      materialName: explicitMaterialName || null,
-    }
-  }
-
-  const source = (materialRaw || '').trim()
-  if (!source) {
-    return {
-      materialId: null as string | null,
-      materialName: null as string | null,
-    }
-  }
-
-  if (source.includes(' - ')) {
-    const [left, ...rest] = source.split(' - ')
-    return {
-      materialId: left?.trim() || null,
-      materialName: rest.join(' - ').trim() || null,
-    }
-  }
-
-  return {
-    materialId: source,
-    materialName: source,
-  }
 }
 
 function parseStdParamset(raw: unknown) {
@@ -1150,186 +789,11 @@ async function getLatestStdRowByMachine(machineId: string) {
   return undefined
 }
 
-async function getLatestStdRowByMachineAndMaterialId(
-  machineId: string,
-  materialId: string
-) {
-  const resolvedMachineId = (machineId || '').trim()
-  const resolvedMaterialId = (materialId || '').trim()
-  if (!resolvedMachineId || !resolvedMaterialId) {
-    return undefined
-  }
-
-  const machineColumns = ['machineId']
-  let lastError: string | null = null
-
-  for (const machineColumn of machineColumns) {
-    const latestSql = `
-      SELECT TOP 1 *
-      FROM ${MACHINE_STD_TABLE}
-      WHERE ${machineColumn} = @MachineID
-        AND LTRIM(RTRIM(CONVERT(NVARCHAR(255), material_Id))) = @MaterialID
-      ORDER BY created_at DESC, id DESC
-    `
-    try {
-      const latestRows = await queryDatabase(latestSql, {
-        MachineID: resolvedMachineId,
-        MaterialID: resolvedMaterialId,
-      })
-      if (Array.isArray(latestRows) && latestRows.length > 0) {
-        return latestRows[0] as Record<string, unknown>
-      }
-    } catch (error) {
-      lastError = (error as Error).message
-    }
-  }
-
-  if (lastError) {
-    throw new Error(lastError)
-  }
-  return undefined
-}
-
-async function upsertStdParamsetByMachine(
-  machineId: string,
-  stdPayload: Record<string, unknown>,
-  section?: string,
-  materialRaw?: string,
-  materialIdRaw?: string,
-  materialNameRaw?: string
-) {
-  const resolvedMachineId = (machineId || '').trim()
-  if (!resolvedMachineId) {
-    throw new Error('machine_id is required for STD save')
-  }
-
-  const columns = resolveColumns(section)
-  const dynamicRangeColumns = Object.keys(stdPayload || {}).filter((key) =>
-    isSupportedRangeKey(key)
-  )
-  const allowedPayload = normalizePayload(stdPayload, [
-    ...columns,
-    ...dynamicRangeColumns,
-  ])
-  const parsedMaterial = parseMaterialInput(
-    materialRaw,
-    materialIdRaw,
-    materialNameRaw
-  )
-  const latestMachineRow = await getLatestStdRowByMachine(resolvedMachineId)
-  const targetByCombination = parsedMaterial.materialId
-    ? await getLatestStdRowByMachineAndMaterialId(
-        resolvedMachineId,
-        parsedMaterial.materialId
-      )
-    : undefined
-  const targetRow = targetByCombination ?? latestMachineRow
-
-  const currentParamset = parseStdParamset(getRowValue(targetRow, ['paramset']))
-  const nextParamset = {
-    ...currentParamset,
-    ...allowedPayload,
-  }
-
-  const currentMaterialId = getRowValue(targetRow, [
-    'material_id',
-    'material_Id',
-  ])
-  const currentMaterialName = getRowValue(targetRow, [
-    'material_name',
-    'materialName',
-  ])
-  const currentCavity = getRowValue(targetRow, ['cavity'])
-  const materialId =
-    parsedMaterial.materialId ??
-    (currentMaterialId ? String(currentMaterialId) : null)
-  const materialName =
-    parsedMaterial.materialName ??
-    (currentMaterialName ? String(currentMaterialName) : null)
-  const cavity = nextParamset.Cavity ?? currentCavity ?? null
-
-  const shouldUseCombinationUpdate = Boolean(parsedMaterial.materialId)
-  const updateTargetRow = shouldUseCombinationUpdate
-    ? targetByCombination
-    : targetRow
-  const latestId = getRowValue(updateTargetRow, ['id'])
-  if (latestId !== undefined && latestId !== null) {
-    const updateSql = `
-      UPDATE ${MACHINE_STD_TABLE}
-      SET machineId = @MachineID,
-          material_Id = @MaterialID,
-          material_name = @MaterialName,
-          cavity = @Cavity,
-          paramset = @Paramset,
-          created_at = GETDATE()
-      WHERE id = @Id
-    `
-    await queryDatabase(updateSql, {
-      Id: latestId,
-      MachineID: resolvedMachineId,
-      MaterialID: materialId,
-      MaterialName: materialName,
-      Cavity: cavity,
-      Paramset: JSON.stringify(nextParamset),
-    })
-
-    return {
-      action: 'update' as const,
-      machineId: resolvedMachineId,
-      savedColumns: Object.keys(allowedPayload),
-      paramset: nextParamset,
-      id: latestId,
-    }
-  }
-
-  const insertSql = `
-    INSERT INTO ${MACHINE_STD_TABLE} (machineId, material_Id, material_name, cavity, paramset, created_at)
-    VALUES (@MachineID, @MaterialID, @MaterialName, @Cavity, @Paramset, GETDATE())
-  `
-  await queryDatabase(insertSql, {
-    MachineID: resolvedMachineId,
-    MaterialID: materialId,
-    MaterialName: materialName,
-    Cavity: cavity,
-    Paramset: JSON.stringify(nextParamset),
-  })
-
-  return {
-    action: 'insert' as const,
-    machineId: resolvedMachineId,
-    savedColumns: Object.keys(allowedPayload),
-    paramset: nextParamset,
-    id: null,
-  }
-}
-
 export function getZhafirSections() {
   return Object.entries(ZHAFIR_SECTIONS).map(([section, columns]) => ({
     section,
     columns,
   }))
-}
-
-export function getZhafirQueryTemplates(section?: string) {
-  const columns = resolveColumns(section)
-  const queryColumns = columns.join(', ')
-
-  return {
-    selectStd: `SELECT TOP 1 ParaID, ParaDate, ${queryColumns} FROM IoT.dbo.ParaSetMST WHERE ParaID = @ParaID ORDER BY ParaDate DESC;`,
-    selectActual: `SELECT TOP 1 ParaID, SettingDate, ${queryColumns} FROM IoT.dbo.ParaSetTRX WHERE ParaID = @ParaID ORDER BY SettingDate DESC;`,
-    upsertStd: [
-      'IF EXISTS (SELECT 1 FROM IoT.dbo.ParaSetMST WHERE ParaID = @ParaID)',
-      'BEGIN',
-      '  UPDATE IoT.dbo.ParaSetMST SET /* isi field */ ParaDate = GETDATE(), Active = 1 WHERE ParaID = @ParaID;',
-      'END',
-      'ELSE',
-      'BEGIN',
-      '  INSERT INTO IoT.dbo.ParaSetMST (ParaID, ParaDate, Active, /* field */)',
-      '  VALUES (@ParaID, GETDATE(), 1, /* value */);',
-      'END;',
-    ].join('\n'),
-    insertActual: `INSERT INTO IoT.dbo.ParaSetTRX (ParaID, SettingDate, Active, /* field */) VALUES (@ParaID, GETDATE(), 1, /* value */);`,
-  }
 }
 
 export async function getZhafirStdActByMachine(
@@ -1534,7 +998,7 @@ function mapSourceToUiFields(source?: Record<string, any>) {
   })
 
   Object.entries(ACT_VIEW_TO_FIELD_MAP).forEach(([viewKey, fieldKey]) => {
-    if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(fieldKey)) return
+    if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(fieldKey as any)) return
     const value = source[viewKey]
     if (value !== undefined && value !== null && value !== '') {
       mapped[fieldKey] = value
@@ -2010,209 +1474,4 @@ export async function checkZhafirParamsetExists(machineId: string) {
   }
 
   throw new Error(lastError || 'Failed to check machine id')
-}
-
-export async function updateHardcodedActField(
-  field: string,
-  value: number | string,
-  machineId?: string
-) {
-  if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(field)) {
-    throw new Error(`Field "${field}" is not supported for manual ACT update.`)
-  }
-
-  const parsedValue = STRING_VALUE_FIELDS.has(field)
-    ? String(value)
-    : Number(value)
-  if (!STRING_VALUE_FIELDS.has(field) && Number.isNaN(parsedValue)) {
-    throw new Error(`Field "${field}" must be numeric.`)
-  }
-
-  const resolvedMachineId = (machineId || '').trim()
-  if (!resolvedMachineId) {
-    throw new Error('machine_id is required for ACT save')
-  }
-  markZhafirManualChange(resolvedMachineId)
-
-  const payload: Record<string, unknown> = {
-    [field]: parsedValue,
-  }
-  const inserted = await insertZhafirActual(payload)
-  const saved =
-    Array.isArray((inserted as any).savedColumns) &&
-    (inserted as any).savedColumns.length > 0
-
-  return {
-    machineId: resolvedMachineId,
-    field,
-    value: parsedValue,
-    message: saved
-      ? 'ACT value saved to database'
-      : 'ACT field is not available in ParaSetTRX schema (skipped)',
-  }
-}
-
-export async function updateHardcodedStdField(
-  field: string,
-  value: number | string,
-  machineId?: string,
-  materialRaw?: string,
-  materialIdRaw?: string,
-  materialNameRaw?: string
-) {
-  if (!ALLOWED_HARD_CODED_ACT_FIELDS.has(field)) {
-    throw new Error(`Field "${field}" is not supported for manual STD update.`)
-  }
-
-  const parsedValue = STRING_VALUE_FIELDS.has(field)
-    ? String(value)
-    : Number(value)
-  if (!STRING_VALUE_FIELDS.has(field) && Number.isNaN(parsedValue)) {
-    throw new Error(`Field "${field}" must be numeric.`)
-  }
-
-  const resolvedMachineId = (machineId || '').trim()
-  if (!resolvedMachineId) {
-    throw new Error('machine_id is required for STD save')
-  }
-  markZhafirManualChange(resolvedMachineId)
-  const saved = await upsertStdParamsetByMachine(
-    resolvedMachineId,
-    { [field]: parsedValue },
-    undefined,
-    materialRaw,
-    materialIdRaw,
-    materialNameRaw
-  )
-  return {
-    machineId: resolvedMachineId,
-    field,
-    value: saved.paramset[field] ?? parsedValue,
-    message: `STD value ${saved.action === 'insert' ? 'inserted' : 'updated'} on MachineParameterSettingSTD`,
-  }
-}
-
-export async function updateHardcodedBulk(
-  payload: {
-    std?: Record<string, number | string>
-    act?: Record<string, number | string>
-  },
-  machineId?: string,
-  materialRaw?: string,
-  materialIdRaw?: string,
-  materialNameRaw?: string
-) {
-  const stdEntries = Object.entries(payload.std || {})
-  const actEntries = Object.entries(payload.act || {})
-
-  const resolvedMachineId = (machineId || '').trim()
-
-  if (stdEntries.length > 0) {
-    if (!resolvedMachineId) {
-      throw new Error('machine_id is required for STD save')
-    }
-    markZhafirManualChange(resolvedMachineId)
-    await upsertStdParamsetByMachine(
-      resolvedMachineId,
-      payload.std || {},
-      undefined,
-      materialRaw,
-      materialIdRaw,
-      materialNameRaw
-    )
-  }
-
-  for (const [field, valueRaw] of actEntries) {
-    const value = STRING_VALUE_FIELDS.has(field)
-      ? String(valueRaw)
-      : Number(valueRaw)
-    await updateHardcodedActField(field, value, machineId)
-  }
-
-  return {
-    machineId: resolvedMachineId || null,
-    stdSavedTo: resolvedMachineId ? 'MachineParameterSettingSTD' : 'none',
-    message: 'STD/ACT bulk updated',
-    updatedStdCount: stdEntries.length,
-    updatedActCount: actEntries.length,
-  }
-}
-
-export async function upsertZhafirStd(
-  payload: Record<string, unknown>,
-  section?: string,
-  machineId?: string,
-  materialRaw?: string,
-  materialIdRaw?: string,
-  materialNameRaw?: string
-) {
-  if (!machineId || !machineId.trim()) {
-    throw new Error('machine_id is required for STD save')
-  }
-  markZhafirManualChange(machineId.trim())
-
-  const saved = await upsertStdParamsetByMachine(
-    machineId.trim(),
-    payload,
-    section,
-    materialRaw,
-    materialIdRaw,
-    materialNameRaw
-  )
-
-  return {
-    message: `STD parameters ${saved.action === 'insert' ? 'inserted' : 'updated'}`,
-    section: section || 'all',
-    machineId: machineId.trim(),
-    savedColumns: saved.savedColumns,
-    stdTableAction: saved.action,
-  }
-}
-
-export async function insertZhafirActual(
-  payload: Record<string, unknown>,
-  section?: string
-) {
-  const internalParaId = 'ZHF-STD-001'
-  const columns = resolveColumns(section)
-  const allowedPayloadRaw = normalizePayload(payload, columns)
-  const allowedPayloadNoMeta = Object.fromEntries(
-    Object.entries(allowedPayloadRaw).filter(
-      ([key]) => !(ZHAFIR_META_FIELDS as readonly string[]).includes(key)
-    )
-  ) as Record<string, string | number | null>
-  const trxColumns = await getParaSetTrxColumns()
-  const allowedPayload = Object.fromEntries(
-    Object.entries(allowedPayloadNoMeta).filter(([key]) => trxColumns.has(key))
-  ) as Record<string, string | number | null>
-  const payloadKeys = Object.keys(allowedPayload)
-
-  if (payloadKeys.length === 0) {
-    return {
-      message: 'ACT parameters skipped: no matching columns in ParaSetTRX',
-      section: section || 'all',
-      savedColumns: [],
-      skippedColumns: Object.keys(allowedPayloadNoMeta),
-    }
-  }
-
-  const insertColumns = ['ParaID', 'SettingDate', 'Active', ...payloadKeys]
-  const insertValues = [
-    '@ParaID',
-    'GETDATE()',
-    '1',
-    ...payloadKeys.map((key) => `@${key}`),
-  ]
-
-  const sqlQuery = `
-    INSERT INTO IoT.dbo.ParaSetTRX (${insertColumns.join(', ')})
-    VALUES (${insertValues.join(', ')})
-  `
-
-  await queryDatabase(sqlQuery, { ParaID: internalParaId, ...allowedPayload })
-  return {
-    message: 'ACT parameters saved',
-    section: section || 'all',
-    savedColumns: payloadKeys,
-  }
 }

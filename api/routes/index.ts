@@ -17,7 +17,6 @@ import parameterSettingDataRouter from './parameterSettingDataRoutes';
 import problemMasterDataRouter from './problemMasterRoutes';
 import hrzRoutes from './hrzRoutes';
 import zhafirRoutes from './zhafirRoutes';
-import zhafirCountboardRoutes from './zhafirCountboardRoutes';
 import mdpRoutes from './mdpRoutes';
 import mqttCounterShootRoutes from './mqttCounterShootRoutes';
 
@@ -45,7 +44,6 @@ router.route('/routing-data', routingDataRouter);
 router.route('/parameter-setting', parameterSettingDataRouter);
 router.route('/problem-master', problemMasterDataRouter);
 router.route('/zhafir-ze-3600', zhafirRoutes);
-router.route('/zhafircountboard', zhafirCountboardRoutes);
 router.route('/mdp', mdpRoutes);
 router.route('/mqtt-counter-shoot', mqttCounterShootRoutes);
 

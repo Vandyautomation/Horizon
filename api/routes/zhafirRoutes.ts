@@ -1,6 +1,5 @@
 import { Hono, type Context } from 'hono';
 import {
-  getZhafirQueryTemplates,
   getZhafirSections,
   getZhafirStdActByMachine,
   getZhafirActualFromView,
@@ -16,12 +15,6 @@ import {
   getZhafirMaterialContextByMaterialId,
   updateLatestTrxMaterialByMachine,
   updateRoutingMaterialTypeByMaterialId,
-  insertZhafirActual,
-  updateHardcodedActField,
-  updateHardcodedBulk,
-  updateHardcodedStdField,
-  upsertZhafirStd,
-  upsertZhafirSectionStyle,
   getSettingPamzhafir,
   createSettingPamzhafir,
     deleteSettingPamzhafir,
@@ -182,13 +175,10 @@ zhafirRoutes.get('/sections', async (c) => {
 
 zhafirRoutes.get('/templates', async (c) => {
   if (ZHAFIR_INDICATOR_ONLY_MODE && !isParamModeRequest(c)) return indicatorOnlyDisabled(c);
-  try {
-    const section = c.req.query('section');
-    const templates = getZhafirQueryTemplates(section);
-    return c.json({ section: section || 'all', data: templates });
-  } catch (error) {
-    return c.json({ error: (error as Error).message }, 400);
-  }
+  return c.json(
+    { error: 'Temporarily disabled: legacy ParaSetMST/ParaSetTRX templates are not used.' },
+    404,
+  );
 });
 
 zhafirRoutes.get('/', async (c) => {
